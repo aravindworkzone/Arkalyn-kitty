@@ -14,6 +14,7 @@ const expenseSchema = new mongoose.Schema({
         ],
         validate: {
             validator: function (value) {
+                if (!value || value.length === 0) return true;
                 const totalSplit = value.reduce((sum, split) => sum + split.amount, 0);
                 return value.length > 0 && Math.abs(totalSplit - this.amount) < 0.01;
             },

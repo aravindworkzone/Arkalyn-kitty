@@ -1,20 +1,27 @@
-const Expense = require("../models/expense.model");
+const Expense = require("../model/expense.model");
+const mongoose = require("mongoose");
 exports.createExpense = async (req, res) => {
     try {
-        const groupId = req.body.groupId.trim() || null;
-        const category = req.body.category.trim() || null;
-        const title = req.body.title.trim() || null;
-        const amount = req.body.amount || null;
-        const splitBetween = req.body.splitBetween || [];
-        const paidBy = req.body.paidBy.trim() || null;
-        const paymentType = req.body.paymentType.trim() || null;
-        const date = req.body.date || null;
+        const groupId = typeof req.body.groupId === "string" ? req.body.groupId.trim() : null;
+        const category = typeof req.body.category === "string" ? req.body.category.trim() : null;
+        const title = typeof req.body.title === "string" ? req.body.title.trim() : null;
+        const amount = req.body.amount ?? null;
+        const splitBetween = Array.isArray(req.body.splitBetween) ? req.body.splitBetween : [];
+        const paidBy = typeof req.body.paidBy === "string" ? req.body.paidBy.trim() : null;
+        const paymentType = typeof req.body.paymentType === "string" ? req.body.paymentType.trim() : null;
+        const date = req.body.date ?? null;
 
         if (!groupId || !category || !title || !amount || !paidBy || !paymentType || !date) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
-        const ids = [groupId, category, paidBy, ...splitBetween.map(s => s.userId)];
+        const ids = [
+            groupId,
+            category,
+            paidBy,
+            ...splitBetween.map(s => s.userId)
+        ];
+
         const validObjectIds = ids.every(id => mongoose.Types.ObjectId.isValid(id));
         if (!validObjectIds) {
             return res.status(400).json({ message: "Invalid ID format" });
@@ -65,3 +72,24 @@ exports.createExpense = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
+exports.deleteExpense = async (req, res) => {
+    try {
+        const expenseId = req.params.id;
+
+        if (!mongoose.Types.ObjectId.isValid(expenseId)) {
+            return res.status(400).json({ message: "Invalid expense ID format" });
+        }
+
+        const expense = await Expense.findByIdAndDelete(expenseId);
+
+        if (!expense) {
+            return res.status(404).json({ message: "Expense not found" });
+        }
+
+        res.status(200).json({ message: "Expense deleted", expense });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting expense', error });
+        console.error('Error deleting expense:', error);
+    }
+}

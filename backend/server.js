@@ -4,6 +4,9 @@ const dotenv = require('dotenv');
 const cokkies = require('cookie-parser');
 const cors = require('cors');
 const AuthRouter = require('./router/auth.router');
+const ExpenseRouter = require('./router/expense.router');
+const CategoryRouter = require('./router/category.router');
+const GroupRouter = require('./router/group.router');
 
 const app = express();
 dotenv.config();
@@ -12,6 +15,9 @@ app.use(express.json());
 app.use(cokkies());
 app.use(cors());
 app.use('/api/auth', AuthRouter);
+app.use('/api/expense', ExpenseRouter);
+app.use('/api/category', CategoryRouter);
+app.use('/api/group', GroupRouter);
 
 
 app.get('/', (req, res) => {
