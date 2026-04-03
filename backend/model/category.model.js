@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const categorySchema = new mongoose.Schema({
     groupId: {type: mongoose.Schema.Types.ObjectId, ref: "group"},
-    name: { type: String, required: true, trim: true }
+    name: { type: String, required: true, trim: true, unique: true },
 }, {timestamps: true});
 
 categorySchema.pre("findOneAndDelete", async function() {    

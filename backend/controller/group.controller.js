@@ -4,10 +4,10 @@ const mongoose = require("mongoose");
 exports.createGroup = async (req, res) => {
     try {
         const name = req.body.name.trim();
-        const members = Array.isArray(req.body.members) ? req.body.members : [];
-        const admin = Array.isArray(req.body.admin) ? req.body.admin : [];
+        const members = req.body.members;
+        const superAdmin = typeof req.user._id === "string" ? req.user._id : null;
 
-        if (members.length === 0 || admin.length === 0 || !name) {
+        if ((!Array.isArray(members) || members.length === 0) || !superAdmin || !name) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
@@ -15,7 +15,7 @@ exports.createGroup = async (req, res) => {
             return res.status(400).json({ message: "Name must be between 3 and 100 characters" });
         }
 
-        const validMemberIds = members.filter(id => mongoose.Types.ObjectId.isValid(id));
+        const validMemberIds = members.filter(id => mongoose.Types.ObjectId.isValid(id.user));
         if (validMemberIds.length !== members.length) {
             return res.status(400).json({ message: "One or more member IDs are invalid" });
         }
@@ -23,26 +23,30 @@ exports.createGroup = async (req, res) => {
         const group = {
             name,
             members: validMemberIds
+        }; 
+
+        if (!mongoose.Types.ObjectId.isValid(superAdmin)) {
+            return res.status(400).json({ message: "invalid SuperAdmin" });
         }
-        const validAdminIds = admin.filter(id => mongoose.Types.ObjectId.isValid(id));
-        if (validAdminIds.length !== admin.length) {
-            return res.status(400).json({ message: "One or more admin IDs are invalid" });
-        }
-        group.admin = validAdminIds;
+        group.superAdmin = superAdmin;
 
         const groupSave = new Group(group);
         await groupSave.save();
 
         res.status(201).json({ message: "Group created", groupSave });
     } catch (error) {
-        res.status(500).json({ message: 'Error creating group', error });
+        res.status(500).json({ message: 'Error creating group', error: error.message });
         console.error('Error creating group:', error);
     }
 }
 
 exports.deleteGroup = async (req, res) => {
     try {
-        const groupId = req.params.id;
+        const groupId = req.body.id;
+
+        if (!groupId) {
+            return res.status(400).json({ message: "Group ID is required" });
+        }
 
         if (!mongoose.Types.ObjectId.isValid(groupId)) {
             return res.status(400).json({ message: "Invalid group ID format" });
@@ -84,8 +88,8 @@ exports.addGroupMember = async (req, res) => {
             return res.status(404).json({ message: "Group not found" });
         }
 
-        if (!group.members.includes(userId)) {
-            return res.status(400).json({ message: "User is not a member of this group" });
+        if (group.members.includes(userId)) {
+            return res.status(400).json({ message: "User is already a member of this group" });
         }
 
         const groupFind = await Group.findByIdAndUpdate(groupId, { $addToSet : { members: userId}}, { new: true });
@@ -156,8 +160,8 @@ exports.addGroupAdmin = async (req, res) => {
             return res.status(404).json({ message: "Group not found" });
         }
 
-        if (!group.admin.includes(userId)) {
-            return res.status(400).json({ message: "User is not an admin of this group" });
+        if (group.admin.includes(userId)) {
+            return res.status(400).json({ message: "User is already a admin of this group" });
         }
 
         const groupFind = await Group.findByIdAndUpdate(groupId, { $addToSet : { admin: userId}}, { new: true });
@@ -193,7 +197,7 @@ exports.removeGroupAdmin = async (req, res) => {
         }
 
         if (!group.admin.includes(userId)) {
-            return res.status(400).json({ message: "User is not an admin of this group" });
+            return res.status(400).json({ message: "User is not a admin of this group" });
         }
 
         const groupFind = await Group.findByIdAndUpdate(groupId, { $pull: { admin: userId }}, { new: true });

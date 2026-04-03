@@ -75,7 +75,7 @@ exports.createExpense = async (req, res) => {
 
 exports.deleteExpense = async (req, res) => {
     try {
-        const expenseId = req.params.id;
+        const expenseId = req.body.id;
 
         if (!mongoose.Types.ObjectId.isValid(expenseId)) {
             return res.status(400).json({ message: "Invalid expense ID format" });
