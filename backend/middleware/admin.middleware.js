@@ -2,7 +2,13 @@ const Group = require('../model/group.model');
 const mongoose = require("mongoose");
 const isAdmin = async (req, res, next) => {
     try {
-        const groupId = typeof req.body.groupId === "string" ? req.body.groupId.trim() : null;
+        let groupId;
+
+        if(req.body.groupId === undefined) {
+            groupId = typeof req.body.groupId === "string" ? req.body.groupId.trim() : null;
+        } else {
+            groupId = typeof req.params.groupId === "string" ? req.params.groupId.trim() : null;
+        }
 
         if (!groupId) {
             return res.status(400).json({ message: "Group ID is required" });

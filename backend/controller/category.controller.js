@@ -34,7 +34,7 @@ exports.createCategory = async (req, res) => {
 
 exports.deleteCategory = async (req, res) => {
     try {
-        const categoryId = req.body.id;
+        const categoryId = req.params.id;
 
         if (!mongoose.Types.ObjectId.isValid(categoryId)) {
             return res.status(400).json({ message: "Invalid category ID format" });

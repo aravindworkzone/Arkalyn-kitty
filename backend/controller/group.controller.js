@@ -42,7 +42,7 @@ exports.createGroup = async (req, res) => {
 
 exports.deleteGroup = async (req, res) => {
     try {
-        const groupId = req.body.id;
+        const groupId = req.params.id;
 
         if (!groupId) {
             return res.status(400).json({ message: "Group ID is required" });
