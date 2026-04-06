@@ -12,6 +12,7 @@ const authMiddleware = (req, res, next) => {
         next();
     } catch (error) {
         console.error('JWT verification error:', error);
+        res.clearCookie('AccessToken');
         res.status(401).json({ message: 'Unauthorized' });
     }
 }

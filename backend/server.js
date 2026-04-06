@@ -14,7 +14,10 @@ dotenv.config();
 connectDB();
 app.use(express.json());
 app.use(cokkies());
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL,
+  credentials: true,
+}));
 app.use('/api/auth', AuthRouter);
 app.use('/api/expense', ExpenseRouter);
 app.use('/api/category', CategoryRouter);
