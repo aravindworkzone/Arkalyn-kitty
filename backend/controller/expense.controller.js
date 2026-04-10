@@ -1,4 +1,5 @@
 const Expense = require("../model/expense.model");
+const Group = require("../model/group.model");
 const mongoose = require("mongoose");
 exports.createExpense = async (req, res) => {
     try {
@@ -13,6 +14,15 @@ exports.createExpense = async (req, res) => {
 
         if (!groupId || !category || !title || !amount || !paidBy || !paymentType || !date) {
             return res.status(400).json({ message: "All fields are required" });
+        }
+
+        const group = await Group.findById(groupId);
+        if (!group) {
+            return res.status(404).json({ message: "Group not found" });
+        }
+
+        if(group.balance < amount) {
+            return res.status(400).json({ message: "Amount cannot be greater than group balance" });
         }
 
         const ids = [
@@ -62,6 +72,17 @@ exports.createExpense = async (req, res) => {
         const expenseSave = new Expense(expense);
 
         await expenseSave.save();
+
+        await Group.findOneAndUpdate(
+            {
+                _id: groupId,
+                balance: { $gte: amount }
+            },
+            {
+                $inc: { balance: -amount }
+            },
+            { new: true }
+        );
 
         res.status(201).json({ message: "Expense created", expense });
 

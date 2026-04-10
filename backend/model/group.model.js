@@ -4,16 +4,16 @@ const Counter = require("./counter.model");
 const groupSchema = new mongoose.Schema({
     displayId: {type: String},
     name: {type: String, required: true},
+    groupType: {type: String, enum: ["POOL", "SPLIT"], default: "POOL"},
     members: [{
         _id: false,
         user: {type: mongoose.Schema.Types.ObjectId, ref: "user", required: true},
-        amount: {type: Number, default: 0}
+        contribution: {type: Number, default: 0},
+        role: {type: String, enum: ["SUPER_ADMIN", "ADMIN", "MEMBER"], default: "MEMBER"}
     }],
-    admin: [{type: mongoose.Schema.Types.ObjectId, ref: "user", required: true}],
-    superAdmin: {type: mongoose.Schema.Types.ObjectId, ref: "user", required: true},
+    balance: {type: Number, default: 0},
+    totalContribution: {type: Number, default: 0}
 }, {timestamps: true});
-
-groupSchema.index({ "members.user": 1, _id: 1 }, { unique: true });
 
 groupSchema.pre("findOneAndDelete", async function() {
     try {
