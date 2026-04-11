@@ -2,13 +2,8 @@ const Group = require('../model/group.model');
 const mongoose = require("mongoose");
 const isAdmin = async (req, res, next) => {
     try {
-        let groupId;
-
-        if(req.body.groupId === undefined) {
-            groupId = typeof req.body.groupId === "string" ? req.body.groupId.trim() : null;
-        } else {
-            groupId = typeof req.params.groupId === "string" ? req.params.groupId.trim() : null;
-        }
+        const rawId = req.body.groupId ?? req.params.groupId;
+        const groupId = typeof rawId === "string" ? rawId.trim() : null;
 
         if (!groupId) {
             return res.status(400).json({ message: "Group ID is required" });
@@ -24,13 +19,18 @@ const isAdmin = async (req, res, next) => {
             return res.status(404).json({ message: "Group not found" });
         }
 
-        if (!group.admin.includes(req.user._id) && group.superAdmin != req.user._id) {
-            return res.status(400).json({ message: "unauthorized" });
+        const admin = group.members.some(
+            m => (m.role === "SUPER_ADMIN" || m.role === "ADMIN") && m.user.equals(req.user._id)
+        );
+
+        if (!admin) {
+            return res.status(403).json({ message: "Unauthorized 3" });
         }
 
+        req.group = group;
         next();
     } catch (error) {
-        return res.status(500).json({ message: 'Internal server error', error: error.message });
+        return res.status(500).json({ message: "Internal server error", error: error.message });
     }
 }
 
