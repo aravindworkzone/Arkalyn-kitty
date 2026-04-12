@@ -398,3 +398,63 @@ exports.Settlement = async (req, res) => {
         await session.endSession();
     }
 }
+
+exports.userGroups = async (req, res) => {
+    try {
+        const userId = req.user._id;
+
+        const groups = await Group.find({
+            members: { $elemMatch: { user: userId } }
+        });
+
+        const formattedGroups = await Promise.all(
+            groups.map(async (group) => {
+
+                const members = await Promise.all(
+                    group.members.map(async (m) => {
+                        const user = await mongoose
+                            .model("user")
+                            .findById(m.user)
+                            .select("name");
+
+                        return {
+                            name: user ? user.name : "Unknown User"
+                        };
+                    })
+                );
+
+                const expenseCount = await mongoose
+                    .model("expense")
+                    .countDocuments({ groupId: group._id });
+
+                const CreatedOn = new Date(group.createdAt).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                });
+
+                return {
+                    _id: group.displayId,
+                    name: group.name,
+                    balance: group.balance,
+                    members: members,
+                    barLength: group.totalContribution > 0 ? Math.round((1 - (group.balance / group.totalContribution)) * 100) : 0,
+                    expenseCount,
+                    CreatedOn
+                };
+            })
+        );
+
+        res.status(200).json({
+            message: "User groups",
+            groups: formattedGroups
+        });
+
+    } catch (error) {
+        console.error("Error fetching user groups:", error);
+        res.status(500).json({
+            message: "Error fetching user groups",
+            error: error.message
+        });
+    }
+};

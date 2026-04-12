@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const expenseSchema = new mongoose.Schema({
     groupId: {type: mongoose.Schema.Types.ObjectId, ref: "group", required: true},
     category: {type: mongoose.Schema.Types.ObjectId, ref: "category", required: true},
-    title: {type: String, required: true},
+    title: {type: String, required: true, trim: true, minlength: 3, maxlength: 100},
     amount: {type: Number, required: true, min: [0.01, "Amount must be positive"]},
     splitBetween: {
         type: [

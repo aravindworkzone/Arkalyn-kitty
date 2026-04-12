@@ -9,5 +9,6 @@ router.post('/manageadmin', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN")
 router.post('/managemember', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN", "ADMIN"), groupController.manageMember);
 router.post('/addcontribution', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN", "ADMIN"), groupController.addContribution);
 router.post('/settlement', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN", "ADMIN"), groupController.Settlement);
+router.get('/usergroups', verifyToken, groupController.userGroups);
 
 module.exports = router;

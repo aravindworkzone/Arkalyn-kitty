@@ -1,14 +1,17 @@
-import { Navigate, Outlet } from "react-router-dom"
+import { Navigate, Outlet, useLocation } from "react-router-dom"
+import { useGetUserQuery } from "../redux/api/auth"
+
 const ProtectedRouter = () => {
+  const location = useLocation();
+  const { data, isLoading, isError } = useGetUserQuery();
 
-    const token = cookieStore.get('AccessToken');
-    const isAuthenticated = !!token;
+  if (isLoading) return <div>Verifying session...</div>;
 
-    if (!isAuthenticated) {
-        return <Navigate to="/login" replace />
-    }
+  if (isError || !data) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
 
-    return <Outlet/>
+  return <Outlet context={{ user: data?.user }} />;
 }
 
-export default ProtectedRouter
+export default ProtectedRouter;
