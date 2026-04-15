@@ -1,16 +1,30 @@
-const mongoose = require('mongoose');
+import mongoose, { Document, Schema } from 'mongoose';
 
-const groupEventSchema = new mongoose.Schema({
+interface IGroupEvent extends Document {
+    groupId: mongoose.Types.ObjectId;
+    performedBy: mongoose.Types.ObjectId;
+    eventType: string;
+    referenceId?: mongoose.Types.ObjectId;
+    referenceModel?: string;
+    amount?: number;
+    metadata?: Record<string, any>;
+    createdAt?: Date;
+    updatedAt?: Date;
+    isDeleted: Boolean;
+}
+
+const groupEventSchema = new Schema<IGroupEvent>({
     groupId: { type: mongoose.Schema.Types.ObjectId, ref: "group", required: true },
     performedBy: { type: mongoose.Schema.Types.ObjectId, ref: "user", required: true },
     eventType: { type: String, enum: ["MANAGE_MEMBER", "MANAGE_CATEGORY", "CHANGE_ROLE", "CREATE_GROUP", "CREDIT", "DEBIT", "REFUND"], required: true },
     referenceId: { type: mongoose.Schema.Types.ObjectId, default: null },
     referenceModel: { type: String, enum: ["expense", "group","category"], default: null },
     amount: { type: Number , default: null },
-    metadata: { type: mongoose.Schema.Types.Mixed, default: {} }
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    isDeleted: { type: Boolean, default: false }
 }, { timestamps: true });
 
 groupEventSchema.index({ groupId: 1, createdAt: -1 });
 groupEventSchema.index({ groupId: 1, eventType: 1 });
 
-module.exports = mongoose.model("group_event", groupEventSchema);
+export default mongoose.model<IGroupEvent>("group_event", groupEventSchema);
