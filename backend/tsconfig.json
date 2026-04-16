@@ -5,9 +5,10 @@
     "esModuleInterop": true,
     "strict": true,
     "allowJs": true,
-    "outDir": "./dist",
-    "rootDir": "./",
-    "types": ["node"]
+    "outDir": "dist",
+    "rootDir": "",
+    "types": ["node"],
+    "typeRoots": ["./node_modules/@types", "./src/types"]
   },
   "scripts": {
     "dev": "ts-node main.ts",

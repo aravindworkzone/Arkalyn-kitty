@@ -1,5 +1,5 @@
-const Group = require('../model/group.model');
-const GroupEvent = require('../model/group_event.model');
+const Group = require('../Model/group.model');
+const GroupEvent = require('../Model/group_event.model');
 const mongoose = require("mongoose");
 
 exports.createGroup = async (req, res) => {

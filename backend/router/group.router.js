@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const groupController = require('../controller/group.controller');
-const {verifyToken, authorizeRole, loadGroup} = require('../middleware/auth.middleware');
+const groupController = require('../Controller/group.controller');
+const {verifyToken, authorizeRole, loadGroup} = require('../Middleware/auth.middleware');
 
 router.post('/create', verifyToken, groupController.createGroup);
 router.delete('/delete/:groupId', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN"), groupController.deleteGroup);

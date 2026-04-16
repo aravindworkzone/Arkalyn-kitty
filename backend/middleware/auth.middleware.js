@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const Group = require('../model/group.model');
+const Group = require('../Model/group.model');
 const mongoose = require("mongoose");
 
 const verifyToken = (req, res, next) => {

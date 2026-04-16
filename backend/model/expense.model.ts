@@ -1,0 +1,58 @@
+import mongoose, { Document, Schema} from "mongoose";
+
+interface IExpense extends Document {
+    groupId: mongoose.Types.ObjectId;
+    category: mongoose.Types.ObjectId;
+    title: string;
+    amount: number;
+    splitBetween: {
+        userId: mongoose.Types.ObjectId;
+        amount: number;
+    }[];
+    paidBy: mongoose.Types.ObjectId;
+    paymentType: "cash" | "card" | "upi" | "netbanking";
+    isDeleted: boolean;
+    date: Date;
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+
+const expenseSchema = new Schema<IExpense>({
+    groupId: {type: mongoose.Schema.Types.ObjectId, ref: "Group", required: true},
+    category: {type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true},
+    title: {type: String, required: true, trim: true, minlength: 3, maxlength: 100},
+    amount: {type: Number, required: true, min: 1},
+    splitBetween: {
+        type: [
+            {
+                userId: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true},
+                amount: {type: Number, required: true, min: 1}
+            }
+        ]
+    },
+    paidBy: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true},
+    paymentType: {type: String, enum: ["cash", "card", "upi", "netbanking"], required: true},
+    date: {type: Date, required: true, default: Date.now},
+    isDeleted: {type: Boolean, default: false}
+}, {timestamps: true});
+
+expenseSchema.path("splitBetween").validate(function (value: any[]) {
+    if (!value || value.length === 0) return true;
+
+    const totalSplit = value.reduce(
+        (sum, split) => sum + split.amount,
+        0
+    );
+
+    const userIds = value.map(v => v.userId?.toString());
+    if (userIds.includes(undefined)) return false;
+
+    const uniqueUserIds = new Set(userIds);
+
+    return (
+        Math.abs(totalSplit - this.amount) === 0 &&
+        userIds.length === uniqueUserIds.size
+    );
+}, "Enter valid split amounts");
+
+export default mongoose.model<IExpense>("Expense", expenseSchema);

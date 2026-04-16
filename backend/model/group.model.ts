@@ -17,26 +17,20 @@ const groupSchema = new Schema<IGroup>({
     displayId: {type: String},
     name: {type: String, required: true , trim: true, minlength: 3, maxlength: 100},
     groupType: {type: String, enum: ["POOL", "SPLIT"], default: "POOL"},
-    // members: [{
-    //     _id: false,
-    //     user: {type: mongoose.Schema.Types.ObjectId, ref: "user", required: true},
-    //     contribution: {type: Number, default: 0},
-    //     role: {type: String, enum: ["SUPER_ADMIN", "ADMIN", "MEMBER"], default: "MEMBER"},
-    //     settlement: {type: Boolean, default: false}
-    // }],
     balance: {type: Number, default: 0},
     totalContribution: {type: Number, default: 0},
     status: {type: String, enum: ["ACTIVE", "INACTIVE"], default: "ACTIVE"},
-    createdBy: {type: mongoose.Schema.Types.ObjectId, ref: "user", required: true}
+    createdBy: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true}
 }, {timestamps: true});
 
 groupSchema.pre("findOneAndDelete", async function() {
     try {
         const groupId = this.getQuery()["_id"];
         if(!groupId) return;
-        await mongoose.model("expense").updateMany({ groupId }, { $set: { isDeleted: true } });
-        await mongoose.model("category").updateMany({ groupId }, { $set: { isDeleted: true } });
-        await mongoose.model("group_event").updateMany({ groupId }, { $set: { isDeleted: true } });
+        await mongoose.model("Expense").updateMany({ groupId }, { $set: { isDeleted: true } });
+        await mongoose.model("Category").updateMany({ groupId }, { $set: { isDeleted: true } });
+        await mongoose.model("GroupEvent").updateMany({ groupId }, { $set: { isDeleted: true } });
+        await mongoose.model("GroupTransaction").updateMany({ groupId }, { $set: { isDeleted: true } });
     } catch (error) {
         if(error instanceof Error) throw new Error(error.message);
         throw new Error("An unknown error occurred");

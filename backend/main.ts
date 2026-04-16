@@ -3,11 +3,11 @@ import connectDB from './DB/connection';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import AuthRouter from './router/auth.router';
-import ExpenseRouter from './router/expense.router';
-import CategoryRouter from './router/category.router';
-import GroupRouter from './router/group.router';
-import ReportRouter from './router/report.router';
+import AuthRouter from './Router/auth.router';
+import ExpenseRouter from './Router/expense.router';
+import CategoryRouter from './Router/category.router';
+import GroupRouter from './Router/group.router';
+import ReportRouter from './Router/report.router';
 dotenv.config();
 
 const app : Application = express();

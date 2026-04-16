@@ -1,6 +1,6 @@
-const Category = require('../model/category.model');
+const Category = require('../Model/category.model');
 const mongoose = require("mongoose");
-const GroupEvent = require('../model/group_event.model');
+const GroupEvent = require('../Model/group_event.model');
 
 exports.createCategory = async (req, res) => {
     const groupData = req.group;

@@ -1,6 +1,6 @@
-const Expense = require("../model/expense.model");
-const Group = require("../model/group.model");
-const GroupEvent = require("../model/group_event.model");
+const Expense = require("../Model/expense.model");
+const Group = require("../Model/group.model");
+const GroupEvent = require("../Model/group_event.model");
 const mongoose = require("mongoose");
 exports.createExpense = async (req, res) => {
     const groupData = req.group;
