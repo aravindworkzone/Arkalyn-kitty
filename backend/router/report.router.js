@@ -1,10 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const reportController = require('../controller/report.controller');
-const auth = require('../middleware/auth.middleware');
-const isAdmin = require('../middleware/admin.middleware');
-const isSuperAdmin = require('../middleware/superadmin.middleware');
+const reportController = require('../Controller/report.controller');
+const {verifyToken, loadGroup} = require('../Middleware/auth.middleware');
 
-router.get('/:groupId/:startDate/:endDate',auth, isAdmin, reportController.getReport);
+router.get('/:groupId/:startDate/:endDate',verifyToken, loadGroup, reportController.getReport);
 
 module.exports = router;

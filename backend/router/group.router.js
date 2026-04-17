@@ -1,12 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const groupController = require('../controller/group.controller');
-const auth = require('../middleware/auth.middleware');
-const isSuperAdmin = require('../middleware/superadmin.middleware');
+const groupController = require('../Controller/group.controller');
+const {verifyToken, authorizeRole, loadGroup} = require('../Middleware/auth.middleware');
 
-router.post('/create', auth, groupController.createGroup);
-router.delete('/delete', auth, isSuperAdmin, groupController.deleteGroup);
-router.post('/addadmin', auth, isSuperAdmin, groupController.addGroupAdmin);
-router.post('/removeadmin', auth, isSuperAdmin, groupController.removeGroupAdmin);
+router.post('/create', verifyToken, groupController.createGroup);
+router.delete('/delete/:groupId', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN"), groupController.deleteGroup);
+router.post('/manageadmin', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN"), groupController.manageAdmin);
+router.post('/managemember', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN", "ADMIN"), groupController.manageMember);
+router.post('/addcontribution', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN", "ADMIN"), groupController.addContribution);
+router.post('/settlement', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN", "ADMIN"), groupController.Settlement);
+router.get('/usergroups', verifyToken, groupController.userGroups);
 
 module.exports = router;

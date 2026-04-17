@@ -7,25 +7,28 @@ export const auth = api.injectEndpoints({
                 url: '/auth/signup',
                 method: 'POST',
                 body: credentials
-            }),
-            invalidatesTags: ['Auth']
+            })
         }),
         signIn: builder.mutation({
             query: (credentials) => ({
                 url: '/auth/signin',
                 method: 'POST',
                 body: credentials
-            }),
-            invalidatesTags: ['Auth']
+            })
         }),
         signOut: builder.mutation({
             query: () => ({
                 url: '/auth/signout',
                 method: 'POST'
             }),
-            providesTags: ['Auth']
+            invalidatesTags: ['Auth']
+        }),
+        getUser: builder.query({
+            query: () => '/auth/user',
+            providesTags: ['Auth'],
+            keepUnusedDataFor: 300,
         })
     })
 });
 
-export const { useSignUpMutation, useSignInMutation, useSignOutMutation } = auth;
+export const { useSignUpMutation, useSignInMutation, useSignOutMutation, useGetUserQuery } = auth;

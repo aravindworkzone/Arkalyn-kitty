@@ -1,10 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const categoryController = require('../controller/category.controller');
-const auth = require('../middleware/auth.middleware');
-const isAdmin = require('../middleware/admin.middleware');
+const categoryController = require('../Controller/category.controller');
+const {verifyToken, authorizeRole, loadGroup} = require('../Middleware/auth.middleware');
 
-router.post('/create', auth, isAdmin, categoryController.createCategory);
-router.delete('/delete', auth, isAdmin, categoryController.deleteCategory);
+router.post('/create', verifyToken, loadGroup,authorizeRole("SUPER_ADMIN", "ADMIN"), categoryController.createCategory);
+router.delete('/delete/:id', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN", "ADMIN"), categoryController.deleteCategory);
 
 module.exports = router;
