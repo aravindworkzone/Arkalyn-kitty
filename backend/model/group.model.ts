@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from "mongoose";
 import Counter from "./counter.model";
 
-interface IGroup extends Document {
+export interface IGroup extends Document {
     displayId: string;
     name: string;
     groupType: "POOL" | "SPLIT";

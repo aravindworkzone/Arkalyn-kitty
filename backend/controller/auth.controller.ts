@@ -1,12 +1,12 @@
 import { SignUpService, SignInService } from '../Service/auth.service';
 import { Request, Response } from 'express';
-
+import { IUser } from '../Model/user.model';
 
 export const SignUp = async (req: Request, res: Response) => {
     try {
         const result = await SignUpService(req.body);
 
-        return res.status(201).json({ message: 'User created successfully', user: result });
+        return res.status(201).json({ message: 'User created successfully', user: result.name });
     } catch (error: any) {
         return res.status(error.statusCode).json({ message: error.message });
     }
