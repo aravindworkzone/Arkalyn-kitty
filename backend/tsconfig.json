@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "strict": true,
+    "allowJs": true,
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "files": [
+    "Types/express.d.ts"
+  ],
+  "include": [
+    "**/*.ts"
+, "Controller/expense.controller.js"  ]
+}

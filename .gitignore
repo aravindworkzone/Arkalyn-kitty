@@ -1,0 +1,34 @@
+# Virtual environment
+venv/
+.env
+.env.*
+
+# =========================
+# React / Vite / Node
+# =========================
+node_modules/
+dist/
+build/
+.vite/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# OS / Editor
+# =========================
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# IntelliJ / PyCharm
+.idea/
+
+# =========================
+# Git
+# =========================
+*.orig
