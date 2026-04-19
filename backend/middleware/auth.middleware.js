@@ -1,6 +1,7 @@
-const jwt = require('jsonwebtoken');
-const Group = require('../Model/group.model');
-const mongoose = require("mongoose");
+import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+import Group from "../Model/group.model";
+import Member from "../Model/group_member.model"
 
 const verifyToken = (req, res, next) => {
     const token = req.cookies.AccessToken;
@@ -29,15 +30,25 @@ const loadGroup = async (req, res, next) => {
     next();
 };
 
-const authorizeRole = (...roles) => (req, res, next) => {
-    const hasRole = req.group.members.some(
-        m => roles.includes(m.role) && m.user.equals(req.user._id)
-    );
-    if (!hasRole) return res.status(403).json({ message: "Forbidden" });
+const authorizeRole = (...roles) => async (req, res, next) => {
+    const member = await Member.findOne({
+        groupId: req.group._id,
+        userId: req.user._id
+    });
+
+    console.log(member);
+    
+    if (!member) {
+        return res.status(403).json({ message: "Not a group member" });
+    }
+
+    if (!roles.includes(member.role)) {
+        return res.status(403).json({ message: "Forbidden" });
+    }
     next();
 };
 
-module.exports = {
+export {
     verifyToken,
     loadGroup,
     authorizeRole

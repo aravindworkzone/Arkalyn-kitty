@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import Expense from "../Model/expense.model";
 import Group from "../Model/group.model";
-import GroupEvent from "../Model/group_event.model";
+import GroupTransaction from "../Model/group_transaction.model";
 import { AppError } from "../Utils/AppError";
 import User from "../Model/user.model";
 
@@ -23,12 +23,11 @@ interface ExpenseData {
     }[];
 }
 
-
 export const createExpenseService = async (data: ExpenseData) => {
     const groupData = data.group;
     const category = data.category.trim();
     const title = data.title.trim();
-    const amount = data.amount ?? null;
+    const amount = Math.round((data.amount ?? 0) * 100) ?? null;
     const splitBetween = Array.isArray(data.splitBetween) ? data.splitBetween : [];
     const paidBy = data.paidBy.trim();
     const paymentType = data.paymentType.trim();
@@ -84,7 +83,7 @@ export const createExpenseService = async (data: ExpenseData) => {
             paidBy,
             paymentType,
             date,
-            splitBetween: []
+            splitBetween: {}
         }
 
         if (splitBetween.length > 0) {
@@ -108,14 +107,14 @@ export const createExpenseService = async (data: ExpenseData) => {
 
         if (!updated) throw AppError("Insufficient group balance", 400);
 
-        await GroupEvent.create([{
+        await GroupTransaction.create([{
             groupId: groupData._id,
-            performedBy: userId,
-            eventType: "DEBIT",
-            metadata: { userId: userId, note: `Expense: ${expense.title} by ${paidBy} for ${amount}` },
-            referenceModel: "expense",
+            amount: amount,
+            action: "DEBIT",
+            description: `Expense: ${expense.title} by ${paidBy} for ${amount}`,
             referenceId: expenseSave._id,
-            amount: amount
+            referenceModel: "expense",
+            performedBy: userId
         }], { session });
 
         await session.commitTransaction();
@@ -131,7 +130,7 @@ export const createExpenseService = async (data: ExpenseData) => {
     }
 };
 
-export const deleteExpense = async (data: { expenseId: string, groupId: string, userId: string }) => {
+export const deleteExpenseService = async (data: { expenseId: string, groupId: string, userId: string }) => {
     if (!mongoose.Types.ObjectId.isValid(data.expenseId)) {
         throw AppError("Invalid expense ID format", 400);
     }
@@ -140,26 +139,28 @@ export const deleteExpense = async (data: { expenseId: string, groupId: string, 
     try {
         session.startTransaction();
 
-        const expense = await Expense.findByIdAndDelete(data.expenseId, { session });
+        const expense = await Expense.findByIdAndUpdate(data.expenseId, { isDeleted: true }, { session });
         if (!expense) throw AppError('Expense not found', 404);
 
         const payBy = await User.findById(expense.paidBy).session(session);
         if (!payBy) throw AppError('User not found', 404);
 
+        const balanceUpdate = Math.round((expense.amount ?? 0) * 100)
+
         await Group.findByIdAndUpdate(
             data.groupId, 
-            { $inc: { balance: expense.amount } },
+            { $inc: { balance: balanceUpdate } },
             { session }
         );
 
-        await GroupEvent.create([{
+        await GroupTransaction.create([{
             groupId: data.groupId,
-            performedBy: data.userId,
-            eventType: "REFUND",
-            metadata: { note: `Deleted expense: ${expense.title} by ${payBy.name} for ${expense.amount}` },
+            amount: balanceUpdate,
+            action: "REFUND",
+            description: `Deleted expense: ${expense.title} by ${payBy.name} for ${expense.amount}`,
             referenceId: expense._id,
             referenceModel: "expense",
-            amount: expense.amount
+            performedBy: data.userId,
         }], { session });
 
         await session.commitTransaction();
