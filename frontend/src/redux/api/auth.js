@@ -24,7 +24,7 @@ export const auth = api.injectEndpoints({
             invalidatesTags: ['Auth']
         }),
         getUser: builder.query({
-            query: () => '/auth/user',
+            query: () => '/user/me',
             providesTags: ['Auth'],
             keepUnusedDataFor: 300,
         })

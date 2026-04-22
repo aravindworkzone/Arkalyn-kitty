@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useGetUserGroupsQuery } from "../redux/api/group";
+import { useGetUserGroupsQuery } from "../redux/api/user";
 import Header from "../components/header";
 import EmptyState from "../components/EmptyList";
 import GroupCard from "../components/GroupCard";
@@ -7,7 +7,7 @@ import GroupCard from "../components/GroupCard";
 const GroupPage = () => {
   const navigate = useNavigate();
   const { data, isLoading } = useGetUserGroupsQuery();
-  const groups = data?.groups || [];
+  const groups = data?.j_groups || [];
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
