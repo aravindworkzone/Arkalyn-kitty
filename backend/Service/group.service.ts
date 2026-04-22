@@ -18,7 +18,7 @@ export const createGroupService = async (data: {name: string, members: members[]
         throw AppError("All fields are required", 400);
     }
 
-    if (name.length < 3 || name.length > 100) {
+    if (name.length < 3 || name.length > 100 || !/^[A-Za-z]+( [A-Za-z]+)*$/.test(name)) {
         throw AppError("Name must be between 3 and 100 characters", 400);
     }
 
@@ -103,7 +103,7 @@ export const createGroupService = async (data: {name: string, members: members[]
     } finally {
         await session.endSession();
     }
-}
+};
 
 export const deleteGroupService = async (groupId: string) => {
     try {
@@ -127,7 +127,7 @@ export const deleteGroupService = async (groupId: string) => {
         if (error.name === "ValidationError") throw AppError(error.message, 400);
         throw AppError(error.message || "Internal server error", error.statusCode || 500);
     }
-}
+};
 
 export const manageMemberService = async (data: { group: mongoose.Types.ObjectId, user: mongoose.Types.ObjectId, action: string, contribution?: number, Member: mongoose.Types.ObjectId}) => {
     const groupData = data.group;
@@ -213,7 +213,7 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
 
             await session.commitTransaction();
 
-            return {message: "Member added", member: groupMembers};
+            return "Member added";
         }
 
         if (action === "remove") {
@@ -236,9 +236,232 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
 
             await session.commitTransaction();
 
-            return {message: "Member Removed"};
+            return "Member Removed";
         }
     } catch (error: any) {
+        await session.abortTransaction();
+        if (error.code === 11000) throw AppError("User is already a member", 409);
+        if (error.name === "ValidationError") throw AppError(error.message, 400);
+        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+    } finally {
+        await session.endSession();
+    }
+};
+
+export const manageAdminService = async (data: { group: mongoose.Types.ObjectId, user: mongoose.Types.ObjectId, action: string, member: mongoose.Types.ObjectId }) => {
+    const groupData = data.group;
+    const userId =  data.user;
+    const action = data.action;
+    const Member = data.member;
+
+    if (!userId || !action) {
+        throw AppError("User ID and action are required", 400);
+    }
+
+    if (!["promote", "demote"].includes(action)) {
+        throw AppError("Action must be 'promote' or 'demote'", 400);
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw AppError("Invalid user ID format", 400);
+    }
+
+    const isMember = await GroupMember.findOne({ groupId: groupData, userId: Member, isDeleted: false });
+
+    if (!isMember) {
+        throw AppError("User is not a member of this group", 400);
+    }
+
+    if (isMember.role === "SUPER_ADMIN") {
+        throw AppError("Cannot change super admin's role", 400);
+    }
+
+    if (isMember.role === "ADMIN" && action === "promote") {
+        throw AppError("User is already an admin", 400);
+    }
+
+    if (isMember.role !== "ADMIN" && action === "demote") {
+        throw AppError("User is not an admin", 400);
+    }
+
+    const session = await mongoose.startSession();
+    try {
+        session.startTransaction();
+
+        if (action === "promote") {
+
+            await GroupMember.findOneAndUpdate(
+                { groupId: groupData, userId: Member },
+                { $set: { role: "ADMIN" } },
+                { returnDocument: "after", session}
+            );
+
+            const CreateGroupEvent = new GroupEvent({
+                groupId: groupData,
+                performedBy: userId,
+                eventType: "CHANGE_ROLE",
+                metadata: { userId, note: "Promoted to admin" },
+                referenceId: Member,
+                referenceModel: "User"
+            })
+            await CreateGroupEvent.save({ session });
+
+            await session.commitTransaction();
+
+            return "Member promoted to admin";
+        }
+
+        if (action === "demote") {
+
+           await GroupMember.findOneAndUpdate(
+                { groupId: groupData, userId: Member },
+                { $set: { role: "MEMBER" } },
+                { returnDocument: "after", session}
+            );
+
+            const CreateGroupEvent = new GroupEvent({
+                groupId: groupData,
+                performedBy: userId,
+                eventType: "CHANGE_ROLE",
+                metadata: { userId, note: "Demoted to member" },
+                referenceId: Member,
+                referenceModel: "User"
+            })
+            await CreateGroupEvent.save({ session });
+
+            await session.commitTransaction();
+
+            return "Member demoted to member";
+        }
+    } catch (error : any) {
+        await session.abortTransaction();
+        if (error.code === 11000) throw AppError("User is already a member", 409);
+        if (error.name === "ValidationError") throw AppError(error.message, 400);
+        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+    } finally {
+        await session.endSession();
+    }
+};
+
+export const addContributionService = async (data: {group: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, contribution: number}) => {
+    const groupData = data.group;
+    const userId = data.userId;
+    const contribution = Math.round((data.contribution ?? 0) * 100);
+
+    if (!userId || contribution === undefined) {
+        throw AppError("User ID and contribution are required", 400);
+    }
+
+    if (typeof contribution !== "number" || contribution <= 0) {
+        throw AppError("Contribution must be a positive number", 400);
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw AppError("Invalid user ID format", 400);
+    }
+
+    const isMember = await GroupMember.findOne({ groupId: groupData, userId: userId, isDeleted: false });
+    
+    if (!isMember) {
+        throw AppError("User is not a member of this group", 400);
+    }
+
+    const session = await mongoose.startSession();
+    try {
+        session.startTransaction();
+
+        const AddContributionMember = await GroupMember.findOneAndUpdate(
+            { groupId: groupData, userId: userId },
+            { $inc: { contribution: contribution } },
+            { returnDocument: "after", session }
+        );
+
+        await Group.findOneAndUpdate(
+            { _id: groupData },
+            { $inc: { balance: contribution, totalContribution: contribution } },
+            { returnDocument: "after", session }
+        );
+
+        const AddContributionLog = new GroupTransaction({
+            groupId: groupData,
+            amount: contribution,
+            action: "CREDIT",
+            description: `Added ${contribution} contribution to group`,
+            referenceId: userId,
+            referenceModel: "User",
+            metadata: [{ userId, contribution }],
+            performedBy: userId
+        });
+        await AddContributionLog.save({ session });
+
+        await session.commitTransaction();
+
+        return AddContributionMember;
+    } catch (error : any) {
+        await session.abortTransaction();
+        if (error.code === 11000) throw AppError("User is already a member", 409);
+        if (error.name === "ValidationError") throw AppError(error.message, 400);
+        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+    } finally {
+        await session.endSession();
+    }
+};
+
+export const SettlementService = async (data : {group: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, settlement: number, member: mongoose.Types.ObjectId}) => {
+    const groupData = data.group;
+    const userId = data.userId;
+    const Member = data.member;
+    const settlement = Math.round((data.settlement ?? 0) * 100);
+
+    if (!userId || settlement === undefined) {
+        throw AppError("User ID and settlement amount are required", 400);
+    }
+
+    if (typeof settlement !== "number" || settlement <= 0) {
+        throw AppError("Settlement amount must be a positive number", 400);
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw AppError("Invalid user ID format", 400);
+    }
+
+    const isMember = await GroupMember.findOne({ groupId: groupData, userId: Member, isDeleted: false });
+    
+    if (!isMember) {
+        throw AppError("User is not a member of this group", 400);
+    }
+
+    const session = await mongoose.startSession();
+    try {
+        session.startTransaction();
+
+        await GroupMember.findOneAndUpdate(
+            { groupId: groupData, userId: Member },
+            { $set: { settlement: true } },
+            { returnDocument: "after", session }
+        );
+        await Group.findOneAndUpdate(
+            { _id: groupData },
+            { $inc: { balance: -settlement } },
+            { returnDocument: "after", session }
+        );
+
+        const settlementLog = new GroupTransaction({
+            groupId: groupData,
+            amount: settlement,
+            action: "DEBIT",
+            description: `Settled compeleted ${settlement}`,
+            referenceId: Member,
+            referenceModel: "User",
+            metadata: [{ Member, settlement }],
+            performedBy: userId
+        });
+        await settlementLog.save({ session });
+
+        await session.commitTransaction();
+
+        return "Settlement Completed";
+    } catch (error : any) {
         await session.abortTransaction();
         if (error.code === 11000) throw AppError("User is already a member", 409);
         if (error.name === "ValidationError") throw AppError(error.message, 400);

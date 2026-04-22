@@ -3,7 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 interface IGroupEvent extends Document {
     groupId: mongoose.Types.ObjectId;
     performedBy: mongoose.Types.ObjectId;
-    eventType: string;
+    eventType: "MEMBER_ADDED" | "MEMBER_REMOVED" | "MANAGE_CATEGORY" | "CHANGE_ROLE" | "CREATE_GROUP";
     referenceId?: mongoose.Types.ObjectId;
     referenceModel?: string;
     amount?: number;
@@ -16,7 +16,7 @@ interface IGroupEvent extends Document {
 const groupEventSchema = new Schema<IGroupEvent>({
     groupId: { type: mongoose.Schema.Types.ObjectId, ref: "Group", required: true },
     performedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    eventType: { type: String, enum: ["MANAGE_MEMBER", "MANAGE_CATEGORY", "CHANGE_ROLE", "CREATE_GROUP"], required: true },
+    eventType: { type: String, enum: ["MEMBER_ADDED", "MEMBER_REMOVED", "MANAGE_CATEGORY", "CHANGE_ROLE", "CREATE_GROUP"], required: true },
     referenceId: { type: mongoose.Schema.Types.ObjectId, default: null },
     referenceModel: { type: String, enum: ["Expense", "Group", "Category"], default: null },
     amount: { type: Number , default: null },

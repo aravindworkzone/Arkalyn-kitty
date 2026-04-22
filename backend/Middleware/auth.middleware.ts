@@ -2,13 +2,20 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import Group from "../Model/group.model";
 import Member from "../Model/group_member.model"
+import { Request, Response, NextFunction } from "express";
+import { IUser } from "../Model/user.model";
 
-const verifyToken = (req, res, next) => {
+const verifyToken = (req: Request, res: Response, next: NextFunction) => {
     const token = req.cookies.AccessToken;
     if (!token) return res.status(401).json({ message: "Unauthorized" });
 
     try {
-        req.user = jwt.verify(token, process.env.JWT_SECRET);
+        const serect = process.env.JWT_SECRET;
+        if(!serect){
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        req.user = jwt.verify(token, serect) as IUser;
         next();
     } catch (error) {
         res.clearCookie('AccessToken');
@@ -16,7 +23,7 @@ const verifyToken = (req, res, next) => {
     }
 };
 
-const loadGroup = async (req, res, next) => {
+const loadGroup = async (req: Request, res: Response, next: NextFunction) => {
     const rawId = req.body.groupId ?? req.params.groupId;
     const groupId = typeof rawId === "string" ? rawId.trim() : null;
 
@@ -30,13 +37,14 @@ const loadGroup = async (req, res, next) => {
     next();
 };
 
-const authorizeRole = (...roles) => async (req, res, next) => {
+
+const authorizeRole = (...roles: string[]) => async (req: Request, res: Response, next: NextFunction) => {
+    if(!req.user?._id) return res.status(401).json({ message: "Unauthorized" });
+    if(!req.group?._id) return res.status(400).json({ message: "Group not found" });
     const member = await Member.findOne({
         groupId: req.group._id,
         userId: req.user._id
     });
-
-    console.log(member);
     
     if (!member) {
         return res.status(403).json({ message: "Not a group member" });

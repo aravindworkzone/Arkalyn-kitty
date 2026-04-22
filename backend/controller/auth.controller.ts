@@ -1,6 +1,5 @@
 import { SignUpService, SignInService } from '../Service/auth.service';
 import { Request, Response } from 'express';
-import { IUser } from '../Model/user.model';
 
 export const SignUp = async (req: Request, res: Response) => {
     try {
@@ -29,12 +28,4 @@ export const SignIn = async (req: Request, res: Response) => {
 export const SignOut = (req: Request, res: Response) => {
     res.clearCookie('AccessToken');
     res.status(200).json({ message: 'User signed out successfully' });
-}
-
-export const GetUser = async (req: Request, res: Response) => {
-    try {
-        res.status(200).json({ message: 'User fetched successfully', user: req.user });
-    } catch (error: any) {
-        res.status(500).json({ message: error.message });
-    }
 }

@@ -7,7 +7,7 @@ import AuthRouter from './Router/auth.router';
 import ExpenseRouter from './Router/expense.router';
 import CategoryRouter from './Router/category.router';
 import GroupRouter from './Router/group.router';
-import ReportRouter from './Router/report.router';
+import UserRouter from './Router/user.router';
 dotenv.config();
 
 const app : Application = express();
@@ -21,7 +21,7 @@ app.use('/api/auth', AuthRouter);
 app.use('/api/expense', ExpenseRouter);
 app.use('/api/category', CategoryRouter);
 app.use('/api/group', GroupRouter);
-app.use('/api/report', ReportRouter);
+app.use('/api/user', UserRouter);
 
 
 app.get('/', (req: Request, res: Response) => {
