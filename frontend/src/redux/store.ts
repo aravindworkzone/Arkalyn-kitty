@@ -1,5 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit";
-import { api } from "./api/base";
+import { api } from "./api/base.js";
 
 export const store = configureStore({
     reducer: {

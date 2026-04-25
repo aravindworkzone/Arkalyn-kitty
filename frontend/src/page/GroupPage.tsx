@@ -10,9 +10,13 @@ const GroupPage = () => {
   const groups = data?.j_groups || [];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-[#080c14] ">
         <Header />
         <div className="max-w-2xl mx-auto px-5 py-8">
+            <div className="pointer-events-none fixed inset-0 overflow-hidden">
+                <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-cyan-500/5 blur-3xl" />
+                <div className="absolute bottom-0 -right-48 w-[500px] h-[500px] rounded-full bg-indigo-500/4 blur-3xl" />
+            </div>
 
             <div className="flex items-center justify-between mb-6">
             <h1 className="text-xl font-semibold text-[#f0eeff]">Groups</h1>
@@ -33,11 +37,11 @@ const GroupPage = () => {
             <EmptyState onClick={() => navigate("/groups/create")} />
             ) : (
             <div className="flex flex-col gap-2.5">
-                {groups.map((group) => (
+                {groups.map((group: any) => (
                 <GroupCard
                     key={group._id}
                     group={group}
-                    onClick={() => navigate(`/groups/${group._id}`)}
+                    onClick={() => navigate(`/groups/${group.displayId}`)} 
                 />
                 ))}
             </div>

@@ -35,7 +35,7 @@ const GroupCard = ({ group, onClick }) => (
     <div className="flex items-center justify-between">
       <MemberAvatars members={group.members} />
       <p className="text-[11px] text-white/25">
-        Created {group.CreatedOn}
+        Created on {group.createdAt}
       </p>
     </div>
   </div>
