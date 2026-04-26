@@ -81,11 +81,3 @@ export const SignInService = async (data: { email: string; password: string }) =
         user: userData
     };
 }
-
-// exports.GetUser = async (req, res) => {
-//     try {
-//         res.status(200).json({ message: 'User fetched successfully', user: req.user });
-//     } catch (error) {
-//         res.status(500).json({ message: error.message });
-//     }
-// }

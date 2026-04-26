@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from "mongoose";
 import Counter from "./counter.model";
 
-interface IGroup extends Document {
+export interface IGroup extends Document {
     displayId: string;
     name: string;
     groupType: "POOL" | "SPLIT";
@@ -27,8 +27,9 @@ groupSchema.pre("findOneAndDelete", async function() {
     try {
         const groupId = this.getQuery()["_id"];
         if(!groupId) return;
-        await mongoose.model("Expense").updateMany({ groupId }, { $set: { isDeleted: true } });
-        await mongoose.model("Category").updateMany({ groupId }, { $set: { isDeleted: true } });
+        await mongoose.model("Expense").deleteMany({ groupId });
+        await mongoose.model("Category").deleteMany({ groupId });
+        await mongoose.model("GroupMember").deleteMany({ groupId });
         await mongoose.model("GroupEvent").updateMany({ groupId }, { $set: { isDeleted: true } });
         await mongoose.model("GroupTransaction").updateMany({ groupId }, { $set: { isDeleted: true } });
     } catch (error) {

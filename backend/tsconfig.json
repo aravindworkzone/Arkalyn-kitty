@@ -4,15 +4,13 @@
     "module": "commonjs",
     "esModuleInterop": true,
     "strict": true,
-    "allowJs": true,
     "outDir": "dist",
-    "rootDir": "",
-    "types": ["node"],
-    "typeRoots": ["./node_modules/@types", "./src/types"]
+    "rootDir": "."
   },
-  "scripts": {
-    "dev": "ts-node main.ts",
-    "build": "tsc",
-    "start": "node dist/main.js"
-  }
+  "files": [
+    "Types/express.d.ts"
+  ],
+  "include": [
+    "**/*.ts"
+, "Controller/expense.controller.js"  ]
 }

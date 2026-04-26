@@ -1,0 +1,129 @@
+import { createGroupService, deleteGroupService, manageMemberService, manageAdminService, addContributionService, SettlementService } from "../Service/group.service";
+import { Response, Request } from "express";
+
+export const createGroup = async (req: Request, res: Response) => {
+    if(!req.user){
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const data = {
+        name: req.body.name.trim(),
+        members: req.body.members,
+        superAdmin: req.user._id.toString()
+    }
+    try {
+        const groupData = await createGroupService(data);
+        return res.status(201).json({ message: "Group created", groupData });
+    } catch (error: any) {
+        const statusCode = error.status || 500;
+        const message = error.message || 'Internal server error';
+        return res.status(statusCode).json({ message: 'Error creating group', error: message });    
+    }
+}
+
+export const deleteGroup = async (req: Request, res: Response) => {
+    const groupId = req.params.groupId.toString();
+    try {
+        const group = await deleteGroupService(groupId);
+
+        return res.status(200).json({ message: "Group deleted", group });
+    } catch (error: any) {
+        const statusCode = error.status || 500;
+        const message = error.message || 'Internal server error';
+        return res.status(statusCode).json({ message: 'Error creating group', error: message });    
+    }
+}
+
+export const manageMember = async (req: Request, res: Response) => {
+    if(!req.user?._id){
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+    if(!req.group?._id){
+        return res.status(400).json({ message: "Group not found" });
+    }
+
+    const data = {
+        group: req.group._id,
+        user: req.user._id,
+        action: req.body.action as string,
+        Member: req.body.Member,
+        contribution: req.body.contribution as number
+    }
+    
+    try {
+        const manageMember = await manageMemberService(data);
+        return res.status(200).json({ message: manageMember });
+    } catch (error: any) {
+        const statusCode = error.status || 500;
+        const message = error.message || 'Internal server error';
+        return res.status(statusCode).json({ message: 'Error creating group', error: message });    
+    }
+};
+
+export const manageAdmin = async (req: Request, res: Response) => {
+    if(!req.user?._id){
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+    if(!req.group?._id){
+        return res.status(400).json({ message: "Group not found" });
+    }
+    const data = {
+        group: req.group._id,
+        user: req.user._id,
+        action: req.body.action as string,
+        member: req.body.member
+    };
+    try {
+        const updated = await manageAdminService(data);
+        return res.status(200).json({ message: updated });
+    } catch (error: any) {
+        const statusCode = error.status || 500;
+        const message = error.message || 'Internal server error';
+        return res.status(statusCode).json({ message: 'Error creating group', error: message });    
+    }
+};
+
+export const addContribution = async (req: Request, res: Response) => {
+        if(!req.user?._id){
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+    if(!req.group?._id){
+        return res.status(400).json({ message: "Group not found" });
+    }
+    const data = {
+        group: req.group._id,
+        userId: req.user._id,
+        contribution: req.body.contribution as number
+    };
+    try {
+        const Contribution = await addContributionService(data);
+        return res.status(200).json({ message: "Contribution added", group: Contribution });
+    } catch (error: any) {
+        const statusCode = error.status || 500;
+        const message = error.message || 'Internal server error';
+        return res.status(statusCode).json({ message: 'Error creating group', error: message });    
+    }
+};
+
+export const Settlement = async (req: Request, res: Response) => {
+    if(!req.user?._id){
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+    if(!req.group?._id){
+        return res.status(400).json({ message: "Group not found" });
+    }
+    const data = {
+        group: req.group._id,
+        userId: req.user._id,
+        settlement: req.body.settlement as number,
+        member: req.body.member
+    }
+    try {
+        const Contribution = await SettlementService(data);
+        return res.status(200).json({ s_message: "Contribution added", j_group: Contribution, b_status: true });
+    } catch (error: any) {
+        const statusCode = error.status || 500;
+        const message = error.message || 'Internal server error';
+        return res.status(statusCode).json({ message: 'Error creating group', error: message });    
+    }
+}
