@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import GroupMember from "../Model/group_member.model";
+import User from "../Model/user.model";
 import {AppError} from "../Utils/AppError";
 export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
     try {
@@ -39,12 +40,24 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
                 }
             },
             {
+                $lookup: {
+                    from: "users",
+                    localField: "members.userId",
+                    foreignField: "_id",
+                    as: "membersuser"
+                }
+            },
+            {
+                $sort: { "group.createdAt": -1 }
+            },
+            {
                 $project: {
                     _id: "$group._id",
                     displayId: "$group.displayId",
                     name: "$group.name",
-                    balance: "$group.balance",
-                    members: "$members.userId",
+                    balance: {$divide:["$group.balance",100]},
+                    members: "$membersuser.name",
+                    role: "$members.role",
                     barLength: {
                         $cond: [
                             { $gt: ["$group.totalContribution", 0] },
@@ -73,13 +86,35 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
                         ]
                     },
                     expenseCount: { $size: "$expense" },
-                    createdAt: "$group.createdAt"
+                    createdAt: {
+                        $dateToString: {
+                            format: "%d %b %Y",
+                            date: "$group.createdAt"
+                        }
+                    }
                 }
             }
         ]);
 
         return userGroups;
 
+    } catch (error: any) {
+        const message = error.message || 'Internal server error';
+        const statusCode = error.status || 500;
+        throw AppError(message , statusCode);
+    }
+};
+
+export const verifyUserService = async (email: string) => {
+    try {
+        if(!email){
+            throw AppError('Email is required', 400);
+        }
+        const user = await User.findOne({ email });
+        if(!user){
+            throw AppError('User not found', 404);
+        }
+        return user;
     } catch (error: any) {
         const message = error.message || 'Internal server error';
         const statusCode = error.status || 500;

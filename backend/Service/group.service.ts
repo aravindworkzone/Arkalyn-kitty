@@ -6,7 +6,7 @@ import GroupEvent from "../Model/group_event.model";
 import GroupMember from "../Model/group_member.model";
 
 interface members {
-    user: string;
+    _id: string;
     contribution: number;
 }
 export const createGroupService = async (data: {name: string, members: members[], superAdmin: string}) => {
@@ -18,7 +18,7 @@ export const createGroupService = async (data: {name: string, members: members[]
         throw AppError("All fields are required", 400);
     }
 
-    if (name.length < 3 || name.length > 100 || !/^[A-Za-z]+( [A-Za-z]+)*$/.test(name)) {
+    if (name.length < 3 || name.length > 100 || !/^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/.test(name)) {
         throw AppError("Name must be between 3 and 100 characters", 400);
     }
 
@@ -26,23 +26,24 @@ export const createGroupService = async (data: {name: string, members: members[]
         throw AppError("Invalid SuperAdmin ID format", 400);
     }
 
-    const isSuperAdmin = members.some((member) => member.user === superAdmin);
+    const isSuperAdmin = members.some((member) => member._id === superAdmin);
     if (!isSuperAdmin) {
-        throw AppError("User is not a member", 400);
+        members.push({_id: superAdmin, contribution: 0 });
     }
 
-    const validMembers = members.filter(obj => mongoose.Types.ObjectId.isValid(obj.user) && obj.contribution >= 0).map(obj => ({
-        user: obj.user,
+    const validMembers = members.filter(obj => mongoose.Types.ObjectId.isValid(obj._id) && obj.contribution >= 0).map(obj => ({
+        _id: obj._id,
         contribution: obj.contribution
     }));
 
-    const uniqueUserIds = new Set(validMembers.map(m => m.user.toString()));
+    const uniqueUserIds = new Set(validMembers.map(m => m._id.toString()));
 
     if (uniqueUserIds.size !== validMembers.length) {
         throw AppError("Duplicate user IDs are not allowed", 400);
     }
 
     if (validMembers.length !== members.length) {
+        console.log(members);
         throw AppError("member ID are invalid or contribution is negative", 400);
     }
 
@@ -62,9 +63,9 @@ export const createGroupService = async (data: {name: string, members: members[]
 
         const groupMembers = validMembers.map(member => ({
             groupId: group._id,
-            userId: member.user,
+            userId: member._id,
             contribution: Math.round(member.contribution * 100),
-            role: superAdmin.toString() === member.user.toString() ? "SUPER_ADMIN" :  "MEMBER"
+            role: superAdmin.toString() === member._id.toString() ? "SUPER_ADMIN" :  "MEMBER"
         }));
         await GroupMember.insertMany(groupMembers, { session });
 
@@ -85,7 +86,7 @@ export const createGroupService = async (data: {name: string, members: members[]
             description: "Group created with initial members and contributions",
             referenceId: group._id,
             referenceModel: "Group",
-            metadata: validMembers.map(member => ({ userId: member.user, contributionRS: member.contribution,
+            metadata: validMembers.map(member => ({ userId: member._id, contributionRS: member.contribution,
             contribution: Math.round(member.contribution * 100),
             })),
             performedBy: superAdmin

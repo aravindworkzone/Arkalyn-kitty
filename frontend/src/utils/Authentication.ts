@@ -40,11 +40,11 @@ const Success = () => {
     return {valid: true, message: ""};
 };
 
-const Fail = ({message}) => {
+const Fail = ({message}: {message: string}) => {
     return {valid: false, message: message};
 };
 
-const validateEmail = (email) => {
+const validateEmail = (email: string) => {
     if(!email) return Fail({message: "Email is required"});
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -54,7 +54,7 @@ const validateEmail = (email) => {
     return Success();
 };
 
-const validatePassword = (password) => {
+const validatePassword = (password: string) => {
     if(!password) return Fail({message: "Password is required"});
 
     if(password.length < 6) return Fail({message: "Password must be at least 6 characters long"});
@@ -62,7 +62,7 @@ const validatePassword = (password) => {
     return Success();
 };
 
-const nameValidation = (name) => {
+const nameValidation = (name: string) => {
     if(!name) return Fail({message: "Name is required"});
 
     if(name.trim().length <= 3) return Fail({message: "Name must be at least 4 characters long"});
@@ -76,7 +76,7 @@ export const validators = {
     name: nameValidation
 };
 
-export const ErrorRemover = (setError) => {
+export const ErrorRemover = (setError: React.Dispatch<React.SetStateAction<string>>) => {
     useEffect(() => {
         if(setError){
             const handleRemoveError = () => {

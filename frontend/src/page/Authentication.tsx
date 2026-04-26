@@ -3,40 +3,45 @@ import { Link, useNavigate } from 'react-router-dom'
 import { loginDetails, RegistrationDetails, validators, ErrorRemover } from '../utils/Authentication'
 import {useSignUpMutation, useSignInMutation} from '../redux/api/auth'
 import { useState } from 'react';
-const Templete = ({inputs, link}) => {
+interface Props {
+    inputs: Record<string, { placeholder: string, label: string, id: string, name: string }>;
+    link: string;
+}
+
+const Templete = ({inputs, link} : Props) => {
     const linkText = link === "register" ? "Don't have an account?" : "Already have an account?";
     const head = link !== "register" ? "Sign up your account" : "Sign in to your account";
     const signButtonText = link !== "register" ? "Sign up" : "Sign in";
     const [Auth] = link !== "register" ? useSignUpMutation() : useSignInMutation();
     const navigate = useNavigate();
 
-
     const loading = false;
     const [error, setError] = useState('');
     ErrorRemover(setError);
-    const HandleSubmit = async (e) => {
+    const HandleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const formData = new FormData(e.target);
-        const data = {};
+        const form = e.target as HTMLFormElement;
+        const formData = new FormData(form);
+        const data: Record<string, string> = {};
 
         for(const [key, value] of formData.entries()){ 
-            if(validators[key]){
-                const validation = validators[key](value);
-                if(!validation.valid){
-                    setError(validation);
-                    return;
+            if(typeof value == "string") {
+                if(key in validators){
+                    const validation = validators[key as keyof typeof validators](value as string);
+                    if(!validation.valid){
+                        setError(validation.message as string);
+                        return;
+                    }
                 }
+                data[key] = value;
             }
-            data[key] = value;
         };
-
-        console.log(data);
-        const response = await Auth(data);
-        if(response.error){
-            setError({message: response.error?.data?.message || "An error occurred"});
-        } else {
+        try {
+            await Auth(data);
             setError('');
             navigate('/');
+        } catch (error: any) {
+            setError(error.data?.message || "An error occurred");
         }
     }
 
@@ -69,7 +74,7 @@ const Templete = ({inputs, link}) => {
                             })
                         }
                         {
-                            error && <p className="text-red-500 text-sm">{error.message}</p>
+                            error && <p className="text-red-500 text-sm">{error}</p>
                         }
                         <button
                             type="submit"
@@ -93,13 +98,13 @@ const Templete = ({inputs, link}) => {
 
 export const Login = () => {
     return (
-        <Templete header={"Login"} inputs={loginDetails} link={"register"}/>
+        <Templete inputs={loginDetails} link={"register"}/>
     )
 }
 
 export const Registration = () => {
     return (
-        <Templete header={"Registration"} inputs={RegistrationDetails} link={"login"}/>
+        <Templete inputs={RegistrationDetails} link={"login"}/>
     )
 }
 
