@@ -32,7 +32,7 @@ export const createCategoryService = async (data: { name: string; groupId: mongo
             eventType: "MANAGE_CATEGORY",
             metadata: { userId: userId, note: `Created category: ${name}` },
             referenceId: categorySave._id,
-            referenceModel: "category"
+            referenceModel: "Category"
         }], { session });
 
         await session.commitTransaction();
@@ -42,7 +42,7 @@ export const createCategoryService = async (data: { name: string; groupId: mongo
         if (error.code === 11000) {
             throw AppError('Category already exists in this group', 409);
         }
-        throw AppError('Error creating category', 500);
+        throw AppError(error.message || 'Error creating category', 500);
     } finally {
         session.endSession();
     }
@@ -82,5 +82,14 @@ export const deleteCategoryService = async (data: { categoryId: string, groupId:
         throw AppError('Error deleting category', statusCode);
     } finally {
         session.endSession();
+    }
+}
+
+export const getCategoryDetailsService = async (groupId: mongoose.Types.ObjectId) => {
+    try {
+        const categories = await Category.find({ groupId }).populate('groupId');
+        return categories;
+    } catch (error: any) {
+        throw AppError(error.message || 'Error getting categories', 500);
     }
 }

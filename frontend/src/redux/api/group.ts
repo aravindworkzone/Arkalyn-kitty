@@ -9,8 +9,15 @@ export const group = api.injectEndpoints({
                 body: credentials
             }),
             invalidatesTags: ['Group']
+        }),
+        getGroupById: builder.query<any, any>({
+            query: (credentials) => ({
+                url: `/group/getgroupbyid/${credentials}`,
+                method: 'GET'
+            }),
+            providesTags: ['Group']
         })
     })
 })
 
-export const { useCreateGroupMutation } = group;
+export const { useCreateGroupMutation, useGetGroupByIdQuery } = group;

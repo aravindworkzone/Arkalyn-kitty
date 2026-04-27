@@ -6,242 +6,325 @@ import { validators, ErrorRemover } from "../utils/Authentication";
 import { useNavigate } from "react-router-dom";
 
 const s = {
-    input:
-        "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30 transition-all",
-    label:
-        "block text-xs font-medium text-white/50 mb-2 uppercase tracking-wider",
+  input:
+    "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all duration-200",
+  label:
+    "block text-[10px] font-semibold text-white/40 mb-2 uppercase tracking-widest",
 };
 
-interface members {
-    _id: string;
-    user: string;
-    email: string;
-    contribution: number;
+interface Member {
+  _id: string;
+  user: string;
+  email: string;
+  contribution: number;
 }
 
 export default function CreateGroupPage() {
-    const [members, setMembers] = useState<members[]>([]);
-    const [emailInput, setEmailInput] = useState("");
-    const [error, setError] = useState<string>("");
-    ErrorRemover(setError);
+  const [groupName, setGroupName] = useState("");
+  const [members, setMembers] = useState<Member[]>([]);
+  const [emailInput, setEmailInput] = useState("");
+  const [error, setError] = useState<string>("");
+  ErrorRemover(setError);
 
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const [createGroup, { isLoading }] = useCreateGroupMutation();
+  const [verifyUser, { isLoading: isVerifying }] = useVerifyUserMutation();
 
-    const [createGroup, { isLoading, error: groupError }] = useCreateGroupMutation();
-    const [verifyUser, { isLoading: isVerifying }] = useVerifyUserMutation();
+  const poolTotal = members.reduce((sum, m) => sum + (m.contribution || 0), 0);
 
-    const addMember = async () => {
-        const email = emailInput.trim();
+  const addMember = async () => {
+    const email = emailInput.trim();
+    if (!email) return setError("Email is required");
+    const isEmail = validators.email(email);
+    if (!isEmail.valid) return setError(isEmail.message || "Invalid email format");
+    if (members.some((m) => m.email === email)) return setError("Member already added");
+    try {
+      const result = await verifyUser(email).unwrap();
+      const id = (result as any)?.user?._id;
+      const name = (result as any)?.user?.name;
+      setMembers((prev) => [...prev, { _id: id, user: name, contribution: 0, email }]);
+      setEmailInput("");
+    } catch (err: any) {
+      setError(err?.data?.message || "User not found");
+    }
+  };
 
-        if (!email) {
-            setError("Email is required");
-            return;
-        }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!groupName.trim()) return setError("Group name is required");
+    if (members.length === 0) return setError("At least one member is required");
+    try {
+      await createGroup({ name: groupName.trim(), members }).unwrap();
+      navigate("/groups");
+    } catch (err: any) {
+      setError(err?.data?.message || "Failed to create group");
+    }
+  };
 
-        const isEmail = validators.email(email);
-        if (!isEmail.valid) {
-            setError(isEmail.message || "Invalid email format");
-            return;
-        }
+  const removeMember = (id: string) =>
+    setMembers((prev) => prev.filter((m) => m._id !== id));
 
-        try {
-            const result = await verifyUser(email).unwrap();
-            const id = (result as any)?.user?._id;
-            const name = (result as any)?.user?.name;
-            if (!members.includes(id)) {
-                setMembers([...members, { _id: id, user: name, contribution: 0, email: email }]);
-                setEmailInput("");
-            }
+  const updateContribution = (id: string, value: number) =>
+    setMembers((prev) =>
+      prev.map((m) => (m._id === id ? { ...m, contribution: value } : m))
+    );
 
-        } catch (err: any) {
-            setError(err?.data?.message || "User not found");
-        }
-    };
+  return (
+    <div className="min-h-screen bg-[#080c14] text-white">
+      {/* Ambient */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
+        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-cyan-500/5 blur-[120px]" />
+        <div className="absolute bottom-0 -right-60 w-[600px] h-[600px] rounded-full bg-indigo-500/4 blur-[120px]" />
+        <div
+          className="absolute inset-0 opacity-[0.025]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+        />
+      </div>
 
-    const HandleUpload = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const input = document.getElementById("GroupName") as HTMLInputElement;
-        const name = input.value.trim();
-        if (!name) return setError("Group name is required");
-        if (members.length === 0) return setError("At least one member is required");
-        try {
-            await createGroup({ name, members });
-            navigate("/groups");
-        } catch (error) {
-            setError((groupError as any)?.data?.message);
-        }
-    };
+      <Header />
 
-    return (
-        <form className="min-h-screen bg-[#080c14] text-white font-sans" onSubmit={(e) => HandleUpload(e)}>
-            <Header />
-            <div className="pointer-events-none fixed inset-0 overflow-hidden">
-                <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-cyan-500/5 blur-3xl" />
-                <div className="absolute bottom-0 -right-48 w-[500px] h-[500px] rounded-full bg-indigo-500/4 blur-3xl" />
+      <form onSubmit={handleSubmit} className="relative max-w-xl mx-auto px-4 py-10">
+        {/* Back */}
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-white/35 hover:text-white/60 text-xs font-medium transition-colors mb-10 group"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Back to groups
+        </button>
+
+        {/* Page title */}
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1v12M1 7h12" stroke="#67e8f9" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </div>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-cyan-400/70">
+              New Group
+            </p>
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-[#f0eeff]">
+            Set up your shared pool
+          </h1>
+          <p className="text-white/35 text-sm mt-1.5">
+            Name your group, add members, and set initial contributions.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {/* Step 1 — Group name */}
+          <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-3.5 border-b border-white/[0.06]">
+              <span className="text-[11px] font-bold text-white/15 tabular-nums">01</span>
+              <span className="text-xs font-semibold text-white/50 uppercase tracking-widest">
+                Group name
+              </span>
+            </div>
+            <div className="px-5 py-4">
+              <input
+                className={s.input}
+                type="text"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="e.g. Goa Trip 2025"
+                autoComplete="off"
+                onKeyDown={(e) => {
+                  const key = e.key;
+                  if (["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(key)) return;
+                  if (!/^[A-Za-z0-9 ]$/.test(key) || groupName.length >= 30) e.preventDefault();
+                }}
+              />
+              <div className="flex justify-end mt-1.5">
+                <span className="text-[10px] text-white/20 tabular-nums">
+                  {groupName.length}/30
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 2 — Members */}
+          <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06]">
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] font-bold text-white/15 tabular-nums">02</span>
+                <span className="text-xs font-semibold text-white/50 uppercase tracking-widest">
+                  Members
+                </span>
+              </div>
+              {members.length > 0 && (
+                <span className="text-[10px] font-medium text-white/25 bg-white/[0.05] border border-white/[0.07] px-2 py-0.5 rounded-full">
+                  {members.length} added
+                </span>
+              )}
             </div>
 
-            <div className="relative max-w-xl mx-auto px-4 py-12">
-                <button className="flex items-center gap-2 text-white/40 hover:text-white/70 text-sm transition-colors mb-8" onClick={() => window.history.back()}>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <div className="px-5 py-4 space-y-4">
+              {/* Email input */}
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addMember())}
+                  className={`${s.input} flex-1`}
+                  placeholder="member@email.com"
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  onClick={addMember}
+                  disabled={isVerifying}
+                  className="shrink-0 px-4 rounded-xl text-sm font-semibold border
+                    bg-cyan-500/10 border-cyan-500/25 text-cyan-300
+                    hover:bg-cyan-500/20 hover:border-cyan-400/40
+                    disabled:opacity-40 transition-all duration-150"
+                >
+                  {isVerifying ? (
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                     </svg>
-                    Back
+                  ) : "Add"}
                 </button>
+              </div>
 
-                <h1 className="text-2xl font-semibold tracking-tight mb-1">Create a group</h1>
-                <p className="text-white/40 text-sm mb-8">Set up a shared pool for your team, trip, or household.</p>
+              {error && (
+                <p className="text-red-400/90 text-xs flex items-center gap-1.5">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <circle cx="5" cy="5" r="4" stroke="#f87171" strokeWidth="1.2" />
+                    <path d="M5 3v2.5M5 7h.01" stroke="#f87171" strokeWidth="1.2" strokeLinecap="round" />
+                  </svg>
+                  {error}
+                </p>
+              )}
 
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-6">
+              {!error && members.length === 0 && (
+                <p className="text-white/20 text-xs">
+                  Enter an email and click Add — or press Enter.
+                </p>
+              )}
 
-                    <div>
-                        <label className={s.label}>Group name</label>
-                        <input
-                            className={s.input}
-                            name="name"
-                            id="GroupName"
-                            type="text"
-                            placeholder="e.g. Goa Trip 2025"
-                            autoComplete="off"
-                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                const key = e.key;
-                                const input = e.currentTarget;
-
-                                if (
-                                    key === "Backspace" ||
-                                    key === "Delete" ||
-                                    key === "ArrowLeft" ||
-                                    key === "ArrowRight" ||
-                                    key === "Tab"
-                                ) return;
-
-                                if (!/^[A-Za-z0-9 ]$/.test(key) || input.value.length >= 30) {
-                                    e.preventDefault();
-                                }
-                            }}
-                        />
-                    </div>
-
-                    <div className="border-t border-white/5" />
-
-                    <div>
-                        <label className={s.label}>
-                            Members
-                            {members.length > 0 && (
-                                <span className="ml-2 text-white/25 normal-case tracking-normal font-normal">
-                                    {members.length} added
-                                </span>
-                            )}
-                        </label>
-
-                        <div className="flex gap-2">
-                            <input
-                                type="email"
-                                value={emailInput}
-                                onChange={(e) => setEmailInput(e.target.value)}
-                                name="members"
-                                className={`${s.input} flex-1`}
-                                placeholder="member@email.com"
-                                autoComplete="off"
-                            />
-                            <button
-                                type="button"
-                                onClick={addMember}
-                                disabled={isLoading || isVerifying}
-                                className="shrink-0 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-4 text-sm text-white/60 hover:text-white transition-all active:scale-95"
-                            >
-                                Add
-                            </button>
+              {/* Member list */}
+              {members.length > 0 && (
+                <div className="space-y-2">
+                  {members.map((member, i) => (
+                    <div
+                      key={member._id}
+                      className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-3.5"
+                      style={{
+                        animation: "fadeSlideIn 0.25s ease forwards",
+                        animationDelay: `${i * 40}ms`,
+                        opacity: 0,
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-cyan-500/15 border border-cyan-500/20 flex items-center justify-center shrink-0">
+                            <span className="text-[11px] font-bold text-cyan-400">
+                              {member.user?.slice(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-medium text-white/90 truncate leading-tight">
+                              {member.user}
+                            </p>
+                            <p className="text-[11px] text-white/30 truncate">{member.email}</p>
+                          </div>
                         </div>
 
-                        {(members.length === 0 && !error) && (
-                            <p className="text-white/20 text-xs mt-2">
-                                Click Add after each email.
-                            </p>
-                        )}
-                        {error && (
-                            <p className="text-[#ff2525] text-xs mt-2 ml-1">
-                                {error}
-                            </p>
-                        )}
-
-                        {members.length > 0 && (
-                            <div className="mt-3 flex flex-col gap-2">
-                                {members.map((member) => (
-                                    <div
-                                        key={member._id}
-                                        className="flex items-center justify-between gap-3 bg-white/5 border border-white/10 rounded-xl px-3 py-2"
-                                    >
-                                        <div className="flex flex-col w-[80%] gap-2 sm:flex-row sm:w-auto sm:gap-3">
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <span className="flex items-center justify-center w-10 h-10 rounded-full bg-cyan-500/20 text-cyan-400 font-semibold shrink-0">
-                                                    {member.user?.slice(0, 2).toUpperCase()}
-                                                </span>
-
-                                                <div className="min-w-0">
-                                                    <p className="text-sm truncate">{member.user}</p>
-                                                    <p className="text-xs text-white/40 truncate">{member.email}</p>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-4 justify-center">
-                                                <input
-                                                    className={`${s.input} !w-full sm:!w-1/2`}
-                                                    defaultValue={member.contribution}
-                                                    onChange={(e) => {
-                                                        const value = Number(e.target.value);
-                                                        setMembers(prev =>
-                                                            prev.map(item =>
-                                                                item._id === member._id
-                                                                    ? { ...item, contribution: value }
-                                                                    : item
-                                                            )
-                                                        );
-                                                    }}
-                                                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                                        const key = e.key;
-
-                                                        if (
-                                                            key === "Backspace" ||
-                                                            key === "Delete" ||
-                                                            key === "ArrowLeft" ||
-                                                            key === "ArrowRight" ||
-                                                            key === "Tab"
-                                                        ) return;
-
-                                                        if (!/^[0-9]$/.test(key)) {
-                                                            e.preventDefault();
-                                                        }
-                                                    }}
-                                                    type="text"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setMembers(members.filter((m) => m._id !== member._id))
-                                            }
-                                            className="text-white/30 hover:text-red-400"
-                                        >
-                                            ✕
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                        {/* Contribution + remove */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="relative">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25 text-xs">₹</span>
+                            <input
+                              className="w-24 bg-white/[0.05] border border-white/[0.09] rounded-lg pl-6 pr-2.5 py-1.5 text-xs text-white placeholder-white/20 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all text-right"
+                              defaultValue={member.contribution || ""}
+                              placeholder="0"
+                              type="text"
+                              onChange={(e) => updateContribution(member._id, Number(e.target.value))}
+                              onKeyDown={(e) => {
+                                const key = e.key;
+                                if (["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(key)) return;
+                                if (!/^[0-9]$/.test(key)) e.preventDefault();
+                              }}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeMember(member._id)}
+                            className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-red-400 transition-colors rounded-md hover:bg-red-500/10"
+                          >
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                              <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                </div>
+                  ))}
 
-                <div className="mt-4 flex gap-3">
-                    <button className="flex-1 bg-white/5 hover:bg-white/8 border border-white/10 rounded-xl px-6 py-3 text-sm text-white/60 hover:text-white/80 transition-all" onClick={() => window.history.back()}>
-                        Cancel
-                    </button>
-                    <button className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl px-6 py-3 text-sm transition-all active:scale-[0.98]" disabled={isLoading || isVerifying} type="submit">
-                        Create group
-                    </button>
+                  {/* Pool total */}
+                  <div className="flex items-center justify-between px-1 pt-1">
+                    <span className="text-[10px] text-white/25 uppercase tracking-widest">
+                      Initial pool total
+                    </span>
+                    <span className="text-sm font-semibold font-mono text-cyan-300">
+                      ₹{poolTotal.toLocaleString("en-IN")}
+                    </span>
+                  </div>
                 </div>
+              )}
             </div>
-        </form>
-    );
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="mt-4 flex gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="flex-1 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08]
+              rounded-xl px-6 py-3 text-sm text-white/40 hover:text-white/60 transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading || isVerifying}
+            className="flex-1 relative overflow-hidden rounded-xl px-6 py-3 text-sm font-semibold
+              text-black bg-cyan-400 hover:bg-cyan-300
+              disabled:opacity-40 disabled:cursor-not-allowed
+              transition-all duration-150 active:scale-[0.98]
+              shadow-lg shadow-cyan-500/20"
+          >
+            {isLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Creating...
+              </span>
+            ) : "Create group"}
+          </button>
+        </div>
+      </form>
+
+      <style>{`
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
 }

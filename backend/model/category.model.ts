@@ -1,7 +1,7 @@
 import mongoose , { Document, Schema } from 'mongoose';
 
 export interface ICategory extends Document {
-    groupId: mongoose.Schema.Types.ObjectId;
+    groupId: mongoose.Types.ObjectId;
     name: string;
     isDeleted?: boolean;
     createdAt?: Date;
@@ -9,7 +9,7 @@ export interface ICategory extends Document {
 }
 
 const categorySchema = new Schema<ICategory>({
-    groupId: {type: mongoose.Schema.Types.ObjectId, ref: "Group"},
+    groupId: {type: mongoose.Types.ObjectId, ref: "Group"},
     name: { type: String, required: true, trim: true },
     isDeleted: { type: Boolean, default: false }
 }, {timestamps: true});

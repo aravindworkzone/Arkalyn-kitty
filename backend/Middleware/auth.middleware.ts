@@ -24,13 +24,18 @@ const verifyToken = (req: Request, res: Response, next: NextFunction) => {
 };
 
 const loadGroup = async (req: Request, res: Response, next: NextFunction) => {
-    const rawId = req.body.groupId ?? req.params.groupId;
+    const rawId = req.body?.groupId ?? req.params?.groupId;
     const groupId = typeof rawId === "string" ? rawId.trim() : null;
-
     if (!groupId) return res.status(400).json({ message: "Group ID is required" });
-    if (!mongoose.Types.ObjectId.isValid(groupId)) return res.status(400).json({ message: "Invalid group ID format" });
 
-    const group = await Group.findById(groupId);
+    let query;
+    if (mongoose.isValidObjectId(groupId)) {
+      query = { _id: groupId };
+    } else {
+      query = { displayId: groupId };
+    }
+
+    const group = await Group.findOne(query);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
     req.group = group;

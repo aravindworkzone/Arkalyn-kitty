@@ -4,6 +4,8 @@ import Group from "../Model/group.model";
 import GroupTransaction from "../Model/group_transaction.model";
 import { AppError } from "../Utils/AppError";
 import User from "../Model/user.model";
+import Category from "../Model/category.model";
+import GroupMembers from "../Model/group_member.model";
 
 interface ExpenseData {
     userId: string;
@@ -14,7 +16,6 @@ interface ExpenseData {
     category: string;
     title: string;
     amount: number;
-    paidBy: string;
     paymentType: string;
     date: Date;
     splitBetween?: {
@@ -29,7 +30,7 @@ export const createExpenseService = async (data: ExpenseData) => {
     const title = data.title.trim();
     const amount = Math.round((data.amount ?? 0) * 100) ?? null;
     const splitBetween = Array.isArray(data.splitBetween) ? data.splitBetween : [];
-    const paidBy = data.paidBy.trim();
+    const paidBy = data.userId.trim();
     const paymentType = data.paymentType.trim();
     const date = data.date ?? null;
     const userId = data.userId;
@@ -172,3 +173,15 @@ export const deleteExpenseService = async (data: { expenseId: string, groupId: s
         session.endSession();
     }
 };
+
+export const getExpenseAddDetailsService = async (groupId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId) => {
+    try {
+        const category = await Category.find({ groupId, isDeleted: false });
+        const payMethods = await Expense.distinct("paymentType");
+        const members = await GroupMembers.find({ groupId });
+        console.log(category, payMethods, members);
+    } catch (error : any) {
+        if (error.name === "ValidationError") throw AppError(error.message, 400);
+        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+    }
+}

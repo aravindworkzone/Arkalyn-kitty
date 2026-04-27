@@ -471,3 +471,123 @@ export const SettlementService = async (data : {group: mongoose.Types.ObjectId, 
         await session.endSession();
     }
 };
+
+export const getGroupByIdService = async (groupId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId) => {
+    if (!mongoose.Types.ObjectId.isValid(groupId)) {
+        throw AppError("Invalid group ID format", 400);
+    }
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const group = await Group.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(groupId)
+            }
+        },
+        {
+            $lookup: {
+                from: "groupmembers",
+                let: { groupId: "$_id" },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: {
+                                $and: [
+                                    { $eq: ["$groupId", "$$groupId"] },
+                                    { $eq: ["$isDeleted", false] }
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "userId",
+                            foreignField: "_id",
+                            as: "user"
+                        }
+                    },
+                    {
+                        $unwind: "$user"
+                    },
+                    {
+                        $project: {
+                            _id: 1,
+                            userId: 1,
+                            role: 1,
+                            name: "$user.name",
+                            displayId: "$user.displayId",
+                            contribution: {$divide:["$contribution",100]}
+                        }
+                    }
+                ],
+                as: "MembersDetails"
+            }
+        },
+        {
+            $lookup: {
+                from: "expenses",
+                localField: "_id",
+                foreignField: "groupId",
+                as: "expense"
+            }
+        },
+        {
+            $project: {
+                _id: 1,
+                displayId: 1,
+                name: 1,
+                role: {
+                    $arrayElemAt: [
+                        {
+                            $map: {
+                                input: {
+                                    $filter: {
+                                        input: "$MembersDetails",
+                                        as: "member",
+                                        cond: { $eq: ["$$member.userId", new mongoose.Types.ObjectId(userId)] }
+                                    }
+                                },
+                                as: "m",
+                                in: "$$m.role"
+                            }
+                        },
+                        0
+                    ]
+                },
+                barLength:{
+                    $multiply: [
+                        {
+                            $subtract: [
+                                {
+                                    $divide: [
+                                        "$balance",
+                                        "$totalContribution"
+                                    ]
+                                },
+                                1
+                            ]
+                        },
+                        100
+                    ]
+                },
+                balance: {$divide: ["$balance",100]},
+                totalContribution: {$divide: ["$totalContribution",100]},
+                MembersDetails: "$MembersDetails",
+                TodayExpenses: {
+                    $filter: {
+                        input: "$expense",
+                        as: "expense",
+                        cond: { 
+                            $and: [{$eq: ["$$expense.isDeleted", false]}, {$gte: ["$$expense.createdAt", start]}]
+                        }
+                    }
+                }
+            }
+        }
+    ]);
+    if (!group) {
+        throw AppError("Group not found", 404);
+    }
+    return group;
+};

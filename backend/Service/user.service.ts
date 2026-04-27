@@ -44,8 +44,11 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
                     from: "users",
                     localField: "members.userId",
                     foreignField: "_id",
-                    as: "members.user"
+                    as: "membersuser"
                 }
+            },
+            {
+                $sort: { "group.createdAt": -1 }
             },
             {
                 $project: {
@@ -53,7 +56,8 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
                     displayId: "$group.displayId",
                     name: "$group.name",
                     balance: {$divide:["$group.balance",100]},
-                    members: "$members.user.name",
+                    members: "$membersuser.name",
+                    role: "$members.role",
                     barLength: {
                         $cond: [
                             { $gt: ["$group.totalContribution", 0] },

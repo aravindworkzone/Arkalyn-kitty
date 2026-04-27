@@ -5,14 +5,14 @@ export const user = api.injectEndpoints({
     endpoints: (builder) => ({
         getUserGroups: builder.query<any, void>({
             query: () => '/user/usergroups',
-            providesTags: ['User']
+            providesTags: ['Group']
         }),
         verifyUser: builder.mutation<IUser, string>({
-        query: (email) => ({
-            url: '/user/verifyuser',
-            method: 'POST',
-            body: { email }
-        })
+            query: (email) => ({
+                url: '/user/verifyuser',
+                method: 'POST',
+                body: { email }
+            })
         })
     })
 });

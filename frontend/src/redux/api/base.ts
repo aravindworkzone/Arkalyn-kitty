@@ -2,7 +2,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import type { BaseQueryFn } from "@reduxjs/toolkit/query";
 
 const baseQuery = fetchBaseQuery({
-    baseUrl: "http://localhost:5000/api",
+    baseUrl: import.meta.env.VITE_API_URL,
     credentials: "include"
 });
 
@@ -11,16 +11,14 @@ export const baseQueryWithReauth: BaseQueryFn<
   unknown,
   unknown
 > = async (args, api, extraOptions) => {
-  try {
-        let result = await baseQuery(args, api, extraOptions);
-        return result;
-    } catch (error: any) {
-        if (error?.status === 401) {
-            window.location.href = "/login";
-        }
-        return error;
+    const result = await baseQuery(args, api, extraOptions);
+
+    if (result.error?.status === 401) {
+        window.location.href = "/login";
     }
-}
+
+    return result;
+};
 
 export const api = createApi({
     reducerPath: "api",
