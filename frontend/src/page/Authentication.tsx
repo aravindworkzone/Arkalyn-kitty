@@ -37,10 +37,11 @@ const Templete = ({inputs, link} : Props) => {
             }
         };
         try {
-            await Auth(data);
+            await Auth(data).unwrap();
             setError('');
             navigate('/');
         } catch (error: any) {
+            console.log(error);
             setError(error.data?.message || "An error occurred");
         }
     }

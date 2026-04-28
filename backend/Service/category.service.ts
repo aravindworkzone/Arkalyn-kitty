@@ -48,11 +48,19 @@ export const createCategoryService = async (data: { name: string; groupId: mongo
     }
 }
 
-export const deleteCategoryService = async (data: { categoryId: string, groupId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId }) => {
+export const deleteCategoryService = async (data: { categoryId: string, userId: mongoose.Types.ObjectId }) => {
     const categoryId = new mongoose.Types.ObjectId(data.categoryId);
 
     if (!mongoose.Types.ObjectId.isValid(categoryId)) {
         throw AppError("Invalid category ID format", 400);
+    }
+    let groupId;
+    try {
+        const category = await Category.findById(categoryId);
+        groupId = category!.groupId;
+       
+    } catch (error: any) {
+        throw AppError(error.message || 'Error getting category', 500);
     }
 
     const session = await mongoose.startSession();
@@ -61,7 +69,7 @@ export const deleteCategoryService = async (data: { categoryId: string, groupId:
         const category = await Category.findByIdAndDelete(categoryId, { session });
 
         await GroupEvent.create([{
-            groupId: data.groupId,
+            groupId: groupId,
             performedBy: data.userId,
             eventType: "MANAGE_CATEGORY",
             metadata: { userId: data.userId, note: `Deleted category: ${category!.name}` },
@@ -87,8 +95,9 @@ export const deleteCategoryService = async (data: { categoryId: string, groupId:
 
 export const getCategoryDetailsService = async (groupId: mongoose.Types.ObjectId) => {
     try {
-        const categories = await Category.find({ groupId }).populate('groupId');
-        return categories;
+        const categories = await Category.find({ groupId });
+        const sendCategories = categories.map((category) => { return { _id: category._id, name: category.name, color: "#f97316", expenseCount: 0 } });
+        return sendCategories;
     } catch (error: any) {
         throw AppError(error.message || 'Error getting categories', 500);
     }

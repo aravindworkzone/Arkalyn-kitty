@@ -5,95 +5,118 @@ import {AppError} from "../Utils/AppError";
 export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
     try {
 
+        const objectUserId = new mongoose.Types.ObjectId(userId);
+
         const userGroups = await GroupMember.aggregate([
-            {
-                $match:{
-                    userId: new mongoose.Types.ObjectId(userId),
-                    isDeleted: false
+        {
+            $match: {
+            userId: objectUserId,
+            isDeleted: false
+            }
+        },
+        {
+            $lookup: {
+            from: "groups",
+            localField: "groupId",
+            foreignField: "_id",
+            as: "group"
+            }
+        },
+        { $unwind: "$group" },
+        {
+            $lookup: {
+            from: "groupmembers",
+            localField: "group._id",
+            foreignField: "groupId",
+            as: "members"
+            }
+        },
+        {
+            $lookup: {
+            from: "expenses",
+            localField: "group._id",
+            foreignField: "groupId",
+            as: "expense"
+            }
+        },
+        {
+            $lookup: {
+            from: "users",
+            localField: "members.userId",
+            foreignField: "_id",
+            as: "membersuser"
+            }
+        },
+        { $sort: { "group.createdAt": -1 } },
+        {
+            $project: {
+            _id: "$group._id",
+            displayId: "$group.displayId",
+            name: "$group.name",
+            balance: { $divide: ["$group.balance", 100] },
+
+            members: {
+                $map: {
+                input: "$membersuser",
+                as: "u",
+                in: "$$u.name"
                 }
             },
-            {
-                $lookup: {
-                    from: "groups",
-                    localField: "groupId",
-                    foreignField: "_id",
-                    as: "group"
+
+            role: {
+                $first: {
+                $map: {
+                    input: {
+                    $filter: {
+                        input: "$members",
+                        as: "m",
+                        cond: { $eq: ["$$m.userId", objectUserId] }
+                    }
+                    },
+                    as: "m",
+                    in: "$$m.role"
+                }
                 }
             },
-            {
-                $unwind: "$group"
-            },
-            {
-                $lookup: {
-                    from: "groupmembers",
-                    localField: "group._id",
-                    foreignField: "groupId",
-                    as: "members"
-                }
-            },
-            {
-                $lookup: {
-                    from: "expenses",
-                    localField: "group._id",
-                    foreignField: "groupId",
-                    as: "expense"
-                }
-            },
-            {
-                $lookup: {
-                    from: "users",
-                    localField: "members.userId",
-                    foreignField: "_id",
-                    as: "membersuser"
-                }
-            },
-            {
-                $sort: { "group.createdAt": -1 }
-            },
-            {
-                $project: {
-                    _id: "$group._id",
-                    displayId: "$group.displayId",
-                    name: "$group.name",
-                    balance: {$divide:["$group.balance",100]},
-                    members: "$membersuser.name",
-                    role: "$members.role",
-                    barLength: {
-                        $cond: [
-                            { $gt: ["$group.totalContribution", 0] },
+
+            barLength: {
+                $cond: [
+                { $gt: ["$group.totalContribution", 0] },
+                {
+                    $round: [
+                    {
+                        $multiply: [
+                        {
+                            $subtract: [
+                            1,
                             {
-                                $round: [
-                                    {
-                                        $multiply: [
-                                            {
-                                                $subtract: [
-                                                    1,
-                                                    {
-                                                        $divide: [
-                                                            "$group.balance",
-                                                            "$group.totalContribution"
-                                                        ]
-                                                    }
-                                                ]
-                                            },
-                                            100
-                                        ]
-                                    },
-                                    0
+                                $divide: [
+                                "$group.balance",
+                                "$group.totalContribution"
                                 ]
-                            },
-                            0
+                            }
+                            ]
+                        },
+                        100
                         ]
                     },
-                    expenseCount: { $size: "$expense" },
-                    createdAt: {
-                        $dateToString: {
-                            format: "%d %b %Y",
-                            date: "$group.createdAt"
-                        }
-                    }
+                    0
+                    ]
+                },
+                0
+                ]
+            },
+
+            expenseCount: { $size: "$expense" },
+
+            createdAt: {
+                $dateToString: {
+                format: "%d %b %Y",
+                date: "$group.createdAt"
                 }
             }
+            }
+        }
         ]);
 
         return userGroups;

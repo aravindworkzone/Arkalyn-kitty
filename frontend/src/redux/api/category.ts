@@ -15,7 +15,14 @@ export const category = api.injectEndpoints({
                 method: 'DELETE'
             })
         }),
+        getCategories: builder.query<any, any>({
+            query: (credentials) => ({
+                url: `/category/getCategoryDetails/${credentials}`,
+                method: 'GET'
+            }),
+            providesTags: ['Category']
+        }),
     })
 });
 
-export const { useCreateCategoryMutation, useDeleteCategoryMutation } = category;
+export const { useCreateCategoryMutation, useDeleteCategoryMutation, useGetCategoriesQuery } = category;
