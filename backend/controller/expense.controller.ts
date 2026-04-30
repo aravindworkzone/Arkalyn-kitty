@@ -1,4 +1,4 @@
-import { createExpenseService, deleteExpenseService, getExpenseAddDetailsService } from "../Service/expense.service";
+import { createExpenseService, deleteExpenseService, getExpenseAddDetailsService, paymentMethodService, expenseReportService } from "../Service/expense.service";
 import { Request, Response } from "express";
 
 export const createExpense = async (req: Request, res: Response) => {
@@ -62,6 +62,26 @@ export const getExpenseAddDetails = async (req: Request, res: Response) => {
     } catch (error: any) {
         const statusCode = error.status || 500;
         return res.status(statusCode).json({ message: "Internal server error", error: error.message });
+    }
+};
+
+export const paymentMethods = async (req: Request, res: Response) => {
+    try {
+        const paymentMethods = await paymentMethodService();
+        return res.status(200).json({ message: "Payment methods", paymentMethods });
+    } catch (error: any) {
+        const statusCode = error.status || 500;
+        return res.status(statusCode).json({ message: "Internal server error", error: error.message });    
+    }
+};
+
+export const expenseReport = async (req: Request, res: Response) => {
+    try {
+        const report = await expenseReportService();
+        return res.status(200).json({ message: "Expense report", report });
+    } catch (error: any) {
+        const statusCode = error.status || 500;
+        return res.status(statusCode).json({ message: "Internal server error", error: error.message });    
     }
 };
 

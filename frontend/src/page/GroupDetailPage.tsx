@@ -3,7 +3,8 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import MemberAvatars from "../components/ListMember";
 import Header from "../components/header";
-import { useGetGroupByIdQuery } from "../redux/api/group";
+import { useGetExpenseReportQuery } from "../redux/api/expense";
+import { useGetGroupMembersQuery, useGetGroupByIdQuery } from "../redux/api/group";
 
 const roleGrade: Record<string, string> = {
   SUPER_ADMIN: "border-cyan-400/30  bg-cyan-500/10  text-cyan-300",
@@ -11,46 +12,21 @@ const roleGrade: Record<string, string> = {
   MEMBER:      "border-slate-500/30 bg-slate-500/10 text-slate-400",
 };
 
-interface Group {
-  name: string;
-  displayId: string;
-  role: "SUPER_ADMIN" | "ADMIN" | "MEMBER";
-  balance: number;
-  barLength: number;
-  MembersDetails: {
-      _id: string;
-      name: string;
-      email: string;
-      role: string;
-      contribution: number;
-  }[];
-  TodayExpenses: {
-      _id: string;
-      title: string;
-      category: {
-          name: string;
-          color: string;
-      };
-      amount: number;
-      paidBy: string;
-      time: string;
-  }[];
-}
-
 // ── component ────────────────────────────────────────────────────
 const GroupDetailPage = () => {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const [membersOpen, setMembersOpen] = useState(false);
-  const { data, isLoading } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
-  const group: Group | undefined = data?.group?.[0];
+  const { data: GroupDetails, isLoading: groupLoading } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
+  const { data: TodayExpenses } = useGetExpenseReportQuery(groupId!, { skip: !groupId });
+  const { data: GroupMembers } = useGetGroupMembersQuery(groupId!, { skip: !groupId });
   
-  const members = group?.MembersDetails?.map((member) => member.name);
+  const members = GroupMembers?.map((member) => member.userId.name);
 
-  const todayTotal = group?.TodayExpenses?.reduce((s, e) => s + e.amount, 0);
+  const todayTotal = (TodayExpenses || [])?.reduce((s, e) => s + e.amount, 0) ?? 0;
 
   return (
-    isLoading ? <div>Loading...</div> :
+    groupLoading ? <div>Loading...</div> :
     <div className="min-h-screen bg-[#080c14] text-white">
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
         <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-cyan-500/5  blur-[120px]" />
@@ -83,21 +59,21 @@ const GroupDetailPage = () => {
           <div className="flex items-start justify-between mb-4">
             <div className="space-y-1.5">
               <h1 className="text-[17px] font-semibold text-[#f0eeff] leading-tight">
-                {group?.name}
+                {GroupDetails?.name}
               </h1>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-white/10 bg-white/[0.05] text-white/40">
-                  {group?.displayId}
+                  {GroupDetails?.displayId}
                 </span>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleGrade[group?.role || "MEMBER"]}`}>
-                  {group?.role}
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleGrade[GroupDetails?.role || "MEMBER"]}`}>
+                  {GroupDetails?.role}
                 </span>
               </div>
             </div>
             <div className="text-right">
               <p className="text-[10px] uppercase tracking-widest text-white/30 mb-0.5">Balance</p>
               <p className="font-mono text-[22px] font-semibold text-[#f0eeff] leading-tight">
-                ₹{group?.balance?.toLocaleString("en-IN")}
+                ₹{GroupDetails?.balance?.toLocaleString("en-IN")}
               </p>
             </div>
           </div>
@@ -105,16 +81,16 @@ const GroupDetailPage = () => {
           <div className="mb-4">
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-[10px] uppercase tracking-widest text-white/30">Pool remaining</p>
-              <p className="text-[10px] font-mono text-white/40">{group?.barLength}%</p>
+              <p className="text-[10px] font-mono text-white/40">{GroupDetails?.barLength}%</p>
             </div>
             <div className="w-full h-[3px] bg-white/[0.07] rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
-                  width: `${group?.barLength}%`,
+                  width: `${GroupDetails?.barLength}%`,
                   background:
-                    group?.barLength ?? 0 > 60 ? "#818cf8" :
-                    group?.barLength ?? 0 > 30 ? "#fb923c" : "#f87171",
+                    GroupDetails?.barLength ?? 0 > 60 ? "#818cf8" :
+                    GroupDetails?.barLength ?? 0 > 30 ? "#fb923c" : "#f87171",
                 }}
               />
             </div>
@@ -171,7 +147,7 @@ const GroupDetailPage = () => {
             <div className="flex items-center gap-3">
               <MemberAvatars members={members || []} />
               <span className="text-xs font-medium text-white/40">
-                {group?.MembersDetails?.length} members
+                {GroupMembers?.length} members
               </span>
             </div>
             <svg
@@ -184,16 +160,16 @@ const GroupDetailPage = () => {
 
           {membersOpen && (
             <div className="border-t border-white/[0.06] divide-y divide-white/[0.04]">
-              {group?.MembersDetails?.map((member) => (
+              {GroupMembers?.map((member) => (
                 <div key={member._id} className="flex items-center justify-between px-5 py-3">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-cyan-500/15 border border-cyan-500/20
                       flex items-center justify-center text-[11px] font-bold text-cyan-400 shrink-0">
-                      {member?.name?.slice(0, 2).toUpperCase()}
+                      {member?.userId?.name?.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-[13px] font-medium text-white/80 leading-tight">{member.name}</p>
-                      <p className="text-[11px] text-white/30">{member.email}</p>
+                      <p className="text-[13px] font-medium text-white/80 leading-tight">{member.userId?.name}</p>
+                      <p className="text-[11px] text-white/30">{member.userId?.email}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2.5">
@@ -213,20 +189,20 @@ const GroupDetailPage = () => {
         <div>
           <div className="flex items-center justify-between mb-3 px-0.5">
             <p className="text-xs font-semibold uppercase tracking-widest text-white/40">Today</p>
-            {group?.TodayExpenses &&group?.TodayExpenses?.length > 0 && (
+            {TodayExpenses &&TodayExpenses?.length > 0 && (
               <p className="text-xs font-mono font-semibold text-white/50">
                 ₹{todayTotal?.toLocaleString("en-IN")}
               </p>
             )}
           </div>
 
-          {group?.TodayExpenses?.length === 0 ? (
+          {TodayExpenses?.length === 0 ? (
             <p className="text-center text-white/25 text-xs py-6">
               No expenses recorded today
             </p>
           ) : (
             <div className="space-y-2">
-              {group?.TodayExpenses?.map((expense, i) => (
+              {TodayExpenses?.map((expense, i) => (
                 <div
                   key={expense._id}
                   className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5

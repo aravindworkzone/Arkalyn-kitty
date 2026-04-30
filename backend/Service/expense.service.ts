@@ -6,9 +6,10 @@ import { AppError } from "../Utils/AppError";
 import User from "../Model/user.model";
 import Category from "../Model/category.model";
 import GroupMembers from "../Model/group_member.model";
+import { PAYMENT_TYPES, PaymentType } from "../Model/expense.model";
 
 interface ExpenseData {
-    userId: string;
+    user: string;
     group: {
         _id: string;
         balance: number;
@@ -16,7 +17,8 @@ interface ExpenseData {
     category: string;
     title: string;
     amount: number;
-    paymentType: string;
+    paymentType: PaymentType;
+    paidBy: string;
     date: Date;
     splitBetween?: {
         userId: string;
@@ -30,10 +32,10 @@ export const createExpenseService = async (data: ExpenseData) => {
     const title = data.title.trim();
     const amount = Math.round((data.amount ?? 0) * 100) ?? null;
     const splitBetween = Array.isArray(data.splitBetween) ? data.splitBetween : [];
-    const paidBy = data.userId.trim();
-    const paymentType = data.paymentType.trim();
+    const paidBy = data.paidBy.trim();
+    const paymentType = data.paymentType;
     const date = data.date ?? null;
-    const userId = data.userId;
+    const userId = data.user;
 
     if (!groupData._id || !category || !title || !amount || !paidBy || !paymentType || !date) {
         throw AppError("All fields are required", 400);
@@ -63,8 +65,7 @@ export const createExpenseService = async (data: ExpenseData) => {
         throw AppError("Valid amount required", 400);
     }
 
-    const validPaymentTypes = ["cash", "card", "upi", "netbanking"];
-    if (!validPaymentTypes.includes(paymentType)) {
+    if (!PAYMENT_TYPES.includes(paymentType)) {
         throw AppError("Invalid payment type", 400);
     }
 
@@ -84,11 +85,16 @@ export const createExpenseService = async (data: ExpenseData) => {
             paidBy,
             paymentType,
             date,
-            splitBetween: {}
+            splitBetween: []
         }
 
         if (splitBetween.length > 0) {
-            expense!.splitBetween = splitBetween;
+            expense!.splitBetween = expense!.splitBetween.map(split => {
+                return {
+                    userId: split.userId,
+                    amount: Math.round((split.amount ?? 0) * 100)
+                }
+            });
         }
 
         const expenseSave = new Expense(expense);
@@ -114,7 +120,7 @@ export const createExpenseService = async (data: ExpenseData) => {
             action: "DEBIT",
             description: `Expense: ${expense.title} by ${paidBy} for ${amount}`,
             referenceId: expenseSave._id,
-            referenceModel: "expense",
+            referenceModel: "Expense",
             performedBy: userId
         }], { session });
 
@@ -182,6 +188,27 @@ export const getExpenseAddDetailsService = async (groupId: mongoose.Types.Object
         console.log(category, payMethods, members);
     } catch (error : any) {
         if (error.name === "ValidationError") throw AppError(error.message, 400);
+        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+    }
+}
+
+export const paymentMethodService = async () => {
+    try {
+        return PAYMENT_TYPES;
+    } catch (error : any) {
+        if (error.name === "ValidationError") throw AppError(error.message, 400);
+        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+    }
+};
+
+
+export const expenseReportService = async () => {
+    const start = new Date().setHours(0, 0, 0, 0);
+    const end = new Date().setHours(23, 59, 59, 999);
+    try {
+        const expenses = await Expense.find({ date: { $gte: start, $lte: end } }).populate("paidBy").populate("category");
+        return expenses;
+    } catch (error : any) {
         throw AppError(error.message || "Internal server error", error.statusCode || 500);
     }
 }

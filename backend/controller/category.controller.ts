@@ -11,7 +11,8 @@ export const createCategory = async (req: Request, res: Response) => {
         const result = await createCategoryService({ 
             name, 
             groupId: req.group._id, 
-            userId: req.user._id 
+            userId: req.user._id,
+            color: req.body.color
         });
         return res.status(201).json({ 
             message: "Category created", 
@@ -26,9 +27,10 @@ export const createCategory = async (req: Request, res: Response) => {
 
 export const deleteCategory = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.group._id) return res.status(401).json({ message: "Group not found" });
     const categoryId = req.params.id as string;
     try {
-        const category = await deleteCategoryService({ categoryId, userId: req.user._id });
+        const category = await deleteCategoryService({ categoryId, userId: req.user._id, groupId: req.group._id });
         return res.status(200).json({ message: "Category deleted", category });
     } catch (error: any) {
         const statusCode = error.status || 500;

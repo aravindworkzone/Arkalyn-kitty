@@ -1,5 +1,5 @@
 import express from 'express';
-import { createGroup, deleteGroup, manageMember, manageAdmin, addContribution, Settlement, getGroupById } from '../Controller/group.controller';
+import { createGroup, deleteGroup, manageMember, manageAdmin, addContribution, Settlement, getGroupById, getGroupMember } from '../Controller/group.controller';
 import {verifyToken, authorizeRole, loadGroup} from '../Middleware/auth.middleware';
 const router = express.Router();
 
@@ -10,5 +10,6 @@ router.post('/manageadmin', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN")
 router.post('/addcontribution', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN", "ADMIN"), addContribution);
 router.post('/settlement', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN", "ADMIN"), Settlement);
 router.get('/getgroupbyid/:groupId', verifyToken, loadGroup, getGroupById);
+router.get('/getgroupmembers/:groupId', verifyToken, loadGroup, getGroupMember);
 
 export default router;

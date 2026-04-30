@@ -4,7 +4,7 @@ import {verifyToken, authorizeRole, loadGroup} from '../Middleware/auth.middlewa
 const router = express.Router();
 
 router.post('/create', verifyToken, loadGroup,authorizeRole("SUPER_ADMIN", "ADMIN"), createCategory);
-router.delete('/delete/:id', verifyToken, authorizeRole("SUPER_ADMIN", "ADMIN"), deleteCategory);
+router.delete('/delete/:id/:groupId', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN", "ADMIN"), deleteCategory);
 router.get('/getCategoryDetails/:groupId', verifyToken, loadGroup, getCategoryDetails);
 
 export default router;

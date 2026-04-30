@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
 import { useCreateCategoryMutation, useDeleteCategoryMutation, useGetCategoriesQuery } from "../redux/api/category";
+import DeleteConfirmModal from "../components/deleteModel";
+import CategoryDeleteSummary from "../components/categorySummary";
 
 interface Category {
-    _id: string;
-    name: string;
-    color: string;
-    expenseCount: number;
+  _id: string;
+  name: string;
+  color: string;
+  expenseCount: number;
 }
 
 const colorOptions = [
@@ -35,7 +37,7 @@ export default function CategoryPage() {
   const navigate = useNavigate();
 
   const [createCategory] = useCreateCategoryMutation();
-  const [deleteCategory] = useDeleteCategoryMutation();
+  const [deleteCategory, { isLoading }] = useDeleteCategoryMutation();
   const { data } = useGetCategoriesQuery(groupId);
 
   const [name, setName]         = useState("");
@@ -43,8 +45,10 @@ export default function CategoryPage() {
   const [error, setError]       = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
 
+  const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
+
   useEffect(() => {
-    if (data) setCategories(data.category);
+    if (data) setCategories(data);
   }, [data]);
 
   const handleAdd = async () => {
@@ -72,17 +76,33 @@ export default function CategoryPage() {
     setError("");
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteCategory(id).unwrap();
-    } catch (error: any) {
-      console.log(error);
-      setError(error.data.message);
-    }
-    setCategories((prev) => prev.filter((c) => c._id !== id));
-  };
+const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+
+const handleDelete = async () => {
+  if (!selectedCategory) return;
+  try {
+    await deleteCategory({ id: selectedCategory._id, groupId }).unwrap();
+    setCategories((prev) => prev.filter((c) => c._id !== selectedCategory._id));
+    setCategoryModalOpen(false);
+    setSelectedCategory(null);
+  } catch (error: any) {
+    setError(error.data.message);
+  }
+};
 
   return (
+    <>
+    <DeleteConfirmModal
+      isOpen={isCategoryModalOpen}
+      onClose={() => { setCategoryModalOpen(false); setSelectedCategory(null); }}
+      onConfirm={handleDelete}
+      confirmText="DELETE"
+      isBlocked={(selectedCategory?.expenseCount ?? 0) > 0}
+      isLoading={isLoading}
+      label="Delete category"
+    >
+      {selectedCategory && <CategoryDeleteSummary category={selectedCategory} />}
+    </DeleteConfirmModal>
     <div className="min-h-screen bg-[#080c14] text-white">
       {/* Ambient */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
@@ -271,7 +291,7 @@ export default function CategoryPage() {
                   <div className="relative group/del">
                     <button
                       type="button"
-                      onClick={() => cat.expenseCount === 0 && handleDelete(cat._id)}
+                      onClick={() => { setSelectedCategory(cat); setCategoryModalOpen(true); }}
                       disabled={cat.expenseCount > 0}
                       className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150 ${
                         cat.expenseCount > 0
@@ -304,5 +324,6 @@ export default function CategoryPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

@@ -1,3 +1,6 @@
+export const PAYMENT_TYPES = ["Cash", "Card", "UPI", "Net Banking"] as const;
+export type PaymentType = typeof PAYMENT_TYPES[number];
+
 import mongoose, { Document, Schema} from "mongoose";
 
 export interface IExpense extends Document {
@@ -10,7 +13,7 @@ export interface IExpense extends Document {
         amount: number;
     }[];
     paidBy: mongoose.Types.ObjectId;
-    paymentType: "cash" | "card" | "upi" | "netbanking";
+    paymentType: PaymentType;
     isDeleted: boolean;
     date: Date;
     createdAt?: Date;
@@ -31,7 +34,7 @@ const expenseSchema = new Schema<IExpense>({
         ]
     },
     paidBy: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true},
-    paymentType: {type: String, enum: ["cash", "card", "upi", "netbanking"], required: true},
+    paymentType: {type: String, enum: PAYMENT_TYPES, required: true},
     date: {type: Date, required: true, default: Date.now},
     isDeleted: {type: Boolean, default: false}
 }, {timestamps: true});

@@ -2,16 +2,13 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
+import { useGetCategoriesQuery } from "../redux/api/category";
+import { useGetPaymentMethodQuery, useCreateExpenseMutation } from "../redux/api/expense";
+import { useGetGroupMembersQuery } from "../redux/api/group";
 
 const mockMembers = [
   { _id: "1", name: "Aravind" },
   { _id: "2", name: "Karthiek" },
-];
-
-const mockCategories = [
-  { _id: "c1", name: "Food",      color: "#f97316" },
-  { _id: "c2", name: "Transport", color: "#06b6d4" },
-  { _id: "c3", name: "Bills",     color: "#8b5cf6" },
 ];
 
 interface SplitEntry {
@@ -19,13 +16,6 @@ interface SplitEntry {
   name: string;
   amount: number;
 }
-
-const paymentTypes = [
-  { value: "cash",       label: "Cash",       icon: "💵" },
-  { value: "card",       label: "Card",       icon: "💳" },
-  { value: "upi",        label: "UPI",        icon: "📱" },
-  { value: "netbanking", label: "Net Banking", icon: "🏦" },
-];
 
 const s = {
   input:
@@ -38,8 +28,16 @@ const s = {
 
 // ── component ──────────────────────────────────────────────────
 export default function CreateExpensePage() {
-  const { groupId } = useParams();
+  const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
+  const { data: paymentTypes = [] } = useGetPaymentMethodQuery();
+  const { data: categories = [] } = useGetCategoriesQuery(groupId!, {
+    skip: !groupId,
+  });
+  const { data: groupMembers = [] } = useGetGroupMembersQuery(groupId!, {
+    skip: !groupId,
+  });
+  const [createExpense] = useCreateExpenseMutation();
 
   const [title, setTitle]               = useState("");
   const [amount, setAmount]             = useState("");
@@ -69,7 +67,8 @@ export default function CreateExpensePage() {
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    setError("");
     e.preventDefault();
     if (!title.trim())   return setError("Title is required");
     if (!totalAmount)    return setError("Amount is required");
@@ -90,8 +89,12 @@ export default function CreateExpensePage() {
     };
 
     console.log("submit →", payload);
-    // await createExpense(payload).unwrap()
-    // navigate(`/groups/${groupId}`)
+    try {
+      await createExpense(payload).unwrap();
+      navigate(`/groups/${groupId}`);
+    } catch (error : any) {
+      setError(error.data.message || "Failed to create expense");
+    }
   };
 
   return (
@@ -226,7 +229,7 @@ export default function CreateExpensePage() {
                 Category
               </label>
               <div className="flex flex-wrap gap-2">
-                {mockCategories.map((cat) => (
+                {categories?.map((cat) => (
                   <button
                     key={cat._id}
                     type="button"
@@ -254,19 +257,18 @@ export default function CreateExpensePage() {
                 Payment type
               </label>
               <div className="grid grid-cols-4 gap-2">
-                {paymentTypes.map((pt) => (
+                {paymentTypes?.map((pt) => (
                   <button
-                    key={pt.value}
+                    key={pt}
                     type="button"
-                    onClick={() => setPaymentType(pt.value)}
+                    onClick={() => setPaymentType(pt)}
                     className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-[10px] font-semibold transition-all duration-150 ${
-                      paymentType === pt.value
+                      paymentType === pt
                         ? "bg-cyan-500/15 border-cyan-500/35 text-cyan-300"
                         : "bg-white/[0.03] border-white/[0.07] text-white/30 hover:bg-white/[0.06]"
                     }`}
                   >
-                    <span className="text-base leading-none">{pt.icon}</span>
-                    {pt.label}
+                    {pt}
                   </button>
                 ))}
               </div>
@@ -284,7 +286,7 @@ export default function CreateExpensePage() {
           </div>
           <div className="px-5 py-4">
             <div className="flex flex-wrap gap-2">
-              {mockMembers.map((member) => (
+              {groupMembers?.map((member) => (
                 <button
                   key={member._id}
                   type="button"
@@ -300,9 +302,9 @@ export default function CreateExpensePage() {
                       paidBy === member._id ? "bg-violet-500/30 text-violet-300" : "bg-white/10 text-white/40"
                     }`}
                   >
-                    {member.name.slice(0, 2).toUpperCase()}
+                    {member.userId?.name.slice(0, 2).toUpperCase()}
                   </span>
-                  {member.name}
+                  {member.userId?.name}
                 </button>
               ))}
             </div>
@@ -320,13 +322,13 @@ export default function CreateExpensePage() {
           <div className="px-5 py-4 space-y-3">
             {/* Member toggle */}
             <div className="flex flex-wrap gap-2">
-              {mockMembers.map((member) => {
+              {groupMembers?.map((member) => {
                 const selected = splits.some((s) => s.userId === member._id);
                 return (
                   <button
                     key={member._id}
                     type="button"
-                    onClick={() => toggleSplit(member)}
+                    onClick={() => toggleSplit(member.userId!)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[12px] font-semibold transition-all duration-150 ${
                       selected
                         ? "bg-cyan-500/15 border-cyan-500/35 text-cyan-200"
@@ -338,9 +340,9 @@ export default function CreateExpensePage() {
                         selected ? "bg-cyan-500/25 text-cyan-300" : "bg-white/10 text-white/40"
                       }`}
                     >
-                      {member.name.slice(0, 2).toUpperCase()}
+                      {member.userId?.name.slice(0, 2).toUpperCase()}
                     </span>
-                    {member.name}
+                    {member.userId?.name}
                   </button>
                 );
               })}

@@ -1,5 +1,17 @@
 import {api} from "./base";
 
+interface Category {
+  _id: string;
+  name: string;
+  color: string;
+  expenseCount: number;
+}
+
+interface CategoryResponse {
+  message: string;
+  category: Category[];
+}
+
 export const category = api.injectEndpoints({
     endpoints: (builder) => ({
         createCategory: builder.mutation({
@@ -11,15 +23,16 @@ export const category = api.injectEndpoints({
         }),
         deleteCategory: builder.mutation({
             query: (credentials) => ({
-                url: `/category/delete/${credentials}`,
+                url: `/category/delete/${credentials.id}/${credentials.groupId}`,
                 method: 'DELETE'
             })
         }),
-        getCategories: builder.query<any, any>({
-            query: (credentials) => ({
-                url: `/category/getCategoryDetails/${credentials}`,
+        getCategories: builder.query<Category[], any>({
+            query: (groupId) => ({
+                url: `/category/getCategoryDetails/${groupId}`,
                 method: 'GET'
             }),
+            transformResponse: (res: CategoryResponse) => res.category,
             providesTags: ['Category']
         }),
     })
