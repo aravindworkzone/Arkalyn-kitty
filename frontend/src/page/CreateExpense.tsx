@@ -288,18 +288,18 @@ export default function CreateExpensePage() {
             <div className="flex flex-wrap gap-2">
               {groupMembers?.map((member) => (
                 <button
-                  key={member._id}
+                  key={member.userId._id}
                   type="button"
-                  onClick={() => setPaidBy(member._id)}
+                  onClick={() => setPaidBy(member.userId._id)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[12px] font-semibold transition-all duration-150 ${
-                    paidBy === member._id
+                    paidBy === member.userId._id
                       ? "bg-violet-500/15 border-violet-500/35 text-violet-200"
                       : "bg-white/[0.03] border-white/[0.07] text-white/35 hover:bg-white/[0.06]"
                   }`}
                 >
                   <span
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${
-                      paidBy === member._id ? "bg-violet-500/30 text-violet-300" : "bg-white/10 text-white/40"
+                      paidBy === member.userId._id ? "bg-violet-500/30 text-violet-300" : "bg-white/10 text-white/40"
                     }`}
                   >
                     {member.userId?.name.slice(0, 2).toUpperCase()}

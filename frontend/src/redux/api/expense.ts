@@ -11,7 +11,10 @@ interface GetExpenseReport {
     date: string;
     groupId: string;
     isDeleted: boolean;
-    paidBy: string;
+    paidBy: {
+        name: string;
+        email: string;
+    };
     paymentType: string;
     splitBetween: [];
     title: string;
@@ -40,7 +43,7 @@ export const expense = api.injectEndpoints({
             providesTags: ['Expense'],
         }),
         getExpenseReport: builder.query<GetExpenseReport[], any>({
-            query: () => '/expense/expensereport',
+            query: (credentials) => `/expense/expensereport/${credentials}`,
             transformResponse: (res: { report: GetExpenseReport[] }) => res.report,
             providesTags: ['Expense']
         })

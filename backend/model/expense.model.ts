@@ -2,6 +2,7 @@ export const PAYMENT_TYPES = ["Cash", "Card", "UPI", "Net Banking"] as const;
 export type PaymentType = typeof PAYMENT_TYPES[number];
 
 import mongoose, { Document, Schema} from "mongoose";
+import { toDBAmount, fromDBAmount } from "../Helper/Money";
 
 export interface IExpense extends Document {
     groupId: mongoose.Types.ObjectId;
@@ -21,23 +22,23 @@ export interface IExpense extends Document {
 }
 
 const expenseSchema = new Schema<IExpense>({
-    groupId: {type: mongoose.Schema.Types.ObjectId, ref: "Group", required: true},
-    category: {type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true},
+    groupId: {type: mongoose.Types.ObjectId, ref: "Group", required: true},
+    category: {type: mongoose.Types.ObjectId, ref: "Category", required: true},
     title: {type: String, required: true, trim: true, minlength: 3, maxlength: 100},
-    amount: {type: Number, required: true, min: 1},
+    amount: {type: Number, required: true, min: 1, set:toDBAmount, get:fromDBAmount},
     splitBetween: {
         type: [
             {
-                userId: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true},
-                amount: {type: Number, required: true, min: 1}
+                userId: {type: mongoose.Types.ObjectId, ref: "User", required: true},
+                amount: {type: Number, required: true, min: 1, set:toDBAmount, get:fromDBAmount}
             }
         ]
     },
-    paidBy: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true},
+    paidBy: {type: mongoose.Types.ObjectId, ref: "User", required: true},
     paymentType: {type: String, enum: PAYMENT_TYPES, required: true},
     date: {type: Date, required: true, default: Date.now},
     isDeleted: {type: Boolean, default: false}
-}, {timestamps: true});
+}, {timestamps: true, toJSON: { getters: true }, toObject: { getters: true }});
 
 expenseSchema.path("splitBetween").validate(function (value: any[]) {
     if (!value || value.length === 0) return true;

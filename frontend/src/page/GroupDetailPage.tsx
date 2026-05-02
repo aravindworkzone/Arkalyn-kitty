@@ -212,12 +212,12 @@ const GroupDetailPage = () => {
                     animationDelay: `${i * 50}ms`,
                     opacity: 0,
                   }}
+                  title={`Paid by ${expense.paidBy?.email}`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div
                       className="w-2 h-8 rounded-full shrink-0"
-                      style={{ background: expense.category.color + "60",
-                               boxShadow: `0 0 8px ${expense.category.color}40` }}
+                      style={{ background: expense.category.color + "60", boxShadow: `0 0 8px ${expense.category.color}40` }}
                     />
                     <div className="min-w-0">
                       <p className="text-[13px] font-medium text-white/80 truncate leading-tight">
@@ -230,7 +230,7 @@ const GroupDetailPage = () => {
                         >
                           {expense.category.name}
                         </span>
-                        <span className="text-[10px] text-white/25">· {expense.paidBy}</span>
+                        <span className="text-[10px] text-white/25">· {expense.paidBy?.name}</span>
                       </div>
                     </div>
                   </div>

@@ -12,6 +12,34 @@ interface Member {
     _id: string;
 }
 
+interface getTransaction {
+    _id: string;
+    action: string;
+    amount: number;
+    description: string;
+    performedBy: {
+        _id: string;
+        name: string;
+    };
+    referenceModel: string;
+    createdAt: string;
+};
+
+interface getEvent{
+    _id: string;
+    eventType: string;
+    performedBy: string;
+    metadata: {
+        groupName: string;
+        memberName?: undefined;
+        action?: undefined;
+        name?: undefined;
+        member?: undefined;
+        role?: undefined;
+    };
+    createdAt: string;
+}
+
 export const group = api.injectEndpoints({
     endpoints: (builder) => ({
         CreateGroup : builder.mutation<any, any>({
@@ -37,8 +65,31 @@ export const group = api.injectEndpoints({
             }),
             transformResponse: (res: { members: Member[] }) => res.members,
             providesTags: ['Group']
-        })
+        }),
+        getBasicTransaction: builder.query<any, any>({
+            query: (credentials) => ({
+                url: `/group/getbasictransaction/${credentials}`,
+                method: 'GET'
+            }),
+            providesTags: ['Group']
+        }),
+        getTransaction: builder.query<any, any>({
+            query: (credentials) => ({
+                url: `/group/gettransaction/${credentials}`,
+                method: 'GET'
+            }),
+            transformResponse: (res: { transactions: getTransaction }) => res.transactions,
+            providesTags: ['Group']
+        }),
+        getEvent: builder.query<any, any>({
+            query: (credentials) => ({
+                url: `/group/getevent/${credentials}`,
+                method: 'GET'
+            }),
+            transformResponse: (res: { events: getEvent }) => res.events,
+            providesTags: ['Group']
+        }),
     })
 })
 
-export const { useCreateGroupMutation, useGetGroupByIdQuery, useGetGroupMembersQuery } = group;
+export const { useCreateGroupMutation, useGetGroupByIdQuery, useGetGroupMembersQuery, useGetBasicTransactionQuery, useGetTransactionQuery, useGetEventQuery } = group;

@@ -1,5 +1,6 @@
 import mongoose, { Document, Schema } from "mongoose";
 import Counter from "./counter.model";
+import { toDBAmount, fromDBAmount } from "../Helper/Money";
 
 export interface IGroup extends Document {
     displayId: string;
@@ -17,11 +18,11 @@ const groupSchema = new Schema<IGroup>({
     displayId: {type: String},
     name: {type: String, required: true , trim: true, minlength: 3, maxlength: 100},
     groupType: {type: String, enum: ["POOL", "SPLIT"], default: "POOL"},
-    balance: {type: Number, default: 0},
-    totalContribution: {type: Number, default: 0},
+    balance: {type: Number, default: 0, set:toDBAmount, get:fromDBAmount},
+    totalContribution: {type: Number, default: 0, set:toDBAmount, get:fromDBAmount},
     status: {type: String, enum: ["ACTIVE", "INACTIVE"], default: "ACTIVE"},
     createdBy: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true}
-}, {timestamps: true});
+}, {timestamps: true, toJSON: { getters: true }, toObject: { getters: true }});
 
 groupSchema.pre("findOneAndDelete", async function() {
     try {

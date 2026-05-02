@@ -19,13 +19,15 @@ export const category = api.injectEndpoints({
                 url: '/category/create',
                 method: 'POST',
                 body: credentials
-            })
+            }),
+            invalidatesTags: ['Category']
         }),
         deleteCategory: builder.mutation({
             query: (credentials) => ({
                 url: `/category/delete/${credentials.id}/${credentials.groupId}`,
                 method: 'DELETE'
-            })
+            }),
+            invalidatesTags: ['Category']
         }),
         getCategories: builder.query<Category[], any>({
             query: (groupId) => ({

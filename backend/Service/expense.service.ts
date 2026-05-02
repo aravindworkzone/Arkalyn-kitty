@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import Expense from "../Model/expense.model";
 import Group from "../Model/group.model";
 import GroupTransaction from "../Model/group_transaction.model";
-import { AppError } from "../Utils/AppError";
+import { AppError } from "../Helper/AppError";
 import User from "../Model/user.model";
 import Category from "../Model/category.model";
 import GroupMembers from "../Model/group_member.model";
@@ -30,7 +30,7 @@ export const createExpenseService = async (data: ExpenseData) => {
     const groupData = data.group;
     const category = data.category.trim();
     const title = data.title.trim();
-    const amount = Math.round((data.amount ?? 0) * 100) ?? null;
+    const amount = data.amount;
     const splitBetween = Array.isArray(data.splitBetween) ? data.splitBetween : [];
     const paidBy = data.paidBy.trim();
     const paymentType = data.paymentType;
@@ -74,6 +74,11 @@ export const createExpenseService = async (data: ExpenseData) => {
         throw AppError("Invalid date format", 400);
     }
 
+    const paidByUser = await User.findById(paidBy);
+    if (!paidByUser) {
+        throw AppError("Paid by user not found", 400);
+    }
+
     const session = await mongoose.startSession();
     try {
         session.startTransaction();
@@ -89,12 +94,7 @@ export const createExpenseService = async (data: ExpenseData) => {
         }
 
         if (splitBetween.length > 0) {
-            expense!.splitBetween = expense!.splitBetween.map(split => {
-                return {
-                    userId: split.userId,
-                    amount: Math.round((split.amount ?? 0) * 100)
-                }
-            });
+            expense.splitBetween = splitBetween;
         }
 
         const expenseSave = new Expense(expense);
@@ -118,7 +118,7 @@ export const createExpenseService = async (data: ExpenseData) => {
             groupId: groupData._id,
             amount: amount,
             action: "DEBIT",
-            description: `Expense: ${expense.title} by ${paidBy} for ${amount}`,
+            description: `Expense: ${expense.title} by ${paidByUser.name} for ${amount}`,
             referenceId: expenseSave._id,
             referenceModel: "Expense",
             performedBy: userId
@@ -131,7 +131,7 @@ export const createExpenseService = async (data: ExpenseData) => {
     } catch (error : any) {
         await session.abortTransaction();
         if (error.name === "ValidationError") throw AppError(error.message, 400);
-        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+        throw AppError(error.data.message || "Internal server error", error.statusCode || 500);
     } finally {
         session.endSession();
     }
@@ -152,7 +152,7 @@ export const deleteExpenseService = async (data: { expenseId: string, groupId: s
         const payBy = await User.findById(expense.paidBy).session(session);
         if (!payBy) throw AppError('User not found', 404);
 
-        const balanceUpdate = Math.round((expense.amount ?? 0) * 100)
+        const balanceUpdate = expense.amount;
 
         await Group.findByIdAndUpdate(
             data.groupId, 
@@ -202,11 +202,12 @@ export const paymentMethodService = async () => {
 };
 
 
-export const expenseReportService = async () => {
+export const expenseReportService = async (groupId: mongoose.Types.ObjectId) => {
     const start = new Date().setHours(0, 0, 0, 0);
     const end = new Date().setHours(23, 59, 59, 999);
+    if(!groupId) throw AppError("Group ID is required", 400);
     try {
-        const expenses = await Expense.find({ date: { $gte: start, $lte: end } }).populate("paidBy").populate("category");
+        const expenses = await Expense.find({ groupId, date: { $gte: start, $lte: end } }).populate("paidBy").populate("category");
         return expenses;
     } catch (error : any) {
         throw AppError(error.message || "Internal server error", error.statusCode || 500);

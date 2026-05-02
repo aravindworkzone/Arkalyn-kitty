@@ -1,4 +1,4 @@
-import { createGroupService, deleteGroupService, manageMemberService, manageAdminService, addContributionService, SettlementService, getGroupByIdService, getGroupMemberService } from "../Service/group.service";
+import { createGroupService, deleteGroupService, manageMemberService, manageAdminService, addContributionService, SettlementService, getGroupByIdService, getGroupMemberService, getBasicTransactionService, getTransactionService, getEventService } from "../Service/group.service";
 import { Response, Request } from "express";
 
 export const createGroup = async (req: Request, res: Response) => {
@@ -153,5 +153,38 @@ export const getGroupMember = async (req: Request, res: Response) => {
         const statusCode = error.status || 500;
         const message = error.message || 'Internal server error';
         return res.status(statusCode).json({ message: 'Error fetching members', error: message });    
+    }
+}
+
+export const getBasicTransaction = async (req: Request, res: Response) => {
+    try {
+        const transactions = await getBasicTransactionService(req.group._id);
+        return res.status(200).json({ message: "Transactions fetched", transactions });
+    } catch (error: any) {
+        const statusCode = error.status || 500;
+        const message = error.message || 'Internal server error';
+        return res.status(statusCode).json({ message: 'Error fetching transactions', error: message });    
+    }
+}
+
+export const getTransaction = async (req: Request, res: Response) => {
+    try {
+        const transactions = await getTransactionService(req.group._id);
+        return res.status(200).json({ message: "Transactions fetched", transactions });
+    } catch (error: any) {
+        const statusCode = error.status || 500;
+        const message = error.message || 'Internal server error';
+        return res.status(statusCode).json({ message: 'Error fetching transactions', error: message });    
+    }
+}
+
+export const getEvent = async (req: Request, res: Response) => {
+    try {
+        const events = await getEventService(req.group._id);
+        return res.status(200).json({ message: "Events fetched", events });
+    } catch (error: any) {
+        const statusCode = error.status || 500;
+        const message = error.message || 'Internal server error';
+        return res.status(statusCode).json({ message: 'Error fetching events', error: message });    
     }
 }
