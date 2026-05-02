@@ -1,29 +1,10 @@
+
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import MemberAvatars from "../components/ListMember";
 import Header from "../components/header";
-
-// ── mock data (replace with RTK Query once endpoints are ready) ──
-const mockGroup = {
-  name: "Monthly Budget",
-  displayId: "Grp-26-001",
-  role: ["ADMIN"] as const,
-  balance: 12500,
-  barLength: 74,
-  members: ["Aravind", "Karthik", "Priya"],
-};
-
-const mockMembers = [
-  { _id: "1", name: "Aravind", email: "aravind@mail.com", role: "SUPER_ADMIN", contribution: 5000 },
-  { _id: "2", name: "Karthik", email: "karthik@mail.com", role: "ADMIN",       contribution: 4000 },
-  { _id: "3", name: "Priya",   email: "priya@mail.com",   role: "MEMBER",      contribution: 3500 },
-];
-
-const mockTodayExpenses = [
-  { _id: "e1", title: "Lunch",    category: { name: "Food",      color: "#f97316" }, amount: 450,  paidBy: "Aravind", time: "12:30" },
-  { _id: "e2", title: "Cab",      category: { name: "Transport", color: "#06b6d4" }, amount: 280,  paidBy: "Karthik", time: "14:15" },
-  { _id: "e3", title: "Snacks",   category: { name: "Food",      color: "#f97316" }, amount: 120,  paidBy: "Priya",   time: "16:45" },
-];
+import { useGetExpenseReportQuery } from "../redux/api/expense";
+import { useGetGroupMembersQuery, useGetGroupByIdQuery } from "../redux/api/group";
 
 const roleGrade: Record<string, string> = {
   SUPER_ADMIN: "border-cyan-400/30  bg-cyan-500/10  text-cyan-300",
@@ -36,13 +17,17 @@ const GroupDetailPage = () => {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const [membersOpen, setMembersOpen] = useState(false);
+  const { data: GroupDetails, isLoading: groupLoading } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
+  const { data: TodayExpenses } = useGetExpenseReportQuery(groupId!, { skip: !groupId });
+  const { data: GroupMembers } = useGetGroupMembersQuery(groupId!, { skip: !groupId });
+  
+  const members = GroupMembers?.map((member) => member.userId.name);
 
-  const group = mockGroup;
-  const todayTotal = mockTodayExpenses.reduce((s, e) => s + e.amount, 0);
+  const todayTotal = (TodayExpenses || [])?.reduce((s, e) => s + e.amount, 0) ?? 0;
 
   return (
+    groupLoading ? <div>Loading...</div> :
     <div className="min-h-screen bg-[#080c14] text-white">
-      {/* Ambient */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
         <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-cyan-500/5  blur-[120px]" />
         <div className="absolute bottom-0  -right-60  w-[600px] h-[600px] rounded-full bg-violet-600/4 blur-[120px]" />
@@ -60,7 +45,6 @@ const GroupDetailPage = () => {
 
       <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-3">
 
-        {/* Back */}
         <button
           onClick={() => navigate("/groups")}
           className="flex items-center gap-2 text-white/35 hover:text-white/60 text-xs font-medium transition-colors mb-2"
@@ -71,55 +55,50 @@ const GroupDetailPage = () => {
           Back to groups
         </button>
 
-        {/* ── Zone 1: Hero ── */}
         <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5">
-          {/* Top row */}
           <div className="flex items-start justify-between mb-4">
             <div className="space-y-1.5">
               <h1 className="text-[17px] font-semibold text-[#f0eeff] leading-tight">
-                {group.name}
+                {GroupDetails?.name}
               </h1>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-white/10 bg-white/[0.05] text-white/40">
-                  {group.displayId}
+                  {GroupDetails?.displayId}
                 </span>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleGrade[group.role[0]]}`}>
-                  {group.role[0]}
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleGrade[GroupDetails?.role || "MEMBER"]}`}>
+                  {GroupDetails?.role}
                 </span>
               </div>
             </div>
             <div className="text-right">
               <p className="text-[10px] uppercase tracking-widest text-white/30 mb-0.5">Balance</p>
               <p className="font-mono text-[22px] font-semibold text-[#f0eeff] leading-tight">
-                ₹{group.balance.toLocaleString("en-IN")}
+                ₹{GroupDetails?.balance?.toLocaleString("en-IN")}
               </p>
             </div>
           </div>
 
-          {/* Progress bar */}
           <div className="mb-4">
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-[10px] uppercase tracking-widest text-white/30">Pool remaining</p>
-              <p className="text-[10px] font-mono text-white/40">{group.barLength}%</p>
+              <p className="text-[10px] font-mono text-white/40">{GroupDetails?.barLength}%</p>
             </div>
             <div className="w-full h-[3px] bg-white/[0.07] rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
-                  width: `${group.barLength}%`,
+                  width: `${GroupDetails?.barLength}%`,
                   background:
-                    group.barLength > 60 ? "#818cf8" :
-                    group.barLength > 30 ? "#fb923c" : "#f87171",
+                    GroupDetails?.barLength ?? 0 > 60 ? "#818cf8" :
+                    GroupDetails?.barLength ?? 0 > 30 ? "#fb923c" : "#f87171",
                 }}
               />
             </div>
           </div>
 
-          {/* Avatars */}
-          <MemberAvatars members={group.members} />
+          <MemberAvatars members={members || []} />
         </div>
 
-        {/* ── Zone 2: Action buttons ── */}
         <div className="grid grid-cols-3 gap-2">
           {[
             {
@@ -160,16 +139,15 @@ const GroupDetailPage = () => {
           ))}
         </div>
 
-        {/* ── Zone 3: Members (collapsible) ── */}
         <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
           <button
             onClick={() => setMembersOpen((p) => !p)}
             className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors"
           >
             <div className="flex items-center gap-3">
-              <MemberAvatars members={group.members} />
+              <MemberAvatars members={members || []} />
               <span className="text-xs font-medium text-white/40">
-                {mockMembers.length} members
+                {GroupMembers?.length} members
               </span>
             </div>
             <svg
@@ -182,21 +160,21 @@ const GroupDetailPage = () => {
 
           {membersOpen && (
             <div className="border-t border-white/[0.06] divide-y divide-white/[0.04]">
-              {mockMembers.map((member) => (
+              {GroupMembers?.map((member) => (
                 <div key={member._id} className="flex items-center justify-between px-5 py-3">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-cyan-500/15 border border-cyan-500/20
                       flex items-center justify-center text-[11px] font-bold text-cyan-400 shrink-0">
-                      {member.name.slice(0, 2).toUpperCase()}
+                      {member?.userId?.name?.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-[13px] font-medium text-white/80 leading-tight">{member.name}</p>
-                      <p className="text-[11px] text-white/30">{member.email}</p>
+                      <p className="text-[13px] font-medium text-white/80 leading-tight">{member.userId?.name}</p>
+                      <p className="text-[11px] text-white/30">{member.userId?.email}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <span className="text-[11px] font-mono text-white/40">
-                      ₹{member.contribution.toLocaleString("en-IN")}
+                      ₹{member?.contribution?.toLocaleString("en-IN")}
                     </span>
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleGrade[member.role]}`}>
                       {member.role}
@@ -208,24 +186,23 @@ const GroupDetailPage = () => {
           )}
         </div>
 
-        {/* ── Zone 4: Today's expenses ── */}
         <div>
           <div className="flex items-center justify-between mb-3 px-0.5">
             <p className="text-xs font-semibold uppercase tracking-widest text-white/40">Today</p>
-            {mockTodayExpenses.length > 0 && (
+            {TodayExpenses &&TodayExpenses?.length > 0 && (
               <p className="text-xs font-mono font-semibold text-white/50">
-                ₹{todayTotal.toLocaleString("en-IN")}
+                ₹{todayTotal?.toLocaleString("en-IN")}
               </p>
             )}
           </div>
 
-          {mockTodayExpenses.length === 0 ? (
+          {TodayExpenses?.length === 0 ? (
             <p className="text-center text-white/25 text-xs py-6">
               No expenses recorded today
             </p>
           ) : (
             <div className="space-y-2">
-              {mockTodayExpenses.map((expense, i) => (
+              {TodayExpenses?.map((expense, i) => (
                 <div
                   key={expense._id}
                   className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5
@@ -236,7 +213,6 @@ const GroupDetailPage = () => {
                     opacity: 0,
                   }}
                 >
-                  {/* Left — category + title */}
                   <div className="flex items-center gap-3 min-w-0">
                     <div
                       className="w-2 h-8 rounded-full shrink-0"
@@ -259,10 +235,9 @@ const GroupDetailPage = () => {
                     </div>
                   </div>
 
-                  {/* Right — amount + time */}
                   <div className="text-right shrink-0 ml-3">
                     <p className="text-[15px] font-semibold font-mono text-[#f0eeff] leading-tight">
-                      ₹{expense.amount.toLocaleString("en-IN")}
+                      ₹{expense?.amount?.toLocaleString("en-IN")}
                     </p>
                     <p className="text-[10px] text-white/25 mt-0.5">{expense.time}</p>
                   </div>

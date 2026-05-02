@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
+import { useCreateCategoryMutation, useDeleteCategoryMutation, useGetCategoriesQuery } from "../redux/api/category";
+import DeleteConfirmModal from "../components/deleteModel";
+import CategoryDeleteSummary from "../components/categorySummary";
 
-const mockCategories = [
-  { _id: "c1", name: "Food",      color: "#f97316", expenseCount: 3 },
-  { _id: "c2", name: "Transport", color: "#06b6d4", expenseCount: 1 },
-  { _id: "c3", name: "Bills",     color: "#8b5cf6", expenseCount: 0 },
-];
+interface Category {
+  _id: string;
+  name: string;
+  color: string;
+  expenseCount: number;
+}
 
 const colorOptions = [
   "#f97316",
@@ -32,12 +36,22 @@ export default function CategoryPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
 
+  const [createCategory] = useCreateCategoryMutation();
+  const [deleteCategory, { isLoading }] = useDeleteCategoryMutation();
+  const { data } = useGetCategoriesQuery(groupId);
+
   const [name, setName]         = useState("");
   const [color, setColor]       = useState(colorOptions[0]);
   const [error, setError]       = useState("");
-  const [categories, setCategories] = useState(mockCategories);
+  const [categories, setCategories] = useState<Category[]>([]);
 
-  const handleAdd = () => {
+  const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (data) setCategories(data);
+  }, [data]);
+
+  const handleAdd = async () => {
     const trimmed = name.trim();
     if (!trimmed) return setError("Category name is required");
     if (trimmed.length < 2) return setError("Name must be at least 2 characters");
@@ -45,6 +59,13 @@ export default function CategoryPage() {
       (c) => c.name.toLowerCase() === trimmed.toLowerCase()
     );
     if (duplicate) return setError("Category already exists");
+
+    try {
+      await createCategory({ name: trimmed, groupId, color }).unwrap();
+    } catch (error: any) {
+      console.log(error);
+      setError(error.data.message);
+    }
 
     setCategories((prev) => [
       ...prev,
@@ -55,11 +76,33 @@ export default function CategoryPage() {
     setError("");
   };
 
-  const handleDelete = (id: string) => {
-    setCategories((prev) => prev.filter((c) => c._id !== id));
-  };
+const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+
+const handleDelete = async () => {
+  if (!selectedCategory) return;
+  try {
+    await deleteCategory({ id: selectedCategory._id, groupId }).unwrap();
+    setCategories((prev) => prev.filter((c) => c._id !== selectedCategory._id));
+    setCategoryModalOpen(false);
+    setSelectedCategory(null);
+  } catch (error: any) {
+    setError(error.data.message);
+  }
+};
 
   return (
+    <>
+    <DeleteConfirmModal
+      isOpen={isCategoryModalOpen}
+      onClose={() => { setCategoryModalOpen(false); setSelectedCategory(null); }}
+      onConfirm={handleDelete}
+      confirmText="DELETE"
+      isBlocked={(selectedCategory?.expenseCount ?? 0) > 0}
+      isLoading={isLoading}
+      label="Delete category"
+    >
+      {selectedCategory && <CategoryDeleteSummary category={selectedCategory} />}
+    </DeleteConfirmModal>
     <div className="min-h-screen bg-[#080c14] text-white">
       {/* Ambient */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
@@ -211,17 +254,17 @@ export default function CategoryPage() {
               </span>
             </div>
             <span className="text-[10px] font-medium text-white/25 bg-white/[0.05] border border-white/[0.07] px-2 py-0.5 rounded-full">
-              {categories.length} total
+              {categories?.length} total
             </span>
           </div>
 
-          {categories.length === 0 ? (
+          {categories?.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <p className="text-white/20 text-xs">No categories yet — create one above.</p>
             </div>
           ) : (
             <div className="divide-y divide-white/[0.04]">
-              {categories.map((cat) => (
+              {categories?.map((cat) => (
                 <div
                   key={cat._id}
                   className="flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors"
@@ -248,7 +291,7 @@ export default function CategoryPage() {
                   <div className="relative group/del">
                     <button
                       type="button"
-                      onClick={() => cat.expenseCount === 0 && handleDelete(cat._id)}
+                      onClick={() => { setSelectedCategory(cat); setCategoryModalOpen(true); }}
                       disabled={cat.expenseCount > 0}
                       className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150 ${
                         cat.expenseCount > 0
@@ -281,5 +324,6 @@ export default function CategoryPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

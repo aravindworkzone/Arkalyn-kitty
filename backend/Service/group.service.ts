@@ -471,3 +471,31 @@ export const SettlementService = async (data : {group: mongoose.Types.ObjectId, 
         await session.endSession();
     }
 };
+
+export const getGroupByIdService = async (groupId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId) => {
+    if (!mongoose.Types.ObjectId.isValid(groupId)) {
+        throw AppError("Invalid group ID format", 400);
+    }
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const group = (await Group.findOne({ _id: groupId }));
+    const currentUser = await GroupMember.findOne({ groupId: groupId, userId: userId, isDeleted: false });
+
+    if (!group) {
+        throw AppError("Group not found", 404);
+    }
+    if (!currentUser) {
+        throw AppError("Created user not found", 404);
+    }
+    const groupData = {...group.toObject(),role: currentUser.role};
+    return groupData;
+};
+
+export const getGroupMemberService = async (groupId: mongoose.Types.ObjectId) => {
+    try {
+        const members = await GroupMember.find({ groupId, isDeleted: false }).populate("userId");
+        return members;
+    } catch (error :any) {
+        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+    }
+};

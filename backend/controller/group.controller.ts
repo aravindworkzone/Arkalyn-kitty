@@ -1,4 +1,4 @@
-import { createGroupService, deleteGroupService, manageMemberService, manageAdminService, addContributionService, SettlementService } from "../Service/group.service";
+import { createGroupService, deleteGroupService, manageMemberService, manageAdminService, addContributionService, SettlementService, getGroupByIdService, getGroupMemberService } from "../Service/group.service";
 import { Response, Request } from "express";
 
 export const createGroup = async (req: Request, res: Response) => {
@@ -125,5 +125,33 @@ export const Settlement = async (req: Request, res: Response) => {
         const statusCode = error.status || 500;
         const message = error.message || 'Internal server error';
         return res.status(statusCode).json({ message: 'Error creating group', error: message });    
+    }
+}
+
+export const getGroupById = async (req: Request, res: Response) => {
+    if(!req.group?._id){
+        return res.status(400).json({ message: "Group not found" });
+    }
+    if(!req.user?._id){
+        return res.status(400).json({ message: "User not found" });
+    }
+    try {
+        const group = await getGroupByIdService(req.group._id, req.user?._id);
+        return res.status(200).json({ message: "Group fetched", group });
+    } catch (error: any) {
+        const statusCode = error.status || 500;
+        const message = error.message || 'Internal server error';
+        return res.status(statusCode).json({ message: 'Error creating group', error: message });    
+    }
+}
+
+export const getGroupMember = async (req: Request, res: Response) => {
+    try {
+        const members = await getGroupMemberService(req.group._id);
+        return res.status(200).json({ message: "Members fetched", members });
+    } catch (error: any) {
+        const statusCode = error.status || 500;
+        const message = error.message || 'Internal server error';
+        return res.status(statusCode).json({ message: 'Error fetching members', error: message });    
     }
 }

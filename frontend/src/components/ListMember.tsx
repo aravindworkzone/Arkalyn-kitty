@@ -6,12 +6,12 @@ const MemberAvatars = ({ members }: { members: string[] }) => {
     { bg: "rgba(61,26,26,0.5)",   ring: "#b91c1c", text: "#fca5a5" },
   ];
 
-  const visible = members.slice(0, 4);
-  const overflow = members.length - 4;
+  const visible = members?.slice(0, 4);
+  const overflow = members?.length - 4;
 
   return (
     <div className="flex items-center">
-      {visible.map((m, i) => (
+      {visible && visible.map((m, i) => (
         <div
           key={m}
           className="w-6 h-6 rounded-full flex items-center justify-center
@@ -24,7 +24,7 @@ const MemberAvatars = ({ members }: { members: string[] }) => {
             zIndex: 4 - i,
           }}
         >
-          {m.slice(0, 2).toUpperCase()}
+          {m?.slice(0, 2).toUpperCase()}
         </div>
       ))}
 

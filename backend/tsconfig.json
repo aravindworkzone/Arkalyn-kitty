@@ -1,16 +1,21 @@
 {
   "compilerOptions": {
-    "target": "ES6",
-    "module": "commonjs",
+    "target": "ES2017",
+    "lib": ["ES2017"],
+    "module": "CommonJS",
+    "types": ["node"],
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": false,
     "esModuleInterop": true,
-    "strict": true,
-    "outDir": "dist",
-    "rootDir": "."
+    "skipLibCheck": true
   },
+  "exclude": ["node_modules", "dist"],
   "files": [
     "Types/express.d.ts"
   ],
   "include": [
     "**/*.ts"
-, "Controller/expense.controller.js"  ]
+    ,"Controller/expense.controller.js"  ]
+
 }

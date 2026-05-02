@@ -57,7 +57,6 @@ const GroupCard = ({ group, onClick, onAddExpense }: GroupCardProps) => (
         </p>
       </div>
     </div>
-
     {/* Progress bar */}
     <div className="mb-4">
       <div className="flex items-center justify-between mb-1.5">
