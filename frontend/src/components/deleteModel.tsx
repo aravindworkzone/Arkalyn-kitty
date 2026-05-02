@@ -1,0 +1,152 @@
+import { useState, useEffect } from "react";
+
+export default function DeleteConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  confirmText = "DELETE",
+  label = "Delete",
+  isBlocked = false,
+  isLoading = false,
+  error = "",
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  confirmText?: string;
+  label?: string;
+  isBlocked?: boolean;
+  isLoading?: boolean;
+  error?: string;
+  children?: React.ReactNode;
+}) {
+  const [inputValue, setInputValue] = useState("");
+  const isMatch = inputValue === confirmText;
+
+  useEffect(() => {
+    if (!isOpen) setInputValue("");
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleKey = (e : KeyboardEvent) => e.key === "Escape" && onClose();
+    if (isOpen) window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-[2px]">
+      <div className="absolute inset-0" onClick={onClose} />
+
+      {/* Modal — matches page surface style */}
+      <div className="relative w-full max-w-[460px] rounded-2xl border border-white/[0.08] bg-[#080c14] px-6 py-6 shadow-2xl animate-[fadeUp_0.18s_ease-out]">
+
+        {/* Top accent line */}
+        <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-red-500/30 to-transparent rounded-full" />
+
+        {/* Header */}
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-500/10 border border-red-500/20">
+            <svg className="h-3.5 w-3.5 text-red-400" viewBox="0 0 16 16" fill="none">
+              <path d="M6 2h4M3 4h10M5 4l.5 8h5L11 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-red-400/60">
+              Destructive action
+            </p>
+            <h2 className="text-[15px] font-semibold text-white/90 leading-tight">
+              {label}
+            </h2>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="mb-4 h-px bg-white/[0.06]" />
+
+        {/* Summary child slot */}
+        <div className="mb-4">{children}</div>
+
+        {/* API error */}
+        {error && (
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-500/15 bg-red-500/[0.06] px-3.5 py-2.5">
+            <svg className="h-3.5 w-3.5 shrink-0 text-red-400" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.2" />
+              <path d="M7 4.5v3M7 9h.01" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            <p className="text-xs text-red-400/80">{error}</p>
+          </div>
+        )}
+
+        {/* Confirm input */}
+        {!isBlocked && (
+          <div className="mb-5">
+            <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/30">
+              Type{" "}
+              <span className="font-mono text-red-400/80">{confirmText}</span>{" "}
+              to confirm
+            </label>
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              autoFocus
+              placeholder={confirmText}
+              className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 font-mono text-sm tracking-[0.2em] text-white placeholder-white/15 outline-none focus:border-red-500/30 focus:ring-1 focus:ring-red-500/10 transition-all duration-200"
+            />
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-white/50 transition hover:bg-white/[0.06] hover:text-white/70"
+          >
+            Cancel
+          </button>
+
+          {isBlocked ? (
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-white/40"
+            >
+              Got it
+            </button>
+          ) : (
+            <button
+              onClick={() => isMatch && !isLoading && onConfirm()}
+              disabled={!isMatch || isLoading}
+              className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-all duration-150 ${
+                isMatch && !isLoading
+                  ? "bg-red-500/80 border border-red-500/50 text-white hover:bg-red-500/90"
+                  : "bg-red-500/[0.06] border border-red-500/10 text-red-400/25 cursor-not-allowed"
+              }`}
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 14 14" fill="none">
+                    <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="8 8" />
+                  </svg>
+                  Deleting...
+                </span>
+              ) : label}
+            </button>
+          )}
+        </div>
+
+        <p className="mt-3.5 text-center text-[10px] font-medium uppercase tracking-widest text-white/15">
+          This action cannot be undone
+        </p>
+      </div>
+    </div>
+  );
+}

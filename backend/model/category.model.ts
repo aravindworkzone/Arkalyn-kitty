@@ -1,16 +1,18 @@
 import mongoose , { Document, Schema } from 'mongoose';
 
 export interface ICategory extends Document {
-    groupId: mongoose.Schema.Types.ObjectId;
+    groupId: mongoose.Types.ObjectId;
     name: string;
+    color: string;
     isDeleted?: boolean;
     createdAt?: Date;
     updatedAt?: Date;
 }
 
 const categorySchema = new Schema<ICategory>({
-    groupId: {type: mongoose.Schema.Types.ObjectId, ref: "Group"},
+    groupId: {type: mongoose.Types.ObjectId, ref: "Group"},
     name: { type: String, required: true, trim: true },
+    color: { type: String, default: "#f97316" },
     isDeleted: { type: Boolean, default: false }
 }, {timestamps: true});
 

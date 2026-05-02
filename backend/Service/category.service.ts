@@ -1,9 +1,10 @@
 import mongoose from 'mongoose';
 import Category from '../Model/category.model';
 import GroupEvent from '../Model/group_event.model';
+import Expense from '../Model/expense.model';
 import { AppError } from '../Utils/AppError';
 
-export const createCategoryService = async (data: { name: string; groupId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId }) => {
+export const createCategoryService = async (data: { name: string; groupId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, color: string }) => {
     const groupId = data.groupId;
     const userId = data.userId;
     const name = typeof data.name === "string" ? data.name.trim() : null;
@@ -22,7 +23,8 @@ export const createCategoryService = async (data: { name: string; groupId: mongo
 
         const categorySave = new Category({
             name,
-            groupId: groupId
+            groupId: groupId,
+            color: data.color
         });
         await categorySave.save({ session });
 
@@ -32,7 +34,7 @@ export const createCategoryService = async (data: { name: string; groupId: mongo
             eventType: "MANAGE_CATEGORY",
             metadata: { userId: userId, note: `Created category: ${name}` },
             referenceId: categorySave._id,
-            referenceModel: "category"
+            referenceModel: "Category"
         }], { session });
 
         await session.commitTransaction();
@@ -42,13 +44,13 @@ export const createCategoryService = async (data: { name: string; groupId: mongo
         if (error.code === 11000) {
             throw AppError('Category already exists in this group', 409);
         }
-        throw AppError('Error creating category', 500);
+        throw AppError(error.message || 'Error creating category', 500);
     } finally {
         session.endSession();
     }
 }
 
-export const deleteCategoryService = async (data: { categoryId: string, groupId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId }) => {
+export const deleteCategoryService = async (data: { categoryId: string, userId: mongoose.Types.ObjectId, groupId: mongoose.Types.ObjectId }) => {
     const categoryId = new mongoose.Types.ObjectId(data.categoryId);
 
     if (!mongoose.Types.ObjectId.isValid(categoryId)) {
@@ -66,7 +68,7 @@ export const deleteCategoryService = async (data: { categoryId: string, groupId:
             eventType: "MANAGE_CATEGORY",
             metadata: { userId: data.userId, note: `Deleted category: ${category!.name}` },
             referenceId: categoryId,
-            referenceModel: "category"
+            referenceModel: "Category"
         }], { session });
 
         await session.commitTransaction();
@@ -79,8 +81,19 @@ export const deleteCategoryService = async (data: { categoryId: string, groupId:
     } catch (error: any) {
         await session.abortTransaction();
         const statusCode = error.status || 500;
-        throw AppError('Error deleting category', statusCode);
+        throw AppError(error.message || 'Error deleting category', statusCode);
     } finally {
         session.endSession();
+    }
+}
+
+export const getCategoryDetailsService = async (groupId: mongoose.Types.ObjectId) => {
+    try {
+        const categories = await Category.find({ groupId });
+        const expenseCount = await Expense.find({ category: { $in: categories.map((category) => category._id) }, isDeleted: false });
+        const sendCategories = categories.map((category) => { return { _id: category._id, name: category.name, color: category.color, expenseCount } });
+        return sendCategories;
+    } catch (error: any) {
+        throw AppError(error.message || 'Error getting categories', 500);
     }
 }

@@ -16,7 +16,7 @@ export const auth = api.injectEndpoints({
                 body: credentials
             })
         }),
-        signOut: builder.mutation({
+        signOut: builder.mutation<any, void>({
             query: () => ({
                 url: '/auth/signout',
                 method: 'POST'
