@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { AppError } from "../Utils/AppError";
+import { AppError } from "../Helper/AppError";
 import Group from "../Model/group.model";
 import GroupTransaction from "../Model/group_transaction.model";
 import GroupEvent from "../Model/group_event.model";
@@ -51,7 +51,7 @@ export const createGroupService = async (data: {name: string, members: members[]
     try {
         session.startTransaction();
 
-        const totalAmount = validMembers.reduce((total, member) => total + Math.round(member.contribution * 100), 0);
+        const totalAmount = validMembers.reduce((total, member) => total + member.contribution, 0);
 
         const CreatGroup = new Group({
             name,
@@ -64,7 +64,7 @@ export const createGroupService = async (data: {name: string, members: members[]
         const groupMembers = validMembers.map(member => ({
             groupId: group._id,
             userId: member._id,
-            contribution: Math.round(member.contribution * 100),
+            contribution: member.contribution,
             role: superAdmin.toString() === member._id.toString() ? "SUPER_ADMIN" :  "MEMBER"
         }));
         await GroupMember.insertMany(groupMembers, { session });
@@ -75,7 +75,7 @@ export const createGroupService = async (data: {name: string, members: members[]
             eventType: "CREATE_GROUP",
             referenceId: group._id,
             referenceModel: "Group",
-            metadata: { name, totalContribution: totalAmount, memberCount: validMembers.length, note: "Group created with initial members and contributions" }
+            metadata: { name, totalContribution: totalAmount, memberCount: validMembers.length, note: `Group created "${name}"` }
         });
         await CreateGroupEvent.save({session});
 
@@ -86,9 +86,7 @@ export const createGroupService = async (data: {name: string, members: members[]
             description: "Group created with initial members and contributions",
             referenceId: group._id,
             referenceModel: "Group",
-            metadata: validMembers.map(member => ({ userId: member._id, contributionRS: member.contribution,
-            contribution: Math.round(member.contribution * 100),
-            })),
+            metadata: validMembers.map(member => ({ userId: member._id, contribution: member.contribution })),
             performedBy: superAdmin
         });
         await CreateGroupTransaction.save({session});
@@ -135,7 +133,7 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
     const userId = data.user;
     const Member = data.Member;
     const action = data.action;
-    const contribution = Math.round((data.contribution ?? 0) * 100);
+    const contribution = data.contribution;
 
     if (!userId || !action) {
         throw AppError("All fields are required", 400);
@@ -347,7 +345,7 @@ export const manageAdminService = async (data: { group: mongoose.Types.ObjectId,
 export const addContributionService = async (data: {group: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, contribution: number}) => {
     const groupData = data.group;
     const userId = data.userId;
-    const contribution = Math.round((data.contribution ?? 0) * 100);
+    const contribution = data.contribution;
 
     if (!userId || contribution === undefined) {
         throw AppError("User ID and contribution are required", 400);
@@ -412,7 +410,7 @@ export const SettlementService = async (data : {group: mongoose.Types.ObjectId, 
     const groupData = data.group;
     const userId = data.userId;
     const Member = data.member;
-    const settlement = Math.round((data.settlement ?? 0) * 100);
+    const settlement = data.settlement;
 
     if (!userId || settlement === undefined) {
         throw AppError("User ID and settlement amount are required", 400);
@@ -487,7 +485,8 @@ export const getGroupByIdService = async (groupId: mongoose.Types.ObjectId, user
     if (!currentUser) {
         throw AppError("Created user not found", 404);
     }
-    const groupData = {...group.toObject(),role: currentUser.role};
+    const barLength = (1 - (group.balance / group.totalContribution)) * 100;
+    const groupData = {...group.toObject(),role: currentUser.role, barLength};
     return groupData;
 };
 
@@ -499,3 +498,61 @@ export const getGroupMemberService = async (groupId: mongoose.Types.ObjectId) =>
         throw AppError(error.message || "Internal server error", error.statusCode || 500);
     }
 };
+
+export const getBasicTransactionService = async (groupId: mongoose.Types.ObjectId) => {
+    try {
+        const transactions = await GroupTransaction.find({ groupId });
+        const basicTransInfo = transactions.reduce((acc: any,transaction) => {
+            if(acc[transaction.action] === undefined) {
+                acc[transaction.action] = transaction.amount;
+            } else {
+                acc[transaction.action] += transaction.amount;
+            }
+            return acc;
+        }, {});
+
+        return basicTransInfo;
+    } catch (error :any) {
+        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+    }
+};
+
+export const getTransactionService = async (groupId: mongoose.Types.ObjectId) => {
+    try {
+        const transactions = await GroupTransaction.find({ groupId }).populate("performedBy").populate("referenceId");
+        const transaction = transactions.map(t => {
+            const createdAt = t.createdAt.toLocaleString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+            })
+            return {...t.toObject(), createdAt}
+        });
+        return transaction;
+    } catch (error :any) {
+        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+    }
+}
+
+export const getEventService = async (groupId: mongoose.Types.ObjectId) => {
+    try {
+        const transactions = await GroupEvent.find({ groupId }).populate("performedBy").populate("referenceId");
+        const transaction = transactions.map(t => {
+            const createdAt = t.createdAt.toLocaleString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+            })
+            return {...t.toObject(), createdAt}
+        });
+        return transaction;
+    } catch (error :any) {
+        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+    }
+}

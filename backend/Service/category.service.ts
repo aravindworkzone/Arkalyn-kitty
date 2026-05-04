@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import Category from '../Model/category.model';
 import GroupEvent from '../Model/group_event.model';
 import Expense from '../Model/expense.model';
-import { AppError } from '../Utils/AppError';
+import { AppError } from '../Helper/AppError';
 
 export const createCategoryService = async (data: { name: string; groupId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, color: string }) => {
     const groupId = data.groupId;

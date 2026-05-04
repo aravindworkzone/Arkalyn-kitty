@@ -7,6 +7,6 @@ router.post('/create', verifyToken, loadGroup, createExpense);
 router.delete('/delete/:id', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN", "ADMIN"), deleteExpense);
 router.get('/getExpenseAddDetails/:groupId', verifyToken, loadGroup, getExpenseAddDetails);
 router.get('/paymentMethods', verifyToken, paymentMethods);
-router.get('/expensereport', verifyToken, expenseReport);
+router.get('/expensereport/:groupId', verifyToken, loadGroup, expenseReport);
 
 export default router;

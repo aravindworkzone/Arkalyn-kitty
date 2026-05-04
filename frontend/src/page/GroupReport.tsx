@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
+import { useGetTransactionQuery, useGetEventQuery } from "../redux/api/group";
 
 // ── mock data ──────────────────────────────────────────────────
 const mockTransactions = [
@@ -39,7 +40,7 @@ const eventDescription = (event: typeof mockEvents[0]) => {
     case "CREATE_GROUP":    return `"${m.groupName}" was created`;
     case "MEMBER_ADDED":    return `${m.memberName} was added to the group`;
     case "MEMBER_REMOVED":  return `${m.memberName} was removed`;
-    case "MANAGE_CATEGORY": return `Category "${m.name}" was ${m.action}`;
+    case "MANAGE_CATEGORY": return `Category "${m.referenceId.name}" was ${m.action}`;
     case "CHANGE_ROLE":     return `${m.member}'s role changed to ${m.role}`;
     default: return "Group activity";
   }
@@ -51,14 +52,16 @@ export default function ReportPage() {
   const navigate    = useNavigate();
   const [tab, setTab]           = useState<"transactions" | "events">("transactions");
   const [txFilter, setTxFilter] = useState<"ALL" | "CREDIT" | "DEBIT" | "REFUND">("ALL");
+  const { data: Transactions, isLoading } = useGetTransactionQuery(groupId || "", { refetchOnMountOrArgChange: true });
+  const { data: Events } = useGetEventQuery(groupId || "", { refetchOnMountOrArgChange: true });
 
   const filteredTx = txFilter === "ALL"
-    ? mockTransactions
-    : mockTransactions.filter((t) => t.action === txFilter);
+    ? Transactions
+    : Transactions?.filter((t: any) => t.action === txFilter);
 
-  const totalCredit = mockTransactions.filter(t => t.action === "CREDIT").reduce((s, t) => s + t.amount, 0);
-  const totalDebit  = mockTransactions.filter(t => t.action === "DEBIT").reduce((s, t) => s + t.amount, 0);
-  const totalRefund = mockTransactions.filter(t => t.action === "REFUND").reduce((s, t) => s + t.amount, 0);
+  const totalCredit = Transactions?.filter((t: any) => t.action === "CREDIT").reduce((s: number, t: any) => s + t.amount, 0);
+  const totalDebit  = Transactions?.filter((t: any) => t.action === "DEBIT").reduce((s: number, t: any) => s + t.amount, 0);
+  const totalRefund = Transactions?.filter((t: any) => t.action === "REFUND").reduce((s: number, t: any) => s + t.amount, 0);
 
   return (
     <div className="min-h-screen bg-[#080c14] text-white">
@@ -110,7 +113,7 @@ export default function ReportPage() {
             <div key={stat.label} className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3">
               <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">{stat.label}</p>
               <p className="text-[16px] font-semibold font-mono" style={{ color: stat.color }}>
-                ₹{stat.value.toLocaleString("en-IN")}
+                ₹{stat.value?.toLocaleString("en-IN")}
               </p>
             </div>
           ))}
@@ -151,11 +154,11 @@ export default function ReportPage() {
             </div>
 
             <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
-              {filteredTx.length === 0 ? (
+              {filteredTx?.length === 0 ? (
                 <p className="text-center text-white/20 text-xs py-10">No transactions found</p>
               ) : (
                 <div className="divide-y divide-white/[0.04]">
-                  {filteredTx.map((tx, i) => {
+                  {filteredTx?.map((tx: any, i: any) => {
                     const style = actionStyle[tx.action];
                     return (
                       <div
@@ -175,7 +178,7 @@ export default function ReportPage() {
                               {tx.description}
                             </p>
                             <p className="text-[10px] text-white/25 mt-0.5">
-                              {tx.performedBy} · {tx.createdAt}
+                              {tx.performedBy.name} · {tx.createdAt}
                             </p>
                           </div>
                         </div>
@@ -205,14 +208,14 @@ export default function ReportPage() {
 
         {tab === "events" && (
           <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
-            {mockEvents.length === 0 ? (
+            {Events?.length === 0 ? (
               <p className="text-center text-white/20 text-xs py-10">No activity yet</p>
             ) : (
               <div className="relative">
                 <div className="absolute left-[42px] top-0 bottom-0 w-px bg-white/[0.05]" />
 
                 <div className="divide-y divide-white/[0.04]">
-                  {mockEvents.map((event, i) => {
+                  {Events.map((event: any, i: any) => {
                     const cfg = eventConfig[event.eventType];
                     return (
                       <div
@@ -244,7 +247,7 @@ export default function ReportPage() {
                               {cfg.label}
                             </span>
                             <span className="text-[10px] text-white/25">
-                              by {event.performedBy} · {event.createdAt}
+                              by {event.performedBy.name} · {event.createdAt}
                             </span>
                           </div>
                         </div>

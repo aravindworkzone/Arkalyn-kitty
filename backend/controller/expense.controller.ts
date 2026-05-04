@@ -76,8 +76,9 @@ export const paymentMethods = async (req: Request, res: Response) => {
 };
 
 export const expenseReport = async (req: Request, res: Response) => {
+    if(!req.group?._id) return res.status(400).json({ message: "Group not found" });
     try {
-        const report = await expenseReportService();
+        const report = await expenseReportService(req.group._id);
         return res.status(200).json({ message: "Expense report", report });
     } catch (error: any) {
         const statusCode = error.status || 500;
