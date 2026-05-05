@@ -1,5 +1,5 @@
 import express from 'express';
-import { createExpense, deleteExpense, getExpenseAddDetails, paymentMethods, expenseReport } from '../Controller/expense.controller';
+import { createExpense, deleteExpense, getExpenseAddDetails, paymentMethods, expenseReport, getAllExpenses } from '../Controller/expense.controller';
 import {verifyToken, authorizeRole, loadGroup} from '../Middleware/auth.middleware';
 const router = express.Router();
 
@@ -8,5 +8,6 @@ router.delete('/delete/:id', verifyToken, loadGroup, authorizeRole("SUPER_ADMIN"
 router.get('/getExpenseAddDetails/:groupId', verifyToken, loadGroup, getExpenseAddDetails);
 router.get('/paymentMethods', verifyToken, paymentMethods);
 router.get('/expensereport/:groupId', verifyToken, loadGroup, expenseReport);
+router.get('/allexpenses/:groupId', verifyToken, loadGroup, getAllExpenses);
 
 export default router;

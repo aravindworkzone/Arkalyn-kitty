@@ -19,7 +19,7 @@ const groupEventSchema = new Schema<IGroupEvent>({
     performedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     eventType: { type: String, enum: ["MEMBER_ADDED", "MEMBER_REMOVED", "MANAGE_CATEGORY", "CHANGE_ROLE", "CREATE_GROUP"], required: true },
     referenceId: { type: mongoose.Schema.Types.ObjectId, refPath: "referenceModel", default: null },
-    referenceModel: { type: String, enum: ["Expense", "Group", "Category"], default: null },
+    referenceModel: { type: String, enum: ["Expense", "Group", "Category", "User"], default: null },
     amount: { type: Number , default: null, set:toDBAmount, get:fromDBAmount },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
     isDeleted: { type: Boolean, default: false }

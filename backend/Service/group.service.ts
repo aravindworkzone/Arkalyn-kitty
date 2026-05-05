@@ -485,7 +485,7 @@ export const getGroupByIdService = async (groupId: mongoose.Types.ObjectId, user
     if (!currentUser) {
         throw AppError("Created user not found", 404);
     }
-    const barLength = (1 - (group.balance / group.totalContribution)) * 100;
+    const barLength = Math.round((1 - group.balance / group.totalContribution) * 100);
     const groupData = {...group.toObject(),role: currentUser.role, barLength};
     return groupData;
 };
@@ -501,7 +501,7 @@ export const getGroupMemberService = async (groupId: mongoose.Types.ObjectId) =>
 
 export const getBasicTransactionService = async (groupId: mongoose.Types.ObjectId) => {
     try {
-        const transactions = await GroupTransaction.find({ groupId });
+        const transactions = await GroupTransaction.find({ groupId, isDeleted: false });
         const basicTransInfo = transactions.reduce((acc: any,transaction) => {
             if(acc[transaction.action] === undefined) {
                 acc[transaction.action] = transaction.amount;
@@ -519,7 +519,7 @@ export const getBasicTransactionService = async (groupId: mongoose.Types.ObjectI
 
 export const getTransactionService = async (groupId: mongoose.Types.ObjectId) => {
     try {
-        const transactions = await GroupTransaction.find({ groupId }).populate("performedBy").populate("referenceId");
+        const transactions = await GroupTransaction.find({ groupId, isDeleted: false }).populate("performedBy").populate("referenceId");
         const transaction = transactions.map(t => {
             const createdAt = t.createdAt.toLocaleString("en-GB", {
                 day: "2-digit",
@@ -539,7 +539,7 @@ export const getTransactionService = async (groupId: mongoose.Types.ObjectId) =>
 
 export const getEventService = async (groupId: mongoose.Types.ObjectId) => {
     try {
-        const transactions = await GroupEvent.find({ groupId }).populate("performedBy").populate("referenceId");
+        const transactions = await GroupEvent.find({ groupId, isDeleted: false }).populate("performedBy").populate("referenceId");
         const transaction = transactions.map(t => {
             const createdAt = t.createdAt.toLocaleString("en-GB", {
                 day: "2-digit",

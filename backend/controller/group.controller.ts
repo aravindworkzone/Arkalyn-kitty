@@ -22,7 +22,7 @@ export const createGroup = async (req: Request, res: Response) => {
 }
 
 export const deleteGroup = async (req: Request, res: Response) => {
-    const groupId = req.params.groupId.toString();
+    const groupId = req.group._id.toString();
     try {
         const group = await deleteGroupService(groupId);
 
@@ -92,7 +92,7 @@ export const addContribution = async (req: Request, res: Response) => {
     }
     const data = {
         group: req.group._id,
-        userId: req.user._id,
+        userId: req.body.userId ?? req.user._id,
         contribution: req.body.contribution as number
     };
     try {

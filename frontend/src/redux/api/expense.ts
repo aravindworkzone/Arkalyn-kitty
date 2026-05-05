@@ -16,7 +16,7 @@ interface GetExpenseReport {
         email: string;
     };
     paymentType: string;
-    splitBetween: [];
+    splitBetween: { userId: { _id: string; name: string; email: string }; amount: number }[];
     title: string;
     updatedAt: string;
     __v: number;
@@ -46,8 +46,21 @@ export const expense = api.injectEndpoints({
             query: (credentials) => `/expense/expensereport/${credentials}`,
             transformResponse: (res: { report: GetExpenseReport[] }) => res.report,
             providesTags: ['Expense']
-        })
+        }),
+        getAllExpenses: builder.query<GetExpenseReport[], string>({
+            query: (groupId) => `/expense/allexpenses/${groupId}`,
+            transformResponse: (res: { expenses: GetExpenseReport[] }) => res.expenses,
+            providesTags: ['Expense']
+        }),
+        deleteExpense: builder.mutation<any, { expenseId: string; groupId: string; reason?: string }>({
+            query: ({ expenseId, groupId, reason }) => ({
+                url: `/expense/delete/${expenseId}`,
+                method: 'DELETE',
+                body: { groupId, reason }
+            }),
+            invalidatesTags: ['Expense', 'Group']
+        }),
     })
 });
 
-export const { useCreateExpenseMutation, useGetExpensesQuery, useGetPaymentMethodQuery, useGetExpenseReportQuery } = expense;
+export const { useCreateExpenseMutation, useGetExpensesQuery, useGetPaymentMethodQuery, useGetExpenseReportQuery, useGetAllExpensesQuery, useDeleteExpenseMutation } = expense;
