@@ -1,41 +1,6 @@
 import {api} from "./base";
-
-interface Member {
-    contribution: number;
-    name: string;
-    role: string;
-    settlement?: boolean;
-    userId: {
-        _id: string
-        name: string
-        email: string
-    };
-    _id: string;
-}
-
-interface getTransaction {
-    _id: string;
-    action: string;
-    amount: number;
-    description: string;
-    performedBy: {
-        _id: string;
-        name: string;
-    };
-    referenceModel: string;
-    createdAt: string;
-};
-
-interface getEvent{
-    _id: string;
-    eventType: string;
-    performedBy: {
-        _id: string;
-        name: string;
-    };
-    metadata: Record<string, any>;
-    createdAt: string;
-}
+import type { GroupMember } from "../../interface/member";
+import type { GroupTransaction, GroupEvent } from "../../interface/transaction";
 
 export const group = api.injectEndpoints({
     endpoints: (builder) => ({
@@ -55,12 +20,12 @@ export const group = api.injectEndpoints({
             transformResponse: (res: { group: any }) => res.group,
             providesTags: ['Group']
         }),
-        getGroupMembers: builder.query<Member[], string>({
+        getGroupMembers: builder.query<GroupMember[], string>({
             query: (credentials) => ({
                 url: `/group/getgroupmembers/${credentials}`,
                 method: 'GET'
             }),
-            transformResponse: (res: { members: Member[] }) => res.members,
+            transformResponse: (res: { members: GroupMember[] }) => res.members,
             providesTags: ['Group']
         }),
         getBasicTransaction: builder.query<any, any>({
@@ -75,7 +40,7 @@ export const group = api.injectEndpoints({
                 url: `/group/gettransaction/${credentials}`,
                 method: 'GET'
             }),
-            transformResponse: (res: { transactions: getTransaction }) => res.transactions,
+            transformResponse: (res: { transactions: GroupTransaction }) => res.transactions,
             providesTags: ['Group']
         }),
         getEvent: builder.query<any, any>({
@@ -83,7 +48,7 @@ export const group = api.injectEndpoints({
                 url: `/group/getevent/${credentials}`,
                 method: 'GET'
             }),
-            transformResponse: (res: { events: getEvent }) => res.events,
+            transformResponse: (res: { events: GroupEvent }) => res.events,
             providesTags: ['Group']
         }),
         manageMember: builder.mutation<any, { groupId: string; action: string; Member: string; contribution?: number }>({

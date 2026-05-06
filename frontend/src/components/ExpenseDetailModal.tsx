@@ -1,23 +1,6 @@
-import { useState } from "react";
 import DetailModal from "./DetailModal";
-import { useDeleteExpenseMutation } from "../redux/api/expense";
-
-interface SplitMember {
-  userId: { _id: string; name: string; email: string };
-  amount: number;
-}
-
-interface Expense {
-  _id: string;
-  title: string;
-  amount: number;
-  date: string;
-  time?: string;
-  category: { name: string; color: string; _id: string };
-  paidBy: { name: string; email: string };
-  paymentType: string;
-  splitBetween: SplitMember[];
-}
+import type { Expense } from "../interface/expense";
+import { useExpenseModalHandlers } from "../handlers/useExpenseModalHandlers";
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="flex items-start justify-between gap-6 py-2.5 border-b border-white/[0.05] last:border-0">
@@ -39,31 +22,16 @@ export default function ExpenseDetailModal({
   role?: string;
   groupId?: string;
 }) {
-  const [showRefund, setShowRefund] = useState(false);
-  const [reason, setReason] = useState("");
-  const [refundError, setRefundError] = useState("");
-
-  const [deleteExpense, { isLoading: isDeleting }] = useDeleteExpenseMutation();
+  const {
+    showRefund, setShowRefund,
+    reason, setReason,
+    refundError, setRefundError,
+    isDeleting,
+    handleClose,
+    handleRefund,
+  } = useExpenseModalHandlers(onClose);
 
   const canDelete = role === "SUPER_ADMIN" || role === "ADMIN";
-
-  const handleClose = () => {
-    setShowRefund(false);
-    setReason("");
-    setRefundError("");
-    onClose();
-  };
-
-  const handleRefund = async () => {
-    if (!expense || !groupId) return;
-    setRefundError("");
-    try {
-      await deleteExpense({ expenseId: expense._id, groupId, reason: reason.trim() || undefined }).unwrap();
-      handleClose();
-    } catch (e: any) {
-      setRefundError(e?.data?.message || "Failed to refund expense");
-    }
-  };
 
   if (!expense) return null;
 
@@ -160,7 +128,7 @@ export default function ExpenseDetailModal({
                   Cancel
                 </button>
                 <button
-                  onClick={handleRefund}
+                  onClick={() => handleRefund(expense, groupId)}
                   disabled={isDeleting}
                   className="flex-1 py-2 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 text-[12px] font-semibold hover:bg-red-500/30 disabled:opacity-50 transition-colors"
                 >

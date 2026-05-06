@@ -1,9 +1,9 @@
 import { useState } from "react";
 import Header from "../components/header";
-import { useCreateGroupMutation } from "../redux/api/group";
-import { useVerifyUserMutation } from "../redux/api/user";
-import { validators, ErrorRemover } from "../utils/Authentication";
+import { ErrorRemover } from "../helpers/Authentication";
 import { useNavigate } from "react-router-dom";
+import type { CreateGroupMember } from "../interface/member";
+import { useGroupHandlers, removeMember, updateContribution } from "../handlers/useGroupHandlers";
 
 const s = {
   input:
@@ -12,62 +12,17 @@ const s = {
     "block text-[10px] font-semibold text-white/40 mb-2 uppercase tracking-widest",
 };
 
-interface Member {
-  _id: string;
-  user: string;
-  email: string;
-  contribution: number;
-}
-
 export default function CreateGroupPage() {
   const [groupName, setGroupName] = useState("");
-  const [members, setMembers] = useState<Member[]>([]);
+  const [members, setMembers] = useState<CreateGroupMember[]>([]);
   const [emailInput, setEmailInput] = useState("");
   const [error, setError] = useState<string>("");
   ErrorRemover(setError);
 
   const navigate = useNavigate();
-  const [createGroup, { isLoading }] = useCreateGroupMutation();
-  const [verifyUser, { isLoading: isVerifying }] = useVerifyUserMutation();
+  const { addMember, handleSubmit, isLoading, isVerifying } = useGroupHandlers();
 
   const poolTotal = members.reduce((sum, m) => sum + (m.contribution || 0), 0);
-
-  const addMember = async () => {
-    const email = emailInput.trim();
-    if (!email) return setError("Email is required");
-    const isEmail = validators.email(email);
-    if (!isEmail.valid) return setError(isEmail.message || "Invalid email format");
-    if (members.some((m) => m.email === email)) return setError("Member already added");
-    try {
-      const result = await verifyUser(email).unwrap();
-      const id = (result as any)?.user?._id;
-      const name = (result as any)?.user?.name;
-      setMembers((prev) => [...prev, { _id: id, user: name, contribution: 0, email }]);
-      setEmailInput("");
-    } catch (err: any) {
-      setError(err?.data?.message || "User not found");
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!groupName.trim()) return setError("Group name is required");
-    if (members.length === 0) return setError("At least one member is required");
-    try {
-      await createGroup({ name: groupName.trim(), members }).unwrap();
-      navigate("/groups");
-    } catch (err: any) {
-      setError(err?.data?.message || "Failed to create group");
-    }
-  };
-
-  const removeMember = (id: string) =>
-    setMembers((prev) => prev.filter((m) => m._id !== id));
-
-  const updateContribution = (id: string, value: number) =>
-    setMembers((prev) =>
-      prev.map((m) => (m._id === id ? { ...m, contribution: value } : m))
-    );
 
   return (
     <div className="min-h-screen bg-[#080c14] text-white">
@@ -87,7 +42,7 @@ export default function CreateGroupPage() {
 
       <Header />
 
-      <form onSubmit={handleSubmit} className="relative max-w-xl mx-auto px-4 py-10">
+      <form onSubmit={(e) => handleSubmit(e, groupName, members, setError)} className="relative max-w-xl mx-auto px-4 py-10">
         {/* Back */}
         <button
           type="button"
@@ -174,14 +129,14 @@ export default function CreateGroupPage() {
                   type="email"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addMember())}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addMember(emailInput, members, setError, setMembers, setEmailInput))}
                   className={`${s.input} flex-1`}
                   placeholder="member@email.com"
                   autoComplete="off"
                 />
                 <button
                   type="button"
-                  onClick={addMember}
+                  onClick={() => addMember(emailInput, members, setError, setMembers, setEmailInput)}
                   disabled={isVerifying}
                   className="shrink-0 px-4 rounded-xl text-sm font-semibold border
                     bg-cyan-500/10 border-cyan-500/25 text-cyan-300
@@ -250,7 +205,7 @@ export default function CreateGroupPage() {
                               defaultValue={member.contribution || ""}
                               placeholder="0"
                               type="text"
-                              onChange={(e) => updateContribution(member._id, Number(e.target.value))}
+                              onChange={(e) => updateContribution(setMembers, member._id, Number(e.target.value))}
                               onKeyDown={(e) => {
                                 const key = e.key;
                                 if (["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(key)) return;
@@ -260,7 +215,7 @@ export default function CreateGroupPage() {
                           </div>
                           <button
                             type="button"
-                            onClick={() => removeMember(member._id)}
+                            onClick={() => removeMember(setMembers, member._id)}
                             className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-red-400 transition-colors rounded-md hover:bg-red-500/10"
                           >
                             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">

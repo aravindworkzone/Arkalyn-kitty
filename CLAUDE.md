@@ -93,3 +93,64 @@ Never hardcode. Always `process.env` (backend) or `import.meta.env` (frontend).
 - No test suite. Manual testing via Postman or browser devtools.
 - Frontend: `npm run lint` (ESLint) is the only automated check.
 - Backend: `npm run build` (TypeScript compile) catches type errors before deploy.
+
+---
+
+## Improvement Roadmap
+
+Work through these one by one. Each item is self-contained so you can pick any order within a priority group.
+
+### Backend — Critical
+
+- [x] **Enable strict TypeScript** — set `"strict": true` in `Backend/tsconfig.json` and fix all resulting type errors. This unlocks `noImplicitAny`, `strictNullChecks`, and more.
+- [ ] **Fix `AppError` class** — rewrite `Backend/Helper/AppError.ts` as `class AppError extends Error` with a `statusCode` field. Right now it throws a plain object, so `instanceof` checks and stack traces don't work.
+- [ ] **Standardize error shape** — controllers mix `error.status` and `error.statusCode`. Pick `statusCode` everywhere and enforce it through the new `AppError` class.
+- [ ] **Fix cookie `secure` flag** — `auth.controller.ts` hardcodes `secure: false`. Change to `secure: process.env.NODE_ENV === 'production'`.
+- [ ] **Fix `getExpenseAddDetailsService`** — this service function queries the DB but has no `return` statement. The data is fetched and thrown away. Add the return value.
+
+### Backend — High Priority
+
+- [ ] **Request validation middleware** — install `zod` and create a `validate(schema)` middleware. Apply it to every route so invalid payloads are rejected before reaching the Service layer. This replaces scattered inline checks inside services.
+- [ ] **Rate limiting on auth routes** — install `express-rate-limit` and apply it to `/auth/login` and `/auth/register` to prevent brute-force attacks.
+- [ ] **Pagination on all list endpoints** — every list endpoint returns all records. Add `page` and `limit` query params and return `{ data, total, page, limit }`. Apply to expenses, categories, group members, transactions.
+- [ ] **Fix `DB/connection.ts`** — it uses `require()` (CommonJS) inside an ESM/TypeScript codebase. Rewrite with `import`. Also replace the infinite retry loop with exponential backoff and a max-retry limit (e.g., 5 attempts).
+- [ ] **Complete transaction module** — the transaction service and router are unfinished. Implement `createTransaction` (deposit to group wallet) and `getTransactions` (list with pagination) following the same service-controller pattern.
+- [ ] **Complete report service** — `report.controller.ts` and `report.router.ts` are stubs. Implement aggregation: total spent per category, per member, and over time range using MongoDB `$group` and `$match`.
+- [ ] **Env var validation on startup** — add a `validateEnv()` function called at `main.ts` startup that checks all required env vars (`PORT`, `MONGODB_URI`, `JWT_SECRET`, `FRONTEND_URL`) and throws if any are missing, so the app fails fast rather than crashing mid-request.
+
+### Backend — Medium Priority
+
+- [ ] **Replace `console.log` with structured logging** — install `pino` or `winston`. Replace all `console.log` / `console.error` calls with a logger instance. Use log levels (`info`, `warn`, `error`) and never log sensitive fields (passwords, tokens).
+- [ ] **Input sanitization middleware** — install `express-mongo-sanitize` (prevents NoSQL injection) and `xss-clean` (strips HTML from inputs). Add both to `main.ts` before route registration.
+- [ ] **Race condition on group balance** — two concurrent expense creations can both pass the balance check before either commits. Fix by using MongoDB `findOneAndUpdate` with an atomic `$inc` and a `$gte: 0` condition check, or add a per-group document-level lock.
+- [ ] **Soft delete global filter** — `GroupMember` and `Category` have `isDeleted` but queries don't always filter it. Add a Mongoose pre-find plugin or use `Schema.pre('find')` hook to automatically exclude `isDeleted: true` docs so it's impossible to forget.
+- [ ] **Remove duplicate validation** — email regex and password length checks exist in both `auth.service.ts` and the frontend `Authentication.ts`. Keep validation in the zod request schema (see validation middleware task above) and remove the duplicates.
+
+### Frontend — Critical
+
+- [ ] **Type RTK Query responses** — `Frontend/src/redux/api/group.ts` uses `transformResponse: (res: { group: any })`. Replace `any` with proper interfaces from `interface/` files across all API files (`group.ts`, `expense.ts`, `category.ts`, `user.ts`).
+- [ ] **Add React error boundary** — create an `ErrorBoundary` component and wrap the router in `App.tsx`. Without it, any unhandled render error crashes the entire app to a blank screen.
+
+### Frontend — High Priority
+
+- [ ] **Centralized API error hook** — create `hooks/useApiError.ts` that reads the RTK Query error shape and returns a consistent human-readable string. Replace the per-page `useState` error strings with this hook.
+- [ ] **Loading states / skeletons** — pages show nothing while data loads. Add loading skeletons or a spinner at the route level. RTK Query exposes `isLoading` and `isFetching` — use them.
+- [ ] **Form management with react-hook-form + zod** — forms currently use scattered `useState` per field. Migrate to `react-hook-form` with zod schemas for validation. This gives you field-level errors, dirty tracking, and submit-disable for free.
+- [ ] **Fix auth initialization** — on page refresh, auth depends entirely on a `/user/me` cookie call. If that fails mid-session the redirect isn't always clean. Add an explicit auth init step in `App.tsx` that sets a loading state until the check resolves.
+- [ ] **Fix `ErrorRemover` event listener leak** — `Frontend/src/helpers/Authentication.ts` adds a DOM event listener on every call with no cleanup. Move it into a `useEffect` with a cleanup return so it's removed on component unmount.
+
+### Frontend — Medium Priority
+
+- [ ] **Standardize component file naming** — `header.tsx`, `deleteModel.tsx`, `categorySummary.tsx` are lowercase while `GroupCard.tsx`, `DetailModal.tsx` are PascalCase. Rename all component files to PascalCase.
+- [ ] **Narrow RTK Query tag invalidation** — invalidating `['Group']` re-fetches all group data when only one record changed. Switch to `{ type: 'Group', id: groupId }` for targeted cache invalidation so unrelated queries aren't refetched.
+- [ ] **Rename `constants.tsx` to `constants.ts`** — it's a data file with no JSX. The `.tsx` extension signals React components; use `.ts` for non-component files.
+
+### Architecture / Cross-Cutting
+
+- [ ] **Shared types package** — backend and frontend define duplicate interfaces (`IExpense` / `Expense`, `IGroup` / `Group`, etc.). Create a `shared/types/` folder at the repo root and import from there in both projects. Eliminates drift when a field changes.
+- [ ] **Service layer integration tests** — this is a financial app with balance mutation logic. Add integration tests (using `jest` + `mongodb-memory-server`) for at minimum: expense creation, balance deduction, and concurrent balance checks. Start with the service layer — no HTTP needed.
+- [ ] **OpenAPI / Swagger documentation** — use `zod-to-openapi` or `tsoa` to auto-generate API docs from your route schemas. Makes frontend-backend contract explicit and helps onboard new contributors.
+- [ ] **CORS hardening** — validate that `FRONTEND_URL` is set at startup (see env validation task). Add an explicit list of allowed methods and headers to the CORS config rather than relying on defaults.
+
+### Rules
+- i am ask any question, The answer should be like why should we do this, what are the alternate options, how to implement this, etc.

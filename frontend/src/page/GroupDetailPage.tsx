@@ -5,27 +5,16 @@ import Header from "../components/header";
 import DeleteConfirmModal from "../components/deleteModel";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import { useGetExpenseReportQuery } from "../redux/api/expense";
+import { useGetCategoriesQuery } from "../redux/api/category";
 import {
   useGetGroupMembersQuery,
   useGetGroupByIdQuery,
-  useManageMemberMutation,
-  useManageAdminMutation,
-  useAddContributionMutation,
-  useSettlementMutation,
-  useDeleteGroupMutation,
 } from "../redux/api/group";
-import { useVerifyUserMutation } from "../redux/api/user";
-
-// ── style constants ───────────────────────────────────────────────
-const roleGrade: Record<string, string> = {
-  SUPER_ADMIN: "border-cyan-400/30  bg-cyan-500/10  text-cyan-300",
-  ADMIN:       "border-amber-400/30 bg-amber-500/10 text-amber-300",
-  MEMBER:      "border-slate-500/30 bg-slate-500/10 text-slate-400",
-};
+import { useGroupDetailHandlers } from "../handlers/useGroupDetailHandlers";
+import { roleGrade } from "../helpers/constants";
+import type { SettingsTab } from "../interface/group";
 const inp =
   "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 transition-all";
-
-type SettingsTab = "addMember" | "changeRole" | "contribution" | "settlement" | "danger";
 
 // ── component ────────────────────────────────────────────────────
 export default function GroupDetailPage() {
@@ -36,8 +25,6 @@ export default function GroupDetailPage() {
   const [membersOpen, setMembersOpen]   = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tab, setTab]                   = useState<SettingsTab>("addMember");
-  const [msg, setMsg]                   = useState<{ ok: boolean; text: string } | null>(null);
-
   // ── add member form
   const [searchEmail,   setSearchEmail]   = useState("");
   const [foundUser,     setFoundUser]     = useState<{ _id: string; name: string } | null>(null);
@@ -65,6 +52,7 @@ export default function GroupDetailPage() {
 
   // ── expense detail modal
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
+  const [noCatAlert,      setNoCatAlert]      = useState(false);
 
   // ── queries
   const { data: GroupDetails, isLoading: groupLoading } =
@@ -73,15 +61,17 @@ export default function GroupDetailPage() {
     useGetExpenseReportQuery(groupId!, { skip: !groupId });
   const { data: GroupMembers } =
     useGetGroupMembersQuery(groupId!, { skip: !groupId });
+  const { data: categories = [] } =
+    useGetCategoriesQuery(groupId!, { skip: !groupId });
 
-  // ── mutations
-  const [verifyUser,          { isLoading: isVerifying }]      = useVerifyUserMutation();
-  const [manageMember,        { isLoading: isAddingMember }]   = useManageMemberMutation();
-  const [manageAdmin,         { isLoading: isChangingRole }]   = useManageAdminMutation();
-  const [addContributionMut,  { isLoading: isAddingContrib }]  = useAddContributionMutation();
-  const [settlementMut,       { isLoading: isSettling }]       = useSettlementMutation();
-  const [deleteGroupMut,      { isLoading: isDeletingGroup }]  = useDeleteGroupMutation();
-  const [removeMemberMut,     { isLoading: isRemovingMember }] = useManageMemberMutation();
+  // ── handlers + mutations
+  const {
+    msg, setMsg,
+    isVerifying, isAddingMember, isChangingRole,
+    isAddingContrib, isSettling, isDeletingGroup, isRemovingMember,
+    handleVerifyUser, handleAddMember, handleChangeRole,
+    handleAddContribution, handleSettlement, handleDeleteMember, handleDeleteGroup,
+  } = useGroupDetailHandlers(groupId);
 
   const memberNames   = GroupMembers?.map((m) => m.userId.name) ?? [];
   const todayTotal    = (TodayExpenses ?? []).reduce((s, e) => s + e.amount, 0);
@@ -103,99 +93,6 @@ export default function GroupDetailPage() {
     setSettleMemberId(""); setSettleAmount("");
   };
 
-  // ── handlers ─────────────────────────────────────────────────────
-  const handleVerifyUser = async () => {
-    if (!searchEmail.trim()) return;
-    setFoundUser(null); setMsg(null);
-    try {
-      const res = await verifyUser(searchEmail.trim()).unwrap();
-      setFoundUser({ _id: res.user._id, name: res.user.name });
-    } catch (e: any) {
-      setMsg({ ok: false, text: e?.data?.message || "User not found" });
-    }
-  };
-
-  const handleAddMember = async () => {
-    if (!foundUser || !groupId) return;
-    try {
-      await manageMember({
-        groupId,
-        action: "add",
-        Member: foundUser._id,
-        contribution: Number(memberContrib) || 0,
-      }).unwrap();
-      setMsg({ ok: true, text: "Member added successfully" });
-      setFoundUser(null); setSearchEmail(""); setMemberContrib("");
-    } catch (e: any) {
-      setMsg({ ok: false, text: e?.data?.error || "Failed to add member" });
-    }
-  };
-
-  const handleChangeRole = async () => {
-    if (!roleMemberId || !groupId) return;
-    try {
-      await manageAdmin({ groupId, action: roleAction, member: roleMemberId }).unwrap();
-      setMsg({ ok: true, text: roleAction === "promote" ? "Promoted to Admin" : "Demoted to Member" });
-      setRoleMemberId("");
-    } catch (e: any) {
-      setMsg({ ok: false, text: e?.data?.error || "Failed to change role" });
-    }
-  };
-
-  const handleAddContribution = async () => {
-    const amount = Number(myContrib);
-    if (!amount || amount <= 0 || !groupId) return;
-    try {
-      await addContributionMut({
-        groupId,
-        contribution: amount,
-        ...(contribMemberId ? { userId: contribMemberId } : {}),
-      }).unwrap();
-      setMsg({ ok: true, text: "Contribution added" });
-      setMyContrib(""); setContribMemberId("");
-    } catch (e: any) {
-      setMsg({ ok: false, text: e?.data?.error || "Failed to add contribution" });
-    }
-  };
-
-  const handleSettlement = async () => {
-    const amount = Number(settleAmount);
-    if (!settleMemberId || !amount || amount <= 0 || !groupId) return;
-    try {
-      await settlementMut({ groupId, settlement: amount, member: settleMemberId }).unwrap();
-      setMsg({ ok: true, text: "Settlement completed" });
-      setSettleMemberId(""); setSettleAmount("");
-    } catch (e: any) {
-      setMsg({ ok: false, text: e?.data?.error || "Failed to process settlement" });
-    }
-  };
-
-  const handleDeleteMember = async () => {
-    if (!deleteMemberTarget || !groupId) return;
-    setDeleteMemberError("");
-    try {
-      await removeMemberMut({
-        groupId,
-        action: "remove",
-        Member: deleteMemberTarget.id,
-      }).unwrap();
-      setDeleteMemberTarget(null);
-    } catch (e: any) {
-      setDeleteMemberError(e?.data?.error || "Failed to remove member. Ensure settlement is completed first.");
-    }
-  };
-
-  const handleDeleteGroup = async () => {
-    if (!groupId) return;
-    setDeleteGroupError("");
-    try {
-      await deleteGroupMut(groupId).unwrap();
-      navigate("/groups");
-    } catch (e: any) {
-      setDeleteGroupError(e?.data?.error || "Failed to delete group");
-    }
-  };
-
   // ── tabs config ───────────────────────────────────────────────────
   const settingsTabs: { id: SettingsTab; label: string; show: boolean }[] = [
     { id: "addMember",    label: "Add Member",   show: isAdmin },
@@ -207,8 +104,39 @@ export default function GroupDetailPage() {
 
   if (groupLoading) {
     return (
-      <div className="min-h-screen bg-[#080c14] flex items-center justify-center text-white/30 text-sm">
-        Loading…
+      <div className="min-h-screen bg-[#080c14] text-white">
+        <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
+          <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-cyan-500/5 blur-[120px]" />
+          <div className="absolute bottom-0 -right-60 w-[600px] h-[600px] rounded-full bg-violet-600/4 blur-[120px]" />
+        </div>
+        <Header />
+        <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-4 animate-pulse">
+          {/* back */}
+          <div className="h-4 w-12 bg-white/[0.05] rounded" />
+          {/* hero card */}
+          <div className="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-5 space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <div className="h-3 w-24 bg-white/[0.06] rounded" />
+                <div className="h-6 w-48 bg-white/[0.07] rounded" />
+                <div className="h-3 w-32 bg-white/[0.04] rounded" />
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-white/[0.05]" />
+            </div>
+            <div className="grid grid-cols-3 gap-3 pt-2">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-3 space-y-2">
+                  <div className="h-2.5 w-12 bg-white/[0.05] rounded" />
+                  <div className="h-5 w-16 bg-white/[0.07] rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* expense rows */}
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-14 rounded-xl bg-white/[0.03] border border-white/[0.06]" />
+          ))}
+        </main>
       </div>
     );
   }
@@ -295,12 +223,45 @@ export default function GroupDetailPage() {
           <MemberAvatars members={memberNames} />
         </div>
 
+        {/* ── No-category alert ── */}
+        {noCatAlert && (
+          <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25">
+            <svg className="shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M7 1l6 11H1L7 1z" stroke="#fbbf24" strokeWidth="1.3" strokeLinejoin="round" />
+              <path d="M7 5.5v3M7 9.5h.01" stroke="#fbbf24" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-semibold text-amber-300 leading-tight">No categories yet</p>
+              <p className="text-[11px] text-amber-400/70 mt-0.5">Create a category before adding an expense.</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => navigate(`/groups/${groupId}/create-category`)}
+                className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 transition-colors"
+              >
+                Create
+              </button>
+              <button
+                onClick={() => setNoCatAlert(false)}
+                className="text-amber-500/60 hover:text-amber-400 transition-colors"
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── Action buttons ── */}
         <div className={`grid gap-2 ${isAdmin ? "grid-cols-4" : "grid-cols-3"}`}>
           {[
             {
               label: "Add Expense",
-              onClick: () => navigate(`/groups/${groupId}/create-expense`),
+              onClick: () => {
+                if (categories.length === 0) { setNoCatAlert(true); return; }
+                navigate(`/groups/${groupId}/create-expense`);
+              },
               color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/20 hover:bg-cyan-500/20 hover:border-cyan-400/35",
               icon: <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />,
               show: true,
@@ -593,12 +554,12 @@ export default function GroupDetailPage() {
                         type="email"
                         value={searchEmail}
                         onChange={(e) => setSearchEmail(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleVerifyUser()}
+                        onKeyDown={(e) => e.key === "Enter" && handleVerifyUser(searchEmail, setFoundUser)}
                         placeholder="member@email.com"
                         className={`${inp} flex-1`}
                       />
                       <button
-                        onClick={handleVerifyUser}
+                        onClick={() => handleVerifyUser(searchEmail, setFoundUser)}
                         disabled={isVerifying || !searchEmail.trim()}
                         className="px-4 rounded-xl text-xs font-semibold border
                           bg-white/[0.04] border-white/[0.09] text-white/50
@@ -628,7 +589,7 @@ export default function GroupDetailPage() {
                           />
                         </div>
                         <button
-                          onClick={handleAddMember}
+                          onClick={() => handleAddMember(foundUser, memberContrib, setFoundUser, setSearchEmail, setMemberContrib)}
                           disabled={isAddingMember}
                           className="w-full py-2.5 rounded-xl text-sm font-semibold
                             bg-cyan-500/15 border border-cyan-500/25 text-cyan-300
@@ -675,7 +636,7 @@ export default function GroupDetailPage() {
                       ))}
                     </div>
                     <button
-                      onClick={handleChangeRole}
+                      onClick={() => handleChangeRole(roleMemberId, roleAction, setRoleMemberId)}
                       disabled={!roleMemberId || isChangingRole}
                       className="w-full py-2.5 rounded-xl text-sm font-semibold
                         bg-amber-500/15 border border-amber-500/25 text-amber-300
@@ -715,7 +676,7 @@ export default function GroupDetailPage() {
                       />
                     </div>
                     <button
-                      onClick={handleAddContribution}
+                      onClick={() => handleAddContribution(myContrib, contribMemberId, setMyContrib, setContribMemberId)}
                       disabled={!myContrib || Number(myContrib) <= 0 || isAddingContrib}
                       className="w-full py-2.5 rounded-xl text-sm font-semibold
                         bg-violet-500/15 border border-violet-500/25 text-violet-300
@@ -754,7 +715,7 @@ export default function GroupDetailPage() {
                       />
                     </div>
                     <button
-                      onClick={handleSettlement}
+                      onClick={() => handleSettlement(settleMemberId, settleAmount, setSettleMemberId, setSettleAmount)}
                       disabled={!settleMemberId || !settleAmount || Number(settleAmount) <= 0 || isSettling}
                       className="w-full py-2.5 rounded-xl text-sm font-semibold
                         bg-green-500/15 border border-green-500/25 text-green-300
@@ -795,7 +756,7 @@ export default function GroupDetailPage() {
       <DeleteConfirmModal
         isOpen={!!deleteMemberTarget}
         onClose={() => { setDeleteMemberTarget(null); setDeleteMemberError(""); }}
-        onConfirm={handleDeleteMember}
+        onConfirm={() => handleDeleteMember(deleteMemberTarget, setDeleteMemberTarget, setDeleteMemberError)}
         label={`Remove ${deleteMemberTarget?.name ?? ""}`}
         confirmText="REMOVE"
         isLoading={isRemovingMember}
@@ -811,7 +772,7 @@ export default function GroupDetailPage() {
       <DeleteConfirmModal
         isOpen={deleteGroupOpen}
         onClose={() => { setDeleteGroupOpen(false); setDeleteGroupError(""); }}
-        onConfirm={handleDeleteGroup}
+        onConfirm={() => handleDeleteGroup(setDeleteGroupError)}
         label="Delete Group"
         confirmText="DELETE"
         isLoading={isDeletingGroup}

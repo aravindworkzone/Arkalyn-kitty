@@ -1,36 +1,39 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import Header from "../components/header";
 import { useGetAllExpensesQuery } from "../redux/api/expense";
 import { useGetGroupByIdQuery } from "../redux/api/group";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
-
-const dateLabel = (dateStr: string) => {
-  const d = new Date(dateStr);
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (d.toDateString() === today.toDateString()) return "Today";
-  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-};
-
-const timeLabel = (dateStr: string) =>
-  new Date(dateStr).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+import { dateLabel, timeLabel } from "../helpers/formatters";
+import {
+  PageBackground,
+  BackButton,
+  PageHeader,
+  StatCard,
+  SearchInput,
+} from "../components/ui";
 
 export default function AllExpensesPage() {
   const { groupId } = useParams();
-  const navigate = useNavigate();
   const { data: expenses, isLoading } = useGetAllExpensesQuery(groupId!, { skip: !groupId });
   const { data: GroupDetails } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
+  const [search, setSearch] = useState("");
 
   const role = GroupDetails?.role as string | undefined;
 
-  // group by date label
+  const filtered = expenses?.filter((exp) => {
+    const q = search.toLowerCase();
+    return (
+      exp.title.toLowerCase().includes(q) ||
+      exp.category?.name?.toLowerCase().includes(q) ||
+      exp.paidBy?.name?.toLowerCase().includes(q)
+    );
+  }) ?? [];
+
   const groups: { label: string; items: typeof expenses }[] = [];
   const seen = new Set<string>();
-  expenses?.forEach((exp) => {
+  filtered.forEach((exp) => {
     const label = dateLabel(exp.date);
     if (!seen.has(label)) {
       seen.add(label);
@@ -39,70 +42,43 @@ export default function AllExpensesPage() {
     groups[groups.length - 1]!.items!.push(exp);
   });
 
-  const total = expenses?.reduce((s, e) => s + e.amount, 0) ?? 0;
+  const total = filtered.reduce((s, e) => s + e.amount, 0);
 
   return (
     <div className="min-h-screen bg-[#080c14] text-white">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
-        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-cyan-500/5 blur-[120px]" />
-        <div className="absolute bottom-0 -right-60 w-[600px] h-[600px] rounded-full bg-violet-600/4 blur-[120px]" />
-        <div
-          className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.07) 1px,transparent 1px)",
-            backgroundSize: "48px 48px",
-          }}
-        />
-      </div>
-
+      <PageBackground />
       <Header />
 
       <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-5">
+        <BackButton />
 
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-white/35 hover:text-white/60 text-xs font-medium transition-colors"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Back
-        </button>
+        <PageHeader
+          color="violet"
+          icon={
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <path d="M2 3h10M2 7h7M2 11h4" stroke="#c4b5fd" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+          }
+          label="All Expenses"
+          title="Expense History"
+          description="Every expense recorded in this group."
+        />
 
-        {/* header */}
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-violet-500/15 border border-violet-500/25 flex items-center justify-center">
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <path d="M2 3h10M2 7h7M2 11h4" stroke="#c4b5fd" strokeWidth="1.4" strokeLinecap="round" />
-              </svg>
-            </div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-violet-400/70">All Expenses</p>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#f0eeff]">Expense History</h1>
-          <p className="text-white/35 text-sm mt-1">Every expense recorded in this group.</p>
-        </div>
-
-        {/* summary bar */}
         {!isLoading && (
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3">
-              <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Total Spent</p>
-              <p className="text-[18px] font-semibold font-mono text-[#f0eeff]">
-                ₹{total.toLocaleString("en-IN")}
-              </p>
-            </div>
-            <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3">
-              <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Transactions</p>
-              <p className="text-[18px] font-semibold font-mono text-[#f0eeff]">
-                {expenses?.length ?? 0}
-              </p>
-            </div>
+            <StatCard label="Total Spent" value={total} currency />
+            <StatCard label="Transactions" value={filtered.length} />
           </div>
         )}
 
-        {/* skeleton */}
+        {!isLoading && (expenses?.length ?? 0) > 0 && (
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search by title, category, or payer…"
+          />
+        )}
+
         {isLoading && (
           <div className="space-y-4">
             {[...Array(3)].map((_, g) => (
@@ -125,15 +101,25 @@ export default function AllExpensesPage() {
           </div>
         )}
 
-        {/* empty */}
         {!isLoading && expenses?.length === 0 && (
           <div className="text-center py-16">
             <p className="text-white/20 text-sm">No expenses recorded yet</p>
           </div>
         )}
 
-        {/* grouped list */}
-        {!isLoading && groups.map((group, gi) => (
+        {!isLoading && (expenses?.length ?? 0) > 0 && filtered.length === 0 && search && (
+          <div className="text-center py-12">
+            <p className="text-white/25 text-sm">No results for "{search}"</p>
+            <button
+              onClick={() => setSearch("")}
+              className="mt-2 text-violet-400 text-xs hover:text-violet-300 transition-colors"
+            >
+              Clear search
+            </button>
+          </div>
+        )}
+
+        {!isLoading && filtered.length > 0 && groups.map((group, gi) => (
           <div key={group.label} className="space-y-2">
             <div className="flex items-center justify-between px-0.5">
               <p className="text-xs font-semibold uppercase tracking-widest text-white/40">
@@ -178,7 +164,6 @@ export default function AllExpensesPage() {
                     </div>
                   </div>
                 </div>
-
                 <div className="text-right shrink-0 ml-3">
                   <p className="text-[15px] font-semibold font-mono text-[#f0eeff] leading-tight">
                     ₹{expense.amount.toLocaleString("en-IN")}
@@ -189,17 +174,14 @@ export default function AllExpensesPage() {
             ))}
           </div>
         ))}
-
       </main>
 
-      <ExpenseDetailModal expense={selectedExpense} onClose={() => setSelectedExpense(null)} role={role} groupId={groupId} />
-
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+      <ExpenseDetailModal
+        expense={selectedExpense}
+        onClose={() => setSelectedExpense(null)}
+        role={role}
+        groupId={groupId}
+      />
     </div>
   );
 }

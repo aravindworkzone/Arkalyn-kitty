@@ -1,27 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
-import { useCreateCategoryMutation, useDeleteCategoryMutation, useGetCategoriesQuery } from "../redux/api/category";
+import { useGetCategoriesQuery } from "../redux/api/category";
+import { useCategoryHandlers } from "../handlers/useCategoryHandlers";
 import DeleteConfirmModal from "../components/deleteModel";
 import CategoryDeleteSummary from "../components/categorySummary";
-
-interface Category {
-  _id: string;
-  name: string;
-  color: string;
-  expenseCount: number;
-}
-
-const colorOptions = [
-  "#f97316",
-  "#06b6d4",
-  "#8b5cf6",
-  "#ec4899",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-  "#6366f1",
-];
+import { colorOptions } from "../helpers/constants";
+import type { Category } from "../interface/category";
 
 const s = {
   input:
@@ -36,8 +21,7 @@ export default function CategoryPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
 
-  const [createCategory] = useCreateCategoryMutation();
-  const [deleteCategory, { isLoading }] = useDeleteCategoryMutation();
+  const { handleAdd, handleDelete, isDeleting } = useCategoryHandlers(groupId);
   const { data } = useGetCategoriesQuery(groupId);
 
   const [name, setName]         = useState("");
@@ -51,54 +35,17 @@ export default function CategoryPage() {
     if (data) setCategories(data);
   }, [data]);
 
-  const handleAdd = async () => {
-    const trimmed = name.trim();
-    if (!trimmed) return setError("Category name is required");
-    if (trimmed.length < 2) return setError("Name must be at least 2 characters");
-    const duplicate = categories.some(
-      (c) => c.name.toLowerCase() === trimmed.toLowerCase()
-    );
-    if (duplicate) return setError("Category already exists");
-
-    try {
-      await createCategory({ name: trimmed, groupId, color }).unwrap();
-    } catch (error: any) {
-      console.log(error);
-      setError(error.data.message);
-    }
-
-    setCategories((prev) => [
-      ...prev,
-      { _id: Date.now().toString(), name: trimmed, color, expenseCount: 0 },
-    ]);
-    setName("");
-    setColor(colorOptions[0]);
-    setError("");
-  };
-
 const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-
-const handleDelete = async () => {
-  if (!selectedCategory) return;
-  try {
-    await deleteCategory({ id: selectedCategory._id, groupId }).unwrap();
-    setCategories((prev) => prev.filter((c) => c._id !== selectedCategory._id));
-    setCategoryModalOpen(false);
-    setSelectedCategory(null);
-  } catch (error: any) {
-    setError(error.data.message);
-  }
-};
 
   return (
     <>
     <DeleteConfirmModal
       isOpen={isCategoryModalOpen}
       onClose={() => { setCategoryModalOpen(false); setSelectedCategory(null); }}
-      onConfirm={handleDelete}
+      onConfirm={() => handleDelete(selectedCategory, setError, setCategories, setCategoryModalOpen, setSelectedCategory)}
       confirmText="DELETE"
       isBlocked={(selectedCategory?.expenseCount ?? 0) > 0}
-      isLoading={isLoading}
+      isLoading={isDeleting}
       label="Delete category"
     >
       {selectedCategory && <CategoryDeleteSummary category={selectedCategory} />}
@@ -178,14 +125,14 @@ const handleDelete = async () => {
                   type="text"
                   value={name}
                   onChange={(e) => { setName(e.target.value); setError(""); }}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAdd())}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAdd(name, color, categories, setError, setCategories, setName, setColor, colorOptions[0]))}
                   placeholder="e.g. Groceries"
                   autoComplete="off"
                   maxLength={40}
                 />
                 <button
                   type="button"
-                  onClick={handleAdd}
+                  onClick={() => handleAdd(name, color, categories, setError, setCategories, setName, setColor, colorOptions[0])}
                   className="shrink-0 px-4 rounded-xl text-sm font-semibold border
                     bg-violet-500/10 border-violet-500/25 text-violet-300
                     hover:bg-violet-500/20 hover:border-violet-400/40

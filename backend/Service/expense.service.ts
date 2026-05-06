@@ -90,7 +90,7 @@ export const createExpenseService = async (data: ExpenseData) => {
             paidBy,
             paymentType,
             date,
-            splitBetween: []
+            splitBetween: [] as { userId: string; amount: number }[]
         }
 
         if (splitBetween.length > 0) {
