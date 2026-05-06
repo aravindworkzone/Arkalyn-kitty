@@ -157,7 +157,7 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
         throw AppError("User is already a member", 400);
     }
     
-    if (action === "add" && contribution < 0) {
+    if (action === "add" && (contribution ?? 0) < 0) {
         throw AppError("Contribution cannot be negative", 400);
     }
 
@@ -521,7 +521,7 @@ export const getTransactionService = async (groupId: mongoose.Types.ObjectId) =>
     try {
         const transactions = await GroupTransaction.find({ groupId, isDeleted: false }).populate("performedBy").populate("referenceId");
         const transaction = transactions.map(t => {
-            const createdAt = t.createdAt.toLocaleString("en-GB", {
+            const createdAt = t.createdAt?.toLocaleString("en-GB", {
                 day: "2-digit",
                 month: "short",
                 year: "numeric",
@@ -541,7 +541,7 @@ export const getEventService = async (groupId: mongoose.Types.ObjectId) => {
     try {
         const transactions = await GroupEvent.find({ groupId, isDeleted: false }).populate("performedBy").populate("referenceId");
         const transaction = transactions.map(t => {
-            const createdAt = t.createdAt.toLocaleString("en-GB", {
+            const createdAt = t.createdAt?.toLocaleString("en-GB", {
                 day: "2-digit",
                 month: "short",
                 year: "numeric",

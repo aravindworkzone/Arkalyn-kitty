@@ -1,27 +1,7 @@
 import MemberAvatars from "./ListMember";
+import { roleGrade } from "../helpers/constants";
+import type { Group, GroupCardProps } from "../interface/group";
 
-interface Group {
-  name: string;
-  displayId: string;
-  members: string[];
-  expenseCount: number;
-  balance: number;
-  barLength: number;
-  createdAt: string;
-  role: "SUPER_ADMIN" | "ADMIN" | "MEMBER";
-}
-
-interface GroupCardProps {
-  group: Group;
-  onClick: () => void;
-  onAddExpense: () => void;
-}
-
-const roleGrade = {
-  SUPER_ADMIN: "border-cyan-400/30 bg-cyan-500/10 text-cyan-300",
-  ADMIN: "border-amber-400/30 bg-amber-500/10 text-amber-300",
-  MEMBER: "border-slate-500/30 bg-slate-500/10 text-slate-400",
-};
 
 const GroupCard = ({ group, onClick, onAddExpense }: GroupCardProps) => (
   <div

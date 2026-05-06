@@ -1,27 +1,5 @@
 import {api} from './base';
-
-interface GetExpenseReport {
-    amount: number;
-    category: {
-        color: string;
-        _id: string;
-        name: string;
-    };
-    time: string;
-    date: string;
-    groupId: string;
-    isDeleted: boolean;
-    paidBy: {
-        name: string;
-        email: string;
-    };
-    paymentType: string;
-    splitBetween: { userId: { _id: string; name: string; email: string }; amount: number }[];
-    title: string;
-    updatedAt: string;
-    __v: number;
-    _id: string;
-};
+import type { GetExpenseReport } from "../../interface/expense";
 
 export const expense = api.injectEndpoints({
     endpoints: (builder) => ({

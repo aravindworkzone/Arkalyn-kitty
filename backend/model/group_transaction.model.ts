@@ -20,7 +20,7 @@ export interface IGroupTransaction extends Document {
 
 const groupTransactionSchema = new Schema<IGroupTransaction>({
     groupId: { type: mongoose.Schema.Types.ObjectId, ref: "Group", required: true },
-    amount: { type: Number, required: true, min: 1, set:toDBAmount, get:fromDBAmount },
+    amount: { type: Number, required: true, min: 0, set:toDBAmount, get:fromDBAmount },
     action: { type: String, enum: TRANSACTION_TYPE, required: true },
     description: { type: String, required: true },
     referenceId: { type: mongoose.Schema.Types.ObjectId, required: true },

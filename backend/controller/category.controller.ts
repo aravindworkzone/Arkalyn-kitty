@@ -27,7 +27,7 @@ export const createCategory = async (req: Request, res: Response) => {
 
 export const deleteCategory = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    if (!req.group._id) return res.status(401).json({ message: "Group not found" });
+    if (!req.group?._id) return res.status(401).json({ message: "Group not found" });
     const categoryId = req.params.id as string;
     try {
         const category = await deleteCategoryService({ categoryId, userId: req.user._id, groupId: req.group._id });

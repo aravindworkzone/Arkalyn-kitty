@@ -1,51 +1,17 @@
 import React from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { loginDetails, RegistrationDetails, validators, ErrorRemover } from '../utils/Authentication'
-import {useSignUpMutation, useSignInMutation} from '../redux/api/auth'
+import { Link } from 'react-router-dom'
+import { loginDetails, RegistrationDetails, ErrorRemover } from '../helpers/Authentication'
 import { useState } from 'react';
-interface Props {
-    inputs: Record<string, { placeholder: string, label: string, id: string, name: string }>;
-    link: string;
-}
+import type { AuthFormProps } from '../interface/auth';
+import { useAuthHandlers } from '../handlers/useAuthHandlers';
 
-const Templete = ({inputs, link} : Props) => {
+const Templete = ({inputs, link} : AuthFormProps) => {
     const linkText = link === "register" ? "Don't have an account?" : "Already have an account?";
     const head = link !== "register" ? "Sign up your account" : "Sign in to your account";
     const signButtonText = link !== "register" ? "Sign up" : "Sign in";
-    const [Auth] = link !== "register" ? useSignUpMutation() : useSignInMutation();
-    const navigate = useNavigate();
-
-    const loading = false;
+    const { handleSubmit, loading } = useAuthHandlers(link);
     const [error, setError] = useState('');
     ErrorRemover(setError);
-    const HandleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        const form = e.target as HTMLFormElement;
-        const formData = new FormData(form);
-        const data: Record<string, string> = {};
-
-        for(const [key, value] of formData.entries()){ 
-            if(typeof value == "string") {
-                if(key in validators){
-                    const validation = validators[key as keyof typeof validators](value as string);
-                    if(!validation.valid){
-                        setError(validation.message as string);
-                        return;
-                    }
-                }
-                data[key] = value;
-            }
-        };
-        try {
-            await Auth(data).unwrap();
-            setError('');
-            navigate('/');
-        } catch (error: any) {
-            console.log(error);
-            setError(error.data?.message || "An error occurred");
-        }
-    }
-
     return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-black relative overflow-hidden">
                 <div className="absolute top-[-100px] left-[-100px] w-[500px] h-[500px] rounded-full bg-[#FFFFFF10] blur-3xl pointer-events-none" />
@@ -63,7 +29,7 @@ const Templete = ({inputs, link} : Props) => {
                     <h1 className="text-3xl font-bold text-white tracking-tight mb-1">Welcome back</h1>
                     <p className="text-white/40 text-sm mb-8"> {head} </p>
 
-                    <form onSubmit={HandleSubmit} className="flex flex-col gap-5">
+                    <form onSubmit={(e) => handleSubmit(e, setError)} className="flex flex-col gap-5">
                         {
                             Object.keys(inputs).map((key) => {
                                 return (
@@ -82,7 +48,15 @@ const Templete = ({inputs, link} : Props) => {
                             disabled={loading}
                             className="mt-1 w-full py-3 rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 text-white font-semibold text-sm tracking-tight disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity cursor-pointer"
                         >
-                            {loading ? signButtonText+"ing in..." : signButtonText}
+                            {loading ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                    </svg>
+                                    {signButtonText}ing…
+                                </span>
+                            ) : signButtonText}
                         </button>
                     </form>
 

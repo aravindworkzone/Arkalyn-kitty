@@ -82,7 +82,7 @@ export const ErrorRemover = (setError: React.Dispatch<React.SetStateAction<strin
             const handleRemoveError = () => {
                 setError('');
             }
-                
+
             document.addEventListener("input", handleRemoveError);
 
             return () => document.removeEventListener("input", handleRemoveError);

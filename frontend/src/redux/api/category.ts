@@ -1,16 +1,5 @@
 import {api} from "./base";
-
-interface Category {
-  _id: string;
-  name: string;
-  color: string;
-  expenseCount: number;
-}
-
-interface CategoryResponse {
-  message: string;
-  category: Category[];
-}
+import type { Category, CategoryResponse } from "../../interface/category";
 
 export const category = api.injectEndpoints({
     endpoints: (builder) => ({

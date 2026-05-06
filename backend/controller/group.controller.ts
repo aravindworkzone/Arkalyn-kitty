@@ -22,6 +22,7 @@ export const createGroup = async (req: Request, res: Response) => {
 }
 
 export const deleteGroup = async (req: Request, res: Response) => {
+    if (!req.group?._id) return res.status(400).json({ message: "Group not found" });
     const groupId = req.group._id.toString();
     try {
         const group = await deleteGroupService(groupId);
@@ -146,6 +147,7 @@ export const getGroupById = async (req: Request, res: Response) => {
 }
 
 export const getGroupMember = async (req: Request, res: Response) => {
+    if (!req.group?._id) return res.status(400).json({ message: "Group not found" });
     try {
         const members = await getGroupMemberService(req.group._id);
         return res.status(200).json({ message: "Members fetched", members });
@@ -157,6 +159,7 @@ export const getGroupMember = async (req: Request, res: Response) => {
 }
 
 export const getBasicTransaction = async (req: Request, res: Response) => {
+    if (!req.group?._id) return res.status(400).json({ message: "Group not found" });
     try {
         const transactions = await getBasicTransactionService(req.group._id);
         return res.status(200).json({ message: "Transactions fetched", transactions });
@@ -168,6 +171,7 @@ export const getBasicTransaction = async (req: Request, res: Response) => {
 }
 
 export const getTransaction = async (req: Request, res: Response) => {
+    if (!req.group?._id) return res.status(400).json({ message: "Group not found" });
     try {
         const transactions = await getTransactionService(req.group._id);
         return res.status(200).json({ message: "Transactions fetched", transactions });
@@ -179,6 +183,7 @@ export const getTransaction = async (req: Request, res: Response) => {
 }
 
 export const getEvent = async (req: Request, res: Response) => {
+    if (!req.group?._id) return res.status(400).json({ message: "Group not found" });
     try {
         const events = await getEventService(req.group._id);
         return res.status(200).json({ message: "Events fetched", events });

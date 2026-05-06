@@ -1,13 +1,7 @@
 import { useEffect } from "react";
+import type { DetailModalProps } from "../interface/modal";
 
-interface Props {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  children: React.ReactNode;
-}
-
-export default function DetailModal({ isOpen, onClose, title, children }: Props) {
+export default function DetailModal({ isOpen, onClose, title, children }: DetailModalProps) {
   useEffect(() => {
     if (isOpen) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "";
