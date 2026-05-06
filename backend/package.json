@@ -4,7 +4,7 @@
   "main": "main.ts",
   "scripts": {
     "dev": "nodemon --watch . --ext ts --exec ts-node ./main.ts",
-    "build": "tsc",
+    "build": "npm install && tsc",
     "start": "node dist/main.js"
   },
   "keywords": [],
