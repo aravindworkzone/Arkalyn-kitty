@@ -2,22 +2,7 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
 import { useGetTransactionQuery, useGetEventQuery } from "../redux/api/group";
-
-// ── mock data ──────────────────────────────────────────────────
-const mockTransactions = [
-  { _id: "t1", action: "CREDIT", amount: 5000, description: "Initial contribution", performedBy: "Aravind", referenceModel: "Group",  createdAt: "26 Apr 2026, 10:00" },
-  { _id: "t2", action: "DEBIT",  amount: 450,  description: "Expense: Lunch",       performedBy: "Aravind", referenceModel: "Expense", createdAt: "26 Apr 2026, 12:30" },
-  { _id: "t3", action: "DEBIT",  amount: 280,  description: "Expense: Cab",         performedBy: "Aravind", referenceModel: "Expense", createdAt: "26 Apr 2026, 14:15" },
-  { _id: "t4", action: "REFUND", amount: 280,  description: "Refund: Cab deleted",  performedBy: "Aravind", referenceModel: "Expense", createdAt: "26 Apr 2026, 15:00" },
-];
-
-const mockEvents = [
-  { _id: "e1", eventType: "CREATE_GROUP",    performedBy: "Aravind", metadata: { groupName: "Monthly Budget" },        createdAt: "26 Apr 2026, 09:50" },
-  { _id: "e2", eventType: "MEMBER_ADDED",    performedBy: "Aravind", metadata: { memberName: "Aravind" },              createdAt: "26 Apr 2026, 09:51" },
-  { _id: "e3", eventType: "MANAGE_CATEGORY", performedBy: "Aravind", metadata: { action: "created", name: "Food" },   createdAt: "26 Apr 2026, 09:55" },
-  { _id: "e4", eventType: "CHANGE_ROLE",     performedBy: "Aravind", metadata: { member: "Karthik", role: "ADMIN" },  createdAt: "26 Apr 2026, 10:05" },
-  { _id: "e5", eventType: "MEMBER_REMOVED",  performedBy: "Aravind", metadata: { memberName: "Priya" },               createdAt: "26 Apr 2026, 11:00" },
-];
+import DetailModal from "../components/DetailModal";
 
 // ── helpers ────────────────────────────────────────────────────
 const actionStyle: Record<string, { label: string; color: string; bg: string; border: string }> = {
@@ -34,16 +19,9 @@ const eventConfig: Record<string, { label: string; icon: React.ReactNode; color:
   CHANGE_ROLE:     { label: "Role changed",     color: "#fbbf24", icon: <path d="M2 6h10M7 2l4 4-4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/> },
 };
 
-const eventDescription = (event: typeof mockEvents[0]) => {
+const eventDescription = (event: { eventType: string; metadata?: Record<string, any> }) => {
   const m = event.metadata || {};
-  switch (event.eventType) {
-    case "CREATE_GROUP":    return `"${m.groupName}" was created`;
-    case "MEMBER_ADDED":    return `${m.memberName} was added to the group`;
-    case "MEMBER_REMOVED":  return `${m.memberName} was removed`;
-    case "MANAGE_CATEGORY": return `Category "${m.referenceId.name}" was ${m.action}`;
-    case "CHANGE_ROLE":     return `${m.member}'s role changed to ${m.role}`;
-    default: return "Group activity";
-  }
+  return m.note || "Group activity";
 };
 
 // ── component ──────────────────────────────────────────────────
@@ -52,16 +30,18 @@ export default function ReportPage() {
   const navigate    = useNavigate();
   const [tab, setTab]           = useState<"transactions" | "events">("transactions");
   const [txFilter, setTxFilter] = useState<"ALL" | "CREDIT" | "DEBIT" | "REFUND">("ALL");
-  const { data: Transactions, isLoading } = useGetTransactionQuery(groupId || "", { refetchOnMountOrArgChange: true });
-  const { data: Events } = useGetEventQuery(groupId || "", { refetchOnMountOrArgChange: true });
+  const [selectedTx,    setSelectedTx]    = useState<any>(null);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const { data: Transactions, isLoading: txLoading } = useGetTransactionQuery(groupId || "", { refetchOnMountOrArgChange: true });
+  const { data: Events, isLoading: evLoading } = useGetEventQuery(groupId || "", { refetchOnMountOrArgChange: true });
 
   const filteredTx = txFilter === "ALL"
     ? Transactions
     : Transactions?.filter((t: any) => t.action === txFilter);
 
-  const totalCredit = Transactions?.filter((t: any) => t.action === "CREDIT").reduce((s: number, t: any) => s + t.amount, 0);
-  const totalDebit  = Transactions?.filter((t: any) => t.action === "DEBIT").reduce((s: number, t: any) => s + t.amount, 0);
-  const totalRefund = Transactions?.filter((t: any) => t.action === "REFUND").reduce((s: number, t: any) => s + t.amount, 0);
+  const totalCredit = Transactions?.filter((t: any) => t.action === "CREDIT").reduce((s: number, t: any) => s + t.amount, 0) ?? 0;
+  const totalDebit  = Transactions?.filter((t: any) => t.action === "DEBIT").reduce((s: number, t: any) => s + t.amount, 0) ?? 0;
+  const totalRefund = Transactions?.filter((t: any) => t.action === "REFUND").reduce((s: number, t: any) => s + t.amount, 0) ?? 0;
 
   return (
     <div className="min-h-screen bg-[#080c14] text-white">
@@ -113,7 +93,7 @@ export default function ReportPage() {
             <div key={stat.label} className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3">
               <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">{stat.label}</p>
               <p className="text-[16px] font-semibold font-mono" style={{ color: stat.color }}>
-                ₹{stat.value?.toLocaleString("en-IN")}
+                ₹{stat.value.toLocaleString("en-IN")}
               </p>
             </div>
           ))}
@@ -154,7 +134,22 @@ export default function ReportPage() {
             </div>
 
             <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
-              {filteredTx?.length === 0 ? (
+              {txLoading ? (
+                <div className="divide-y divide-white/[0.04]">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between px-5 py-4 gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-white/[0.05] shrink-0 animate-pulse" />
+                        <div className="space-y-1.5 flex-1">
+                          <div className="h-3 bg-white/[0.05] rounded animate-pulse w-3/4" />
+                          <div className="h-2.5 bg-white/[0.04] rounded animate-pulse w-1/3" />
+                        </div>
+                      </div>
+                      <div className="h-4 w-16 bg-white/[0.05] rounded animate-pulse shrink-0" />
+                    </div>
+                  ))}
+                </div>
+              ) : filteredTx?.length === 0 ? (
                 <p className="text-center text-white/20 text-xs py-10">No transactions found</p>
               ) : (
                 <div className="divide-y divide-white/[0.04]">
@@ -163,7 +158,8 @@ export default function ReportPage() {
                     return (
                       <div
                         key={tx._id}
-                        className="flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors"
+                        onClick={() => setSelectedTx(tx)}
+                        className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-white/[0.04] transition-colors"
                         style={{ animation: "fadeSlideIn 0.2s ease forwards", animationDelay: `${i * 40}ms`, opacity: 0 }}
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -208,19 +204,32 @@ export default function ReportPage() {
 
         {tab === "events" && (
           <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
-            {Events?.length === 0 ? (
+            {evLoading ? (
+              <div className="divide-y divide-white/[0.04]">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex items-start gap-4 px-5 py-4">
+                    <div className="w-8 h-8 rounded-xl bg-white/[0.05] shrink-0 animate-pulse" />
+                    <div className="space-y-1.5 flex-1 pt-0.5">
+                      <div className="h-3 bg-white/[0.05] rounded animate-pulse w-2/3" />
+                      <div className="h-2.5 bg-white/[0.04] rounded animate-pulse w-1/2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : Events?.length === 0 ? (
               <p className="text-center text-white/20 text-xs py-10">No activity yet</p>
             ) : (
               <div className="relative">
                 <div className="absolute left-[42px] top-0 bottom-0 w-px bg-white/[0.05]" />
 
                 <div className="divide-y divide-white/[0.04]">
-                  {Events.map((event: any, i: any) => {
+                  {Events?.map((event: any, i: any) => {
                     const cfg = eventConfig[event.eventType];
                     return (
                       <div
                         key={event._id}
-                        className="flex items-start gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors relative"
+                        onClick={() => setSelectedEvent(event)}
+                        className="flex items-start gap-4 px-5 py-4 cursor-pointer hover:bg-white/[0.04] transition-colors relative"
                         style={{ animation: "fadeSlideIn 0.2s ease forwards", animationDelay: `${i * 40}ms`, opacity: 0 }}
                       >
                         <div
@@ -261,6 +270,86 @@ export default function ReportPage() {
         )}
 
       </div>
+
+      {/* ── Transaction detail modal ── */}
+      {selectedTx && (() => {
+        const style = actionStyle[selectedTx.action] ?? actionStyle.CREDIT;
+        return (
+          <DetailModal isOpen title="Transaction Detail" onClose={() => setSelectedTx(null)}>
+            <div className="mb-5 pb-5 border-b border-white/[0.06]">
+              <div
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold mb-3"
+                style={{ background: style.bg, borderColor: style.border, color: style.color }}
+              >
+                {selectedTx.action === "CREDIT" ? "↑" : selectedTx.action === "DEBIT" ? "↓" : "↺"}
+                {style.label}
+              </div>
+              <p className="font-mono text-[32px] font-semibold leading-none" style={{ color: style.color }}>
+                {selectedTx.action === "DEBIT" ? "-" : "+"}₹{selectedTx.amount.toLocaleString("en-IN")}
+              </p>
+            </div>
+            <div className="space-y-0 divide-y divide-white/[0.05]">
+              {[
+                { label: "Description", value: selectedTx.description },
+                { label: "Performed by", value: selectedTx.performedBy?.name },
+                { label: "Reference", value: selectedTx.referenceModel },
+                { label: "Date", value: selectedTx.createdAt },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex items-start justify-between gap-6 py-2.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-white/30 shrink-0 pt-0.5">{label}</span>
+                  <span className="text-[13px] text-white/60 text-right">{value ?? "—"}</span>
+                </div>
+              ))}
+            </div>
+          </DetailModal>
+        );
+      })()}
+
+      {/* ── Event detail modal ── */}
+      {selectedEvent && (() => {
+        const cfg = eventConfig[selectedEvent.eventType] ?? { label: selectedEvent.eventType, color: "#94a3b8", icon: null };
+        const meta = selectedEvent.metadata || {};
+        const metaEntries = Object.entries(meta).filter(([k]) => k !== "__v");
+        return (
+          <DetailModal isOpen title="Activity Detail" onClose={() => setSelectedEvent(null)}>
+            <div className="mb-5 pb-5 border-b border-white/[0.06]">
+              <span
+                className="inline-block text-[11px] font-semibold px-2.5 py-1 rounded-lg border mb-3"
+                style={{ background: cfg.color + "15", borderColor: cfg.color + "35", color: cfg.color }}
+              >
+                {cfg.label}
+              </span>
+              <p className="text-sm font-medium text-white/70 leading-snug">{meta.note || "Group activity"}</p>
+            </div>
+            <div className="divide-y divide-white/[0.05]">
+              {[
+                { label: "Performed by", value: selectedEvent.performedBy?.name },
+                { label: "Date", value: selectedEvent.createdAt },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex items-start justify-between gap-6 py-2.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-white/30 shrink-0 pt-0.5">{label}</span>
+                  <span className="text-[13px] text-white/60 text-right">{value ?? "—"}</span>
+                </div>
+              ))}
+              {metaEntries.length > 0 && (
+                <div className="pt-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-white/25 mb-2">Details</p>
+                  <div className="space-y-1.5">
+                    {metaEntries.map(([k, v]) => (
+                      <div key={k} className="flex items-start justify-between gap-4">
+                        <span className="text-[11px] text-white/30 capitalize">{k}</span>
+                        <span className="text-[11px] text-white/50 text-right font-mono break-all">
+                          {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </DetailModal>
+        );
+      })()}
 
       <style>{`
         @keyframes fadeSlideIn {

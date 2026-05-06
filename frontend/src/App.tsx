@@ -7,6 +7,7 @@ import GroupDetailPage from './page/GroupDetailPage'
 import CreateCategory from './page/CreateCategory'
 import CreateExpense from './page/CreateExpense'
 import Report from './page/GroupReport'
+import AllExpensesPage from './page/AllExpensesPage'
 import ProtectedRouter from './components/ProtectedRouter'
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route path="/groups/:groupId/create-expense" element={<CreateExpense />} />
           <Route path="/groups/:groupId/create-category" element={<CreateCategory />} />
           <Route path="/groups/:groupId/report" element={<Report />} />
+          <Route path="/groups/:groupId/expenses" element={<AllExpensesPage />} />
         </Route>
       </Routes>
     </>

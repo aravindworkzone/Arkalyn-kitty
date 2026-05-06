@@ -137,7 +137,7 @@ export const createExpenseService = async (data: ExpenseData) => {
     }
 };
 
-export const deleteExpenseService = async (data: { expenseId: string, groupId: string, userId: string }) => {
+export const deleteExpenseService = async (data: { expenseId: string, groupId: string, userId: string, reason?: string }) => {
     if (!mongoose.Types.ObjectId.isValid(data.expenseId)) {
         throw AppError("Invalid expense ID format", 400);
     }
@@ -164,9 +164,9 @@ export const deleteExpenseService = async (data: { expenseId: string, groupId: s
             groupId: data.groupId,
             amount: balanceUpdate,
             action: "REFUND",
-            description: `Deleted expense: ${expense.title} by ${payBy.name} for ${expense.amount}`,
+            description: `Refund: "${expense.title}" paid by ${payBy.name}${data.reason ? `. Reason: ${data.reason}` : ""}`,
             referenceId: expense._id,
-            referenceModel: "expense",
+            referenceModel: "Expense",
             performedBy: data.userId,
         }], { session });
 
@@ -207,7 +207,24 @@ export const expenseReportService = async (groupId: mongoose.Types.ObjectId) => 
     const end = new Date().setHours(23, 59, 59, 999);
     if(!groupId) throw AppError("Group ID is required", 400);
     try {
-        const expenses = await Expense.find({ groupId, date: { $gte: start, $lte: end } }).populate("paidBy").populate("category");
+        const expenses = await Expense.find({ groupId, isDeleted: false, date: { $gte: start, $lte: end } })
+            .populate("paidBy")
+            .populate("category")
+            .populate("splitBetween.userId", "name email");
+        return expenses;
+    } catch (error : any) {
+        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+    }
+}
+
+export const getAllExpensesService = async (groupId: mongoose.Types.ObjectId) => {
+    if(!groupId) throw AppError("Group ID is required", 400);
+    try {
+        const expenses = await Expense.find({ groupId, isDeleted: false })
+            .populate("paidBy")
+            .populate("category")
+            .populate("splitBetween.userId", "name email")
+            .sort({ date: -1 });
         return expenses;
     } catch (error : any) {
         throw AppError(error.message || "Internal server error", error.statusCode || 500);

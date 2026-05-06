@@ -24,7 +24,7 @@ const groupTransactionSchema = new Schema<IGroupTransaction>({
     action: { type: String, enum: TRANSACTION_TYPE, required: true },
     description: { type: String, required: true },
     referenceId: { type: mongoose.Schema.Types.ObjectId, required: true },
-    referenceModel: { type: String, enum: ["Expense", "Group"], required: true },
+    referenceModel: { type: String, enum: ["Expense", "Group", "Category", "User"], required: true },
     performedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
     isDeleted: { type: Boolean, default: false }
