@@ -15,7 +15,7 @@
     "Types/express.d.ts"
   ],
   "include": [
-    "**/*.ts"
-    ,"Controller/expense.controller.js"  ]
-
+    "**/*.ts",
+    "Controller/expense.controller.ts"
+  ]
 }
