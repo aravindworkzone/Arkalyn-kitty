@@ -15,7 +15,7 @@ export const SignIn = async (req: Request, res: Response) => {
     try {
         const result = await SignInService(req.body);
 
-        res.cookie('AccessToken', result.token, { httpOnly: true, secure: false, sameSite: 'strict' });
+        res.cookie('AccessToken', result.token, { httpOnly: true, secure: true, sameSite: 'none' });
 
         res.status(200).json({ message: 'User signed in successfully', user: result.user });
 
