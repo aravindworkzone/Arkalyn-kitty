@@ -8,6 +8,12 @@ import {
   useDeleteGroupMutation,
 } from "../redux/api/group";
 import { useVerifyUserMutation } from "../redux/api/user";
+import { validateEmail, validateAmount, validateContribution } from "../helpers/validators";
+import type { SetFieldError } from "../hooks/useFieldError";
+
+export type AddMemberField    = "searchEmail" | "memberContrib";
+export type ContributionField = "myContrib";
+export type SettlementField   = "settleAmount";
 
 type Msg = { ok: boolean; text: string } | null;
 type FoundUser = { _id: string; name: string } | null;
@@ -16,7 +22,7 @@ type DeleteTarget = { id: string; name: string } | null;
 export const useGroupDetailHandlers = (groupId: string | undefined) => {
   const navigate = useNavigate();
 
-  const [msg,     setMsg]     = useState<Msg>(null);
+  const [msg, setMsg] = useState<Msg>(null);
 
   const [verifyUser,         { isLoading: isVerifying }]      = useVerifyUserMutation();
   const [manageMember,       { isLoading: isAddingMember }]   = useManageMemberMutation();
@@ -28,13 +34,18 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
 
   const handleVerifyUser = async (
     searchEmail: string,
-    setFoundUser: React.Dispatch<React.SetStateAction<FoundUser>>
+    setFoundUser:    React.Dispatch<React.SetStateAction<FoundUser>>,
+    setFieldError:   SetFieldError<AddMemberField>
   ) => {
-    if (!searchEmail.trim()) return;
+    const emailV = validateEmail(searchEmail.trim());
+    if (!emailV.valid) {
+      setFieldError("searchEmail", emailV.message);
+      return;
+    }
     setFoundUser(null);
     setMsg(null);
     try {
-      const res = await verifyUser(searchEmail.trim()).unwrap();
+      const res = await verifyUser(searchEmail.trim()).unwrap() as any;
       setFoundUser({ _id: res.user._id, name: res.user.name });
     } catch (e: any) {
       setMsg({ ok: false, text: e?.data?.message || "User not found" });
@@ -44,11 +55,19 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
   const handleAddMember = async (
     foundUser: FoundUser,
     memberContrib: string,
-    setFoundUser:    React.Dispatch<React.SetStateAction<FoundUser>>,
-    setSearchEmail:  React.Dispatch<React.SetStateAction<string>>,
-    setMemberContrib: React.Dispatch<React.SetStateAction<string>>
+    setFoundUser:     React.Dispatch<React.SetStateAction<FoundUser>>,
+    setSearchEmail:   React.Dispatch<React.SetStateAction<string>>,
+    setMemberContrib: React.Dispatch<React.SetStateAction<string>>,
+    setFieldError:    SetFieldError<AddMemberField>
   ) => {
     if (!foundUser || !groupId) return;
+
+    const contribV = validateContribution(memberContrib);
+    if (!contribV.valid) {
+      setFieldError("memberContrib", contribV.message);
+      return;
+    }
+
     try {
       await manageMember({
         groupId,
@@ -70,7 +89,11 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
     roleAction: "promote" | "demote",
     setRoleMemberId: React.Dispatch<React.SetStateAction<string>>
   ) => {
-    if (!roleMemberId || !groupId) return;
+    if (!roleMemberId) {
+      setMsg({ ok: false, text: "Select a member to change role" });
+      return;
+    }
+    if (!groupId) return;
     try {
       await manageAdmin({ groupId, action: roleAction, member: roleMemberId }).unwrap();
       setMsg({
@@ -86,15 +109,22 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
   const handleAddContribution = async (
     myContrib: string,
     contribMemberId: string,
-    setMyContrib:       React.Dispatch<React.SetStateAction<string>>,
-    setContribMemberId: React.Dispatch<React.SetStateAction<string>>
+    setMyContrib:        React.Dispatch<React.SetStateAction<string>>,
+    setContribMemberId:  React.Dispatch<React.SetStateAction<string>>,
+    setFieldError:       SetFieldError<ContributionField>
   ) => {
-    const amount = Number(myContrib);
-    if (!amount || amount <= 0 || !groupId) return;
+    if (!groupId) return;
+
+    const amtV = validateAmount(myContrib);
+    if (!amtV.valid) {
+      setFieldError("myContrib", amtV.message);
+      return;
+    }
+
     try {
       await addContributionMut({
         groupId,
-        contribution: amount,
+        contribution: Number(myContrib),
         ...(contribMemberId ? { userId: contribMemberId } : {}),
       }).unwrap();
       setMsg({ ok: true, text: "Contribution added" });
@@ -109,12 +139,28 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
     settleMemberId: string,
     settleAmount: string,
     setSettleMemberId: React.Dispatch<React.SetStateAction<string>>,
-    setSettleAmount:   React.Dispatch<React.SetStateAction<string>>
+    setSettleAmount:   React.Dispatch<React.SetStateAction<string>>,
+    setFieldError:     SetFieldError<SettlementField>
   ) => {
-    const amount = Number(settleAmount);
-    if (!settleMemberId || !amount || amount <= 0 || !groupId) return;
+    if (!groupId) return;
+
+    if (!settleMemberId) {
+      setMsg({ ok: false, text: "Select a member to settle" });
+      return;
+    }
+
+    const amtV = validateAmount(settleAmount);
+    if (!amtV.valid) {
+      setFieldError("settleAmount", amtV.message);
+      return;
+    }
+
     try {
-      await settlementMut({ groupId, settlement: amount, member: settleMemberId }).unwrap();
+      await settlementMut({
+        groupId,
+        settlement: Number(settleAmount),
+        member: settleMemberId,
+      }).unwrap();
       setMsg({ ok: true, text: "Settlement completed" });
       setSettleMemberId("");
       setSettleAmount("");

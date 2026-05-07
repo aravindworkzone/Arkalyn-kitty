@@ -406,8 +406,9 @@ export const addContributionService = async (data: {group: mongoose.Types.Object
     }
 };
 
-export const SettlementService = async (data : {group: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, settlement: number, member: mongoose.Types.ObjectId}) => {
+export const SettlementService = async (data : {group: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, settlement: number, member: mongoose.Types.ObjectId, balance: number}) => {
     const groupData = data.group;
+    const groupBalance = data.balance;
     const userId = data.userId;
     const Member = data.member;
     const settlement = data.settlement;
@@ -416,7 +417,7 @@ export const SettlementService = async (data : {group: mongoose.Types.ObjectId, 
         throw AppError("User ID and settlement amount are required", 400);
     }
 
-    if (typeof settlement !== "number" || settlement <= 0) {
+    if (typeof settlement !== "number") {
         throw AppError("Settlement amount must be a positive number", 400);
     }
 
@@ -428,6 +429,10 @@ export const SettlementService = async (data : {group: mongoose.Types.ObjectId, 
     
     if (!isMember) {
         throw AppError("User is not a member of this group", 400);
+    }
+
+    if(settlement > groupBalance) {
+        throw AppError("Settlement amount cannot be greater than group balance", 400);
     }
 
     const session = await mongoose.startSession();

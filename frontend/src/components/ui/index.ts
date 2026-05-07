@@ -8,3 +8,4 @@ export { default as ErrorMessage }   from "./ErrorMessage";
 export { default as FormActions }    from "./FormActions";
 export { default as MemberAvatar }   from "./MemberAvatar";
 export { default as Spinner }        from "./Spinner";
+export { default as FieldInput }     from "./FieldInput";

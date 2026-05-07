@@ -5,11 +5,12 @@ import { useGetTransactionQuery, useGetEventQuery } from "../redux/api/group";
 import DetailModal from "../components/DetailModal";
 import { actionStyle, eventConfig } from "../helpers/constants";
 import { eventDescription } from "../helpers/formatters";
+import { useTranslation } from "react-i18next";
 
-// ── component ──────────────────────────────────────────────────
 export default function ReportPage() {
   const { groupId } = useParams();
   const navigate    = useNavigate();
+  const { t } = useTranslation();
   const [tab, setTab]           = useState<"transactions" | "events">("transactions");
   const [txFilter, setTxFilter] = useState<"ALL" | "CREDIT" | "DEBIT" | "REFUND">("ALL");
   const [selectedTx,    setSelectedTx]    = useState<any>(null);
@@ -22,8 +23,16 @@ export default function ReportPage() {
     : Transactions?.filter((t: any) => t.action === txFilter);
 
   const totalCredit = Transactions?.filter((t: any) => t.action === "CREDIT").reduce((s: number, t: any) => s + t.amount, 0) ?? 0;
-  const totalDebit  = Transactions?.filter((t: any) => t.action === "DEBIT").reduce((s: number, t: any) => s + t.amount, 0) ?? 0;
+  const totalDB  = Transactions?.filter((t: any) => t.action === "DEBIT").reduce((s: number, t: any) => s + t.amount, 0) ?? 0;
   const totalRefund = Transactions?.filter((t: any) => t.action === "REFUND").reduce((s: number, t: any) => s + t.amount, 0) ?? 0;
+  const totalDebit = Number(totalDB) != 0 ? Number(totalDB) - Number(totalRefund) : 0;
+
+  const filterLabels: Record<string, string> = {
+    ALL:    t("report.filterAll"),
+    CREDIT: t("report.filterCredit"),
+    DEBIT:  t("report.filterDebit"),
+    REFUND: t("report.filterRefund"),
+  };
 
   return (
     <div className="min-h-screen bg-[#080c14] text-white">
@@ -50,7 +59,7 @@ export default function ReportPage() {
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          Back
+          {t("report.back")}
         </button>
 
         <div className="mb-6">
@@ -60,21 +69,21 @@ export default function ReportPage() {
                 <path d="M2 12V6l4-4h6l2 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2z" stroke="#a5b4fc" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-400/70">Report</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-400/70">{t("report.label")}</p>
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#f0eeff]">Group report</h1>
-          <p className="text-white/35 text-sm mt-1.5">Transactions and activity log for this group.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-[#f0eeff]">{t("report.title")}</h1>
+          <p className="text-white/35 text-sm mt-1.5">{t("report.description")}</p>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: "Total In",    value: totalCredit, color: "#34d399" },
-            { label: "Total Out",   value: totalDebit,  color: "#f87171" },
-            { label: "Refunds",     value: totalRefund, color: "#fbbf24" },
+            { label: t("report.totalIn"),  value: totalCredit, color: "#34d399" },
+            { label: t("report.totalOut"), value: totalDebit,  color: "#f87171" },
+            { label: t("report.refunds"),  value: totalRefund, color: "#fbbf24" },
           ].map((stat) => (
             <div key={stat.label} className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3">
               <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">{stat.label}</p>
-              <p className="text-[16px] font-semibold font-mono" style={{ color: stat.color }}>
+              <p className="text-[16px] font-semibold font-mono" style={{ color: stat.color }} translate="no">
                 ₹{stat.value.toLocaleString("en-IN")}
               </p>
             </div>
@@ -82,17 +91,17 @@ export default function ReportPage() {
         </div>
 
         <div className="flex gap-1 p-1 bg-white/[0.03] border border-white/[0.07] rounded-xl">
-          {(["transactions", "events"] as const).map((t) => (
+          {(["transactions", "events"] as const).map((tabKey) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all duration-150 capitalize ${
-                tab === t
+              key={tabKey}
+              onClick={() => setTab(tabKey)}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all duration-150 ${
+                tab === tabKey
                   ? "bg-white/[0.08] text-white/80 shadow-sm"
                   : "text-white/30 hover:text-white/50"
               }`}
             >
-              {t === "transactions" ? "Transactions" : "Activity Log"}
+              {tabKey === "transactions" ? t("report.tabTransactions") : t("report.tabActivity")}
             </button>
           ))}
         </div>
@@ -110,7 +119,7 @@ export default function ReportPage() {
                       : "bg-white/[0.03] border-white/[0.07] text-white/30 hover:bg-white/[0.06]"
                   }`}
                 >
-                  {f === "ALL" ? "All" : f.charAt(0) + f.slice(1).toLowerCase()}
+                  {filterLabels[f]}
                 </button>
               ))}
             </div>
@@ -132,7 +141,7 @@ export default function ReportPage() {
                   ))}
                 </div>
               ) : filteredTx?.length === 0 ? (
-                <p className="text-center text-white/20 text-xs py-10">No transactions found</p>
+                <p className="text-center text-white/20 text-xs py-10">{t("report.noTransactions")}</p>
               ) : (
                 <div className="divide-y divide-white/[0.04]">
                   {filteredTx?.map((tx: any, i: any) => {
@@ -152,10 +161,10 @@ export default function ReportPage() {
                             {tx.action === "CREDIT" ? "↑" : tx.action === "DEBIT" ? "↓" : "↺"}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[13px] font-medium text-white/75 truncate leading-tight">
+                            <p className="text-[13px] font-medium text-white/75 truncate leading-tight" translate="no">
                               {tx.description}
                             </p>
-                            <p className="text-[10px] text-white/25 mt-0.5">
+                            <p className="text-[10px] text-white/25 mt-0.5" translate="no">
                               {tx.performedBy.name} · {tx.createdAt}
                             </p>
                           </div>
@@ -165,6 +174,7 @@ export default function ReportPage() {
                           <p
                             className="text-[14px] font-semibold font-mono"
                             style={{ color: style.color }}
+                            translate="no"
                           >
                             {tx.action === "DEBIT" ? "-" : "+"}₹{tx.amount.toLocaleString("en-IN")}
                           </p>
@@ -172,7 +182,7 @@ export default function ReportPage() {
                             className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md border"
                             style={{ background: style.bg, borderColor: style.border, color: style.color }}
                           >
-                            {style.label}
+                            {t(`actions.${tx.action}`)}
                           </span>
                         </div>
                       </div>
@@ -199,7 +209,7 @@ export default function ReportPage() {
                 ))}
               </div>
             ) : Events?.length === 0 ? (
-              <p className="text-center text-white/20 text-xs py-10">No activity yet</p>
+              <p className="text-center text-white/20 text-xs py-10">{t("report.noActivity")}</p>
             ) : (
               <div className="relative">
                 <div className="absolute left-[42px] top-0 bottom-0 w-px bg-white/[0.05]" />
@@ -227,7 +237,7 @@ export default function ReportPage() {
                         </div>
 
                         <div className="flex-1 min-w-0 pt-0.5">
-                          <p className="text-[13px] font-medium text-white/75 leading-tight">
+                          <p className="text-[13px] font-medium text-white/75 leading-tight" translate="no">
                             {eventDescription(event)}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
@@ -235,9 +245,9 @@ export default function ReportPage() {
                               className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md border"
                               style={{ background: cfg.color + "15", borderColor: cfg.color + "35", color: cfg.color }}
                             >
-                              {cfg.label}
+                              {t(`events.${event.eventType}`)}
                             </span>
-                            <span className="text-[10px] text-white/25">
+                            <span className="text-[10px] text-white/25" translate="no">
                               by {event.performedBy.name} · {event.createdAt}
                             </span>
                           </div>
@@ -257,29 +267,29 @@ export default function ReportPage() {
       {selectedTx && (() => {
         const style = actionStyle[selectedTx.action] ?? actionStyle.CREDIT;
         return (
-          <DetailModal isOpen title="Transaction Detail" onClose={() => setSelectedTx(null)}>
+          <DetailModal isOpen title={t("report.transactionDetail")} onClose={() => setSelectedTx(null)}>
             <div className="mb-5 pb-5 border-b border-white/[0.06]">
               <div
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold mb-3"
                 style={{ background: style.bg, borderColor: style.border, color: style.color }}
               >
                 {selectedTx.action === "CREDIT" ? "↑" : selectedTx.action === "DEBIT" ? "↓" : "↺"}
-                {style.label}
+                {t(`actions.${selectedTx.action}`)}
               </div>
-              <p className="font-mono text-[32px] font-semibold leading-none" style={{ color: style.color }}>
+              <p className="font-mono text-[32px] font-semibold leading-none" style={{ color: style.color }} translate="no">
                 {selectedTx.action === "DEBIT" ? "-" : "+"}₹{selectedTx.amount.toLocaleString("en-IN")}
               </p>
             </div>
             <div className="space-y-0 divide-y divide-white/[0.05]">
               {[
-                { label: "Description", value: selectedTx.description },
-                { label: "Performed by", value: selectedTx.performedBy?.name },
-                { label: "Reference", value: selectedTx.referenceModel },
-                { label: "Date", value: selectedTx.createdAt },
+                { label: t("report.fieldDescription"), value: selectedTx.description },
+                { label: t("report.fieldPerformedBy"), value: selectedTx.performedBy?.name },
+                { label: t("report.fieldReference"),   value: selectedTx.referenceModel },
+                { label: t("report.fieldDate"),        value: selectedTx.createdAt },
               ].map(({ label, value }) => (
                 <div key={label} className="flex items-start justify-between gap-6 py-2.5">
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-white/30 shrink-0 pt-0.5">{label}</span>
-                  <span className="text-[13px] text-white/60 text-right">{value ?? "—"}</span>
+                  <span className="text-[13px] text-white/60 text-right" translate="no">{value ?? "—"}</span>
                 </div>
               ))}
             </div>
@@ -293,34 +303,34 @@ export default function ReportPage() {
         const meta = selectedEvent.metadata || {};
         const metaEntries = Object.entries(meta).filter(([k]) => k !== "__v");
         return (
-          <DetailModal isOpen title="Activity Detail" onClose={() => setSelectedEvent(null)}>
+          <DetailModal isOpen title={t("report.activityDetail")} onClose={() => setSelectedEvent(null)}>
             <div className="mb-5 pb-5 border-b border-white/[0.06]">
               <span
                 className="inline-block text-[11px] font-semibold px-2.5 py-1 rounded-lg border mb-3"
                 style={{ background: cfg.color + "15", borderColor: cfg.color + "35", color: cfg.color }}
               >
-                {cfg.label}
+                {t(`events.${selectedEvent.eventType}`)}
               </span>
-              <p className="text-sm font-medium text-white/70 leading-snug">{meta.note || "Group activity"}</p>
+              <p className="text-sm font-medium text-white/70 leading-snug" translate="no">{meta.note || t("report.groupActivity")}</p>
             </div>
             <div className="divide-y divide-white/[0.05]">
               {[
-                { label: "Performed by", value: selectedEvent.performedBy?.name },
-                { label: "Date", value: selectedEvent.createdAt },
+                { label: t("report.fieldPerformedBy"), value: selectedEvent.performedBy?.name },
+                { label: t("report.fieldDate"),        value: selectedEvent.createdAt },
               ].map(({ label, value }) => (
                 <div key={label} className="flex items-start justify-between gap-6 py-2.5">
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-white/30 shrink-0 pt-0.5">{label}</span>
-                  <span className="text-[13px] text-white/60 text-right">{value ?? "—"}</span>
+                  <span className="text-[13px] text-white/60 text-right" translate="no">{value ?? "—"}</span>
                 </div>
               ))}
               {metaEntries.length > 0 && (
                 <div className="pt-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-white/25 mb-2">Details</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-white/25 mb-2">{t("report.fieldDetails")}</p>
                   <div className="space-y-1.5">
                     {metaEntries.map(([k, v]) => (
                       <div key={k} className="flex items-start justify-between gap-4">
                         <span className="text-[11px] text-white/30 capitalize">{k}</span>
-                        <span className="text-[11px] text-white/50 text-right font-mono break-all">
+                        <span className="text-[11px] text-white/50 text-right font-mono break-all" translate="no">
                           {typeof v === "object" ? JSON.stringify(v) : String(v)}
                         </span>
                       </div>

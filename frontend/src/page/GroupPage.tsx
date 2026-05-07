@@ -4,12 +4,14 @@ import { useGetUserGroupsQuery } from "../redux/api/user";
 import Header from "../components/header";
 import EmptyState from "../components/EmptyList";
 import GroupCard from "../components/GroupCard";
+import { useTranslation } from "react-i18next";
 
 const GroupPage = () => {
   const navigate = useNavigate();
   const { data, isLoading } = useGetUserGroupsQuery();
   const groups = data?.j_groups || [];
   const [search, setSearch] = useState("");
+  const { t } = useTranslation();
 
   const filtered = groups.filter((g: any) =>
     g.name?.toLowerCase().includes(search.toLowerCase())
@@ -17,12 +19,10 @@ const GroupPage = () => {
 
   return (
     <div className="min-h-screen bg-[#080c14] text-white">
-      {/* Ambient background */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
         <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-cyan-500/5 blur-[120px]" />
         <div className="absolute top-1/3 -right-60 w-[600px] h-[600px] rounded-full bg-violet-600/5 blur-[120px]" />
         <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] rounded-full bg-indigo-500/4 blur-[100px]" />
-        {/* Subtle grid overlay */}
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -36,14 +36,13 @@ const GroupPage = () => {
       <Header />
 
       <main className="max-w-2xl mx-auto px-4 pt-6 pb-24">
-        {/* Page header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <p className="text-[11px] font-medium tracking-widest uppercase text-cyan-400/70 mb-1">
-              Dashboard
+              {t("groups.dashboard")}
             </p>
             <h1 className="text-2xl font-semibold text-[#f0eeff] tracking-tight">
-              Your Groups
+              {t("groups.yourGroups")}
             </h1>
           </div>
           <button
@@ -58,34 +57,32 @@ const GroupPage = () => {
                 <path d="M4 1v6M1 4h6" stroke="#c4b5fd" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </span>
-            New Group
+            {t("groups.newGroup")}
           </button>
         </div>
 
-        {/* Stats strip */}
         {!isLoading && groups.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 mb-5">
+          <div className="grid grid-cols-2 gap-3 mb-5">
             {[
-            { label: "Total Groups", value: groups.length },
-            {
-                label: "You Manage",
+              { label: t("groups.totalGroups"), value: groups.length },
+              {
+                label: t("groups.youManage"),
                 value: groups.filter((g: any) => g.role[0] !== "MEMBER").length,
-            },
+              },
             ].map((stat) => (
-            <div
+              <div
                 key={stat.label}
                 className="rounded-xl bg-white/[0.03] border border-white/[0.07] px-4 py-3"
-            >
+              >
                 <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">
-                {stat.label}
+                  {stat.label}
                 </p>
-                <p className="text-xl font-semibold text-[#e8e3ff]">{stat.value}</p>
-            </div>
+                <p className="text-xl font-semibold text-[#e8e3ff]" translate="no">{stat.value}</p>
+              </div>
             ))}
-        </div>
+          </div>
         )}
 
-        {/* Search */}
         {!isLoading && groups.length > 0 && (
           <div className="relative mb-5">
             <svg
@@ -100,7 +97,7 @@ const GroupPage = () => {
             </svg>
             <input
               type="text"
-              placeholder="Search groups..."
+              placeholder={t("groups.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
@@ -121,7 +118,6 @@ const GroupPage = () => {
           </div>
         )}
 
-        {/* Content */}
         {isLoading ? (
           <div className="flex flex-col gap-3">
             {[...Array(3)].map((_, i) => (
@@ -134,9 +130,9 @@ const GroupPage = () => {
           </div>
         ) : filtered.length === 0 && search ? (
           <div className="text-center py-16">
-            <p className="text-slate-500 text-sm">No groups match "{search}"</p>
+            <p className="text-slate-500 text-sm">{t("groups.noMatch", { search })}</p>
             <button onClick={() => setSearch("")} className="mt-2 text-violet-400 text-xs hover:text-violet-300 transition-colors">
-              Clear search
+              {t("groups.clearSearch")}
             </button>
           </div>
         ) : groups.length === 0 ? (
@@ -153,10 +149,10 @@ const GroupPage = () => {
                 }}
               >
                 <GroupCard
-                key={group._id}
-                group={group}
-                onClick={() => navigate(`/groups/${group.displayId}`)}
-                onAddExpense={() => navigate(`/groups/${group.displayId}/create-expense`)}
+                  key={group._id}
+                  group={group}
+                  onClick={() => navigate(`/groups/${group.displayId}`)}
+                  onAddExpense={() => navigate(`/groups/${group.displayId}/create-expense`)}
                 />
               </div>
             ))}

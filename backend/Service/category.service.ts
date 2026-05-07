@@ -89,9 +89,26 @@ export const deleteCategoryService = async (data: { categoryId: string, userId: 
 
 export const getCategoryDetailsService = async (groupId: mongoose.Types.ObjectId) => {
     try {
-        const categories = await Category.find({ groupId });
-        const expenseCount = await Expense.find({ category: { $in: categories.map((category) => category._id) }, isDeleted: false });
-        const sendCategories = categories.map((category) => { return { _id: category._id, name: category.name, color: category.color, expenseCount } });
+        const categories = await Category.find({ groupId }).select('_id name color').lean();
+
+        const counts = await Expense.aggregate([
+        {
+            $match: {
+            category: { $in: categories.map((c) => c._id) },
+            isDeleted: false,
+            },
+        },
+        { $group: { _id: '$category', count: { $sum: 1 } } },
+        ]);
+
+        const countMap = new Map(counts.map((c) => [c._id.toString(), c.count]));
+
+        const sendCategories = categories.map((c) => ({
+        _id: c._id,
+        name: c.name,
+        color: c.color,
+        expenseCount: countMap.get(c._id.toString()) ?? 0,
+        }));
         return sendCategories;
     } catch (error: any) {
         throw AppError(error.message || 'Error getting categories', 500);

@@ -1,0 +1,222 @@
+{
+  "brand": "ArkalynKitty",
+  "brandFull": "Arkalyn - Fin",
+
+  "nav": {
+    "profile": "Profile",
+    "signOut": "Sign out"
+  },
+
+  "auth": {
+    "welcome": "Welcome back",
+    "noAccount": "Don't have an account?",
+    "haveAccount": "Already have an account?",
+    "signUpAccount": "Sign up your account",
+    "signInAccount": "Sign in to your account",
+    "signUp": "Sign up",
+    "signIn": "Sign in",
+    "fieldEmail": "Email",
+    "fieldEmailPlaceholder": "Enter your email",
+    "fieldPassword": "Password",
+    "fieldPasswordPlaceholder": "Enter your password",
+    "fieldName": "Name",
+    "fieldNamePlaceholder": "Enter your name"
+  },
+
+  "groups": {
+    "dashboard": "Dashboard",
+    "yourGroups": "Your Groups",
+    "newGroup": "New Group",
+    "totalGroups": "Total Groups",
+    "youManage": "You Manage",
+    "searchPlaceholder": "Search groups...",
+    "noMatch": "No groups match \"{{search}}\"",
+    "clearSearch": "Clear search"
+  },
+
+  "groupCard": {
+    "balance": "Balance",
+    "poolRemaining": "Pool remaining",
+    "addExpense": "Add Expense",
+    "expense_one": "{{count}} expense",
+    "expense_other": "{{count}} expenses"
+  },
+
+  "empty": {
+    "noGroupsYet": "No groups yet",
+    "noGroupsDesc": "Create a shared pool and start tracking expenses together",
+    "createFirst": "Create your first group"
+  },
+
+  "createGroup": {
+    "backToGroups": "Back to groups",
+    "newGroup": "New Group",
+    "title": "Set up your shared pool",
+    "description": "Name your group, add members, and set initial contributions.",
+    "step1": "Group name",
+    "groupNamePlaceholder": "e.g. Goa Trip 2025",
+    "step2": "Members",
+    "membersAdded": "{{count}} added",
+    "emailPlaceholder": "member@email.com",
+    "add": "Add",
+    "emailHint": "Enter an email and click Add — or press Enter.",
+    "initialPool": "Initial pool total",
+    "cancel": "Cancel",
+    "creating": "Creating...",
+    "createGroup": "Create group"
+  },
+
+  "createExpense": {
+    "label": "New Expense",
+    "title": "Record an expense",
+    "description": "Fill in the details and split it between members.",
+    "basicDetails": "Basic details",
+    "titleLabel": "Title",
+    "titlePlaceholder": "e.g. Team lunch",
+    "amount": "Amount",
+    "date": "Date",
+    "categoryPayment": "Category & Payment",
+    "category": "Category",
+    "noCategoriesCreate": "No categories — create one",
+    "add": "Add",
+    "paymentType": "Payment type",
+    "paidBy": "Paid by",
+    "splitBetween": "Split between",
+    "splitTotal": "Split total",
+    "left": "₹{{amount}} left",
+    "over": "₹{{amount}} over",
+    "save": "Save Expense",
+    "saving": "Saving…"
+  },
+
+  "createCategory": {
+    "back": "Back",
+    "label": "Categories",
+    "title": "Manage categories",
+    "description": "Create and manage expense categories for this group.",
+    "newCategory": "New category",
+    "nameLabel": "Name",
+    "namePlaceholder": "e.g. Groceries",
+    "add": "Add",
+    "colorLabel": "Color",
+    "preview": "Preview",
+    "existing": "Existing",
+    "total": "{{count}} total",
+    "noCategoriesYet": "No categories yet — create one above.",
+    "expense_one": "{{count}} expense",
+    "expense_other": "{{count}} expenses",
+    "noExpenses": "No expenses",
+    "hasActiveExpenses": "Has active expenses"
+  },
+
+  "allExpenses": {
+    "label": "All Expenses",
+    "title": "Expense History",
+    "description": "Every expense recorded in this group.",
+    "totalSpent": "Total Spent",
+    "transactions": "Transactions",
+    "searchPlaceholder": "Search by title, category, or payer…",
+    "noExpensesYet": "No expenses recorded yet",
+    "noResults": "No results for \"{{search}}\"",
+    "clearSearch": "Clear search"
+  },
+
+  "report": {
+    "back": "Back",
+    "label": "Report",
+    "title": "Group report",
+    "description": "Transactions and activity log for this group.",
+    "totalIn": "Total In",
+    "totalOut": "Total Out",
+    "refunds": "Refunds",
+    "tabTransactions": "Transactions",
+    "tabActivity": "Activity Log",
+    "filterAll": "All",
+    "filterCredit": "Credit",
+    "filterDebit": "Debit",
+    "filterRefund": "Refund",
+    "noTransactions": "No transactions found",
+    "noActivity": "No activity yet",
+    "transactionDetail": "Transaction Detail",
+    "activityDetail": "Activity Detail",
+    "groupActivity": "Group activity",
+    "fieldDescription": "Description",
+    "fieldPerformedBy": "Performed by",
+    "fieldReference": "Reference",
+    "fieldDate": "Date",
+    "fieldDetails": "Details"
+  },
+
+  "groupDetail": {
+    "backToGroups": "Back to groups",
+    "balance": "Balance",
+    "contributed": "of ₹{{amount}} contributed",
+    "poolRemaining": "Pool remaining",
+    "noCatTitle": "No categories yet",
+    "noCatDesc": "Create a category before adding an expense.",
+    "create": "Create",
+    "membersCount": "{{count}} members",
+    "contributions": "Contributions",
+    "settled": "SETTLED",
+    "addExpense": "Add Expense",
+    "category": "Category",
+    "report": "Report",
+    "settings": "Settings",
+    "tabAddMember": "Add Member",
+    "tabChangeRole": "Change Role",
+    "tabContribution": "Contribution",
+    "tabSettlement": "Settlement",
+    "tabDanger": "Danger",
+    "groupSettings": "Group Settings",
+    "settingsFind": "Find",
+    "settingsFinding": "…",
+    "initialContribution": "Initial contribution (optional)",
+    "addingMember": "Adding…",
+    "addMemberBtn": "Add Member",
+    "selectMember": "Select member",
+    "promoteToAdmin": "Promote to Admin",
+    "demoteToMember": "Demote to Member",
+    "updatingRole": "Updating…",
+    "changeRole": "Change Role",
+    "addFundsDesc": "Add funds to the group pool. Select a member or leave as self.",
+    "myContribution": "My contribution (self)",
+    "amount": "Amount",
+    "addingContrib": "Adding…",
+    "addContribution": "Add Contribution",
+    "selectMemberToSettle": "Select member to settle",
+    "settlementAmount": "Settlement amount",
+    "settling": "Settling…",
+    "settleMember": "Settle Member",
+    "deleteGroup": "Delete Group",
+    "deleteGroupDesc": "Permanently deletes the group. This cannot be undone.",
+    "today": "Today",
+    "viewAll": "View all",
+    "noExpensesToday": "No expenses today — tap to view full history",
+    "removeMemberLabel": "Remove {{name}}",
+    "removeMemberConfirm": "Member must be settled before removal.",
+    "deleteGroupConfirm": "All data will be lost."
+  },
+
+  "deleteModal": {
+    "destructiveAction": "Destructive action",
+    "typeToConfirm": "Type {{confirmText}} to confirm",
+    "cancel": "Cancel",
+    "gotIt": "Got it",
+    "deleting": "Deleting...",
+    "cannotUndo": "This action cannot be undone"
+  },
+
+  "actions": {
+    "CREDIT": "Credit",
+    "DEBIT": "Debit",
+    "REFUND": "Refund"
+  },
+
+  "events": {
+    "CREATE_GROUP": "Group created",
+    "MEMBER_ADDED": "Member added",
+    "MEMBER_REMOVED": "Member removed",
+    "MANAGE_CATEGORY": "Category updated",
+    "CHANGE_ROLE": "Role changed"
+  }
+}

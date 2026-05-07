@@ -117,7 +117,8 @@ export const Settlement = async (req: Request, res: Response) => {
         group: req.group._id,
         userId: req.user._id,
         settlement: req.body.settlement as number,
-        member: req.body.member
+        member: req.body.member,
+        balance: req.group.balance
     }
     try {
         const Contribution = await SettlementService(data);

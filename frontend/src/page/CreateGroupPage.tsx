@@ -1,9 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "../components/header";
-import { ErrorRemover } from "../helpers/Authentication";
 import { useNavigate } from "react-router-dom";
 import type { CreateGroupMember } from "../interface/member";
 import { useGroupHandlers, removeMember, updateContribution } from "../handlers/useGroupHandlers";
+import type { GroupField } from "../handlers/useGroupHandlers";
+import { sanitizeAmount, sanitizeGroupName } from "../helpers/validators";
+import { useFieldError } from "../hooks/useFieldError";
+import { FieldInput, ErrorMessage } from "../components/ui";
+import { useTranslation } from "react-i18next";
+import { useSearchUsersQuery, type UserSuggestion } from "../redux/api/user";
 
 const s = {
   input:
@@ -13,11 +18,35 @@ const s = {
 };
 
 export default function CreateGroupPage() {
+  const { t } = useTranslation();
   const [groupName, setGroupName] = useState("");
   const [members, setMembers] = useState<CreateGroupMember[]>([]);
   const [emailInput, setEmailInput] = useState("");
-  const [error, setError] = useState<string>("");
-  ErrorRemover(setError);
+  const [debouncedEmail, setDebouncedEmail] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const { fieldErrors, setFieldError, clearFieldError } = useFieldError<GroupField>();
+  const [apiError, setApiError] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedEmail(emailInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [emailInput]);
+
+  const { data: suggestions } = useSearchUsersQuery(debouncedEmail, {
+    skip: debouncedEmail.length < 2,
+  });
+
+  const handleSuggestionSelect = (s: UserSuggestion) => {
+    if (members.some((m) => m.email === s.email)) {
+      setFieldError("emailInput", "Member already added");
+      setShowSuggestions(false);
+      return;
+    }
+    setMembers((prev) => [...prev, { _id: s._id, user: s.name, contribution: 0, email: s.email }]);
+    setEmailInput("");
+    setDebouncedEmail("");
+    setShowSuggestions(false);
+  };
 
   const navigate = useNavigate();
   const { addMember, handleSubmit, isLoading, isVerifying } = useGroupHandlers();
@@ -26,7 +55,6 @@ export default function CreateGroupPage() {
 
   return (
     <div className="min-h-screen bg-[#080c14] text-white">
-      {/* Ambient */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
         <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-cyan-500/5 blur-[120px]" />
         <div className="absolute bottom-0 -right-60 w-[600px] h-[600px] rounded-full bg-indigo-500/4 blur-[120px]" />
@@ -42,8 +70,7 @@ export default function CreateGroupPage() {
 
       <Header />
 
-      <form onSubmit={(e) => handleSubmit(e, groupName, members, setError)} className="relative max-w-xl mx-auto px-4 py-10">
-        {/* Back */}
+      <form onSubmit={(e) => handleSubmit(e, groupName, members, setFieldError, setApiError)} className="relative max-w-xl mx-auto px-4 py-10">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -52,10 +79,9 @@ export default function CreateGroupPage() {
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Back to groups
+          {t("createGroup.backToGroups")}
         </button>
 
-        {/* Page title */}
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-8 h-8 rounded-lg bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center">
@@ -64,14 +90,14 @@ export default function CreateGroupPage() {
               </svg>
             </div>
             <p className="text-[10px] font-semibold uppercase tracking-widest text-cyan-400/70">
-              New Group
+              {t("createGroup.newGroup")}
             </p>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-[#f0eeff]">
-            Set up your shared pool
+            {t("createGroup.title")}
           </h1>
           <p className="text-white/35 text-sm mt-1.5">
-            Name your group, add members, and set initial contributions.
+            {t("createGroup.description")}
           </p>
         </div>
 
@@ -81,25 +107,23 @@ export default function CreateGroupPage() {
             <div className="flex items-center gap-3 px-5 py-3.5 border-b border-white/[0.06]">
               <span className="text-[11px] font-bold text-white/15 tabular-nums">01</span>
               <span className="text-xs font-semibold text-white/50 uppercase tracking-widest">
-                Group name
+                {t("createGroup.step1")}
               </span>
             </div>
             <div className="px-5 py-4">
-              <input
+              <FieldInput
                 className={s.input}
                 type="text"
                 value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                placeholder="e.g. Goa Trip 2025"
+                onChange={(e) => setGroupName(sanitizeGroupName(e.target.value))}
+                error={fieldErrors.groupName}
+                onClearError={() => clearFieldError("groupName")}
+                placeholder={t("createGroup.groupNamePlaceholder")}
                 autoComplete="off"
-                onKeyDown={(e) => {
-                  const key = e.key;
-                  if (["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(key)) return;
-                  if (!/^[A-Za-z0-9 ]$/.test(key) || groupName.length >= 30) e.preventDefault();
-                }}
+                maxLength={30}
               />
               <div className="flex justify-end mt-1.5">
-                <span className="text-[10px] text-white/20 tabular-nums">
+                <span className="text-[10px] text-white/20 tabular-nums" translate="no">
                   {groupName.length}/30
                 </span>
               </div>
@@ -107,40 +131,68 @@ export default function CreateGroupPage() {
           </div>
 
           {/* Step 2 — Members */}
-          <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
+          <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06]">
               <div className="flex items-center gap-3">
                 <span className="text-[11px] font-bold text-white/15 tabular-nums">02</span>
                 <span className="text-xs font-semibold text-white/50 uppercase tracking-widest">
-                  Members
+                  {t("createGroup.step2")}
                 </span>
               </div>
               {members.length > 0 && (
                 <span className="text-[10px] font-medium text-white/25 bg-white/[0.05] border border-white/[0.07] px-2 py-0.5 rounded-full">
-                  {members.length} added
+                  {t("createGroup.membersAdded", { count: members.length })}
                 </span>
               )}
             </div>
 
             <div className="px-5 py-4 space-y-4">
-              {/* Email input */}
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addMember(emailInput, members, setError, setMembers, setEmailInput))}
-                  className={`${s.input} flex-1`}
-                  placeholder="member@email.com"
-                  autoComplete="off"
-                />
+              <div className="flex items-start gap-2">
+                <div className="flex-1 relative">
+                  <FieldInput
+                    type="email"
+                    inputMode="email"
+                    value={emailInput}
+                    onChange={(e) => { setEmailInput(e.target.value); setShowSuggestions(true); }}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setShowSuggestions(false)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addMember(emailInput, members, setFieldError, setApiError, setMembers, setEmailInput))}
+                    error={fieldErrors.emailInput}
+                    onClearError={() => clearFieldError("emailInput")}
+                    className={s.input}
+                    placeholder={t("createGroup.emailPlaceholder")}
+                    autoComplete="off"
+                  />
+                  {showSuggestions && suggestions && suggestions.length > 0 && (
+                    <ul className="absolute z-[999] left-0 right-0 top-[calc(100%+4px)] bg-[#0d1420] border border-white/[0.08] rounded-xl shadow-xl shadow-black/40">
+                      {suggestions.map((s) => (
+                        <li
+                          key={s._id}
+                          onMouseDown={(e) => { e.preventDefault(); handleSuggestionSelect(s); }}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.05] cursor-pointer transition-colors"
+                        >
+                          <div className="w-7 h-7 rounded-full bg-cyan-500/15 border border-cyan-500/20 flex items-center justify-center shrink-0">
+                            <span className="text-[10px] font-bold text-cyan-400" translate="no">
+                              {s.name.slice(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-medium text-white/85 truncate leading-tight" translate="no">{s.name}</p>
+                            <p className="text-[11px] text-white/30 truncate" translate="no">{s.email}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
                 <button
                   type="button"
-                  onClick={() => addMember(emailInput, members, setError, setMembers, setEmailInput)}
+                  onClick={() => addMember(emailInput, members, setFieldError, setApiError, setMembers, setEmailInput)}
                   disabled={isVerifying}
-                  className="shrink-0 px-4 rounded-xl text-sm font-semibold border
+                  className="shrink-0 px-4 py-3 rounded-xl text-sm font-semibold border
                     bg-cyan-500/10 border-cyan-500/25 text-cyan-300
                     hover:bg-cyan-500/20 hover:border-cyan-400/40
+                    active:bg-cyan-500/20 active:border-cyan-400/40 active:scale-[0.97]
                     disabled:opacity-40 transition-all duration-150"
                 >
                   {isVerifying ? (
@@ -148,27 +200,16 @@ export default function CreateGroupPage() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                     </svg>
-                  ) : "Add"}
+                  ) : t("createGroup.add")}
                 </button>
               </div>
 
-              {error && (
-                <p className="text-red-400/90 text-xs flex items-center gap-1.5">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                    <circle cx="5" cy="5" r="4" stroke="#f87171" strokeWidth="1.2" />
-                    <path d="M5 3v2.5M5 7h.01" stroke="#f87171" strokeWidth="1.2" strokeLinecap="round" />
-                  </svg>
-                  {error}
-                </p>
-              )}
-
-              {!error && members.length === 0 && (
+              {!fieldErrors.emailInput && members.length === 0 && (
                 <p className="text-white/20 text-xs">
-                  Enter an email and click Add — or press Enter.
+                  {t("createGroup.emailHint")}
                 </p>
               )}
 
-              {/* Member list */}
               {members.length > 0 && (
                 <div className="space-y-2">
                   {members.map((member, i) => (
@@ -184,19 +225,18 @@ export default function CreateGroupPage() {
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-8 h-8 rounded-full bg-cyan-500/15 border border-cyan-500/20 flex items-center justify-center shrink-0">
-                            <span className="text-[11px] font-bold text-cyan-400">
+                            <span className="text-[11px] font-bold text-cyan-400" translate="no">
                               {member.user?.slice(0, 2).toUpperCase()}
                             </span>
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[13px] font-medium text-white/90 truncate leading-tight">
+                            <p className="text-[13px] font-medium text-white/90 truncate leading-tight" translate="no">
                               {member.user}
                             </p>
-                            <p className="text-[11px] text-white/30 truncate">{member.email}</p>
+                            <p className="text-[11px] text-white/30 truncate" translate="no">{member.email}</p>
                           </div>
                         </div>
 
-                        {/* Contribution + remove */}
                         <div className="flex items-center gap-2 shrink-0">
                           <div className="relative">
                             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25 text-xs">₹</span>
@@ -205,12 +245,8 @@ export default function CreateGroupPage() {
                               defaultValue={member.contribution || ""}
                               placeholder="0"
                               type="text"
-                              onChange={(e) => updateContribution(setMembers, member._id, Number(e.target.value))}
-                              onKeyDown={(e) => {
-                                const key = e.key;
-                                if (["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(key)) return;
-                                if (!/^[0-9]$/.test(key)) e.preventDefault();
-                              }}
+                              inputMode="decimal"
+                              onChange={(e) => updateContribution(setMembers, member._id, Number(sanitizeAmount(e.target.value)))}
                             />
                           </div>
                           <button
@@ -227,12 +263,11 @@ export default function CreateGroupPage() {
                     </div>
                   ))}
 
-                  {/* Pool total */}
                   <div className="flex items-center justify-between px-1 pt-1">
                     <span className="text-[10px] text-white/25 uppercase tracking-widest">
-                      Initial pool total
+                      {t("createGroup.initialPool")}
                     </span>
-                    <span className="text-sm font-semibold font-mono text-cyan-300">
+                    <span className="text-sm font-semibold font-mono text-cyan-300" translate="no">
                       ₹{poolTotal.toLocaleString("en-IN")}
                     </span>
                   </div>
@@ -242,7 +277,12 @@ export default function CreateGroupPage() {
           </div>
         </div>
 
-        {/* Actions */}
+        {(fieldErrors.members || apiError) && (
+          <div className="mt-4 space-y-1.5">
+            {fieldErrors.members && <ErrorMessage error={fieldErrors.members} />}
+            {apiError && <ErrorMessage error={apiError} />}
+          </div>
+        )}
         <div className="mt-4 flex gap-3">
           <button
             type="button"
@@ -250,15 +290,15 @@ export default function CreateGroupPage() {
             className="flex-1 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08]
               rounded-xl px-6 py-3 text-sm text-white/40 hover:text-white/60 transition-all"
           >
-            Cancel
+            {t("createGroup.cancel")}
           </button>
           <button
             type="submit"
             disabled={isLoading || isVerifying}
             className="flex-1 relative overflow-hidden rounded-xl px-6 py-3 text-sm font-semibold
-              text-black bg-cyan-400 hover:bg-cyan-300
+              text-black bg-cyan-400 hover:bg-cyan-300 active:bg-cyan-300 active:scale-[0.97]
               disabled:opacity-40 disabled:cursor-not-allowed
-              transition-all duration-150 active:scale-[0.98]
+              transition-all duration-150
               shadow-lg shadow-cyan-500/20"
           >
             {isLoading ? (
@@ -267,9 +307,9 @@ export default function CreateGroupPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
-                Creating...
+                {t("createGroup.creating")}
               </span>
-            ) : "Create group"}
+            ) : t("createGroup.createGroup")}
           </button>
         </div>
       </form>

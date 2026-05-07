@@ -128,6 +128,19 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
     }
 };
 
+export const searchUsersService = async (query: string, currentUserId: mongoose.Types.ObjectId) => {
+    if (!query || query.trim().length < 2) return [];
+    const safe = query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(safe, "i");
+    return User.find({
+        $or: [{ email: { $regex: regex } }, { name: { $regex: regex } }],
+        _id: { $ne: currentUserId },
+    })
+        .select("_id name email")
+        .limit(6)
+        .lean();
+};
+
 export const verifyUserService = async (email: string) => {
     try {
         if(!email){

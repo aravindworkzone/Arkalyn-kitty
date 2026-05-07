@@ -1,6 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import { useCreateExpenseMutation } from "../redux/api/expense";
 import type { SplitEntry } from "../interface/expense";
+import { validateTitle, validateAmount, validateDate } from "../helpers/validators";
+import type { SetFieldError } from "../hooks/useFieldError";
+
+export type ExpenseField = "title" | "amount" | "date" | "category" | "paidBy" | "splits";
 
 export const toggleSplit = (
   setSplits: React.Dispatch<React.SetStateAction<SplitEntry[]>>,
@@ -31,7 +35,8 @@ export const useExpenseHandlers = (groupId: string | undefined) => {
     e: React.FormEvent,
     {
       title, totalAmount, categoryId, paidBy,
-      splits, splitValid, date, paymentType, setError,
+      splits, splitValid, date, paymentType,
+      setFieldError, setApiError,
     }: {
       title: string;
       totalAmount: number;
@@ -41,17 +46,28 @@ export const useExpenseHandlers = (groupId: string | undefined) => {
       splitValid: boolean;
       date: string;
       paymentType: string;
-      setError: React.Dispatch<React.SetStateAction<string>>;
+      setFieldError: SetFieldError<ExpenseField>;
+      setApiError:   React.Dispatch<React.SetStateAction<string>>;
     }
   ) => {
-    setError("");
     e.preventDefault();
-    if (!title.trim())       return setError("Title is required");
-    if (!totalAmount)        return setError("Amount is required");
-    if (!categoryId)         return setError("Select a category");
-    if (!paidBy)             return setError("Select who paid");
-    if (splits.length === 0) return setError("Add at least one split");
-    if (!splitValid)         return setError("Split amounts must equal total amount");
+    let valid = true;
+
+    const titleV = validateTitle(title);
+    if (!titleV.valid) { setFieldError("title",  titleV.message);  valid = false; }
+
+    const amountV = validateAmount(totalAmount);
+    if (!amountV.valid) { setFieldError("amount", amountV.message); valid = false; }
+
+    const dateV = validateDate(date);
+    if (!dateV.valid) { setFieldError("date",   dateV.message);   valid = false; }
+
+    if (!categoryId)         { setFieldError("category", "Select a category");              valid = false; }
+    if (!paidBy)             { setFieldError("paidBy",   "Select who paid");                valid = false; }
+    if (splits.length === 0) { setFieldError("splits",   "Add at least one split");         valid = false; }
+    else if (!splitValid)    { setFieldError("splits",   "Split amounts must equal total");  valid = false; }
+
+    if (!valid) return;
 
     try {
       await createExpense({
@@ -66,7 +82,7 @@ export const useExpenseHandlers = (groupId: string | undefined) => {
       }).unwrap();
       navigate(`/groups/${groupId}`);
     } catch (error: any) {
-      setError(error.data?.message || "Failed to create expense");
+      setApiError(error.data?.message || "Failed to create expense");
     }
   };
 

@@ -1,43 +1,50 @@
 import { useNavigate } from "react-router-dom";
 import { useSignUpMutation, useSignInMutation } from "../redux/api/auth";
-import { validators } from "../helpers/Authentication";
+import { validators } from "../helpers/validators";
+import type { SetFieldError } from "../hooks/useFieldError";
+
+export type AuthField = "email" | "password" | "name";
 
 export const useAuthHandlers = (link: string) => {
   const navigate = useNavigate();
   const [signUp, { isLoading: signUpLoading }] = useSignUpMutation();
   const [signIn, { isLoading: signInLoading }] = useSignInMutation();
 
-  const Auth      = link !== "register" ? signUp      : signIn;
-  const loading   = link !== "register" ? signUpLoading : signInLoading;
+  const Auth    = link !== "register" ? signUp      : signIn;
+  const loading = link !== "register" ? signUpLoading : signInLoading;
 
   const handleSubmit = async (
     e: React.FormEvent<HTMLFormElement>,
-    setError: React.Dispatch<React.SetStateAction<string>>
+    setFieldError: SetFieldError<AuthField>,
+    setApiError:   React.Dispatch<React.SetStateAction<string>>
   ) => {
     e.preventDefault();
     const form     = e.target as HTMLFormElement;
     const formData = new FormData(form);
     const data: Record<string, string> = {};
+    let valid = true;
 
     for (const [key, value] of formData.entries()) {
       if (typeof value === "string") {
         if (key in validators) {
-          const validation = validators[key as keyof typeof validators](value);
-          if (!validation.valid) {
-            setError(validation.message as string);
-            return;
+          const v = validators[key as keyof typeof validators](value);
+          if (!v.valid) {
+            setFieldError(key as AuthField, v.message);
+            valid = false;
           }
         }
         data[key] = value;
       }
     }
 
+    if (!valid) return;
+
     try {
       await Auth(data).unwrap();
-      setError("");
+      setApiError("");
       navigate("/");
     } catch (error: any) {
-      setError(error.data?.message || "An error occurred");
+      setApiError(error.data?.message || "An error occurred");
     }
   };
 
