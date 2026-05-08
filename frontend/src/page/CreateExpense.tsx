@@ -6,6 +6,7 @@ import { useGetPaymentMethodQuery } from "../redux/api/expense";
 import { useGetGroupMembersQuery } from "../redux/api/group";
 import type { SplitEntry } from "../interface/expense";
 import { useExpenseHandlers, toggleSplit, updateSplitAmount } from "../handlers/useExpenseHandlers";
+import type { ExpenseField } from "../handlers/useExpenseHandlers";
 import {
   PageBackground,
   BackButton,
@@ -13,7 +14,11 @@ import {
   FormSection,
   ErrorMessage,
   FormActions,
+  FieldInput,
 } from "../components/ui";
+import { sanitizeAmount } from "../helpers/validators";
+import { useFieldError } from "../hooks/useFieldError";
+import { useTranslation } from "react-i18next";
 
 export const inputCls =
   "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all duration-200";
@@ -24,6 +29,7 @@ export const fieldLabel =
 export default function CreateExpensePage() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { data: paymentTypes = [], isLoading: pmLoading } = useGetPaymentMethodQuery();
   const { data: categories = [], isLoading: catLoading } = useGetCategoriesQuery(groupId!, { skip: !groupId });
   const { data: groupMembers = [], isLoading: membersLoading } = useGetGroupMembersQuery(groupId!, { skip: !groupId });
@@ -33,10 +39,11 @@ export default function CreateExpensePage() {
   const [amount, setAmount]           = useState("");
   const [date, setDate]               = useState(() => new Date().toISOString().split("T")[0]);
   const [categoryId, setCategoryId]   = useState("");
-  const [paymentType, setPaymentType] = useState("cash");
+  const [paymentType, setPaymentType] = useState("Cash");
   const [paidBy, setPaidBy]           = useState("");
   const [splits, setSplits]           = useState<SplitEntry[]>([]);
-  const [error, setError]             = useState("");
+  const { fieldErrors, setFieldError, clearFieldError } = useFieldError<ExpenseField>();
+  const [apiError, setApiError]       = useState("");
 
   const totalAmount = Number(amount) || 0;
   const splitTotal  = splits.reduce((s, e) => s + (e.amount || 0), 0);
@@ -50,7 +57,7 @@ export default function CreateExpensePage() {
 
       <form
         onSubmit={(e) =>
-          handleSubmit(e, { title, totalAmount, categoryId, paidBy, splits, splitValid, date, paymentType, setError })
+          handleSubmit(e, { title, totalAmount, categoryId, paidBy, splits, splitValid, date, paymentType, setFieldError, setApiError })
         }
         className="relative max-w-xl mx-auto px-4 py-10 space-y-3"
       >
@@ -63,64 +70,66 @@ export default function CreateExpensePage() {
               <path d="M7 1v12M1 7h12" stroke="#67e8f9" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           }
-          label="New Expense"
-          title="Record an expense"
-          description="Fill in the details and split it between members."
+          label={t("createExpense.label")}
+          title={t("createExpense.title")}
+          description={t("createExpense.description")}
         />
 
         {/* ── 01 Basic details ── */}
-        <FormSection step="01" title="Basic details" contentClass="px-5 py-4 space-y-3">
+        <FormSection step="01" title={t("createExpense.basicDetails")} contentClass="px-5 py-4 space-y-3">
           <div>
-            <label className={fieldLabel}>Title</label>
-            <input
+            <label className={fieldLabel}>{t("createExpense.titleLabel")}</label>
+            <FieldInput
               className={inputCls}
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Team lunch"
+              error={fieldErrors.title}
+              onClearError={() => clearFieldError("title")}
+              placeholder={t("createExpense.titlePlaceholder")}
               autoComplete="off"
               maxLength={100}
             />
             <div className="flex justify-end mt-1">
-              <span className="text-[10px] text-white/20">{title.length}/100</span>
+              <span className="text-[10px] text-white/20" translate="no">{title.length}/100</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={fieldLabel}>Amount</label>
+              <label className={fieldLabel}>{t("createExpense.amount")}</label>
               <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 text-sm">₹</span>
-                <input
+                <span className="absolute left-3.5 top-3 text-white/30 text-sm pointer-events-none z-10">₹</span>
+                <FieldInput
                   className={`${inputCls} pl-7`}
                   type="text"
+                  inputMode="decimal"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => setAmount(sanitizeAmount(e.target.value))}
+                  error={fieldErrors.amount}
+                  onClearError={() => clearFieldError("amount")}
                   placeholder="0"
-                  onKeyDown={(e) => {
-                    const key = e.key;
-                    if (["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(key)) return;
-                    if (!/^[0-9.]$/.test(key)) e.preventDefault();
-                  }}
                 />
               </div>
             </div>
             <div>
-              <label className={fieldLabel}>Date</label>
-              <input
+              <label className={fieldLabel}>{t("createExpense.date")}</label>
+              <FieldInput
                 className={`${inputCls} text-white/70`}
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
+                error={fieldErrors.date}
+                onClearError={() => clearFieldError("date")}
               />
             </div>
           </div>
         </FormSection>
 
         {/* ── 02 Category + Payment ── */}
-        <FormSection step="02" title="Category & Payment" contentClass="px-5 py-4 space-y-4">
+        <FormSection step="02" title={t("createExpense.categoryPayment")} contentClass="px-5 py-4 space-y-4">
           <div>
-            <label className={fieldLabel}>Category</label>
+            <label className={fieldLabel}>{t("createExpense.category")}</label>
             <div className="flex flex-wrap gap-2">
               {catLoading
                 ? [...Array(4)].map((_, i) => (
@@ -132,7 +141,7 @@ export default function CreateExpensePage() {
                       <button
                         key={cat._id}
                         type="button"
-                        onClick={() => setCategoryId(cat._id)}
+                        onClick={() => { clearFieldError("category"); setCategoryId(cat._id); }}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border transition-all duration-150"
                         style={
                           categoryId === cat._id
@@ -144,7 +153,7 @@ export default function CreateExpensePage() {
                           className="w-1.5 h-1.5 rounded-full"
                           style={{ background: categoryId === cat._id ? cat.color : "rgba(255,255,255,0.2)" }}
                         />
-                        {cat.name}
+                        <span translate="no">{cat.name}</span>
                       </button>
                     ))}
                     <button
@@ -155,16 +164,17 @@ export default function CreateExpensePage() {
                       <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                         <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                       </svg>
-                      {categories.length === 0 ? "No categories — create one" : "Add"}
+                      {categories.length === 0 ? t("createExpense.noCategoriesCreate") : t("createExpense.add")}
                     </button>
                   </>
                 )
               }
             </div>
+            {fieldErrors.category && <div className="mt-2"><ErrorMessage error={fieldErrors.category} /></div>}
           </div>
 
           <div>
-            <label className={fieldLabel}>Payment type</label>
+            <label className={fieldLabel}>{t("createExpense.paymentType")}</label>
             <div className="grid grid-cols-4 gap-2">
               {pmLoading
                 ? [...Array(4)].map((_, i) => (
@@ -174,14 +184,13 @@ export default function CreateExpensePage() {
                     <button
                       key={pt}
                       type="button"
-                      onClick={() => setPaymentType(pt)}
                       className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-[10px] font-semibold transition-all duration-150 ${
                         paymentType === pt
                           ? "bg-cyan-500/15 border-cyan-500/35 text-cyan-300"
                           : "bg-white/[0.03] border-white/[0.07] text-white/30 hover:bg-white/[0.06]"
                       }`}
                     >
-                      {pt}
+                      <span translate="no">{pt}</span>
                     </button>
                   ))
               }
@@ -190,7 +199,7 @@ export default function CreateExpensePage() {
         </FormSection>
 
         {/* ── 03 Paid by ── */}
-        <FormSection step="03" title="Paid by">
+        <FormSection step="03" title={t("createExpense.paidBy")}>
           <div className="flex flex-wrap gap-2">
             {membersLoading
               ? [...Array(3)].map((_, i) => (
@@ -200,7 +209,7 @@ export default function CreateExpensePage() {
                   <button
                     key={member.userId._id}
                     type="button"
-                    onClick={() => setPaidBy(member.userId._id)}
+                    onClick={() => { clearFieldError("paidBy"); setPaidBy(member.userId._id); }}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[12px] font-semibold transition-all duration-150 ${
                       paidBy === member.userId._id
                         ? "bg-violet-500/15 border-violet-500/35 text-violet-200"
@@ -211,18 +220,20 @@ export default function CreateExpensePage() {
                       className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${
                         paidBy === member.userId._id ? "bg-violet-500/30 text-violet-300" : "bg-white/10 text-white/40"
                       }`}
+                      translate="no"
                     >
                       {member.userId?.name.slice(0, 2).toUpperCase()}
                     </span>
-                    {member.userId?.name}
+                    <span translate="no">{member.userId?.name}</span>
                   </button>
                 ))
             }
           </div>
+          {fieldErrors.paidBy && <div className="mt-2"><ErrorMessage error={fieldErrors.paidBy} /></div>}
         </FormSection>
 
         {/* ── 04 Split between ── */}
-        <FormSection step="04" title="Split between" contentClass="px-5 py-4 space-y-3">
+        <FormSection step="04" title={t("createExpense.splitBetween")} contentClass="px-5 py-4 space-y-3">
           <div className="flex flex-wrap gap-2">
             {membersLoading
               ? [...Array(3)].map((_, i) => (
@@ -234,7 +245,7 @@ export default function CreateExpensePage() {
                     <button
                       key={member._id}
                       type="button"
-                      onClick={() => toggleSplit(setSplits, member.userId!)}
+                      onClick={() => { clearFieldError("splits"); toggleSplit(setSplits, member.userId!); }}
                       className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[12px] font-semibold transition-all duration-150 ${
                         selected
                           ? "bg-cyan-500/15 border-cyan-500/35 text-cyan-200"
@@ -245,10 +256,11 @@ export default function CreateExpensePage() {
                         className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${
                           selected ? "bg-cyan-500/25 text-cyan-300" : "bg-white/10 text-white/40"
                         }`}
+                        translate="no"
                       >
                         {member.userId?.name.slice(0, 2).toUpperCase()}
                       </span>
-                      {member.userId?.name}
+                      <span translate="no">{member.userId?.name}</span>
                     </button>
                   );
                 })
@@ -262,10 +274,10 @@ export default function CreateExpensePage() {
                   key={split.userId}
                   className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-2.5"
                 >
-                  <span className="w-7 h-7 rounded-full bg-cyan-500/15 border border-cyan-500/20 flex items-center justify-center text-[10px] font-bold text-cyan-400 shrink-0">
+                  <span className="w-7 h-7 rounded-full bg-cyan-500/15 border border-cyan-500/20 flex items-center justify-center text-[10px] font-bold text-cyan-400 shrink-0" translate="no">
                     {split.name.slice(0, 2).toUpperCase()}
                   </span>
-                  <span className="flex-1 text-[13px] font-medium text-white/60 truncate">{split.name}</span>
+                  <span className="flex-1 text-[13px] font-medium text-white/60 truncate" translate="no">{split.name}</span>
                   <div className="relative">
                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25 text-xs">₹</span>
                     <input
@@ -273,27 +285,23 @@ export default function CreateExpensePage() {
                       placeholder="0"
                       type="text"
                       value={split.amount || ""}
-                      onChange={(e) => updateSplitAmount(setSplits, split.userId, Number(e.target.value))}
-                      onKeyDown={(e) => {
-                        const key = e.key;
-                        if (["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(key)) return;
-                        if (!/^[0-9.]$/.test(key)) e.preventDefault();
-                      }}
+                      inputMode="decimal"
+                      onChange={(e) => updateSplitAmount(setSplits, split.userId, Number(sanitizeAmount(e.target.value)))}
                     />
                   </div>
                 </div>
               ))}
 
               <div className="flex items-center justify-between px-1 pt-1 pb-0.5">
-                <span className="text-[10px] uppercase tracking-widest text-white/25">Split total</span>
+                <span className="text-[10px] uppercase tracking-widest text-white/25">{t("createExpense.splitTotal")}</span>
                 <div className="flex items-center gap-2">
                   <span className={`text-[12px] font-mono font-semibold ${
                     splits.length === 0 ? "text-white/25" : splitValid ? "text-emerald-400" : "text-red-400"
-                  }`}>
+                  }`} translate="no">
                     ₹{splitTotal.toLocaleString("en-IN")}
                   </span>
                   <span className="text-white/20 text-[10px]">/</span>
-                  <span className="text-[12px] font-mono text-white/40">
+                  <span className="text-[12px] font-mono text-white/40" translate="no">
                     ₹{totalAmount.toLocaleString("en-IN")}
                   </span>
                   {splits.length > 0 && (
@@ -304,8 +312,10 @@ export default function CreateExpensePage() {
                         </svg>
                       </span>
                     ) : (
-                      <span className="text-[10px] font-semibold text-red-400">
-                        {splitDiff > 0 ? `₹${splitDiff.toFixed(0)} left` : `₹${Math.abs(splitDiff).toFixed(0)} over`}
+                      <span className="text-[10px] font-semibold text-red-400" translate="no">
+                        {splitDiff > 0
+                          ? t("createExpense.left", { amount: splitDiff.toFixed(0) })
+                          : t("createExpense.over", { amount: Math.abs(splitDiff).toFixed(0) })}
                       </span>
                     )
                   )}
@@ -313,14 +323,15 @@ export default function CreateExpensePage() {
               </div>
             </div>
           )}
+          {fieldErrors.splits && <ErrorMessage error={fieldErrors.splits} />}
         </FormSection>
 
-        <ErrorMessage error={error} />
+        <ErrorMessage error={apiError} />
 
         <FormActions
           isLoading={isCreating}
-          submitLabel="Save Expense"
-          loadingLabel="Saving…"
+          submitLabel={t("createExpense.save")}
+          loadingLabel={t("createExpense.saving")}
         />
       </form>
     </div>

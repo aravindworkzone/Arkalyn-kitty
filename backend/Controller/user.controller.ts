@@ -1,4 +1,4 @@
-import {userGroupsService, verifyUserService} from "../Service/user.service";
+import {userGroupsService, verifyUserService, searchUsersService} from "../Service/user.service";
 import { Response, Request } from "express";
 
 export const GetUser = async (req: Request, res: Response) => {
@@ -25,6 +25,17 @@ export const userGroups = async (req: Request, res: Response) => {
         const statusCode = error.status || 500;
         const message = error.message || 'Internal server error';
         return res.status(statusCode).json({ message: 'Error creating group', error: message, b_status: false });    
+    }
+};
+
+export const SearchUsers = async (req: Request, res: Response) => {
+    if (!req.user?._id) return res.status(401).json({ message: "Unauthorized" });
+    try {
+        const q = (req.query.q as string) || "";
+        const users = await searchUsersService(q, req.user._id);
+        res.status(200).json({ users });
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
     }
 };
 

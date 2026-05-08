@@ -1,0 +1,222 @@
+{
+  "brand": "ArkalynKitty",
+  "brandFull": "Arkalyn - Fin",
+
+  "nav": {
+    "profile": "சுயவிவரம்",
+    "signOut": "வெளியேறு"
+  },
+
+  "auth": {
+    "welcome": "மீண்டும் வரவேற்கிறோம்",
+    "noAccount": "கணக்கு இல்லையா?",
+    "haveAccount": "ஏற்கனவே கணக்கு உள்ளதா?",
+    "signUpAccount": "புதிய கணக்கு உருவாக்கு",
+    "signInAccount": "உங்கள் கணக்கில் உள்நுழைக",
+    "signUp": "பதிவு செய்க",
+    "signIn": "உள்நுழைக",
+    "fieldEmail": "மின்னஞ்சல்",
+    "fieldEmailPlaceholder": "மின்னஞ்சல் உள்ளிடவும்",
+    "fieldPassword": "கடவுச்சொல்",
+    "fieldPasswordPlaceholder": "கடவுச்சொல் உள்ளிடவும்",
+    "fieldName": "பெயர்",
+    "fieldNamePlaceholder": "உங்கள் பெயர் உள்ளிடவும்"
+  },
+
+  "groups": {
+    "dashboard": "டாஷ்போர்டு",
+    "yourGroups": "உங்கள் குழுக்கள்",
+    "newGroup": "புதிய குழு",
+    "totalGroups": "மொத்த குழுக்கள்",
+    "youManage": "நீங்கள் நிர்வகிப்பவை",
+    "searchPlaceholder": "குழுக்களை தேடுக...",
+    "noMatch": "\"{{search}}\" க்கு பொருந்தும் குழுக்கள் இல்லை",
+    "clearSearch": "தேடலை அழி"
+  },
+
+  "groupCard": {
+    "balance": "இருப்பு",
+    "poolRemaining": "குளம் மீதமுள்ளது",
+    "addExpense": "செலவு சேர்க்க",
+    "expense_one": "{{count}} செலவு",
+    "expense_other": "{{count}} செலவுகள்"
+  },
+
+  "empty": {
+    "noGroupsYet": "இன்னும் குழுக்கள் இல்லை",
+    "noGroupsDesc": "பகிர்வு குளம் உருவாக்கி செலவுகளை ஒன்றாக கண்காணிக்கவும்",
+    "createFirst": "முதல் குழுவை உருவாக்கவும்"
+  },
+
+  "createGroup": {
+    "backToGroups": "குழுக்களுக்கு திரும்பு",
+    "newGroup": "புதிய குழு",
+    "title": "பகிர்வு குளம் அமைக்கவும்",
+    "description": "குழுவிற்கு பெயரிட்டு, உறுப்பினர்களை சேர்த்து, ஆரம்ப பங்களிப்புகளை அமைக்கவும்.",
+    "step1": "குழு பெயர்",
+    "groupNamePlaceholder": "எ.கா. கோவா பயணம் 2025",
+    "step2": "உறுப்பினர்கள்",
+    "membersAdded": "{{count}} சேர்க்கப்பட்டது",
+    "emailPlaceholder": "member@email.com",
+    "add": "சேர்க்க",
+    "emailHint": "மின்னஞ்சல் உள்ளிட்டு சேர்க்க கிளிக் செய்யவும் — அல்லது Enter அழுத்தவும்.",
+    "initialPool": "ஆரம்ப குளம் மொத்தம்",
+    "cancel": "ரத்து செய்",
+    "creating": "உருவாக்குகிறது...",
+    "createGroup": "குழுவை உருவாக்கு"
+  },
+
+  "createExpense": {
+    "label": "புதிய செலவு",
+    "title": "செலவை பதிவு செய்",
+    "description": "விவரங்களை நிரப்பி உறுப்பினர்களிடையே பிரிக்கவும்.",
+    "basicDetails": "அடிப்படை விவரங்கள்",
+    "titleLabel": "தலைப்பு",
+    "titlePlaceholder": "எ.கா. அணி மதிய உணவு",
+    "amount": "தொகை",
+    "date": "தேதி",
+    "categoryPayment": "வகை & கட்டணம்",
+    "category": "வகை",
+    "noCategoriesCreate": "வகைகள் இல்லை — ஒன்று உருவாக்கவும்",
+    "add": "சேர்க்க",
+    "paymentType": "கட்டண வகை",
+    "paidBy": "யார் செலுத்தினார்",
+    "splitBetween": "யாரிடையே பிரிக்கவும்",
+    "splitTotal": "பிரிவு மொத்தம்",
+    "left": "₹{{amount}} மீதமுள்ளது",
+    "over": "₹{{amount}} அதிகமாகிறது",
+    "save": "செலவை சேமி",
+    "saving": "சேமிக்கிறது…"
+  },
+
+  "createCategory": {
+    "back": "பின்னால்",
+    "label": "வகைகள்",
+    "title": "வகைகளை நிர்வகிக்கவும்",
+    "description": "இந்த குழுவிற்கு செலவு வகைகளை உருவாக்கி நிர்வகிக்கவும்.",
+    "newCategory": "புதிய வகை",
+    "nameLabel": "பெயர்",
+    "namePlaceholder": "எ.கா. மளிகை",
+    "add": "சேர்க்க",
+    "colorLabel": "நிறம்",
+    "preview": "முன்னோட்டம்",
+    "existing": "ஏற்கனவே உள்ளவை",
+    "total": "{{count}} மொத்தம்",
+    "noCategoriesYet": "இன்னும் வகைகள் இல்லை — மேலே ஒன்று உருவாக்கவும்.",
+    "expense_one": "{{count}} செலவு",
+    "expense_other": "{{count}} செலவுகள்",
+    "noExpenses": "செலவுகள் இல்லை",
+    "hasActiveExpenses": "செயல்பாட்டில் உள்ள செலவுகள் உள்ளன"
+  },
+
+  "allExpenses": {
+    "label": "அனைத்து செலவுகள்",
+    "title": "செலவு வரலாறு",
+    "description": "இந்த குழுவில் பதிவான அனைத்து செலவுகளும்.",
+    "totalSpent": "மொத்த செலவு",
+    "transactions": "பரிவர்த்தனைகள்",
+    "searchPlaceholder": "தலைப்பு, வகை அல்லது செலுத்தியவரால் தேடவும்…",
+    "noExpensesYet": "இன்னும் செலவுகள் பதிவு செய்யப்படவில்லை",
+    "noResults": "\"{{search}}\" க்கு முடிவுகள் இல்லை",
+    "clearSearch": "தேடலை அழி"
+  },
+
+  "report": {
+    "back": "பின்னால்",
+    "label": "அறிக்கை",
+    "title": "குழு அறிக்கை",
+    "description": "இந்த குழுவிற்கான பரிவர்த்தனைகள் மற்றும் செயல்பாட்டு பதிவு.",
+    "totalIn": "மொத்த வரவு",
+    "totalOut": "மொத்த செலவு",
+    "refunds": "திரும்பப் பெறுதல்கள்",
+    "tabTransactions": "பரிவர்த்தனைகள்",
+    "tabActivity": "செயல்பாட்டு பதிவு",
+    "filterAll": "அனைத்தும்",
+    "filterCredit": "வரவு",
+    "filterDebit": "செலவு",
+    "filterRefund": "திரும்பப் பெறுதல்",
+    "noTransactions": "பரிவர்த்தனைகள் இல்லை",
+    "noActivity": "இன்னும் செயல்பாடு இல்லை",
+    "transactionDetail": "பரிவர்த்தனை விவரம்",
+    "activityDetail": "செயல்பாட்டு விவரம்",
+    "groupActivity": "குழு செயல்பாடு",
+    "fieldDescription": "விவரம்",
+    "fieldPerformedBy": "செய்தவர்",
+    "fieldReference": "குறிப்பு",
+    "fieldDate": "தேதி",
+    "fieldDetails": "விவரங்கள்"
+  },
+
+  "groupDetail": {
+    "backToGroups": "குழுக்களுக்கு திரும்பு",
+    "balance": "இருப்பு",
+    "contributed": "₹{{amount}} பங்களிப்பில் இருந்து",
+    "poolRemaining": "குளம் மீதமுள்ளது",
+    "noCatTitle": "இன்னும் வகைகள் இல்லை",
+    "noCatDesc": "செலவு சேர்ப்பதற்கு முன் ஒரு வகை உருவாக்கவும்.",
+    "create": "உருவாக்கு",
+    "membersCount": "{{count}} உறுப்பினர்கள்",
+    "contributions": "பங்களிப்புகள்",
+    "settled": "தீர்வாகியது",
+    "addExpense": "செலவு சேர்க்க",
+    "category": "வகை",
+    "report": "அறிக்கை",
+    "settings": "அமைப்புகள்",
+    "tabAddMember": "உறுப்பினர் சேர்க்க",
+    "tabChangeRole": "பங்கை மாற்று",
+    "tabContribution": "பங்களிப்பு",
+    "tabSettlement": "தீர்வு",
+    "tabDanger": "ஆபத்து",
+    "groupSettings": "குழு அமைப்புகள்",
+    "settingsFind": "தேடு",
+    "settingsFinding": "…",
+    "initialContribution": "ஆரம்ப பங்களிப்பு (விரும்பினால்)",
+    "addingMember": "சேர்க்கிறது…",
+    "addMemberBtn": "உறுப்பினரை சேர்க்க",
+    "selectMember": "உறுப்பினரை தேர்ந்தெடு",
+    "promoteToAdmin": "நிர்வாகியாக உயர்த்து",
+    "demoteToMember": "உறுப்பினராக குறைக்கவும்",
+    "updatingRole": "புதுப்பிக்கிறது…",
+    "changeRole": "பங்கை மாற்று",
+    "addFundsDesc": "குழு குளத்திற்கு நிதி சேர்க்கவும். உறுப்பினரை தேர்ந்தெடுக்கவும் அல்லது சுய பங்களிப்பாக விடவும்.",
+    "myContribution": "என் பங்களிப்பு (சுய)",
+    "amount": "தொகை",
+    "addingContrib": "சேர்க்கிறது…",
+    "addContribution": "பங்களிப்பு சேர்க்க",
+    "selectMemberToSettle": "தீர்வுக்கான உறுப்பினரை தேர்ந்தெடு",
+    "settlementAmount": "தீர்வு தொகை",
+    "settling": "தீர்க்கிறது…",
+    "settleMember": "உறுப்பினரை தீர்க்கவும்",
+    "deleteGroup": "குழுவை நீக்கவும்",
+    "deleteGroupDesc": "குழுவை நிரந்தரமாக நீக்கும். இதை செயல்தவிர்க்க முடியாது.",
+    "today": "இன்று",
+    "viewAll": "அனைத்தையும் காண்க",
+    "noExpensesToday": "இன்று செலவுகள் இல்லை — முழு வரலாற்றைக் காண தட்டவும்",
+    "removeMemberLabel": "{{name}} ஐ அகற்று",
+    "removeMemberConfirm": "தீர்வான பிறகே அகற்ற முடியும்.",
+    "deleteGroupConfirm": "அனைத்து தரவும் இழக்கப்படும்."
+  },
+
+  "deleteModal": {
+    "destructiveAction": "அழிவுகரமான செயல்",
+    "typeToConfirm": "உறுதிப்படுத்த {{confirmText}} என தட்டச்சு செய்யவும்",
+    "cancel": "ரத்து செய்",
+    "gotIt": "புரிந்தது",
+    "deleting": "நீக்குகிறது...",
+    "cannotUndo": "இந்த செயலை செயல்தவிர்க்க முடியாது"
+  },
+
+  "actions": {
+    "CREDIT": "வரவு",
+    "DEBIT": "செலவு",
+    "REFUND": "திரும்பப் பெறுதல்"
+  },
+
+  "events": {
+    "CREATE_GROUP": "குழு உருவாக்கப்பட்டது",
+    "MEMBER_ADDED": "உறுப்பினர் சேர்க்கப்பட்டார்",
+    "MEMBER_REMOVED": "உறுப்பினர் அகற்றப்பட்டார்",
+    "MANAGE_CATEGORY": "வகை புதுப்பிக்கப்பட்டது",
+    "CHANGE_ROLE": "பங்கு மாற்றப்பட்டது"
+  }
+}

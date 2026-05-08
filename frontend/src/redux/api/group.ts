@@ -18,7 +18,7 @@ export const group = api.injectEndpoints({
                 method: 'GET'
             }),
             transformResponse: (res: { group: any }) => res.group,
-            providesTags: ['Group']
+            providesTags: ['Group','Expense']
         }),
         getGroupMembers: builder.query<GroupMember[], string>({
             query: (credentials) => ({

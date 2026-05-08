@@ -35,7 +35,7 @@ const loadGroup = async (req: Request, res: Response, next: NextFunction) => {
       query = { displayId: groupId };
     }
 
-    const group = await Group.findOne(query);
+    const group= await Group.findOne(query);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
     req.group = group;

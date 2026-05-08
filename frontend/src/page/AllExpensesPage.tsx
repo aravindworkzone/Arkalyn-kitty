@@ -12,6 +12,7 @@ import {
   StatCard,
   SearchInput,
 } from "../components/ui";
+import { useTranslation } from "react-i18next";
 
 export default function AllExpensesPage() {
   const { groupId } = useParams();
@@ -19,6 +20,7 @@ export default function AllExpensesPage() {
   const { data: GroupDetails } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
   const [search, setSearch] = useState("");
+  const { t } = useTranslation();
 
   const role = GroupDetails?.role as string | undefined;
 
@@ -59,15 +61,15 @@ export default function AllExpensesPage() {
               <path d="M2 3h10M2 7h7M2 11h4" stroke="#c4b5fd" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
           }
-          label="All Expenses"
-          title="Expense History"
-          description="Every expense recorded in this group."
+          label={t("allExpenses.label")}
+          title={t("allExpenses.title")}
+          description={t("allExpenses.description")}
         />
 
         {!isLoading && (
           <div className="grid grid-cols-2 gap-2">
-            <StatCard label="Total Spent" value={total} currency />
-            <StatCard label="Transactions" value={filtered.length} />
+            <StatCard label={t("allExpenses.totalSpent")} value={total} currency />
+            <StatCard label={t("allExpenses.transactions")} value={filtered.length} />
           </div>
         )}
 
@@ -75,7 +77,7 @@ export default function AllExpensesPage() {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Search by title, category, or payer…"
+            placeholder={t("allExpenses.searchPlaceholder")}
           />
         )}
 
@@ -103,18 +105,18 @@ export default function AllExpensesPage() {
 
         {!isLoading && expenses?.length === 0 && (
           <div className="text-center py-16">
-            <p className="text-white/20 text-sm">No expenses recorded yet</p>
+            <p className="text-white/20 text-sm">{t("allExpenses.noExpensesYet")}</p>
           </div>
         )}
 
         {!isLoading && (expenses?.length ?? 0) > 0 && filtered.length === 0 && search && (
           <div className="text-center py-12">
-            <p className="text-white/25 text-sm">No results for "{search}"</p>
+            <p className="text-white/25 text-sm">{t("allExpenses.noResults", { search })}</p>
             <button
               onClick={() => setSearch("")}
               className="mt-2 text-violet-400 text-xs hover:text-violet-300 transition-colors"
             >
-              Clear search
+              {t("allExpenses.clearSearch")}
             </button>
           </div>
         )}
@@ -122,10 +124,10 @@ export default function AllExpensesPage() {
         {!isLoading && filtered.length > 0 && groups.map((group, gi) => (
           <div key={group.label} className="space-y-2">
             <div className="flex items-center justify-between px-0.5">
-              <p className="text-xs font-semibold uppercase tracking-widest text-white/40">
+              <p className="text-xs font-semibold uppercase tracking-widest text-white/40" translate="no">
                 {group.label}
               </p>
-              <p className="text-xs font-mono text-white/30">
+              <p className="text-xs font-mono text-white/30" translate="no">
                 ₹{group.items!.reduce((s, e) => s + e.amount, 0).toLocaleString("en-IN")}
               </p>
             </div>
@@ -134,7 +136,7 @@ export default function AllExpensesPage() {
               <div
                 key={expense._id}
                 onClick={() => setSelectedExpense(expense)}
-                className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.12] transition-colors"
+                className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.07] active:border-white/[0.12] transition-colors"
                 style={{
                   animation: "fadeSlideIn 0.22s ease forwards",
                   animationDelay: `${(gi * 3 + i) * 40}ms`,
@@ -150,25 +152,26 @@ export default function AllExpensesPage() {
                     }}
                   />
                   <div className="min-w-0">
-                    <p className="text-[13px] font-medium text-white/80 truncate leading-tight">
+                    <p className="text-[13px] font-medium text-white/80 truncate leading-tight" translate="no">
                       {expense.title}
                     </p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span
                         className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
                         style={{ background: expense.category.color + "20", color: expense.category.color }}
+                        translate="no"
                       >
                         {expense.category.name}
                       </span>
-                      <span className="text-[10px] text-white/25">· {expense.paidBy?.name}</span>
+                      <span className="text-[10px] text-white/25" translate="no">· {expense.paidBy?.name}</span>
                     </div>
                   </div>
                 </div>
                 <div className="text-right shrink-0 ml-3">
-                  <p className="text-[15px] font-semibold font-mono text-[#f0eeff] leading-tight">
+                  <p className="text-[15px] font-semibold font-mono text-[#f0eeff] leading-tight" translate="no">
                     ₹{expense.amount.toLocaleString("en-IN")}
                   </p>
-                  <p className="text-[10px] text-white/25 mt-0.5">{timeLabel(expense.date)}</p>
+                  <p className="text-[10px] text-white/25 mt-0.5" translate="no">{timeLabel(expense.date)}</p>
                 </div>
               </div>
             ))}

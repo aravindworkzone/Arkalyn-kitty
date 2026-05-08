@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 export default function DeleteConfirmModal({
   isOpen,
@@ -21,6 +22,7 @@ export default function DeleteConfirmModal({
   error?: string;
   children?: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   const [inputValue, setInputValue] = useState("");
   const isMatch = inputValue === confirmText;
 
@@ -46,13 +48,10 @@ export default function DeleteConfirmModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-[2px]">
       <div className="absolute inset-0" onClick={onClose} />
 
-      {/* Modal — matches page surface style */}
       <div className="relative w-full max-w-[460px] rounded-2xl border border-white/[0.08] bg-[#080c14] px-6 py-6 shadow-2xl animate-[fadeUp_0.18s_ease-out]">
 
-        {/* Top accent line */}
         <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-red-500/30 to-transparent rounded-full" />
 
-        {/* Header */}
         <div className="mb-5 flex items-center gap-3">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-500/10 border border-red-500/20">
             <svg className="h-3.5 w-3.5 text-red-400" viewBox="0 0 16 16" fill="none">
@@ -61,7 +60,7 @@ export default function DeleteConfirmModal({
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-red-400/60">
-              Destructive action
+              {t("deleteModal.destructiveAction")}
             </p>
             <h2 className="text-[15px] font-semibold text-white/90 leading-tight">
               {label}
@@ -69,13 +68,10 @@ export default function DeleteConfirmModal({
           </div>
         </div>
 
-        {/* Divider */}
         <div className="mb-4 h-px bg-white/[0.06]" />
 
-        {/* Summary child slot */}
         <div className="mb-4">{children}</div>
 
-        {/* API error */}
         {error && (
           <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-500/15 bg-red-500/[0.06] px-3.5 py-2.5">
             <svg className="h-3.5 w-3.5 shrink-0 text-red-400" viewBox="0 0 14 14" fill="none">
@@ -86,13 +82,17 @@ export default function DeleteConfirmModal({
           </div>
         )}
 
-        {/* Confirm input */}
         {!isBlocked && (
           <div className="mb-5">
             <label className="mb-2 block text-[10px] font-semibold uppercase tracking-widest text-white/30">
-              Type{" "}
-              <span className="font-mono text-red-400/80">{confirmText}</span>{" "}
-              to confirm
+              {t("deleteModal.typeToConfirm", { confirmText })
+                .split(confirmText)
+                .reduce<React.ReactNode[]>((acc, part, i, arr) => {
+                  acc.push(part);
+                  if (i < arr.length - 1)
+                    acc.push(<span key={i} className="font-mono text-red-400/80">{confirmText}</span>);
+                  return acc;
+                }, [])}
             </label>
             <input
               type="text"
@@ -105,13 +105,12 @@ export default function DeleteConfirmModal({
           </div>
         )}
 
-        {/* Actions */}
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-white/50 transition hover:bg-white/[0.06] hover:text-white/70"
+            className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-white/50 transition hover:bg-white/[0.06] hover:text-white/70 active:bg-white/[0.09] active:text-white/70"
           >
-            Cancel
+            {t("deleteModal.cancel")}
           </button>
 
           {isBlocked ? (
@@ -119,7 +118,7 @@ export default function DeleteConfirmModal({
               onClick={onClose}
               className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-white/40"
             >
-              Got it
+              {t("deleteModal.gotIt")}
             </button>
           ) : (
             <button
@@ -127,7 +126,7 @@ export default function DeleteConfirmModal({
               disabled={!isMatch || isLoading}
               className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-all duration-150 ${
                 isMatch && !isLoading
-                  ? "bg-red-500/80 border border-red-500/50 text-white hover:bg-red-500/90"
+                  ? "bg-red-500/80 border border-red-500/50 text-white hover:bg-red-500/90 active:bg-red-500"
                   : "bg-red-500/[0.06] border border-red-500/10 text-red-400/25 cursor-not-allowed"
               }`}
             >
@@ -136,7 +135,7 @@ export default function DeleteConfirmModal({
                   <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 14 14" fill="none">
                     <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="8 8" />
                   </svg>
-                  Deleting...
+                  {t("deleteModal.deleting")}
                 </span>
               ) : label}
             </button>
@@ -144,7 +143,7 @@ export default function DeleteConfirmModal({
         </div>
 
         <p className="mt-3.5 text-center text-[10px] font-medium uppercase tracking-widest text-white/15">
-          This action cannot be undone
+          {t("deleteModal.cannotUndo")}
         </p>
       </div>
     </div>
