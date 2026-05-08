@@ -1,50 +1,40 @@
 import { createCategoryService, deleteCategoryService, getCategoryDetailsService } from '../services/category.service';
-import { Request, Response } from 'express';
+import { asyncHandler } from '../utils/asyncHandler';
+import { sendSuccess, sendCreated } from '../utils/response';
+import { AppError } from '../helpers/AppError';
 
-export const createCategory = async (req: Request, res: Response) => {
-    if (!req.group) return res.status(400).json({ message: "Group not found" });
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+export const createCategory = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
 
-    const name = typeof req.body.name === "string" ? req.body.name.trim() : null;
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
 
-    try {
-        const result = await createCategoryService({ 
-            name, 
-            groupId: req.group._id, 
-            userId: req.user._id,
-            color: req.body.color
-        });
-        return res.status(201).json({ 
-            message: "Category created", 
-            category: result.category, 
-            event: result.event 
-        });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        return res.status(statusCode).json({ message: error.message || 'Error creating category' });
-    }
-}
+    const result = await createCategoryService({
+        name,
+        groupId: req.group._id,
+        userId: req.user._id,
+        color: req.body.color,
+    });
 
-export const deleteCategory = async (req: Request, res: Response) => {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
-    if (!req.group?._id) return res.status(401).json({ message: "Group not found" });
-    const categoryId = req.params.id as string;
-    try {
-        const category = await deleteCategoryService({ categoryId, userId: req.user._id, groupId: req.group._id });
-        return res.status(200).json({ message: "Category deleted", category });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        return res.status(statusCode).json({ message: 'Error deleting category', error: error.message });
-    }
-}
+    sendCreated(res, { category: result.category, event: result.event }, 'Category created');
+});
 
-export const getCategoryDetails = async (req: Request, res: Response) => {
-    if (!req.group?._id) return res.status(400).json({ message: "Group not found" });
-    try {
-        const category = await getCategoryDetailsService(req.group._id);
-        return res.status(200).json({ message: "Category deleted", category });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        return res.status(statusCode).json({ message: 'Error deleting category', error: error.message });
-    }
-}
+export const deleteCategory = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const category = await deleteCategoryService({
+        categoryId: req.params.id as string,
+        userId: req.user._id,
+        groupId: req.group._id,
+    });
+
+    sendSuccess(res, { category }, 'Category deleted');
+});
+
+export const getCategoryDetails = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const categories = await getCategoryDetailsService(req.group._id);
+    sendSuccess(res, { categories }, 'Categories fetched');
+});

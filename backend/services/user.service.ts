@@ -124,7 +124,7 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
     } catch (error: any) {
         const message = error.message || 'Internal server error';
         const statusCode = error.status || 500;
-        throw AppError(message , statusCode);
+        throw new AppError(message , statusCode);
     }
 };
 
@@ -144,16 +144,16 @@ export const searchUsersService = async (query: string, currentUserId: mongoose.
 export const verifyUserService = async (email: string) => {
     try {
         if(!email){
-            throw AppError('Email is required', 400);
+            throw new AppError('Email is required', 400);
         }
         const user = await User.findOne({ email });
         if(!user){
-            throw AppError('User not found', 404);
+            throw new AppError('User not found', 404);
         }
         return user;
     } catch (error: any) {
         const message = error.message || 'Internal server error';
         const statusCode = error.status || 500;
-        throw AppError(message , statusCode);
+        throw new AppError(message , statusCode);
     }
 };

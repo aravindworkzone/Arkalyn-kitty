@@ -1,196 +1,129 @@
-import { createGroupService, deleteGroupService, manageMemberService, manageAdminService, addContributionService, SettlementService, getGroupByIdService, getGroupMemberService, getBasicTransactionService, getTransactionService, getEventService } from "../services/group.service";
-import { Response, Request } from "express";
+import {
+    createGroupService,
+    deleteGroupService,
+    manageMemberService,
+    manageAdminService,
+    addContributionService,
+    SettlementService,
+    getGroupByIdService,
+    getGroupMemberService,
+    getBasicTransactionService,
+    getTransactionService,
+    getEventService,
+} from '../services/group.service';
+import { asyncHandler } from '../utils/asyncHandler';
+import { sendSuccess, sendCreated } from '../utils/response';
+import { AppError } from '../helpers/AppError';
 
-export const createGroup = async (req: Request, res: Response) => {
-    if(!req.user){
-        return res.status(401).json({ message: "Unauthorized" });
-    }
+export const createGroup = asyncHandler(async (req, res) => {
+    if (!req.user) throw new AppError('Unauthorized', 401);
 
     const data = {
-        name: req.body.name.trim(),
+        name: typeof req.body.name === 'string' ? req.body.name.trim() : '',
         members: req.body.members,
-        superAdmin: req.user._id.toString()
-    }
-    try {
-        const groupData = await createGroupService(data);
-        return res.status(201).json({ message: "Group created", groupData });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        const message = error.message || 'Internal server error';
-        return res.status(statusCode).json({ message: 'Error creating group', error: message });    
-    }
-}
-
-export const deleteGroup = async (req: Request, res: Response) => {
-    if (!req.group?._id) return res.status(400).json({ message: "Group not found" });
-    const groupId = req.group._id.toString();
-    try {
-        const group = await deleteGroupService(groupId);
-
-        return res.status(200).json({ message: "Group deleted", group });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        const message = error.message || 'Internal server error';
-        return res.status(statusCode).json({ message: 'Error creating group', error: message });    
-    }
-}
-
-export const manageMember = async (req: Request, res: Response) => {
-    if(!req.user?._id){
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-    if(!req.group?._id){
-        return res.status(400).json({ message: "Group not found" });
-    }
-
-    const data = {
-        group: req.group._id,
-        user: req.user._id,
-        action: req.body.action as string,
-        Member: req.body.Member,
-        contribution: req.body.contribution as number
-    }
-    
-    try {
-        const manageMember = await manageMemberService(data);
-        return res.status(200).json({ message: manageMember });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        const message = error.message || 'Internal server error';
-        return res.status(statusCode).json({ message: 'Error creating group', error: message });    
-    }
-};
-
-export const manageAdmin = async (req: Request, res: Response) => {
-    if(!req.user?._id){
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-    if(!req.group?._id){
-        return res.status(400).json({ message: "Group not found" });
-    }
-    const data = {
-        group: req.group._id,
-        user: req.user._id,
-        action: req.body.action as string,
-        member: req.body.member
+        superAdmin: req.user._id.toString(),
     };
-    try {
-        const updated = await manageAdminService(data);
-        return res.status(200).json({ message: updated });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        const message = error.message || 'Internal server error';
-        return res.status(statusCode).json({ message: 'Error creating group', error: message });    
-    }
-};
 
-export const addContribution = async (req: Request, res: Response) => {
-        if(!req.user?._id){
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-    if(!req.group?._id){
-        return res.status(400).json({ message: "Group not found" });
-    }
-    const data = {
+    const group = await createGroupService(data);
+    sendCreated(res, { group }, 'Group created');
+});
+
+export const deleteGroup = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const group = await deleteGroupService(req.group._id.toString());
+    sendSuccess(res, { group }, 'Group deleted');
+});
+
+export const manageMember = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const result = await manageMemberService({
+        group: req.group._id,
+        user: req.user._id,
+        action: req.body.action,
+        Member: req.body.Member,
+        contribution: req.body.contribution,
+    });
+
+    sendSuccess(res, null, result ?? 'Member updated');
+});
+
+export const manageAdmin = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const result = await manageAdminService({
+        group: req.group._id,
+        user: req.user._id,
+        action: req.body.action,
+        member: req.body.member,
+    });
+
+    sendSuccess(res, null, result ?? 'Admin updated');
+});
+
+export const addContribution = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const member = await addContributionService({
         group: req.group._id,
         userId: req.body.userId ?? req.user._id,
-        contribution: req.body.contribution as number
-    };
-    try {
-        const Contribution = await addContributionService(data);
-        return res.status(200).json({ message: "Contribution added", group: Contribution });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        const message = error.message || 'Internal server error';
-        return res.status(statusCode).json({ message: 'Error creating group', error: message });    
-    }
-};
+        contribution: req.body.contribution,
+    });
 
-export const Settlement = async (req: Request, res: Response) => {
-    if(!req.user?._id){
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-    if(!req.group?._id){
-        return res.status(400).json({ message: "Group not found" });
-    }
-    const data = {
+    sendSuccess(res, { member }, 'Contribution added');
+});
+
+export const Settlement = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const result = await SettlementService({
         group: req.group._id,
         userId: req.user._id,
-        settlement: req.body.settlement as number,
+        settlement: req.body.settlement,
         member: req.body.member,
-        balance: req.group.balance
-    }
-    try {
-        const Contribution = await SettlementService(data);
-        return res.status(200).json({ s_message: "Contribution added", j_group: Contribution, b_status: true });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        const message = error.message || 'Internal server error';
-        return res.status(statusCode).json({ message: 'Error creating group', error: message });    
-    }
-}
+        balance: req.group.balance,
+    });
 
-export const getGroupById = async (req: Request, res: Response) => {
-    if(!req.group?._id){
-        return res.status(400).json({ message: "Group not found" });
-    }
-    if(!req.user?._id){
-        return res.status(400).json({ message: "User not found" });
-    }
-    try {
-        const group = await getGroupByIdService(req.group._id, req.user?._id);
-        return res.status(200).json({ message: "Group fetched", group });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        const message = error.message || 'Internal server error';
-        return res.status(statusCode).json({ message: 'Error creating group', error: message });    
-    }
-}
+    sendSuccess(res, null, result ?? 'Settlement completed');
+});
 
-export const getGroupMember = async (req: Request, res: Response) => {
-    if (!req.group?._id) return res.status(400).json({ message: "Group not found" });
-    try {
-        const members = await getGroupMemberService(req.group._id);
-        return res.status(200).json({ message: "Members fetched", members });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        const message = error.message || 'Internal server error';
-        return res.status(statusCode).json({ message: 'Error fetching members', error: message });    
-    }
-}
+export const getGroupById = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
 
-export const getBasicTransaction = async (req: Request, res: Response) => {
-    if (!req.group?._id) return res.status(400).json({ message: "Group not found" });
-    try {
-        const transactions = await getBasicTransactionService(req.group._id);
-        return res.status(200).json({ message: "Transactions fetched", transactions });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        const message = error.message || 'Internal server error';
-        return res.status(statusCode).json({ message: 'Error fetching transactions', error: message });    
-    }
-}
+    const group = await getGroupByIdService(req.group._id, req.user._id);
+    sendSuccess(res, { group }, 'Group fetched');
+});
 
-export const getTransaction = async (req: Request, res: Response) => {
-    if (!req.group?._id) return res.status(400).json({ message: "Group not found" });
-    try {
-        const transactions = await getTransactionService(req.group._id);
-        return res.status(200).json({ message: "Transactions fetched", transactions });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        const message = error.message || 'Internal server error';
-        return res.status(statusCode).json({ message: 'Error fetching transactions', error: message });    
-    }
-}
+export const getGroupMember = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
 
-export const getEvent = async (req: Request, res: Response) => {
-    if (!req.group?._id) return res.status(400).json({ message: "Group not found" });
-    try {
-        const events = await getEventService(req.group._id);
-        return res.status(200).json({ message: "Events fetched", events });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        const message = error.message || 'Internal server error';
-        return res.status(statusCode).json({ message: 'Error fetching events', error: message });    
-    }
-}
+    const members = await getGroupMemberService(req.group._id);
+    sendSuccess(res, { members }, 'Members fetched');
+});
+
+export const getBasicTransaction = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const transactions = await getBasicTransactionService(req.group._id);
+    sendSuccess(res, { transactions }, 'Transactions fetched');
+});
+
+export const getTransaction = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const transactions = await getTransactionService(req.group._id);
+    sendSuccess(res, { transactions }, 'Transactions fetched');
+});
+
+export const getEvent = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const events = await getEventService(req.group._id);
+    sendSuccess(res, { events }, 'Events fetched');
+});

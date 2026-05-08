@@ -7,6 +7,9 @@ validateEnv();
 
 import connectDB from './db/connection';
 import { logger } from './utils/logger';
+import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
+import { REQUEST_BODY_LIMIT } from './config/constants';
+
 import AuthRouter from './routes/auth.router';
 import ExpenseRouter from './routes/expense.router';
 import CategoryRouter from './routes/category.router';
@@ -14,7 +17,8 @@ import GroupRouter from './routes/group.router';
 import UserRouter from './routes/user.router';
 
 const app: Application = express();
-app.use(express.json());
+
+app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
 app.use(cookieParser());
 app.use(
     cors({
@@ -32,6 +36,9 @@ app.use('/api/user', UserRouter);
 app.get('/', (_req: Request, res: Response) => {
     res.send('Hello World!');
 });
+
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 connectDB().then(() => {
     app.listen(env.PORT, () => {

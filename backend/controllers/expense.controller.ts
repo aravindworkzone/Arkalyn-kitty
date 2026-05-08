@@ -1,99 +1,67 @@
-import { createExpenseService, deleteExpenseService, getExpenseAddDetailsService, paymentMethodService, expenseReportService, getAllExpensesService } from "../services/expense.service";
-import { Request, Response } from "express";
+import {
+    createExpenseService,
+    deleteExpenseService,
+    getExpenseAddDetailsService,
+    paymentMethodService,
+    expenseReportService,
+    getAllExpensesService,
+} from '../services/expense.service';
+import { asyncHandler } from '../utils/asyncHandler';
+import { sendSuccess, sendCreated } from '../utils/response';
+import { AppError } from '../helpers/AppError';
 
-export const createExpense = async (req: Request, res: Response) => {
-    if (!req.group?._id) {
-        return res.status(400).json({ message: "Group not found" });
-    }
+export const createExpense = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+    if (!req.user?._id) throw new AppError('User not authenticated', 401);
 
-    if (!req.user?._id) {
-        return res.status(401).json({ message: "User not authenticated" });
-    }
+    const expense = await createExpenseService({
+        ...req.body,
+        group: req.group,
+        user: req.user._id,
+    });
 
-    const expenseAdd = { ...req.body, group: req.group._id, user: req.user._id };
-    try {
-        const expenseSave = await createExpenseService(expenseAdd);
-        return res.status(201).json({ message: "Expense created", expenseSave });
+    sendCreated(res, { expense }, 'Expense created');
+});
 
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        return res.status(statusCode).json({ message: "Internal server error", error: error.message });
-    }
-};
+export const deleteExpense = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+    if (!req.user?._id) throw new AppError('User not authenticated', 401);
+    const expenseId = typeof req.params.id === 'string' ? req.params.id : '';
+    if (!expenseId) throw new AppError('Expense ID required', 400);
 
-export const deleteExpense = async (req: Request, res: Response) => {
-    if (!req.group?._id) {
-        return res.status(400).json({ message: "Group not found" });
-    }
+    const expense = await deleteExpenseService({
+        expenseId,
+        groupId: req.group._id.toString(),
+        userId: req.user._id.toString(),
+        reason: typeof req.body.reason === 'string' ? req.body.reason : undefined,
+    });
 
-    if (!req.user?._id) {
-        return res.status(401).json({ message: "User not authenticated" });
-    }
+    sendSuccess(res, { expense }, 'Expense deleted');
+});
 
-    const groupId = req.group._id.toString();
-    const userId = req.user._id.toString();
+export const getExpenseAddDetails = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+    if (!req.user?._id) throw new AppError('User not authenticated', 401);
 
-    const expenseId = req.params.id;
+    const details = await getExpenseAddDetailsService(req.group._id, req.user._id);
+    sendSuccess(res, details, 'Expense form details');
+});
 
-    if (!expenseId) {
-        return res.status(400).json({ message: "Expense ID required" });
-    }
-    try {
-        const expense = await deleteExpenseService({ expenseId: req.params.id as string, groupId, userId, reason: req.body.reason as string | undefined });
-        return res.status(200).json({ message: "Expense deleted", expense });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        return res.status(statusCode).json({ message: "Internal server error", error: error.message });
-    }
-}
+export const paymentMethods = asyncHandler(async (_req, res) => {
+    const paymentMethods = await paymentMethodService();
+    sendSuccess(res, { paymentMethods }, 'Payment methods');
+});
 
-export const getExpenseAddDetails = async (req: Request, res: Response) => {
-    if (!req.group?._id) {
-        return res.status(400).json({ message: "Group not found" });
-    }
+export const expenseReport = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
 
-    if (!req.user?._id) {
-        return res.status(401).json({ message: "User not authenticated" });
-    }
+    const report = await expenseReportService(req.group._id);
+    sendSuccess(res, { report }, 'Expense report');
+});
 
-    try {
-        const expenseSave = await getExpenseAddDetailsService(req.group._id, req.user._id);
-        return res.status(201).json({ message: "Expense created" });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        return res.status(statusCode).json({ message: "Internal server error", error: error.message });
-    }
-};
+export const getAllExpenses = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
 
-export const paymentMethods = async (req: Request, res: Response) => {
-    try {
-        const paymentMethods = await paymentMethodService();
-        return res.status(200).json({ message: "Payment methods", paymentMethods });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        return res.status(statusCode).json({ message: "Internal server error", error: error.message });    
-    }
-};
-
-export const expenseReport = async (req: Request, res: Response) => {
-    if(!req.group?._id) return res.status(400).json({ message: "Group not found" });
-    try {
-        const report = await expenseReportService(req.group._id);
-        return res.status(200).json({ message: "Expense report", report });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        return res.status(statusCode).json({ message: "Internal server error", error: error.message });
-    }
-};
-
-export const getAllExpenses = async (req: Request, res: Response) => {
-    if(!req.group?._id) return res.status(400).json({ message: "Group not found" });
-    try {
-        const expenses = await getAllExpensesService(req.group._id);
-        return res.status(200).json({ message: "Expenses fetched", expenses });
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        return res.status(statusCode).json({ message: "Internal server error", error: error.message });
-    }
-};
-
+    const expenses = await getAllExpensesService(req.group._id);
+    sendSuccess(res, { expenses }, 'Expenses fetched');
+});

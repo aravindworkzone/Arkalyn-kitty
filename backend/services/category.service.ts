@@ -10,11 +10,11 @@ export const createCategoryService = async (data: { name: string; groupId: mongo
     const name = typeof data.name === "string" ? data.name.trim() : null;
 
     if (!groupId || !name) {
-        throw AppError("All fields are required", 400);
+        throw new AppError("All fields are required", 400);
     }
 
     if (name.length < 3 || name.length > 50) {
-        throw AppError("Name must be between 3 and 50 characters", 400);
+        throw new AppError("Name must be between 3 and 50 characters", 400);
     }
 
     const session = await mongoose.startSession();
@@ -42,9 +42,9 @@ export const createCategoryService = async (data: { name: string; groupId: mongo
     } catch (error: any) {
         await session.abortTransaction();
         if (error.code === 11000) {
-            throw AppError('Category already exists in this group', 409);
+            throw new AppError('Category already exists in this group', 409);
         }
-        throw AppError(error.message || 'Error creating category', 500);
+        throw new AppError(error.message || 'Error creating category', 500);
     } finally {
         session.endSession();
     }
@@ -54,7 +54,7 @@ export const deleteCategoryService = async (data: { categoryId: string, userId: 
     const categoryId = new mongoose.Types.ObjectId(data.categoryId);
 
     if (!mongoose.Types.ObjectId.isValid(categoryId)) {
-        throw AppError("Invalid category ID format", 400);
+        throw new AppError("Invalid category ID format", 400);
     }
 
     const session = await mongoose.startSession();
@@ -74,14 +74,14 @@ export const deleteCategoryService = async (data: { categoryId: string, userId: 
         await session.commitTransaction();
 
         if (!category) {
-            throw AppError('Category not found', 404);
+            throw new AppError('Category not found', 404);
         }
 
         return category;
     } catch (error: any) {
         await session.abortTransaction();
         const statusCode = error.status || 500;
-        throw AppError(error.message || 'Error deleting category', statusCode);
+        throw new AppError(error.message || 'Error deleting category', statusCode);
     } finally {
         session.endSession();
     }
@@ -111,6 +111,6 @@ export const getCategoryDetailsService = async (groupId: mongoose.Types.ObjectId
         }));
         return sendCategories;
     } catch (error: any) {
-        throw AppError(error.message || 'Error getting categories', 500);
+        throw new AppError(error.message || 'Error getting categories', 500);
     }
 }

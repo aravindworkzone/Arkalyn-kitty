@@ -1,49 +1,28 @@
-import {userGroupsService, verifyUserService, searchUsersService} from "../services/user.service";
-import { Response, Request } from "express";
+import { userGroupsService, verifyUserService, searchUsersService } from '../services/user.service';
+import { asyncHandler } from '../utils/asyncHandler';
+import { sendSuccess } from '../utils/response';
+import { AppError } from '../helpers/AppError';
 
-export const GetUser = async (req: Request, res: Response) => {
-    try {
-        res.status(200).json({ message: 'User fetched successfully', user: req.user });
-    } catch (error: any) {
-        res.status(500).json({ message: error.message });
-    }
-};
+export const GetUser = asyncHandler(async (req, res) => {
+    sendSuccess(res, { user: req.user }, 'User fetched successfully');
+});
 
-export const userGroups = async (req: Request, res: Response) => {
-    if(!req.user?._id){
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-    try {
-        const group = await userGroupsService(req.user._id);
-        res.status(200).json({
-            s_message: "User groups",
-            j_groups: group,
-            b_status: true
-        });
+export const userGroups = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
 
-    } catch (error: any) {
-        const statusCode = error.status || 500;
-        const message = error.message || 'Internal server error';
-        return res.status(statusCode).json({ message: 'Error creating group', error: message, b_status: false });    
-    }
-};
+    const groups = await userGroupsService(req.user._id);
+    sendSuccess(res, { groups }, 'User groups');
+});
 
-export const SearchUsers = async (req: Request, res: Response) => {
-    if (!req.user?._id) return res.status(401).json({ message: "Unauthorized" });
-    try {
-        const q = (req.query.q as string) || "";
-        const users = await searchUsersService(q, req.user._id);
-        res.status(200).json({ users });
-    } catch (error: any) {
-        res.status(500).json({ message: error.message });
-    }
-};
+export const SearchUsers = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
 
-export const VerifyUser = async (req: Request, res: Response) => {
-    try {
-        const verify = await verifyUserService(req.body.email);
-        res.status(200).json({ message: 'User verified successfully', user: verify });
-    } catch (error: any) {
-        res.status(500).json({ message: error.message });
-    }
-};
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
+    const users = await searchUsersService(q, req.user._id);
+    sendSuccess(res, { users }, 'Users fetched');
+});
+
+export const VerifyUser = asyncHandler(async (req, res) => {
+    const user = await verifyUserService(req.body.email);
+    sendSuccess(res, { user }, 'User verified successfully');
+});

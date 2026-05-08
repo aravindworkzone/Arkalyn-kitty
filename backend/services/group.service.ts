@@ -15,15 +15,15 @@ export const createGroupService = async (data: {name: string, members: members[]
     const superAdmin = data.superAdmin;
 
     if ((!Array.isArray(members) || members.length === 0) || !superAdmin || !name) {
-        throw AppError("All fields are required", 400);
+        throw new AppError("All fields are required", 400);
     }
 
     if (name.length < 3 || name.length > 100 || !/^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/.test(name)) {
-        throw AppError("Name must be between 3 and 100 characters", 400);
+        throw new AppError("Name must be between 3 and 100 characters", 400);
     }
 
     if (!mongoose.Types.ObjectId.isValid(superAdmin)) {
-        throw AppError("Invalid SuperAdmin ID format", 400);
+        throw new AppError("Invalid SuperAdmin ID format", 400);
     }
 
     const isSuperAdmin = members.some((member) => member._id === superAdmin);
@@ -39,12 +39,12 @@ export const createGroupService = async (data: {name: string, members: members[]
     const uniqueUserIds = new Set(validMembers.map(m => m._id.toString()));
 
     if (uniqueUserIds.size !== validMembers.length) {
-        throw AppError("Duplicate user IDs are not allowed", 400);
+        throw new AppError("Duplicate user IDs are not allowed", 400);
     }
 
     if (validMembers.length !== members.length) {
         console.log(members);
-        throw AppError("member ID are invalid or contribution is negative", 400);
+        throw new AppError("member ID are invalid or contribution is negative", 400);
     }
 
     const session = await mongoose.startSession();
@@ -96,9 +96,9 @@ export const createGroupService = async (data: {name: string, members: members[]
         return group;
     } catch (error: any) {
         await session.abortTransaction();
-        if (error.name === "ValidationError") throw AppError(error.message, 400);
-        if (error.code === 11000) throw AppError("Duplicate member detected", 409);
-        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+        if (error.name === "ValidationError") throw new AppError(error.message, 400);
+        if (error.code === 11000) throw new AppError("Duplicate member detected", 409);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     } finally {
         await session.endSession();
     }
@@ -108,23 +108,23 @@ export const deleteGroupService = async (groupId: string) => {
     try {
 
         if (!groupId) {
-            throw AppError("Group ID is required", 400);
+            throw new AppError("Group ID is required", 400);
         }
 
         if (!mongoose.Types.ObjectId.isValid(groupId)) {
-            throw AppError("Invalid group ID format", 400);
+            throw new AppError("Invalid group ID format", 400);
         }
 
         const group = await Group.findByIdAndDelete(groupId);
 
         if (!group) {
-            throw AppError("Group not found", 400);
+            throw new AppError("Group not found", 400);
         }
 
         return group;
     } catch (error: any) {
-        if (error.name === "ValidationError") throw AppError(error.message, 400);
-        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+        if (error.name === "ValidationError") throw new AppError(error.message, 400);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }
 };
 
@@ -136,37 +136,37 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
     const contribution = data.contribution;
 
     if (!userId || !action) {
-        throw AppError("All fields are required", 400);
+        throw new AppError("All fields are required", 400);
     }
 
     if (!["add", "remove"].includes(action)) {
-        throw AppError("Action must be 'add' or 'remove'", 400);
+        throw new AppError("Action must be 'add' or 'remove'", 400);
     }
 
     if (!mongoose.Types.ObjectId.isValid(Member)) {
-        throw AppError("Invalid user ID format", 400);
+        throw new AppError("Invalid user ID format", 400);
     }
 
     const isMember = await GroupMember.findOne({ groupId: groupData, userId: Member, isDeleted: false });
 
     if(isMember && !isMember.settlement && action === "remove") {
-        throw AppError("Cannot remove a member without settlement", 400);
+        throw new AppError("Cannot remove a member without settlement", 400);
     }
 
     if (isMember && action === "add") {
-        throw AppError("User is already a member", 400);
+        throw new AppError("User is already a member", 400);
     }
     
     if (action === "add" && (contribution ?? 0) < 0) {
-        throw AppError("Contribution cannot be negative", 400);
+        throw new AppError("Contribution cannot be negative", 400);
     }
 
     if (!isMember && action === "remove") {
-        throw AppError("User is not a member", 400);
+        throw new AppError("User is not a member", 400);
     }
 
     if (isMember && isMember.role === "SUPER_ADMIN" && action === "remove") {
-        throw AppError("Cannot remove the super admin", 400);
+        throw new AppError("Cannot remove the super admin", 400);
     }
 
     const session = await mongoose.startSession();
@@ -239,9 +239,9 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
         }
     } catch (error: any) {
         await session.abortTransaction();
-        if (error.code === 11000) throw AppError("User is already a member", 409);
-        if (error.name === "ValidationError") throw AppError(error.message, 400);
-        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+        if (error.code === 11000) throw new AppError("User is already a member", 409);
+        if (error.name === "ValidationError") throw new AppError(error.message, 400);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     } finally {
         await session.endSession();
     }
@@ -254,33 +254,33 @@ export const manageAdminService = async (data: { group: mongoose.Types.ObjectId,
     const Member = data.member;
 
     if (!userId || !action) {
-        throw AppError("User ID and action are required", 400);
+        throw new AppError("User ID and action are required", 400);
     }
 
     if (!["promote", "demote"].includes(action)) {
-        throw AppError("Action must be 'promote' or 'demote'", 400);
+        throw new AppError("Action must be 'promote' or 'demote'", 400);
     }
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-        throw AppError("Invalid user ID format", 400);
+        throw new AppError("Invalid user ID format", 400);
     }
 
     const isMember = await GroupMember.findOne({ groupId: groupData, userId: Member, isDeleted: false });
 
     if (!isMember) {
-        throw AppError("User is not a member of this group", 400);
+        throw new AppError("User is not a member of this group", 400);
     }
 
     if (isMember.role === "SUPER_ADMIN") {
-        throw AppError("Cannot change super admin's role", 400);
+        throw new AppError("Cannot change super admin's role", 400);
     }
 
     if (isMember.role === "ADMIN" && action === "promote") {
-        throw AppError("User is already an admin", 400);
+        throw new AppError("User is already an admin", 400);
     }
 
     if (isMember.role !== "ADMIN" && action === "demote") {
-        throw AppError("User is not an admin", 400);
+        throw new AppError("User is not an admin", 400);
     }
 
     const session = await mongoose.startSession();
@@ -334,9 +334,9 @@ export const manageAdminService = async (data: { group: mongoose.Types.ObjectId,
         }
     } catch (error : any) {
         await session.abortTransaction();
-        if (error.code === 11000) throw AppError("User is already a member", 409);
-        if (error.name === "ValidationError") throw AppError(error.message, 400);
-        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+        if (error.code === 11000) throw new AppError("User is already a member", 409);
+        if (error.name === "ValidationError") throw new AppError(error.message, 400);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     } finally {
         await session.endSession();
     }
@@ -348,21 +348,21 @@ export const addContributionService = async (data: {group: mongoose.Types.Object
     const contribution = data.contribution;
 
     if (!userId || contribution === undefined) {
-        throw AppError("User ID and contribution are required", 400);
+        throw new AppError("User ID and contribution are required", 400);
     }
 
     if (typeof contribution !== "number" || contribution <= 0) {
-        throw AppError("Contribution must be a positive number", 400);
+        throw new AppError("Contribution must be a positive number", 400);
     }
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-        throw AppError("Invalid user ID format", 400);
+        throw new AppError("Invalid user ID format", 400);
     }
 
     const isMember = await GroupMember.findOne({ groupId: groupData, userId: userId, isDeleted: false });
     
     if (!isMember) {
-        throw AppError("User is not a member of this group", 400);
+        throw new AppError("User is not a member of this group", 400);
     }
 
     const session = await mongoose.startSession();
@@ -398,9 +398,9 @@ export const addContributionService = async (data: {group: mongoose.Types.Object
         return AddContributionMember;
     } catch (error : any) {
         await session.abortTransaction();
-        if (error.code === 11000) throw AppError("User is already a member", 409);
-        if (error.name === "ValidationError") throw AppError(error.message, 400);
-        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+        if (error.code === 11000) throw new AppError("User is already a member", 409);
+        if (error.name === "ValidationError") throw new AppError(error.message, 400);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     } finally {
         await session.endSession();
     }
@@ -414,25 +414,25 @@ export const SettlementService = async (data : {group: mongoose.Types.ObjectId, 
     const settlement = data.settlement;
 
     if (!userId || settlement === undefined) {
-        throw AppError("User ID and settlement amount are required", 400);
+        throw new AppError("User ID and settlement amount are required", 400);
     }
 
     if (typeof settlement !== "number") {
-        throw AppError("Settlement amount must be a positive number", 400);
+        throw new AppError("Settlement amount must be a positive number", 400);
     }
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-        throw AppError("Invalid user ID format", 400);
+        throw new AppError("Invalid user ID format", 400);
     }
 
     const isMember = await GroupMember.findOne({ groupId: groupData, userId: Member, isDeleted: false });
     
     if (!isMember) {
-        throw AppError("User is not a member of this group", 400);
+        throw new AppError("User is not a member of this group", 400);
     }
 
     if(settlement > groupBalance) {
-        throw AppError("Settlement amount cannot be greater than group balance", 400);
+        throw new AppError("Settlement amount cannot be greater than group balance", 400);
     }
 
     const session = await mongoose.startSession();
@@ -467,9 +467,9 @@ export const SettlementService = async (data : {group: mongoose.Types.ObjectId, 
         return "Settlement Completed";
     } catch (error : any) {
         await session.abortTransaction();
-        if (error.code === 11000) throw AppError("User is already a member", 409);
-        if (error.name === "ValidationError") throw AppError(error.message, 400);
-        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+        if (error.code === 11000) throw new AppError("User is already a member", 409);
+        if (error.name === "ValidationError") throw new AppError(error.message, 400);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     } finally {
         await session.endSession();
     }
@@ -477,7 +477,7 @@ export const SettlementService = async (data : {group: mongoose.Types.ObjectId, 
 
 export const getGroupByIdService = async (groupId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId) => {
     if (!mongoose.Types.ObjectId.isValid(groupId)) {
-        throw AppError("Invalid group ID format", 400);
+        throw new AppError("Invalid group ID format", 400);
     }
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -485,10 +485,10 @@ export const getGroupByIdService = async (groupId: mongoose.Types.ObjectId, user
     const currentUser = await GroupMember.findOne({ groupId: groupId, userId: userId, isDeleted: false });
 
     if (!group) {
-        throw AppError("Group not found", 404);
+        throw new AppError("Group not found", 404);
     }
     if (!currentUser) {
-        throw AppError("Created user not found", 404);
+        throw new AppError("Created user not found", 404);
     }
     const barLength = Math.round((1 - group.balance / group.totalContribution) * 100);
     const groupData = {...group.toObject(),role: currentUser.role, barLength};
@@ -500,7 +500,7 @@ export const getGroupMemberService = async (groupId: mongoose.Types.ObjectId) =>
         const members = await GroupMember.find({ groupId, isDeleted: false }).populate("userId");
         return members;
     } catch (error :any) {
-        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }
 };
 
@@ -518,7 +518,7 @@ export const getBasicTransactionService = async (groupId: mongoose.Types.ObjectI
 
         return basicTransInfo;
     } catch (error :any) {
-        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }
 };
 
@@ -538,7 +538,7 @@ export const getTransactionService = async (groupId: mongoose.Types.ObjectId) =>
         });
         return transaction;
     } catch (error :any) {
-        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }
 }
 
@@ -558,6 +558,6 @@ export const getEventService = async (groupId: mongoose.Types.ObjectId) => {
         });
         return transaction;
     } catch (error :any) {
-        throw AppError(error.message || "Internal server error", error.statusCode || 500);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }
 }

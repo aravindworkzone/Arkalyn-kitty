@@ -9,15 +9,15 @@ export const SignUpService = async (data: { name: string; email: string; passwor
     const password = data.password?.trim() || '';
 
     if (!name || !email || !password) {
-        throw AppError('All fields are required', 400);
+        throw new AppError('All fields are required', 400);
     }
 
     if (!/^\S+@\S+\.\S+$/.test(email)) {
-        throw AppError('Invalid email format', 400);
+        throw new AppError('Invalid email format', 400);
     }
 
     if (password.length < 6) {
-        throw AppError('Password must be at least 6 characters long', 400);
+        throw new AppError('Password must be at least 6 characters long', 400);
     }
 
     const hashPassword = await bcrypt.hash(password, 10);
@@ -35,7 +35,7 @@ export const SignUpService = async (data: { name: string; email: string; passwor
         };
     } catch (error: any) {
         if (error.code === 11000) {
-            throw AppError('Email already exists', 400);
+            throw new AppError('Email already exists', 400);
         }
         throw error;
     }
@@ -46,26 +46,26 @@ export const SignInService = async (data: { email: string; password: string }) =
     const password = data.password?.trim() || '';
 
     if (!email || !password) {
-        throw AppError('All fields are required', 400);
+        throw new AppError('All fields are required', 400);
     }
 
     if (!/^\S+@\S+\.\S+$/.test(email)) {
-        throw AppError('Invalid email format', 400);
+        throw new AppError('Invalid email format', 400);
     }
 
     if (password.length < 6) {
-        throw AppError('Password must be at least 6 characters long', 400);
+        throw new AppError('Password must be at least 6 characters long', 400);
     }
 
     const user = await User.findOne({ email });
     if (!user) {
-        throw AppError('User not found', 400);
+        throw new AppError('User not found', 400);
     }
 
     const match = await bcrypt.compare(password, user.password);
 
     if (!match) {
-        throw AppError('Invalid password', 400);
+        throw new AppError('Invalid password', 400);
     }
 
     const userData = {

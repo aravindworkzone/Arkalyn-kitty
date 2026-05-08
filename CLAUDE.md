@@ -107,10 +107,10 @@ Work through these one by one. Each item is self-contained so you can pick any o
 ### Backend — Critical
 
 - [x] **Enable strict TypeScript** — set `"strict": true` in `backend/tsconfig.json` and fix all resulting type errors. This unlocks `noImplicitAny`, `strictNullChecks`, and more.
-- [ ] **Fix `AppError` class** — rewrite `backend/helpers/AppError.ts` as `class AppError extends Error` with a `statusCode` field. Right now it throws a plain object, so `instanceof` checks and stack traces don't work.
-- [ ] **Standardize error shape** — controllers mix `error.status` and `error.statusCode`. Pick `statusCode` everywhere and enforce it through the new `AppError` class.
-- [ ] **Fix cookie `secure` flag** — `auth.controller.ts` hardcodes `secure: false`. Change to `secure: process.env.NODE_ENV === 'production'`.
-- [ ] **Fix `getExpenseAddDetailsService`** — this service function queries the DB but has no `return` statement. The data is fetched and thrown away. Add the return value.
+- [x] **Fix `AppError` class** — `backend/helpers/AppError.ts` is now `class AppError extends Error` with `statusCode` and optional `errors[]` field. Captures stack via `Error.captureStackTrace`.
+- [x] **Standardize error shape** — central `error.middleware.ts` returns `{ success: false, message, errors? }`. All controllers use `asyncHandler` + `throw new AppError(msg, statusCode)`. No more `error.status` vs `error.statusCode` inconsistency.
+- [x] **Fix cookie `secure` flag** — `auth.controller.ts` now uses `secure: env.isProduction` and `sameSite: env.isProduction ? 'none' : 'lax'`.
+- [x] **Fix `getExpenseAddDetailsService`** — now returns `{ categories, payMethods, members }`. Removed the `console.log` that signalled the missing return.
 
 ### Backend — High Priority
 

@@ -1,31 +1,28 @@
 import { SignUpService, SignInService } from '../services/auth.service';
-import { Request, Response } from 'express';
+import { asyncHandler } from '../utils/asyncHandler';
+import { sendSuccess, sendCreated } from '../utils/response';
+import { env } from '../config/env';
+import { COOKIE_NAME, COOKIE_MAX_AGE_MS } from '../config/constants';
 
-export const SignUp = async (req: Request, res: Response) => {
-    try {
-        const result = await SignUpService(req.body);
+export const SignUp = asyncHandler(async (req, res) => {
+    const result = await SignUpService(req.body);
+    sendCreated(res, { user: result }, 'User created successfully');
+});
 
-        return res.status(201).json({ message: 'User created successfully', user: result.name });
-    } catch (error: any) {
-        return res.status(error.statusCode).json({ message: error.message });
-    }
-}
+export const SignIn = asyncHandler(async (req, res) => {
+    const result = await SignInService(req.body);
 
-export const SignIn = async (req: Request, res: Response) => {
-    try {
-        const result = await SignInService(req.body);
+    res.cookie(COOKIE_NAME, result.token, {
+        httpOnly: true,
+        secure: env.isProduction,
+        sameSite: env.isProduction ? 'none' : 'lax',
+        maxAge: COOKIE_MAX_AGE_MS,
+    });
 
-        res.cookie('AccessToken', result.token, { httpOnly: true, secure: true, sameSite: 'none' });
+    sendSuccess(res, { user: result.user }, 'User signed in successfully');
+});
 
-        res.status(200).json({ message: 'User signed in successfully', user: result.user });
-
-    } catch (error: any) {
-        res.status(error.statusCode).json({ message: error.message });
-        console.log(error);
-    }
-}
-
-export const SignOut = (req: Request, res: Response) => {
-    res.clearCookie('AccessToken');
-    res.status(200).json({ message: 'User signed out successfully' });
-}
+export const SignOut = asyncHandler(async (_req, res) => {
+    res.clearCookie(COOKIE_NAME);
+    sendSuccess(res, null, 'User signed out successfully');
+});
