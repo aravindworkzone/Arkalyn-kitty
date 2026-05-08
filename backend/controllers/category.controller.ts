@@ -1,4 +1,4 @@
-import { createCategoryService, deleteCategoryService, getCategoryDetailsService } from '../Service/category.service';
+import { createCategoryService, deleteCategoryService, getCategoryDetailsService } from '../services/category.service';
 import { Request, Response } from 'express';
 
 export const createCategory = async (req: Request, res: Response) => {

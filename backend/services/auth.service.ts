@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
-import User from '../Model/user.model';
-import { AppError } from '../Helper/AppError';
+import User from '../models/user.model';
+import { AppError } from '../helpers/AppError';
 import jwt from 'jsonwebtoken';
 
 export const SignUpService = async (data: { name: string; email: string; password: string }) => {

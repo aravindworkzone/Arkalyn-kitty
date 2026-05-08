@@ -1,5 +1,5 @@
-import { IUser } from "../Model/user.model";
-import { IGroup } from "../Model/group.model";
+import { IUser } from "../models/user.model";
+import { IGroup } from "../models/group.model";
 
 declare global {
   namespace Express {

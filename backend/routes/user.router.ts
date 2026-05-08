@@ -1,6 +1,6 @@
 import express from 'express';
-import { userGroups, GetUser, VerifyUser, SearchUsers } from '../Controller/user.controller';
-import {verifyToken, authorizeRole, loadGroup} from '../Middleware/auth.middleware';
+import { userGroups, GetUser, VerifyUser, SearchUsers } from '../controllers/user.controller';
+import {verifyToken, authorizeRole, loadGroup} from '../middlewares/auth.middleware';
 const router = express.Router();
 
 router.get('/me', verifyToken, GetUser);

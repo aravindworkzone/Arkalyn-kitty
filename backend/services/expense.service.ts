@@ -1,12 +1,12 @@
 import mongoose from "mongoose";
-import Expense from "../Model/expense.model";
-import Group from "../Model/group.model";
-import GroupTransaction from "../Model/group_transaction.model";
-import { AppError } from "../Helper/AppError";
-import User from "../Model/user.model";
-import Category from "../Model/category.model";
-import GroupMembers from "../Model/group_member.model";
-import { PAYMENT_TYPES, PaymentType } from "../Model/expense.model";
+import Expense from "../models/expense.model";
+import Group from "../models/group.model";
+import GroupTransaction from "../models/group_transaction.model";
+import { AppError } from "../helpers/AppError";
+import User from "../models/user.model";
+import Category from "../models/category.model";
+import GroupMembers from "../models/group_member.model";
+import { PAYMENT_TYPES, PaymentType } from "../models/expense.model";
 
 interface ExpenseData {
     user: string;

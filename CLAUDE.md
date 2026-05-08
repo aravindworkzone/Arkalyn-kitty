@@ -45,15 +45,19 @@ Frontend/src/
   utils/           # Helpers
   App.tsx          # All route definitions + ProtectedRouter
 
-Backend/
-  Router/          # Express route definitions per feature
-  Middleware/      # auth.middleware.ts (verifyToken, loadGroup, authorizeRole)
-  Controller/      # Request parsing and response formatting only
-  Service/         # Business logic, validations, balance checks
-  Model/           # Mongoose schemas
-  Helper/          # Money.ts (cents conversion), AppError.ts
-  DB/              # MongoDB connection
-  Types/           # TypeScript type extensions (e.g., req.group, req.user)
+backend/
+  config/          # env.ts (validateEnv, typed env), constants.ts (JWT, cookie, pagination, rate-limit values)
+  controllers/     # Request parsing and response formatting only
+  db/              # MongoDB connection (exponential backoff, max 5 retries)
+  helpers/         # Money.ts (cents conversion), AppError.ts (extends Error)
+  middlewares/     # auth.middleware.ts (verifyToken, loadGroup, authorizeRole), error.middleware.ts, validate.ts
+  models/          # Mongoose schemas
+  routes/          # Express route definitions per feature
+  services/        # Business logic, validations, balance checks
+  sockets/         # Socket.io setup (group rooms, typed events) — scaffold, not yet emitting
+  types/           # TypeScript type extensions (e.g., req.group, req.user) + DTOs
+  utils/           # response.ts (sendSuccess/sendPaginated/sendError), asyncHandler, logger (pino)
+  validators/      # Zod schemas per feature (auth, group, expense, category)
 ```
 
 ## Key Conventions
@@ -77,7 +81,7 @@ Never hardcode. Always `process.env` (backend) or `import.meta.env` (frontend).
 
 ## What NOT to do
 - Don't bypass the Service layer — controllers must not call Mongoose models directly
-- Don't change the structure.
+- Don't change the structure without also updating this file — folder layout is documented above
 - Don't use `var` — only `const`/`let`
 - Don't do multi-document writes without a Mongoose session (transaction)
 - Don't add a PATCH endpoint for expenses — the design is intentionally immutable
@@ -102,8 +106,8 @@ Work through these one by one. Each item is self-contained so you can pick any o
 
 ### Backend — Critical
 
-- [x] **Enable strict TypeScript** — set `"strict": true` in `Backend/tsconfig.json` and fix all resulting type errors. This unlocks `noImplicitAny`, `strictNullChecks`, and more.
-- [ ] **Fix `AppError` class** — rewrite `Backend/Helper/AppError.ts` as `class AppError extends Error` with a `statusCode` field. Right now it throws a plain object, so `instanceof` checks and stack traces don't work.
+- [x] **Enable strict TypeScript** — set `"strict": true` in `backend/tsconfig.json` and fix all resulting type errors. This unlocks `noImplicitAny`, `strictNullChecks`, and more.
+- [ ] **Fix `AppError` class** — rewrite `backend/helpers/AppError.ts` as `class AppError extends Error` with a `statusCode` field. Right now it throws a plain object, so `instanceof` checks and stack traces don't work.
 - [ ] **Standardize error shape** — controllers mix `error.status` and `error.statusCode`. Pick `statusCode` everywhere and enforce it through the new `AppError` class.
 - [ ] **Fix cookie `secure` flag** — `auth.controller.ts` hardcodes `secure: false`. Change to `secure: process.env.NODE_ENV === 'production'`.
 - [ ] **Fix `getExpenseAddDetailsService`** — this service function queries the DB but has no `return` statement. The data is fetched and thrown away. Add the return value.
@@ -113,10 +117,10 @@ Work through these one by one. Each item is self-contained so you can pick any o
 - [ ] **Request validation middleware** — install `zod` and create a `validate(schema)` middleware. Apply it to every route so invalid payloads are rejected before reaching the Service layer. This replaces scattered inline checks inside services.
 - [ ] **Rate limiting on auth routes** — install `express-rate-limit` and apply it to `/auth/login` and `/auth/register` to prevent brute-force attacks.
 - [ ] **Pagination on all list endpoints** — every list endpoint returns all records. Add `page` and `limit` query params and return `{ data, total, page, limit }`. Apply to expenses, categories, group members, transactions.
-- [ ] **Fix `DB/connection.ts`** — it uses `require()` (CommonJS) inside an ESM/TypeScript codebase. Rewrite with `import`. Also replace the infinite retry loop with exponential backoff and a max-retry limit (e.g., 5 attempts).
+- [x] **Fix `db/connection.ts`** — uses `import mongoose from 'mongoose'`. Exponential backoff capped at 5 attempts (was infinite recursion).
 - [ ] **Complete transaction module** — the transaction service and router are unfinished. Implement `createTransaction` (deposit to group wallet) and `getTransactions` (list with pagination) following the same service-controller pattern.
 - [ ] **Complete report service** — `report.controller.ts` and `report.router.ts` are stubs. Implement aggregation: total spent per category, per member, and over time range using MongoDB `$group` and `$match`.
-- [ ] **Env var validation on startup** — add a `validateEnv()` function called at `main.ts` startup that checks all required env vars (`PORT`, `MONGODB_URI`, `JWT_SECRET`, `FRONTEND_URL`) and throws if any are missing, so the app fails fast rather than crashing mid-request.
+- [x] **Env var validation on startup** — `config/env.ts` exports `validateEnv()`, called at the top of `main.ts`. App throws on missing PORT/MONGO_URI/JWT_SECRET/FRONTEND_URL.
 
 ### Backend — Medium Priority
 

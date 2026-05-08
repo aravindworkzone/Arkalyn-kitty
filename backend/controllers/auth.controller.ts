@@ -1,4 +1,4 @@
-import { SignUpService, SignInService } from '../Service/auth.service';
+import { SignUpService, SignInService } from '../services/auth.service';
 import { Request, Response } from 'express';
 
 export const SignUp = async (req: Request, res: Response) => {

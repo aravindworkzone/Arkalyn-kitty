@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
-import { toDBAmount, fromDBAmount } from '../Helper/Money';
+import { toDBAmount, fromDBAmount } from '../helpers/Money';
 
 interface IGroupEvent extends Document {
     groupId: mongoose.Types.ObjectId;

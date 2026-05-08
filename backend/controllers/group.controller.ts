@@ -1,4 +1,4 @@
-import { createGroupService, deleteGroupService, manageMemberService, manageAdminService, addContributionService, SettlementService, getGroupByIdService, getGroupMemberService, getBasicTransactionService, getTransactionService, getEventService } from "../Service/group.service";
+import { createGroupService, deleteGroupService, manageMemberService, manageAdminService, addContributionService, SettlementService, getGroupByIdService, getGroupMemberService, getBasicTransactionService, getTransactionService, getEventService } from "../services/group.service";
 import { Response, Request } from "express";
 
 export const createGroup = async (req: Request, res: Response) => {

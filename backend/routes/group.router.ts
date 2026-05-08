@@ -1,6 +1,6 @@
 import express from 'express';
-import { createGroup, deleteGroup, manageMember, manageAdmin, addContribution, Settlement, getGroupById, getGroupMember, getBasicTransaction, getTransaction, getEvent } from '../Controller/group.controller';
-import {verifyToken, authorizeRole, loadGroup} from '../Middleware/auth.middleware';
+import { createGroup, deleteGroup, manageMember, manageAdmin, addContribution, Settlement, getGroupById, getGroupMember, getBasicTransaction, getTransaction, getEvent } from '../controllers/group.controller';
+import {verifyToken, authorizeRole, loadGroup} from '../middlewares/auth.middleware';
 const router = express.Router();
 
 router.post('/create', verifyToken, createGroup);

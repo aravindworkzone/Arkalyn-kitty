@@ -1,4 +1,4 @@
-import {userGroupsService, verifyUserService, searchUsersService} from "../Service/user.service";
+import {userGroupsService, verifyUserService, searchUsersService} from "../services/user.service";
 import { Response, Request } from "express";
 
 export const GetUser = async (req: Request, res: Response) => {

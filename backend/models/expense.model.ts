@@ -2,7 +2,7 @@ export const PAYMENT_TYPES = ["Cash", "Card", "UPI", "Net Banking"] as const;
 export type PaymentType = typeof PAYMENT_TYPES[number];
 
 import mongoose, { Document, Schema} from "mongoose";
-import { toDBAmount, fromDBAmount } from "../Helper/Money";
+import { toDBAmount, fromDBAmount } from "../helpers/Money";
 
 export interface IExpense extends Document {
     groupId: mongoose.Types.ObjectId;

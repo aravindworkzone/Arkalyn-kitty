@@ -12,7 +12,7 @@
   },
   "exclude": ["node_modules", "dist"],
   "files": [
-    "Types/express.d.ts"
+    "types/express.d.ts"
   ],
   "include": [
     "**/*.ts"

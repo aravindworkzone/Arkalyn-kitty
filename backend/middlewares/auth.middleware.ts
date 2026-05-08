@@ -1,9 +1,9 @@
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-import Group from "../Model/group.model";
-import Member from "../Model/group_member.model"
+import Group from "../models/group.model";
+import Member from "../models/group_member.model"
 import { Request, Response, NextFunction } from "express";
-import { IUser } from "../Model/user.model";
+import { IUser } from "../models/user.model";
 
 const verifyToken = (req: Request, res: Response, next: NextFunction) => {
     const token = req.cookies.AccessToken;

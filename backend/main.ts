@@ -5,13 +5,13 @@ import cors from 'cors';
 import { validateEnv, env } from './config/env';
 validateEnv();
 
-import connectDB from './DB/connection';
+import connectDB from './db/connection';
 import { logger } from './utils/logger';
-import AuthRouter from './Router/auth.router';
-import ExpenseRouter from './Router/expense.router';
-import CategoryRouter from './Router/category.router';
-import GroupRouter from './Router/group.router';
-import UserRouter from './Router/user.router';
+import AuthRouter from './routes/auth.router';
+import ExpenseRouter from './routes/expense.router';
+import CategoryRouter from './routes/category.router';
+import GroupRouter from './routes/group.router';
+import UserRouter from './routes/user.router';
 
 const app: Application = express();
 app.use(express.json());

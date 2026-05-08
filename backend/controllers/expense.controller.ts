@@ -1,4 +1,4 @@
-import { createExpenseService, deleteExpenseService, getExpenseAddDetailsService, paymentMethodService, expenseReportService, getAllExpensesService } from "../Service/expense.service";
+import { createExpenseService, deleteExpenseService, getExpenseAddDetailsService, paymentMethodService, expenseReportService, getAllExpensesService } from "../services/expense.service";
 import { Request, Response } from "express";
 
 export const createExpense = async (req: Request, res: Response) => {

@@ -1,6 +1,6 @@
 import express from 'express';
-import { SignUp, SignIn, SignOut } from '../Controller/auth.controller';
-import {verifyToken} from '../Middleware/auth.middleware';
+import { SignUp, SignIn, SignOut } from '../controllers/auth.controller';
+import {verifyToken} from '../middlewares/auth.middleware';
 const router = express.Router();
 
 router.post('/signup', SignUp);

@@ -1,6 +1,6 @@
 import express from 'express';
-import { createCategory, deleteCategory, getCategoryDetails } from '../Controller/category.controller';
-import {verifyToken, authorizeRole, loadGroup} from '../Middleware/auth.middleware';
+import { createCategory, deleteCategory, getCategoryDetails } from '../controllers/category.controller';
+import {verifyToken, authorizeRole, loadGroup} from '../middlewares/auth.middleware';
 const router = express.Router();
 
 router.post('/create', verifyToken, loadGroup,authorizeRole("SUPER_ADMIN", "ADMIN"), createCategory);

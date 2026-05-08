@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { toDBAmount, fromDBAmount } from "../Helper/Money";
+import { toDBAmount, fromDBAmount } from "../helpers/Money";
 
 export const TRANSACTION_TYPE = ["CREDIT", "DEBIT", "REFUND"] as const;
 export type TransactionType = typeof TRANSACTION_TYPE[number];

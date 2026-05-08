@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
-import GroupMember from "../Model/group_member.model";
-import User from "../Model/user.model";
-import {AppError} from "../Helper/AppError";
+import GroupMember from "../models/group_member.model";
+import User from "../models/user.model";
+import {AppError} from "../helpers/AppError";
 export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
     try {
 

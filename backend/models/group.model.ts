@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from "mongoose";
 import Counter from "./counter.model";
-import { toDBAmount, fromDBAmount } from "../Helper/Money";
+import { toDBAmount, fromDBAmount } from "../helpers/Money";
 
 export interface IGroup extends Document {
     displayId: string;

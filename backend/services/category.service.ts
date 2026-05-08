@@ -1,8 +1,8 @@
 import mongoose from 'mongoose';
-import Category from '../Model/category.model';
-import GroupEvent from '../Model/group_event.model';
-import Expense from '../Model/expense.model';
-import { AppError } from '../Helper/AppError';
+import Category from '../models/category.model';
+import GroupEvent from '../models/group_event.model';
+import Expense from '../models/expense.model';
+import { AppError } from '../helpers/AppError';
 
 export const createCategoryService = async (data: { name: string; groupId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, color: string }) => {
     const groupId = data.groupId;

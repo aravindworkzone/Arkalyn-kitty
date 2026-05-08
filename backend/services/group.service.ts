@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
-import { AppError } from "../Helper/AppError";
-import Group from "../Model/group.model";
-import GroupTransaction from "../Model/group_transaction.model";
-import GroupEvent from "../Model/group_event.model";
-import GroupMember from "../Model/group_member.model";
+import { AppError } from "../helpers/AppError";
+import Group from "../models/group.model";
+import GroupTransaction from "../models/group_transaction.model";
+import GroupEvent from "../models/group_event.model";
+import GroupMember from "../models/group_member.model";
 
 interface members {
     _id: string;
