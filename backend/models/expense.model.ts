@@ -40,6 +40,10 @@ const expenseSchema = new Schema<IExpense>({
     isDeleted: {type: Boolean, default: false}
 }, {timestamps: true, toJSON: { getters: true }, toObject: { getters: true }});
 
+expenseSchema.index({ groupId: 1, isDeleted: 1, date: -1 });
+expenseSchema.index({ groupId: 1, category: 1, isDeleted: 1 });
+expenseSchema.index({ paidBy: 1, isDeleted: 1 });
+
 expenseSchema.path("splitBetween").validate(function (value: any[]) {
     if (!value || value.length === 0) return true;
 

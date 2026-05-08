@@ -16,7 +16,10 @@ const categorySchema = new Schema<ICategory>({
     isDeleted: { type: Boolean, default: false }
 }, {timestamps: true});
 
-categorySchema.index({ groupId: 1, name: 1 }, { unique: true });
+categorySchema.index(
+    { groupId: 1, name: 1 },
+    { unique: true, partialFilterExpression: { isDeleted: false } }
+);
     
 categorySchema.pre("findOneAndDelete", async function() {
     const categoryId = this.getQuery()["_id"];

@@ -15,13 +15,13 @@ export interface IGroup extends Document {
 }
 
 const groupSchema = new Schema<IGroup>({
-    displayId: {type: String},
+    displayId: {type: String, unique: true, sparse: true},
     name: {type: String, required: true , trim: true, minlength: 3, maxlength: 100},
     groupType: {type: String, enum: ["POOL", "SPLIT"], default: "POOL"},
     balance: {type: Number, default: 0, set:toDBAmount, get:fromDBAmount},
     totalContribution: {type: Number, default: 0, set:toDBAmount, get:fromDBAmount},
     status: {type: String, enum: ["ACTIVE", "INACTIVE"], default: "ACTIVE"},
-    createdBy: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true}
+    createdBy: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true}
 }, {timestamps: true, toJSON: { getters: true }, toObject: { getters: true }});
 
 groupSchema.pre("findOneAndDelete", async function() {

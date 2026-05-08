@@ -444,11 +444,16 @@ export const SettlementService = async (data : {group: mongoose.Types.ObjectId, 
             { $set: { settlement: true } },
             { returnDocument: "after", session }
         );
-        await Group.findOneAndUpdate(
-            { _id: groupData },
+
+        const debited = await Group.findOneAndUpdate(
+            { _id: groupData, balance: { $gte: settlement } },
             { $inc: { balance: -settlement } },
             { returnDocument: "after", session }
         );
+
+        if (!debited) {
+            throw new AppError("Insufficient balance for settlement", 400);
+        }
 
         const settlementLog = new GroupTransaction({
             groupId: groupData,

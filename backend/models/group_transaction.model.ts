@@ -30,4 +30,7 @@ const groupTransactionSchema = new Schema<IGroupTransaction>({
     isDeleted: { type: Boolean, default: false }
 }, {timestamps: true, toJSON: { getters: true }, toObject: { getters: true }});
 
+groupTransactionSchema.index({ groupId: 1, isDeleted: 1, createdAt: -1 });
+groupTransactionSchema.index({ groupId: 1, action: 1, isDeleted: 1 });
+
 export default mongoose.model<IGroupTransaction>("GroupTransaction", groupTransactionSchema);
