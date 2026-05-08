@@ -1,6 +1,7 @@
 import express, { Application, Request, Response } from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import helmet from 'helmet';
 
 import { validateEnv, env } from './config/env';
 validateEnv();
@@ -8,6 +9,11 @@ validateEnv();
 import connectDB from './db/connection';
 import { logger } from './utils/logger';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
+import {
+    sanitizeMongoOperators,
+    authRateLimiter,
+    globalRateLimiter,
+} from './middlewares/security.middleware';
 import { REQUEST_BODY_LIMIT } from './config/constants';
 
 import AuthRouter from './routes/auth.router';
@@ -18,16 +24,28 @@ import UserRouter from './routes/user.router';
 
 const app: Application = express();
 
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+
+app.use(helmet());
+app.use(globalRateLimiter);
+
 app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
 app.use(cookieParser());
 app.use(
     cors({
         origin: env.FRONTEND_URL,
         credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+        maxAge: 86400,
     })
 );
 
-app.use('/api/auth', AuthRouter);
+app.use(sanitizeMongoOperators);
+
+app.use('/api/auth', authRateLimiter, AuthRouter);
 app.use('/api/expense', ExpenseRouter);
 app.use('/api/category', CategoryRouter);
 app.use('/api/group', GroupRouter);

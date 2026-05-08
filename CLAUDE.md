@@ -115,7 +115,7 @@ Work through these one by one. Each item is self-contained so you can pick any o
 ### Backend — High Priority
 
 - [x] **Request validation middleware** — `validators/` folder + `middlewares/validate.middleware.ts` (Zod). All routes validate body/params before reaching controllers. ZodError is converted to `{ field, message }[]` by the error middleware. Service-layer regex/length duplicates remain — slated for cleanup in Phase 7.
-- [ ] **Rate limiting on auth routes** — install `express-rate-limit` and apply it to `/auth/login` and `/auth/register` to prevent brute-force attacks.
+- [x] **Rate limiting on auth routes** — `/api/auth/*` capped at 10 req / 15 min per IP via `express-rate-limit`. Global limiter (300 req / 15 min) applies to all routes.
 - [ ] **Pagination on all list endpoints** — every list endpoint returns all records. Add `page` and `limit` query params and return `{ data, total, page, limit }`. Apply to expenses, categories, group members, transactions.
 - [x] **Fix `db/connection.ts`** — uses `import mongoose from 'mongoose'`. Exponential backoff capped at 5 attempts (was infinite recursion).
 - [ ] **Complete transaction module** — the transaction service and router are unfinished. Implement `createTransaction` (deposit to group wallet) and `getTransactions` (list with pagination) following the same service-controller pattern.
@@ -125,7 +125,7 @@ Work through these one by one. Each item is self-contained so you can pick any o
 ### Backend — Medium Priority
 
 - [ ] **Replace `console.log` with structured logging** — install `pino` or `winston`. Replace all `console.log` / `console.error` calls with a logger instance. Use log levels (`info`, `warn`, `error`) and never log sensitive fields (passwords, tokens).
-- [ ] **Input sanitization middleware** — install `express-mongo-sanitize` (prevents NoSQL injection) and `xss-clean` (strips HTML from inputs). Add both to `main.ts` before route registration.
+- [x] **Input sanitization middleware** — custom `sanitizeMongoOperators` middleware strips `$`-prefixed and `.`-containing keys from `req.body` (NoSQL injection guard, Express-5-safe — `express-mongo-sanitize` mutates `req.query` which is read-only in Express 5). XSS protection comes from Zod's strict-string validation + React's auto-escape + helmet CSP; `xss-clean` is unmaintained (archived since 2019) so deliberately not used.
 - [ ] **Race condition on group balance** — two concurrent expense creations can both pass the balance check before either commits. Fix by using MongoDB `findOneAndUpdate` with an atomic `$inc` and a `$gte: 0` condition check, or add a per-group document-level lock.
 - [ ] **Soft delete global filter** — `GroupMember` and `Category` have `isDeleted` but queries don't always filter it. Add a Mongoose pre-find plugin or use `Schema.pre('find')` hook to automatically exclude `isDeleted: true` docs so it's impossible to forget.
 - [ ] **Remove duplicate validation** — email regex and password length checks exist in both `auth.service.ts` and the frontend `Authentication.ts`. Keep validation in the zod request schema (see validation middleware task above) and remove the duplicates.
@@ -154,7 +154,7 @@ Work through these one by one. Each item is self-contained so you can pick any o
 - [ ] **Shared types package** — backend and frontend define duplicate interfaces (`IExpense` / `Expense`, `IGroup` / `Group`, etc.). Create a `shared/types/` folder at the repo root and import from there in both projects. Eliminates drift when a field changes.
 - [ ] **Service layer integration tests** — this is a financial app with balance mutation logic. Add integration tests (using `jest` + `mongodb-memory-server`) for at minimum: expense creation, balance deduction, and concurrent balance checks. Start with the service layer — no HTTP needed.
 - [ ] **OpenAPI / Swagger documentation** — use `zod-to-openapi` or `tsoa` to auto-generate API docs from your route schemas. Makes frontend-backend contract explicit and helps onboard new contributors.
-- [ ] **CORS hardening** — validate that `FRONTEND_URL` is set at startup (see env validation task). Add an explicit list of allowed methods and headers to the CORS config rather than relying on defaults.
+- [x] **CORS hardening** — `FRONTEND_URL` validated at startup via `validateEnv()`. CORS config now enumerates methods (GET/POST/PUT/DELETE/PATCH/OPTIONS) and headers (Content-Type, Authorization, X-Requested-With) with a 24h preflight cache. Helmet adds standard security headers; `app.disable('x-powered-by')` and `trust proxy` set explicitly.
 
 ### Rules
 - i am ask any question, The answer should be like why should we do this, what are the alternate options, how to implement this, etc.
