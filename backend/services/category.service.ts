@@ -4,113 +4,100 @@ import GroupEvent from '../models/group_event.model';
 import Expense from '../models/expense.model';
 import { AppError } from '../helpers/AppError';
 
-export const createCategoryService = async (data: { name: string; groupId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, color: string }) => {
-    const groupId = data.groupId;
-    const userId = data.userId;
-    const name = typeof data.name === "string" ? data.name.trim() : null;
-
-    if (!groupId || !name) {
-        throw new AppError("All fields are required", 400);
-    }
-
-    if (name.length < 3 || name.length > 50) {
-        throw new AppError("Name must be between 3 and 50 characters", 400);
-    }
+export const createCategoryService = async (data: {
+    name: string;
+    groupId: mongoose.Types.ObjectId;
+    userId: mongoose.Types.ObjectId;
+    color?: string;
+}) => {
+    const { groupId, userId, name, color } = data;
 
     const session = await mongoose.startSession();
     try {
         session.startTransaction();
 
-        const categorySave = new Category({
-            name,
-            groupId: groupId,
-            color: data.color
-        });
+        const categorySave = new Category({ name, groupId, color });
         await categorySave.save({ session });
 
-        const event = await GroupEvent.create([{
-            groupId: groupId,
-            performedBy: userId,
-            eventType: "MANAGE_CATEGORY",
-            metadata: { userId: userId, note: `Created category: ${name}` },
-            referenceId: categorySave._id,
-            referenceModel: "Category"
-        }], { session });
+        const event = await GroupEvent.create(
+            [{
+                groupId,
+                performedBy: userId,
+                eventType: "MANAGE_CATEGORY",
+                metadata: { userId, note: `Created category: ${name}` },
+                referenceId: categorySave._id,
+                referenceModel: "Category",
+            }],
+            { session }
+        );
 
         await session.commitTransaction();
         return { category: categorySave, event };
-    } catch (error: any) {
+    } catch (error) {
         await session.abortTransaction();
-        if (error.code === 11000) {
-            throw new AppError('Category already exists in this group', 409);
-        }
-        throw new AppError(error.message || 'Error creating category', 500);
+        throw error;
     } finally {
         session.endSession();
     }
-}
+};
 
-export const deleteCategoryService = async (data: { categoryId: string, userId: mongoose.Types.ObjectId, groupId: mongoose.Types.ObjectId }) => {
+export const deleteCategoryService = async (data: {
+    categoryId: string;
+    userId: mongoose.Types.ObjectId;
+    groupId: mongoose.Types.ObjectId;
+}) => {
     const categoryId = new mongoose.Types.ObjectId(data.categoryId);
-
-    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
-        throw new AppError("Invalid category ID format", 400);
-    }
 
     const session = await mongoose.startSession();
     try {
         session.startTransaction();
-        const category = await Category.findByIdAndDelete(categoryId, { session });
 
-        await GroupEvent.create([{
-            groupId: data.groupId,
-            performedBy: data.userId,
-            eventType: "MANAGE_CATEGORY",
-            metadata: { userId: data.userId, note: `Deleted category: ${category!.name}` },
-            referenceId: categoryId,
-            referenceModel: "Category"
-        }], { session });
+        const category = await Category.findByIdAndDelete(categoryId, { session });
+        if (!category) throw new AppError('Category not found', 404);
+
+        await GroupEvent.create(
+            [{
+                groupId: data.groupId,
+                performedBy: data.userId,
+                eventType: "MANAGE_CATEGORY",
+                metadata: { userId: data.userId, note: `Deleted category: ${category.name}` },
+                referenceId: categoryId,
+                referenceModel: "Category",
+            }],
+            { session }
+        );
 
         await session.commitTransaction();
-
-        if (!category) {
-            throw new AppError('Category not found', 404);
-        }
-
         return category;
-    } catch (error: any) {
+    } catch (error) {
         await session.abortTransaction();
-        const statusCode = error.status || 500;
-        throw new AppError(error.message || 'Error deleting category', statusCode);
+        throw error;
     } finally {
         session.endSession();
     }
-}
+};
 
 export const getCategoryDetailsService = async (groupId: mongoose.Types.ObjectId) => {
-    try {
-        const categories = await Category.find({ groupId }).select('_id name color').lean();
+    const categories = await Category.find({ groupId, isDeleted: false }).select('_id name color').lean();
 
-        const counts = await Expense.aggregate([
+    const counts = await Expense.aggregate([
         {
             $match: {
-            category: { $in: categories.map((c) => c._id) },
-            isDeleted: false,
+                category: { $in: categories.map((c) => c._id) },
+                isDeleted: false,
             },
         },
         { $group: { _id: '$category', count: { $sum: 1 } } },
-        ]);
+    ]);
 
-        const countMap = new Map(counts.map((c) => [c._id.toString(), c.count]));
+    const countMap = new Map<string, number>(
+        counts.map((c) => [c._id.toString(), c.count])
+    );
 
-        const sendCategories = categories.map((c) => ({
+    return categories.map((c) => ({
         _id: c._id,
         name: c.name,
         color: c.color,
         expenseCount: countMap.get(c._id.toString()) ?? 0,
-        }));
-        return sendCategories;
-    } catch (error: any) {
-        throw new AppError(error.message || 'Error getting categories', 500);
-    }
-}
+    }));
+};

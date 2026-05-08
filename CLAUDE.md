@@ -128,7 +128,7 @@ Work through these one by one. Each item is self-contained so you can pick any o
 - [x] **Input sanitization middleware** — custom `sanitizeMongoOperators` middleware strips `$`-prefixed and `.`-containing keys from `req.body` (NoSQL injection guard, Express-5-safe — `express-mongo-sanitize` mutates `req.query` which is read-only in Express 5). XSS protection comes from Zod's strict-string validation + React's auto-escape + helmet CSP; `xss-clean` is unmaintained (archived since 2019) so deliberately not used.
 - [x] **Race condition on group balance** — `createExpenseService` already uses `findOneAndUpdate({ balance: { $gte: amount } }, $inc: -amount)`. `SettlementService` updated to do the same atomic check (was a pre-check + non-atomic update). `addContribution` and refund-on-delete are simple `$inc` and don't need the guard.
 - [ ] **Soft delete global filter** — `GroupMember` and `Category` have `isDeleted` but queries don't always filter it. Add a Mongoose pre-find plugin or use `Schema.pre('find')` hook to automatically exclude `isDeleted: true` docs so it's impossible to forget.
-- [ ] **Remove duplicate validation** — email regex and password length checks exist in both `auth.service.ts` and the frontend `Authentication.ts`. Keep validation in the zod request schema (see validation middleware task above) and remove the duplicates.
+- [~] **Remove duplicate validation** — `auth.service.ts` and `category.service.ts` and `user.service.ts` cleaned. `expense.service.ts` and `group.service.ts` still have inline checks — they're dead code on the happy path (Zod blocks invalid inputs upstream) but remain as defensive guards. Frontend `Authentication.ts` still has duplicates — slated for Phase 9.
 
 ### Frontend — Critical
 

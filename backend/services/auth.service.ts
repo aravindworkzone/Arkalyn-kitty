@@ -1,83 +1,43 @@
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import User from '../models/user.model';
 import { AppError } from '../helpers/AppError';
-import jwt from 'jsonwebtoken';
+import { env } from '../config/env';
+import { BCRYPT_SALT_ROUNDS, JWT_EXPIRES_IN } from '../config/constants';
+import type { SignUpDto, SignInDto } from '../types/dto';
 
-export const SignUpService = async (data: { name: string; email: string; password: string }) => {
-    const name = data.name?.trim() || '';
-    const email = data.email?.trim() || '';
-    const password = data.password?.trim() || '';
+export const SignUpService = async (data: SignUpDto) => {
+    const hashedPassword = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
 
-    if (!name || !email || !password) {
-        throw new AppError('All fields are required', 400);
-    }
+    const newUser = await User.create({
+        name: data.name,
+        email: data.email,
+        password: hashedPassword,
+    });
 
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
-        throw new AppError('Invalid email format', 400);
-    }
+    return {
+        name: newUser.name,
+        email: newUser.email,
+    };
+};
 
-    if (password.length < 6) {
-        throw new AppError('Password must be at least 6 characters long', 400);
-    }
+export const SignInService = async (data: SignInDto) => {
+    const user = await User.findOne({ email: data.email });
+    if (!user) throw new AppError('Invalid credentials', 401);
 
-    const hashPassword = await bcrypt.hash(password, 10);
-
-    try {
-        const newUser = await User.create({
-            name,
-            email,
-            password: hashPassword
-        });
-
-        return {
-            name: newUser.name,
-            email: newUser.email
-        };
-    } catch (error: any) {
-        if (error.code === 11000) {
-            throw new AppError('Email already exists', 400);
-        }
-        throw error;
-    }
-}
-
-export const SignInService = async (data: { email: string; password: string }) => {
-    const email = data.email?.trim() || '';
-    const password = data.password?.trim() || '';
-
-    if (!email || !password) {
-        throw new AppError('All fields are required', 400);
-    }
-
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
-        throw new AppError('Invalid email format', 400);
-    }
-
-    if (password.length < 6) {
-        throw new AppError('Password must be at least 6 characters long', 400);
-    }
-
-    const user = await User.findOne({ email });
-    if (!user) {
-        throw new AppError('User not found', 400);
-    }
-
-    const match = await bcrypt.compare(password, user.password);
-
-    if (!match) {
-        throw new AppError('Invalid password', 400);
-    }
+    const match = await bcrypt.compare(data.password, user.password);
+    if (!match) throw new AppError('Invalid credentials', 401);
 
     const userData = {
         _id: user._id,
         name: user.name,
-        email: user.email
+        email: user.email,
     };
 
-    const token = jwt.sign(userData, process.env.JWT_SECRET as string, { expiresIn: '1d' });
+    const token = jwt.sign(userData, env.JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
-    return {    
+    return {
         token,
-        user: userData
+        user: userData,
     };
-}
+};

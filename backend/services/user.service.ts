@@ -1,159 +1,139 @@
-import mongoose from "mongoose";
-import GroupMember from "../models/group_member.model";
-import User from "../models/user.model";
-import {AppError} from "../helpers/AppError";
+import mongoose from 'mongoose';
+import GroupMember from '../models/group_member.model';
+import User from '../models/user.model';
+import { AppError } from '../helpers/AppError';
+
 export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
-    try {
+    const objectUserId = new mongoose.Types.ObjectId(userId);
 
-        const objectUserId = new mongoose.Types.ObjectId(userId);
-
-        const userGroups = await GroupMember.aggregate([
+    return GroupMember.aggregate([
         {
             $match: {
-            userId: objectUserId,
-            isDeleted: false
-            }
+                userId: objectUserId,
+                isDeleted: false,
+            },
         },
         {
             $lookup: {
-            from: "groups",
-            localField: "groupId",
-            foreignField: "_id",
-            as: "group"
-            }
+                from: 'groups',
+                localField: 'groupId',
+                foreignField: '_id',
+                as: 'group',
+            },
         },
-        { $unwind: "$group" },
+        { $unwind: '$group' },
         {
             $lookup: {
-            from: "groupmembers",
-            localField: "group._id",
-            foreignField: "groupId",
-            as: "members"
-            }
-        },
-        {
-            $lookup: {
-            from: "expenses",
-            localField: "group._id",
-            foreignField: "groupId",
-            as: "expense"
-            }
+                from: 'groupmembers',
+                localField: 'group._id',
+                foreignField: 'groupId',
+                as: 'members',
+            },
         },
         {
             $lookup: {
-            from: "users",
-            localField: "members.userId",
-            foreignField: "_id",
-            as: "membersuser"
-            }
+                from: 'expenses',
+                localField: 'group._id',
+                foreignField: 'groupId',
+                as: 'expense',
+            },
         },
-        { $sort: { "group.createdAt": -1 } },
+        {
+            $lookup: {
+                from: 'users',
+                localField: 'members.userId',
+                foreignField: '_id',
+                as: 'membersuser',
+            },
+        },
+        { $sort: { 'group.createdAt': -1 } },
         {
             $project: {
-            _id: "$group._id",
-            displayId: "$group.displayId",
-            name: "$group.name",
-            balance: { $divide: ["$group.balance", 100] },
-
-            members: {
-                $map: {
-                input: "$membersuser",
-                as: "u",
-                in: "$$u.name"
-                }
-            },
-
-            role: {
-                $first: {
-                $map: {
-                    input: {
-                    $filter: {
-                        input: "$members",
-                        as: "m",
-                        cond: { $eq: ["$$m.userId", objectUserId] }
-                    }
+                _id: '$group._id',
+                displayId: '$group.displayId',
+                name: '$group.name',
+                balance: { $divide: ['$group.balance', 100] },
+                members: {
+                    $map: {
+                        input: '$membersuser',
+                        as: 'u',
+                        in: '$$u.name',
                     },
-                    as: "m",
-                    in: "$$m.role"
-                }
-                }
-            },
-
-            barLength: {
-                $cond: [
-                { $gt: ["$group.totalContribution", 0] },
-                {
-                    $round: [
-                    {
-                        $multiply: [
-                        {
-                            $subtract: [
-                            1,
-                            {
-                                $divide: [
-                                "$group.balance",
-                                "$group.totalContribution"
-                                ]
-                            }
-                            ]
-                        },
-                        100
-                        ]
-                    },
-                    0
-                    ]
                 },
-                0
-                ]
+                role: {
+                    $first: {
+                        $map: {
+                            input: {
+                                $filter: {
+                                    input: '$members',
+                                    as: 'm',
+                                    cond: { $eq: ['$$m.userId', objectUserId] },
+                                },
+                            },
+                            as: 'm',
+                            in: '$$m.role',
+                        },
+                    },
+                },
+                barLength: {
+                    $cond: [
+                        { $gt: ['$group.totalContribution', 0] },
+                        {
+                            $round: [
+                                {
+                                    $multiply: [
+                                        {
+                                            $subtract: [
+                                                1,
+                                                {
+                                                    $divide: [
+                                                        '$group.balance',
+                                                        '$group.totalContribution',
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                        100,
+                                    ],
+                                },
+                                0,
+                            ],
+                        },
+                        0,
+                    ],
+                },
+                expenseCount: { $size: '$expense' },
+                createdAt: {
+                    $dateToString: {
+                        format: '%d %b %Y',
+                        date: '$group.createdAt',
+                    },
+                },
             },
-
-            expenseCount: { $size: "$expense" },
-
-            createdAt: {
-                $dateToString: {
-                format: "%d %b %Y",
-                date: "$group.createdAt"
-                }
-            }
-            }
-        }
-        ]);
-
-        return userGroups;
-
-    } catch (error: any) {
-        const message = error.message || 'Internal server error';
-        const statusCode = error.status || 500;
-        throw new AppError(message , statusCode);
-    }
+        },
+    ]);
 };
 
-export const searchUsersService = async (query: string, currentUserId: mongoose.Types.ObjectId) => {
+export const searchUsersService = async (
+    query: string,
+    currentUserId: mongoose.Types.ObjectId
+) => {
     if (!query || query.trim().length < 2) return [];
-    const safe = query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(safe, "i");
+
+    const safe = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(safe, 'i');
+
     return User.find({
         $or: [{ email: { $regex: regex } }, { name: { $regex: regex } }],
         _id: { $ne: currentUserId },
     })
-        .select("_id name email")
+        .select('_id name email')
         .limit(6)
         .lean();
 };
 
 export const verifyUserService = async (email: string) => {
-    try {
-        if(!email){
-            throw new AppError('Email is required', 400);
-        }
-        const user = await User.findOne({ email });
-        if(!user){
-            throw new AppError('User not found', 404);
-        }
-        return user;
-    } catch (error: any) {
-        const message = error.message || 'Internal server error';
-        const statusCode = error.status || 500;
-        throw new AppError(message , statusCode);
-    }
+    const user = await User.findOne({ email }).select('_id name email');
+    if (!user) throw new AppError('User not found', 404);
+    return user;
 };

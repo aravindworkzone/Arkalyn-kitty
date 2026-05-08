@@ -8,7 +8,7 @@ interface IGroupEvent extends Document {
     referenceId?: mongoose.Types.ObjectId;
     referenceModel?: string;
     amount?: number;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     createdAt?: Date;
     updatedAt?: Date;
     isDeleted: boolean;

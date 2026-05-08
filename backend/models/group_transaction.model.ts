@@ -12,7 +12,7 @@ export interface IGroupTransaction extends Document {
     referenceId: mongoose.Types.ObjectId;
     performedBy: mongoose.Types.ObjectId;
     referenceModel: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown> | unknown[];
     isDeleted?: boolean;
     createdAt?: Date;
     updatedAt?: Date;
