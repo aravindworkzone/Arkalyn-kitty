@@ -114,7 +114,7 @@ Work through these one by one. Each item is self-contained so you can pick any o
 
 ### Backend — High Priority
 
-- [ ] **Request validation middleware** — install `zod` and create a `validate(schema)` middleware. Apply it to every route so invalid payloads are rejected before reaching the Service layer. This replaces scattered inline checks inside services.
+- [x] **Request validation middleware** — `validators/` folder + `middlewares/validate.middleware.ts` (Zod). All routes validate body/params before reaching controllers. ZodError is converted to `{ field, message }[]` by the error middleware. Service-layer regex/length duplicates remain — slated for cleanup in Phase 7.
 - [ ] **Rate limiting on auth routes** — install `express-rate-limit` and apply it to `/auth/login` and `/auth/register` to prevent brute-force attacks.
 - [ ] **Pagination on all list endpoints** — every list endpoint returns all records. Add `page` and `limit` query params and return `{ data, total, page, limit }`. Apply to expenses, categories, group members, transactions.
 - [x] **Fix `db/connection.ts`** — uses `import mongoose from 'mongoose'`. Exponential backoff capped at 5 attempts (was infinite recursion).
