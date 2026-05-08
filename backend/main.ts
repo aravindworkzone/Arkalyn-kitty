@@ -1,4 +1,5 @@
 import express, { Application, Request, Response } from 'express';
+import { createServer } from 'http';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -15,6 +16,7 @@ import {
     globalRateLimiter,
 } from './middlewares/security.middleware';
 import { REQUEST_BODY_LIMIT } from './config/constants';
+import { initSocketServer } from './sockets';
 
 import AuthRouter from './routes/auth.router';
 import ExpenseRouter from './routes/expense.router';
@@ -58,8 +60,11 @@ app.get('/', (_req: Request, res: Response) => {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
+const httpServer = createServer(app);
+initSocketServer(httpServer);
+
 connectDB().then(() => {
-    app.listen(env.PORT, () => {
-        logger.info({ port: env.PORT, env: env.NODE_ENV }, 'Server started');
+    httpServer.listen(env.PORT, () => {
+        logger.info({ port: env.PORT, env: env.NODE_ENV }, 'Server started (http + socket.io)');
     });
 });
