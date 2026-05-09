@@ -17,7 +17,7 @@ export const group = api.injectEndpoints({
                 url: `/group/getgroupbyid/${credentials}`,
                 method: 'GET'
             }),
-            transformResponse: (res: { group: any }) => res.group,
+            transformResponse: (res: { data: {group: any} }) => res.data.group,
             providesTags: ['Group','Expense']
         }),
         getGroupMembers: builder.query<GroupMember[], string>({
@@ -25,7 +25,7 @@ export const group = api.injectEndpoints({
                 url: `/group/getgroupmembers/${credentials}`,
                 method: 'GET'
             }),
-            transformResponse: (res: { members: GroupMember[] }) => res.members,
+            transformResponse: (res: { data: {members: GroupMember[]} }) => res.data.members,
             providesTags: ['Group']
         }),
         getBasicTransaction: builder.query<any, any>({
@@ -40,7 +40,7 @@ export const group = api.injectEndpoints({
                 url: `/group/gettransaction/${credentials}`,
                 method: 'GET'
             }),
-            transformResponse: (res: { transactions: GroupTransaction }) => res.transactions,
+            transformResponse: (res: { data: {transactions: GroupTransaction[]} }) => res.data.transactions,
             providesTags: ['Group']
         }),
         getEvent: builder.query<any, any>({
@@ -48,7 +48,7 @@ export const group = api.injectEndpoints({
                 url: `/group/getevent/${credentials}`,
                 method: 'GET'
             }),
-            transformResponse: (res: { events: GroupEvent }) => res.events,
+            transformResponse: (res: { data: {events: GroupEvent[]} }) => res.data.events,
             providesTags: ['Group']
         }),
         manageMember: builder.mutation<any, { groupId: string; action: string; Member: string; contribution?: number }>({
@@ -59,7 +59,7 @@ export const group = api.injectEndpoints({
             query: (body) => ({ url: '/group/manageadmin', method: 'POST', body }),
             invalidatesTags: ['Group']
         }),
-        addContribution: builder.mutation<any, { groupId: string; contribution: number; userId?: string }>({
+        addContribution: builder.mutation<any, { groupId: string; contribution: number; userId?: string; description?: string }>({
             query: (body) => ({ url: '/group/addcontribution', method: 'POST', body }),
             invalidatesTags: ['Group']
         }),

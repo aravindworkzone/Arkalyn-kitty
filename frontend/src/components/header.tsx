@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext } from "react-router-dom";
 import { useSignOutMutation } from "../redux/api/auth";
 import { useTranslation } from "react-i18next";
 import LanguageToggle from "./LanguageToggle";
+import { socket } from "../socket/socket";
 
 const Header = () => {
   const { user } = useOutletContext<{ user: any }>();
@@ -23,6 +24,7 @@ const Header = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate("/login", { replace: true });
+    socket.disconnect();
   };
 
   const initials = user?.name

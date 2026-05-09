@@ -9,6 +9,7 @@ import {
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendCreated } from '../utils/response';
 import { AppError } from '../helpers/AppError';
+import { emitToGroup, SOCKET_EVENTS } from "../sockets/index";
 
 export const createExpense = asyncHandler(async (req, res) => {
     if (!req.group?._id) throw new AppError('Group not found', 400);
@@ -19,6 +20,8 @@ export const createExpense = asyncHandler(async (req, res) => {
         group: req.group,
         user: req.user._id,
     });
+
+    emitToGroup(req.group.displayId.toString(), SOCKET_EVENTS.EXPENSE_CREATED);
 
     sendCreated(res, { expense }, 'Expense created');
 });
@@ -35,6 +38,8 @@ export const deleteExpense = asyncHandler(async (req, res) => {
         userId: req.user._id.toString(),
         reason: typeof req.body.reason === 'string' ? req.body.reason : undefined,
     });
+
+    emitToGroup(req.group.displayId.toString(), SOCKET_EVENTS.EXPENSE_DELETED);
 
     sendSuccess(res, { expense }, 'Expense deleted');
 });

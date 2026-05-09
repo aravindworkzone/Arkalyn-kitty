@@ -5,7 +5,7 @@ import { useGetTransactionQuery, useGetEventQuery } from "../redux/api/group";
 import DetailModal from "../components/DetailModal";
 import { actionStyle, eventConfig } from "../helpers/constants";
 import { eventDescription } from "../helpers/formatters";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 
 export default function ReportPage() {
   const { groupId } = useParams();

@@ -8,12 +8,13 @@ import {
   useDeleteGroupMutation,
 } from "../redux/api/group";
 import { useVerifyUserMutation } from "../redux/api/user";
-import { validateEmail, validateAmount, validateContribution } from "../helpers/validators";
+import { validateEmail, validateAmount, validateContribution, validateDescription } from "../helpers/validators";
 import type { SetFieldError } from "../hooks/useFieldError";
 
-export type AddMemberField    = "searchEmail" | "memberContrib";
+export type AddMemberField = "searchEmail" | "memberContrib";
 export type ContributionField = "myContrib";
-export type SettlementField   = "settleAmount";
+export type ContributionDescField = "myContribDesc";
+export type SettlementField = "settleAmount";
 
 type Msg = { ok: boolean; text: string } | null;
 type FoundUser = { _id: string; name: string } | null;
@@ -24,18 +25,18 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
 
   const [msg, setMsg] = useState<Msg>(null);
 
-  const [verifyUser,         { isLoading: isVerifying }]      = useVerifyUserMutation();
-  const [manageMember,       { isLoading: isAddingMember }]   = useManageMemberMutation();
-  const [manageAdmin,        { isLoading: isChangingRole }]   = useManageAdminMutation();
-  const [addContributionMut, { isLoading: isAddingContrib }]  = useAddContributionMutation();
-  const [settlementMut,      { isLoading: isSettling }]       = useSettlementMutation();
-  const [deleteGroupMut,     { isLoading: isDeletingGroup }]  = useDeleteGroupMutation();
-  const [removeMemberMut,    { isLoading: isRemovingMember }] = useManageMemberMutation();
+  const [verifyUser, { isLoading: isVerifying }] = useVerifyUserMutation();
+  const [manageMember, { isLoading: isAddingMember }] = useManageMemberMutation();
+  const [manageAdmin, { isLoading: isChangingRole }] = useManageAdminMutation();
+  const [addContributionMut, { isLoading: isAddingContrib }] = useAddContributionMutation();
+  const [settlementMut, { isLoading: isSettling }] = useSettlementMutation();
+  const [deleteGroupMut, { isLoading: isDeletingGroup }] = useDeleteGroupMutation();
+  const [removeMemberMut, { isLoading: isRemovingMember }] = useManageMemberMutation();
 
   const handleVerifyUser = async (
     searchEmail: string,
-    setFoundUser:    React.Dispatch<React.SetStateAction<FoundUser>>,
-    setFieldError:   SetFieldError<AddMemberField>
+    setFoundUser: React.Dispatch<React.SetStateAction<FoundUser>>,
+    setFieldError: SetFieldError<AddMemberField>
   ) => {
     const emailV = validateEmail(searchEmail.trim());
     if (!emailV.valid) {
@@ -55,10 +56,10 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
   const handleAddMember = async (
     foundUser: FoundUser,
     memberContrib: string,
-    setFoundUser:     React.Dispatch<React.SetStateAction<FoundUser>>,
-    setSearchEmail:   React.Dispatch<React.SetStateAction<string>>,
+    setFoundUser: React.Dispatch<React.SetStateAction<FoundUser>>,
+    setSearchEmail: React.Dispatch<React.SetStateAction<string>>,
     setMemberContrib: React.Dispatch<React.SetStateAction<string>>,
-    setFieldError:    SetFieldError<AddMemberField>
+    setFieldError: SetFieldError<AddMemberField>
   ) => {
     if (!foundUser || !groupId) return;
 
@@ -109,9 +110,12 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
   const handleAddContribution = async (
     myContrib: string,
     contribMemberId: string,
-    setMyContrib:        React.Dispatch<React.SetStateAction<string>>,
-    setContribMemberId:  React.Dispatch<React.SetStateAction<string>>,
-    setFieldError:       SetFieldError<ContributionField>
+    setMyContrib: React.Dispatch<React.SetStateAction<string>>,
+    setContribMemberId: React.Dispatch<React.SetStateAction<string>>,
+    setFieldError: SetFieldError<ContributionField>,
+    myContribDesc: string,
+    setmyContribDesc: React.Dispatch<React.SetStateAction<string>>,
+    setContribErrorDesc: SetFieldError<ContributionDescField>
   ) => {
     if (!groupId) return;
 
@@ -121,15 +125,23 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
       return;
     }
 
+    const decV = validateDescription(myContribDesc);
+    if (!decV.valid) {
+      setContribErrorDesc("myContribDesc", decV.message);
+      return;
+    }
+
     try {
       await addContributionMut({
         groupId,
         contribution: Number(myContrib),
+        description: myContribDesc,
         ...(contribMemberId ? { userId: contribMemberId } : {}),
       }).unwrap();
       setMsg({ ok: true, text: "Contribution added" });
       setMyContrib("");
       setContribMemberId("");
+      setmyContribDesc("");
     } catch (e: any) {
       setMsg({ ok: false, text: e?.data?.error || "Failed to add contribution" });
     }
@@ -139,8 +151,8 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
     settleMemberId: string,
     settleAmount: string,
     setSettleMemberId: React.Dispatch<React.SetStateAction<string>>,
-    setSettleAmount:   React.Dispatch<React.SetStateAction<string>>,
-    setFieldError:     SetFieldError<SettlementField>
+    setSettleAmount: React.Dispatch<React.SetStateAction<string>>,
+    setFieldError: SetFieldError<SettlementField>
   ) => {
     if (!groupId) return;
 
@@ -172,7 +184,7 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
   const handleDeleteMember = async (
     deleteMemberTarget: DeleteTarget,
     setDeleteMemberTarget: React.Dispatch<React.SetStateAction<DeleteTarget>>,
-    setDeleteMemberError:  React.Dispatch<React.SetStateAction<string>>
+    setDeleteMemberError: React.Dispatch<React.SetStateAction<string>>
   ) => {
     if (!deleteMemberTarget || !groupId) return;
     setDeleteMemberError("");

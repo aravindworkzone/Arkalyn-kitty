@@ -16,7 +16,8 @@ export const PAGINATION = {
 
 export const RATE_LIMIT = {
     AUTH_WINDOW_MS: 15 * 60 * 1000,
-    AUTH_MAX_ATTEMPTS: 10,
+    AUTH_MAX_ATTEMPTS: 100,
+    // AUTH_MAX_ATTEMPTS: 10,
     GLOBAL_WINDOW_MS: 15 * 60 * 1000,
     GLOBAL_MAX_REQUESTS: 300,
 } as const;

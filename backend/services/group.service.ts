@@ -342,10 +342,11 @@ export const manageAdminService = async (data: { group: mongoose.Types.ObjectId,
     }
 };
 
-export const addContributionService = async (data: {group: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, contribution: number}) => {
+export const addContributionService = async (data: {group: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, contribution: number, description: string}) => {
     const groupData = data.group;
     const userId = data.userId;
     const contribution = data.contribution;
+    const description = data.description;
 
     if (!userId || contribution === undefined) {
         throw new AppError("User ID and contribution are required", 400);
@@ -385,7 +386,7 @@ export const addContributionService = async (data: {group: mongoose.Types.Object
             groupId: groupData,
             amount: contribution,
             action: "CREDIT",
-            description: `Added ${contribution} contribution to group`,
+            description: `Added ${contribution} contribution to group ${description ? `with description: ${description}` : ""}`,
             referenceId: userId,
             referenceModel: "User",
             metadata: [{ userId, contribution }],

@@ -39,6 +39,13 @@ export const validateGroupName = (name: string): ValidationResult => {
   return ok();
 };
 
+export const validateDescription = (description: string): ValidationResult => {
+  if (!description?.trim()) return fail("Group description is required");
+  if (description.trim().length < 3) return fail("Group description must be at least 3 characters");
+  if (description.trim().length > 100) return fail("Group description must be at most 100 characters");
+  return ok();
+};
+
 // ── Category ──────────────────────────────────────────────────────
 
 export const validateCategoryName = (name: string): ValidationResult => {

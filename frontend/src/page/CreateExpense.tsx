@@ -184,6 +184,7 @@ export default function CreateExpensePage() {
                     <button
                       key={pt}
                       type="button"
+                      onClick={() => { setPaymentType(pt) }}
                       className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-[10px] font-semibold transition-all duration-150 ${
                         paymentType === pt
                           ? "bg-cyan-500/15 border-cyan-500/35 text-cyan-300"

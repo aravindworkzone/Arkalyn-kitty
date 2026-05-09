@@ -55,7 +55,15 @@ export const initSocketServer = (httpServer: HttpServer): AppIO => {
     });
 
     io.on('connection', (socket) => {
-        logger.debug({ userId: socket.data.userId, sid: socket.id }, 'socket connected');
+        // logger.debug({ userId: socket.data.userId, sid: socket.id }, 'socket connected');
+
+        // socket.onAny((event, ...args) => {
+        //     console.log("incoming", event, args);
+        // });
+
+        socket.onAnyOutgoing((event, ...args) => {
+            logger.info({ event, args, userId: socket.data.userId }, 'outgoing socket event');
+        });
 
         registerGroupHandlers(io as AppIO, socket);
         registerExpenseHandlers(io as AppIO, socket);
@@ -73,11 +81,12 @@ export const getIO = (): AppIO => {
     return io;
 };
 
-export const emitToGroup = (groupId: string, event: string, payload: unknown): void => {
-    if (!io) return;
-    // Using a loose cast here because callers pass a SOCKET_EVENTS member;
-    // typed event payloads are enforced by ServerToClientEvents at the socket level.
-    (io.to(groupRoom(groupId)).emit as (e: string, p: unknown) => void)(event, payload);
+export const emitToGroup = (groupId: string, event: string): void => {
+    if (!io) {
+        logger.warn({ groupId, event }, 'socket emit failed');
+        return;
+    }
+    (io.to(groupRoom(groupId)).emit as (e: string) => void)(event);
 };
 
 export { SOCKET_EVENTS };

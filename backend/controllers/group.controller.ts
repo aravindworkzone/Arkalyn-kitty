@@ -68,10 +68,13 @@ export const addContribution = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
     if (!req.group?._id) throw new AppError('Group not found', 400);
 
+    console.log("req",req.body);
+
     const member = await addContributionService({
         group: req.group._id,
         userId: req.body.userId ?? req.user._id,
         contribution: req.body.contribution,
+        description: req.body.description,
     });
 
     sendSuccess(res, { member }, 'Contribution added');

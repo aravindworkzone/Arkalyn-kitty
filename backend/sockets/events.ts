@@ -5,6 +5,9 @@ export const SOCKET_EVENTS = {
     EXPENSE_CREATED: 'expense:created',
     EXPENSE_DELETED: 'expense:deleted',
 
+    CATEGORY_CREATED: 'category:created',
+    CATEGORY_DELETED: 'category:deleted',
+
     GROUP_BALANCE_UPDATED: 'group:balance:updated',
     GROUP_MEMBER_ADDED: 'group:member:added',
     GROUP_MEMBER_REMOVED: 'group:member:removed',
@@ -17,65 +20,25 @@ export const SOCKET_EVENTS = {
 
 export type SocketEvent = typeof SOCKET_EVENTS[keyof typeof SOCKET_EVENTS];
 
-export interface GroupJoinPayload {
-    groupId: string;
-}
-
-export interface GroupLeavePayload {
-    groupId: string;
-}
-
-export interface ExpenseCreatedPayload {
-    groupId: string;
-    expenseId: string;
-    amount: number;
-    paidBy: string;
-    title: string;
-    createdBy: string;
-}
-
-export interface ExpenseDeletedPayload {
-    groupId: string;
-    expenseId: string;
-    refundedAmount: number;
-    deletedBy: string;
-}
-
-export interface GroupBalanceUpdatedPayload {
-    groupId: string;
-    balance: number;
-    totalContribution: number;
-}
-
-export interface GroupMemberChangedPayload {
-    groupId: string;
-    userId: string;
-    role?: string;
-}
-
-export interface ActivityEventPayload {
-    groupId: string;
-    eventType: string;
-    metadata?: Record<string, unknown>;
-    performedBy: string;
-    occurredAt: string;
+export interface group{
+    groupId: string
 }
 
 export interface ServerToClientEvents {
-    [SOCKET_EVENTS.EXPENSE_CREATED]: (payload: ExpenseCreatedPayload) => void;
-    [SOCKET_EVENTS.EXPENSE_DELETED]: (payload: ExpenseDeletedPayload) => void;
-    [SOCKET_EVENTS.GROUP_BALANCE_UPDATED]: (payload: GroupBalanceUpdatedPayload) => void;
-    [SOCKET_EVENTS.GROUP_MEMBER_ADDED]: (payload: GroupMemberChangedPayload) => void;
-    [SOCKET_EVENTS.GROUP_MEMBER_REMOVED]: (payload: GroupMemberChangedPayload) => void;
-    [SOCKET_EVENTS.GROUP_CONTRIBUTION_ADDED]: (payload: GroupBalanceUpdatedPayload) => void;
-    [SOCKET_EVENTS.GROUP_SETTLEMENT_COMPLETED]: (payload: GroupBalanceUpdatedPayload) => void;
-    [SOCKET_EVENTS.ACTIVITY_EVENT]: (payload: ActivityEventPayload) => void;
+    [SOCKET_EVENTS.EXPENSE_CREATED]: (payload: string) => void;
+    [SOCKET_EVENTS.EXPENSE_DELETED]: (payload: string) => void;
+    [SOCKET_EVENTS.GROUP_BALANCE_UPDATED]: (payload: string) => void;
+    [SOCKET_EVENTS.GROUP_MEMBER_ADDED]: (payload: string) => void;
+    [SOCKET_EVENTS.GROUP_MEMBER_REMOVED]: (payload: string) => void;
+    [SOCKET_EVENTS.GROUP_CONTRIBUTION_ADDED]: (payload: string) => void;
+    [SOCKET_EVENTS.GROUP_SETTLEMENT_COMPLETED]: (payload: string) => void;
+    [SOCKET_EVENTS.ACTIVITY_EVENT]: (payload: string) => void;
     [SOCKET_EVENTS.ERROR]: (payload: { message: string }) => void;
 }
 
 export interface ClientToServerEvents {
-    [SOCKET_EVENTS.GROUP_JOIN]: (payload: GroupJoinPayload) => void;
-    [SOCKET_EVENTS.GROUP_LEAVE]: (payload: GroupLeavePayload) => void;
+    [SOCKET_EVENTS.GROUP_JOIN]: (payload: string) => void;
+    [SOCKET_EVENTS.GROUP_LEAVE]: (payload: string) => void;
 }
 
 export interface InterServerEvents {

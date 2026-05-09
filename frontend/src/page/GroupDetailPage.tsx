@@ -11,7 +11,7 @@ import {
   useGetGroupByIdQuery,
 } from "../redux/api/group";
 import { useGroupDetailHandlers } from "../handlers/useGroupDetailHandlers";
-import type { AddMemberField, ContributionField, SettlementField } from "../handlers/useGroupDetailHandlers";
+import type { AddMemberField, ContributionField, SettlementField, ContributionDescField } from "../handlers/useGroupDetailHandlers";
 import { roleGrade } from "../helpers/constants";
 import type { SettingsTab } from "../interface/group";
 import { sanitizeAmount } from "../helpers/validators";
@@ -19,6 +19,9 @@ import { useFieldError } from "../hooks/useFieldError";
 import { FieldInput } from "../components/ui";
 import { useTranslation } from "react-i18next";
 import { useSearchUsersQuery, type UserSuggestion } from "../redux/api/user";
+import { joinGroup } from "../socket/emiter/group.emit";
+import { setGroupId } from "../redux/slice/group.slice";
+import { useDispatch } from "react-redux";
 
 const inp =
   "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 transition-all";
@@ -27,6 +30,16 @@ export default function GroupDetailPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+
+    if (!groupId) return;
+    dispatch(setGroupId(groupId));
+
+    joinGroup(groupId);
+
+  }, [groupId]);
 
   const [membersOpen, setMembersOpen]   = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -39,6 +52,7 @@ export default function GroupDetailPage() {
   const [roleMemberId, setRoleMemberId] = useState("");
   const [roleAction,   setRoleAction]   = useState<"promote" | "demote">("promote");
   const [myContrib,       setMyContrib]       = useState("");
+  const [myContribDesc, setmyContribDesc]       = useState("");
   const [contribMemberId, setContribMemberId] = useState("");
   const [settleMemberId, setSettleMemberId] = useState("");
   const [settleAmount,   setSettleAmount]   = useState("");
@@ -49,6 +63,7 @@ export default function GroupDetailPage() {
 
   const { fieldErrors: addMemberErrors, setFieldError: setAddMemberError, clearFieldError: clearAddMemberError, clearAllFieldErrors: clearAllAddMemberErrors } = useFieldError<AddMemberField>();
   const { fieldErrors: contribErrors,   setFieldError: setContribError,   clearFieldError: clearContribError,   clearAllFieldErrors: clearAllContribErrors   } = useFieldError<ContributionField>();
+  const { fieldErrors: contribErrorsDesc,   setFieldError: setContribErrorDesc,   clearFieldError: clearContribErrorDesc,   clearAllFieldErrors: clearAllContribErrorsDesc   } = useFieldError<ContributionDescField>();
   const { fieldErrors: settleErrors,    setFieldError: setSettleError,    clearFieldError: clearSettleError,    clearAllFieldErrors: clearAllSettleErrors    } = useFieldError<SettlementField>();
 
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
@@ -61,8 +76,7 @@ export default function GroupDetailPage() {
 
   const { data: memberSuggestions } = useSearchUsersQuery(debouncedEmail, {
     skip: debouncedEmail.length < 2,
-  });
-
+  });  
   const handleSuggestionSelect = (suggestion: UserSuggestion) => {
     setFoundUser({ _id: suggestion._id, name: suggestion.name });
     setSearchEmail(suggestion.email);
@@ -606,7 +620,7 @@ export default function GroupDetailPage() {
                           <p className="text-sm text-white/70" translate="no">{foundUser.name}</p>
                         </div>
                         <div className="relative">
-                          <span className="absolute left-4 top-4 text-white/30 text-sm pointer-events-none z-10">₹</span>
+                          <span className="absolute left-4 top-[11px] text-white/30 text-sm pointer-events-none z-10">₹</span>
                           <FieldInput
                             type="text"
                             inputMode="decimal"
@@ -697,7 +711,7 @@ export default function GroupDetailPage() {
                       ))}
                     </select>
                     <div className="relative">
-                      <span className="absolute left-4 top-4 text-white/30 text-sm pointer-events-none z-10">₹</span>
+                      <span className="absolute left-4 top-[11px] text-white/30 text-sm pointer-events-none z-10">₹</span>
                       <FieldInput
                         type="text"
                         inputMode="decimal"
@@ -709,8 +723,20 @@ export default function GroupDetailPage() {
                         className={`${inp} pl-8`}
                       />
                     </div>
+                    <div className="relative">
+                      <FieldInput
+                        type="text"
+                        inputMode="text"
+                        value={myContribDesc}
+                        onChange={(e) => setmyContribDesc(e.target.value)}
+                        error={contribErrorsDesc.myContribDesc}
+                        onClearError={() => clearContribErrorDesc("myContribDesc")}
+                        placeholder={t("groupDetail.description")}
+                        className={`${inp}`}
+                      />
+                    </div>
                     <button
-                      onClick={() => handleAddContribution(myContrib, contribMemberId, setMyContrib, setContribMemberId, setContribError)}
+                      onClick={() => handleAddContribution(myContrib, contribMemberId, setMyContrib, setContribMemberId, setContribError ,myContribDesc ,setmyContribDesc , setContribErrorDesc)}
                       disabled={!myContrib || Number(myContrib) <= 0 || isAddingContrib}
                       className="w-full py-2.5 rounded-xl text-sm font-semibold
                         bg-violet-500/15 border border-violet-500/25 text-violet-300
