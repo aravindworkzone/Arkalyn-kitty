@@ -14,6 +14,7 @@ import {
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendCreated } from '../utils/response';
 import { AppError } from '../helpers/AppError';
+import { emitToGroup, SOCKET_EVENTS } from '../sockets';
 
 export const createGroup = asyncHandler(async (req, res) => {
     if (!req.user) throw new AppError('Unauthorized', 401);
@@ -31,7 +32,11 @@ export const createGroup = asyncHandler(async (req, res) => {
 export const deleteGroup = asyncHandler(async (req, res) => {
     if (!req.group?._id) throw new AppError('Group not found', 400);
 
+    const displayId = req.group.displayId;
     const group = await deleteGroupService(req.group._id.toString());
+
+    emitToGroup(displayId, SOCKET_EVENTS.GROUP_DELETED);
+
     sendSuccess(res, { group }, 'Group deleted');
 });
 
@@ -47,6 +52,9 @@ export const manageMember = asyncHandler(async (req, res) => {
         contribution: req.body.contribution,
     });
 
+    const event = req.body.action === 'add' ? SOCKET_EVENTS.GROUP_MEMBER_ADDED : SOCKET_EVENTS.GROUP_MEMBER_REMOVED;
+    emitToGroup(req.group.displayId, event);
+
     sendSuccess(res, null, result ?? 'Member updated');
 });
 
@@ -61,6 +69,8 @@ export const manageAdmin = asyncHandler(async (req, res) => {
         member: req.body.member,
     });
 
+    emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_ROLE_CHANGED);
+
     sendSuccess(res, null, result ?? 'Admin updated');
 });
 
@@ -68,14 +78,14 @@ export const addContribution = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
     if (!req.group?._id) throw new AppError('Group not found', 400);
 
-    console.log("req",req.body);
-
     const member = await addContributionService({
         group: req.group._id,
         userId: req.body.userId ?? req.user._id,
         contribution: req.body.contribution,
         description: req.body.description,
     });
+
+    emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_CONTRIBUTION_ADDED);
 
     sendSuccess(res, { member }, 'Contribution added');
 });
@@ -91,6 +101,8 @@ export const Settlement = asyncHandler(async (req, res) => {
         member: req.body.member,
         balance: req.group.balance,
     });
+
+    emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_SETTLEMENT_COMPLETED);
 
     sendSuccess(res, null, result ?? 'Settlement completed');
 });

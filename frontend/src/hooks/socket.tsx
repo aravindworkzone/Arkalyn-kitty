@@ -1,7 +1,7 @@
-import React from 'react'
 import ConnectSocket from '../socket/listener/validateConnect.socket'
 import ExpenseListener from '../socket/listener/expense.listener'
 import CategoryListener from '../socket/listener/category.listener'
+import GroupListener from '../socket/listener/group.listener'
 
 export default function useSocket() {
     return (
@@ -9,6 +9,7 @@ export default function useSocket() {
             <ConnectSocket />
             <ExpenseListener />
             <CategoryListener />
+            <GroupListener />
         </>
     )
 }

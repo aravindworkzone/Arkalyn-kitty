@@ -18,7 +18,10 @@ export const group = api.injectEndpoints({
                 method: 'GET'
             }),
             transformResponse: (res: { data: {group: any} }) => res.data.group,
-            providesTags: ['Group','Expense']
+            providesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId },
+                { type: 'Expense', id: groupId }
+            ]
         }),
         getGroupMembers: builder.query<GroupMember[], string>({
             query: (credentials) => ({
@@ -26,14 +29,18 @@ export const group = api.injectEndpoints({
                 method: 'GET'
             }),
             transformResponse: (res: { data: {members: GroupMember[]} }) => res.data.members,
-            providesTags: ['Group']
+            providesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId }
+            ]
         }),
         getBasicTransaction: builder.query<any, any>({
             query: (credentials) => ({
                 url: `/group/getbasictransaction/${credentials}`,
                 method: 'GET'
             }),
-            providesTags: ['Group']
+            providesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId }
+            ]
         }),
         getTransaction: builder.query<any, any>({
             query: (credentials) => ({
@@ -41,7 +48,9 @@ export const group = api.injectEndpoints({
                 method: 'GET'
             }),
             transformResponse: (res: { data: {transactions: GroupTransaction[]} }) => res.data.transactions,
-            providesTags: ['Group']
+            providesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId }
+            ]
         }),
         getEvent: builder.query<any, any>({
             query: (credentials) => ({
@@ -49,27 +58,40 @@ export const group = api.injectEndpoints({
                 method: 'GET'
             }),
             transformResponse: (res: { data: {events: GroupEvent[]} }) => res.data.events,
-            providesTags: ['Group']
+            providesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId }
+            ]
         }),
         manageMember: builder.mutation<any, { groupId: string; action: string; Member: string; contribution?: number }>({
             query: (body) => ({ url: '/group/managemember', method: 'POST', body }),
-            invalidatesTags: ['Group']
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId }
+            ]
         }),
         manageAdmin: builder.mutation<any, { groupId: string; action: string; member: string }>({
             query: (body) => ({ url: '/group/manageadmin', method: 'POST', body }),
-            invalidatesTags: ['Group']
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId }
+            ]
         }),
         addContribution: builder.mutation<any, { groupId: string; contribution: number; userId?: string; description?: string }>({
             query: (body) => ({ url: '/group/addcontribution', method: 'POST', body }),
-            invalidatesTags: ['Group']
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId }
+            ]
         }),
         settlement: builder.mutation<any, { groupId: string; settlement: number; member: string }>({
             query: (body) => ({ url: '/group/settlement', method: 'POST', body }),
-            invalidatesTags: ['Group']
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId }
+            ]
         }),
         deleteGroup: builder.mutation<any, string>({
             query: (groupId) => ({ url: `/group/delete/${groupId}`, method: 'DELETE' }),
-            invalidatesTags: ['Group']
+            invalidatesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId },
+                'Group'
+            ]
         }),
     })
 })

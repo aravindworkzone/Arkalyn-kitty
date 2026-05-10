@@ -11,20 +11,20 @@ import {
   useGetGroupByIdQuery,
 } from "../redux/api/group";
 import { useGroupDetailHandlers } from "../handlers/useGroupDetailHandlers";
-import type { AddMemberField, ContributionField, SettlementField, ContributionDescField } from "../handlers/useGroupDetailHandlers";
 import { roleGrade } from "../helpers/constants";
 import type { SettingsTab } from "../interface/group";
-import { sanitizeAmount } from "../helpers/validators";
-import { useFieldError } from "../hooks/useFieldError";
-import { FieldInput } from "../components/ui";
+import { StatusBanner } from "../components/ui";
+import {
+  SettingsAddMember,
+  SettingsChangeRole,
+  SettingsContribution,
+  SettingsSettlement,
+  SettingsDangerZone,
+} from "../components/groupSettings";
 import { useTranslation } from "react-i18next";
-import { useSearchUsersQuery, type UserSuggestion } from "../redux/api/user";
 import { joinGroup } from "../socket/emiter/group.emit";
 import { setGroupId } from "../redux/slice/group.slice";
 import { useDispatch } from "react-redux";
-
-const inp =
-  "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 transition-all";
 
 export default function GroupDetailPage() {
   const { groupId } = useParams();
@@ -44,45 +44,13 @@ export default function GroupDetailPage() {
   const [membersOpen, setMembersOpen]   = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tab, setTab]                   = useState<SettingsTab>("addMember");
-  const [searchEmail,      setSearchEmail]      = useState("");
-  const [debouncedEmail,   setDebouncedEmail]   = useState("");
-  const [showSuggestions,  setShowSuggestions]  = useState(false);
-  const [foundUser,        setFoundUser]        = useState<{ _id: string; name: string } | null>(null);
-  const [memberContrib, setMemberContrib] = useState("");
-  const [roleMemberId, setRoleMemberId] = useState("");
-  const [roleAction,   setRoleAction]   = useState<"promote" | "demote">("promote");
-  const [myContrib,       setMyContrib]       = useState("");
-  const [myContribDesc, setmyContribDesc]       = useState("");
-  const [contribMemberId, setContribMemberId] = useState("");
-  const [settleMemberId, setSettleMemberId] = useState("");
-  const [settleAmount,   setSettleAmount]   = useState("");
   const [deleteMemberTarget, setDeleteMemberTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleteMemberError,  setDeleteMemberError]  = useState("");
   const [deleteGroupOpen,  setDeleteGroupOpen]  = useState(false);
   const [deleteGroupError, setDeleteGroupError] = useState("");
 
-  const { fieldErrors: addMemberErrors, setFieldError: setAddMemberError, clearFieldError: clearAddMemberError, clearAllFieldErrors: clearAllAddMemberErrors } = useFieldError<AddMemberField>();
-  const { fieldErrors: contribErrors,   setFieldError: setContribError,   clearFieldError: clearContribError,   clearAllFieldErrors: clearAllContribErrors   } = useFieldError<ContributionField>();
-  const { fieldErrors: contribErrorsDesc,   setFieldError: setContribErrorDesc,   clearFieldError: clearContribErrorDesc,   clearAllFieldErrors: clearAllContribErrorsDesc   } = useFieldError<ContributionDescField>();
-  const { fieldErrors: settleErrors,    setFieldError: setSettleError,    clearFieldError: clearSettleError,    clearAllFieldErrors: clearAllSettleErrors    } = useFieldError<SettlementField>();
-
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
   const [noCatAlert,      setNoCatAlert]      = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedEmail(searchEmail.trim()), 300);
-    return () => clearTimeout(timer);
-  }, [searchEmail]);
-
-  const { data: memberSuggestions } = useSearchUsersQuery(debouncedEmail, {
-    skip: debouncedEmail.length < 2,
-  });  
-  const handleSuggestionSelect = (suggestion: UserSuggestion) => {
-    setFoundUser({ _id: suggestion._id, name: suggestion.name });
-    setSearchEmail(suggestion.email);
-    setDebouncedEmail("");
-    setShowSuggestions(false);
-  };
 
   const { data: GroupDetails, isLoading: groupLoading } =
     useGetGroupByIdQuery(groupId!, { skip: !groupId });
@@ -115,11 +83,6 @@ export default function GroupDetailPage() {
     setSettingsOpen(true);
     setMsg(null);
     setTab("addMember");
-    setFoundUser(null); setSearchEmail(""); setDebouncedEmail(""); setShowSuggestions(false); setMemberContrib("");
-    setRoleMemberId(""); setRoleAction("promote");
-    setMyContrib(""); setContribMemberId("");
-    setSettleMemberId(""); setSettleAmount("");
-    clearAllAddMemberErrors(); clearAllContribErrors(); clearAllSettleErrors();
   };
 
   const settingsTabs: { id: SettingsTab; label: string; show: boolean }[] = [
@@ -550,266 +513,46 @@ export default function GroupDetailPage() {
 
               <div className="px-5 py-4 space-y-3">
 
-                {msg && (
-                  <div className={`text-xs px-3.5 py-2.5 rounded-xl border ${
-                    msg.ok
-                      ? "text-green-400 bg-green-500/10 border-green-500/20"
-                      : "text-red-400 bg-red-500/10 border-red-500/20"
-                  }`}>
-                    {msg.text}
-                  </div>
-                )}
+                <StatusBanner status={msg ? (msg.ok ? "ok" : "err") : null} text={msg?.text ?? ""} />
 
-                {/* ─ Add Member ─ */}
                 {tab === "addMember" && (
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-2">
-                      <div className="flex-1 relative">
-                        <FieldInput
-                          type="email"
-                          inputMode="email"
-                          value={searchEmail}
-                          onChange={(e) => { setSearchEmail(e.target.value); setFoundUser(null); setShowSuggestions(true); }}
-                          onFocus={() => setShowSuggestions(true)}
-                          onBlur={() => setShowSuggestions(false)}
-                          onKeyDown={(e) => e.key === "Enter" && handleVerifyUser(searchEmail, setFoundUser, setAddMemberError)}
-                          error={addMemberErrors.searchEmail}
-                          onClearError={() => clearAddMemberError("searchEmail")}
-                          placeholder="member@email.com"
-                          className={inp}
-                        />
-                        {showSuggestions && memberSuggestions && memberSuggestions.length > 0 && (
-                          <ul className="absolute z-100 left-0 right-0 top-[calc(100%+4px)] bg-[#0d1420] border border-white/[0.08] rounded-xl overflow-hidden shadow-xl shadow-black/40">
-                            {memberSuggestions.map((s) => (
-                              <li
-                                key={s._id}
-                                onMouseDown={(e) => { e.preventDefault(); handleSuggestionSelect(s); }}
-                                className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.05] cursor-pointer transition-colors"
-                              >
-                                <div className="w-7 h-7 rounded-full bg-cyan-500/15 border border-cyan-500/20 flex items-center justify-center shrink-0">
-                                  <span className="text-[10px] font-bold text-cyan-400" translate="no">
-                                    {s.name.slice(0, 2).toUpperCase()}
-                                  </span>
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-[13px] font-medium text-white/85 truncate leading-tight" translate="no">{s.name}</p>
-                                  <p className="text-[11px] text-white/30 truncate" translate="no">{s.email}</p>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleVerifyUser(searchEmail, setFoundUser, setAddMemberError)}
-                        disabled={isVerifying || !searchEmail.trim()}
-                        className="px-4 rounded-xl text-xs font-semibold border
-                          bg-white/[0.04] border-white/[0.09] text-white/50
-                          hover:text-white/80 hover:bg-white/[0.07] disabled:opacity-40 transition-all"
-                      >
-                        {isVerifying ? t("groupDetail.settingsFinding") : t("groupDetail.settingsFind")}
-                      </button>
-                    </div>
-                    {foundUser && (
-                      <>
-                        <div className="flex items-center gap-3 px-4 py-3 bg-white/[0.03] border border-white/[0.07] rounded-xl">
-                          <div className="w-8 h-8 rounded-full bg-cyan-500/15 border border-cyan-500/20
-                            flex items-center justify-center text-[11px] font-bold text-cyan-400 shrink-0" translate="no">
-                            {foundUser.name.slice(0, 2).toUpperCase()}
-                          </div>
-                          <p className="text-sm text-white/70" translate="no">{foundUser.name}</p>
-                        </div>
-                        <div className="relative">
-                          <span className="absolute left-4 top-[11px] text-white/30 text-sm pointer-events-none z-10">₹</span>
-                          <FieldInput
-                            type="text"
-                            inputMode="decimal"
-                            value={memberContrib}
-                            onChange={(e) => setMemberContrib(sanitizeAmount(e.target.value))}
-                            error={addMemberErrors.memberContrib}
-                            onClearError={() => clearAddMemberError("memberContrib")}
-                            placeholder={t("groupDetail.initialContribution")}
-                            className={`${inp} pl-8`}
-                          />
-                        </div>
-                        <button
-                          onClick={() => handleAddMember(foundUser, memberContrib, setFoundUser, setSearchEmail, setMemberContrib, setAddMemberError)}
-                          disabled={isAddingMember}
-                          className="w-full py-2.5 rounded-xl text-sm font-semibold
-                            bg-cyan-500/15 border border-cyan-500/25 text-cyan-300
-                            hover:bg-cyan-500/25 active:bg-cyan-500/25 active:scale-[0.97]
-                            disabled:opacity-40 transition-all"
-                        >
-                          {isAddingMember ? t("groupDetail.addingMember") : t("groupDetail.addMemberBtn")}
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  <SettingsAddMember
+                    isVerifying={isVerifying}
+                    isAddingMember={isAddingMember}
+                    handleVerifyUser={handleVerifyUser}
+                    handleAddMember={handleAddMember}
+                  />
                 )}
 
-                {/* ─ Change Role ─ */}
                 {tab === "changeRole" && (
-                  <div className="space-y-3">
-                    <select
-                      value={roleMemberId}
-                      onChange={(e) => setRoleMemberId(e.target.value)}
-                      className={`${inp} appearance-none`}
-                      style={{ background: "#0d1220" }}
-                    >
-                      <option value="" disabled>{t("groupDetail.selectMember")}</option>
-                      {GroupMembers?.filter((m) => m.role !== "SUPER_ADMIN").map((m) => (
-                        <option key={m._id} value={m.userId._id} style={{ background: "#0d1220" }}>
-                          {m.userId.name} · {m.role === "ADMIN" ? "Admin" : "Member"}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex gap-2">
-                      {(["promote", "demote"] as const).map((a) => (
-                        <button
-                          key={a}
-                          onClick={() => setRoleAction(a)}
-                          className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all
-                            ${roleAction === a
-                              ? a === "promote"
-                                ? "bg-amber-500/15 border-amber-500/30 text-amber-300"
-                                : "bg-slate-500/15 border-slate-500/30 text-slate-300"
-                              : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
-                            }`}
-                        >
-                          {a === "promote" ? t("groupDetail.promoteToAdmin") : t("groupDetail.demoteToMember")}
-                        </button>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => handleChangeRole(roleMemberId, roleAction, setRoleMemberId)}
-                      disabled={!roleMemberId || isChangingRole}
-                      className="w-full py-2.5 rounded-xl text-sm font-semibold
-                        bg-amber-500/15 border border-amber-500/25 text-amber-300
-                        hover:bg-amber-500/25 active:bg-amber-500/25 active:scale-[0.97]
-                        disabled:opacity-40 transition-all"
-                    >
-                      {isChangingRole ? t("groupDetail.updatingRole") : t("groupDetail.changeRole")}
-                    </button>
-                  </div>
+                  <SettingsChangeRole
+                    members={GroupMembers}
+                    isChangingRole={isChangingRole}
+                    handleChangeRole={handleChangeRole}
+                  />
                 )}
 
-                {/* ─ Add Contribution ─ */}
                 {tab === "contribution" && (
-                  <div className="space-y-3">
-                    <p className="text-xs text-white/30">{t("groupDetail.addFundsDesc")}</p>
-                    <select
-                      value={contribMemberId}
-                      onChange={(e) => setContribMemberId(e.target.value)}
-                      className={`${inp} appearance-none`}
-                      style={{ background: "#0d1220" }}
-                    >
-                      <option value="" style={{ background: "#0d1220" }}>{t("groupDetail.myContribution")}</option>
-                      {GroupMembers?.map((m) => (
-                        <option key={m._id} value={m.userId._id} style={{ background: "#0d1220" }}>
-                          {m.userId.name} · ₹{m.contribution.toLocaleString("en-IN")} current
-                        </option>
-                      ))}
-                    </select>
-                    <div className="relative">
-                      <span className="absolute left-4 top-[11px] text-white/30 text-sm pointer-events-none z-10">₹</span>
-                      <FieldInput
-                        type="text"
-                        inputMode="decimal"
-                        value={myContrib}
-                        onChange={(e) => setMyContrib(sanitizeAmount(e.target.value))}
-                        error={contribErrors.myContrib}
-                        onClearError={() => clearContribError("myContrib")}
-                        placeholder={t("groupDetail.amount")}
-                        className={`${inp} pl-8`}
-                      />
-                    </div>
-                    <div className="relative">
-                      <FieldInput
-                        type="text"
-                        inputMode="text"
-                        value={myContribDesc}
-                        onChange={(e) => setmyContribDesc(e.target.value)}
-                        error={contribErrorsDesc.myContribDesc}
-                        onClearError={() => clearContribErrorDesc("myContribDesc")}
-                        placeholder={t("groupDetail.description")}
-                        className={`${inp}`}
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleAddContribution(myContrib, contribMemberId, setMyContrib, setContribMemberId, setContribError ,myContribDesc ,setmyContribDesc , setContribErrorDesc)}
-                      disabled={!myContrib || Number(myContrib) <= 0 || isAddingContrib}
-                      className="w-full py-2.5 rounded-xl text-sm font-semibold
-                        bg-violet-500/15 border border-violet-500/25 text-violet-300
-                        hover:bg-violet-500/25 active:bg-violet-500/25 active:scale-[0.97]
-                        disabled:opacity-40 transition-all"
-                    >
-                      {isAddingContrib ? t("groupDetail.addingContrib") : t("groupDetail.addContribution")}
-                    </button>
-                  </div>
+                  <SettingsContribution
+                    members={GroupMembers}
+                    isAddingContrib={isAddingContrib}
+                    handleAddContribution={handleAddContribution}
+                  />
                 )}
 
-                {/* ─ Settlement ─ */}
                 {tab === "settlement" && (
-                  <div className="space-y-3">
-                    <select
-                      value={settleMemberId}
-                      onChange={(e) => setSettleMemberId(e.target.value)}
-                      className={`${inp} appearance-none`}
-                      style={{ background: "#0d1220" }}
-                    >
-                      <option value="" disabled>{t("groupDetail.selectMemberToSettle")}</option>
-                      {GroupMembers?.filter((m) => !m.settlement).map((m) => (
-                        <option key={m._id} value={m.userId._id} style={{ background: "#0d1220" }}>
-                          {m.userId.name} · ₹{m.contribution.toLocaleString("en-IN")}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="relative">
-                      <span className="absolute left-4 top-[11px] text-white/30 text-sm pointer-events-none z-10">₹</span>
-                      <FieldInput
-                        type="text"
-                        inputMode="decimal"
-                        value={settleAmount}
-                        onChange={(e) => setSettleAmount(sanitizeAmount(e.target.value))}
-                        error={settleErrors.settleAmount}
-                        onClearError={() => clearSettleError("settleAmount")}
-                        placeholder={t("groupDetail.settlementAmount")}
-                        className={`${inp} pl-8`}
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleSettlement(settleMemberId, settleAmount, setSettleMemberId, setSettleAmount, setSettleError)}
-                      disabled={!settleMemberId || !settleAmount || isSettling}
-                      className="w-full py-2.5 rounded-xl text-sm font-semibold
-                        bg-green-500/15 border border-green-500/25 text-green-300
-                        hover:bg-green-500/25 active:bg-green-500/25 active:scale-[0.97]
-                        disabled:opacity-40 transition-all"
-                    >
-                      {isSettling ? t("groupDetail.settling") : t("groupDetail.settleMember")}
-                    </button>
-                  </div>
+                  <SettingsSettlement
+                    members={GroupMembers}
+                    isSettling={isSettling}
+                    handleSettlement={handleSettlement}
+                  />
                 )}
 
-                {/* ─ Danger Zone ─ */}
                 {tab === "danger" && (
-                  <div className="space-y-3">
-                    <div className="bg-red-500/[0.06] border border-red-500/15 rounded-xl px-4 py-4">
-                      <p className="text-xs font-semibold text-red-400 mb-1">{t("groupDetail.deleteGroup")}</p>
-                      <p className="text-[11px] text-white/30 mb-3">
-                        {t("groupDetail.deleteGroupDesc")}
-                      </p>
-                      <button
-                        onClick={() => { setSettingsOpen(false); setDeleteGroupOpen(true); }}
-                        className="w-full py-2.5 rounded-xl text-sm font-semibold
-                          bg-red-500/10 border border-red-500/20 text-red-400
-                          hover:bg-red-500/20 transition-all"
-                      >
-                        {t("groupDetail.deleteGroup")}
-                      </button>
-                    </div>
-                  </div>
+                  <SettingsDangerZone
+                    onRequestDeleteGroup={() => { setSettingsOpen(false); setDeleteGroupOpen(true); }}
+                  />
                 )}
-
               </div>
             </div>
           </div>

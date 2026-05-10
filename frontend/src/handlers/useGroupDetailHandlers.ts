@@ -152,7 +152,8 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
     settleAmount: string,
     setSettleMemberId: React.Dispatch<React.SetStateAction<string>>,
     setSettleAmount: React.Dispatch<React.SetStateAction<string>>,
-    setFieldError: SetFieldError<SettlementField>
+    setFieldError: SetFieldError<SettlementField>,
+    maxAmount?: number,
   ) => {
     if (!groupId) return;
 
@@ -161,7 +162,7 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
       return;
     }
 
-    const amtV = validateAmount(settleAmount);
+    const amtV = validateAmount(settleAmount, maxAmount);
     if (!amtV.valid) {
       setFieldError("settleAmount", amtV.message);
       return;

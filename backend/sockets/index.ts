@@ -81,12 +81,12 @@ export const getIO = (): AppIO => {
     return io;
 };
 
-export const emitToGroup = (groupId: string, event: string): void => {
+export const emitToGroup = (groupId: string, event: string, payload?: unknown): void => {
     if (!io) {
         logger.warn({ groupId, event }, 'socket emit failed');
         return;
     }
-    (io.to(groupRoom(groupId)).emit as (e: string) => void)(event);
+    (io.to(groupRoom(groupId)).emit as (e: string, p?: unknown) => void)(event, payload);
 };
 
 export { SOCKET_EVENTS };

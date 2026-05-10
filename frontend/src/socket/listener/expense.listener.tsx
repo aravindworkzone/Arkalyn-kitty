@@ -20,10 +20,8 @@ export default function ExpenseListener() {
 
             dispatch(
                 api.util.invalidateTags([
-                    {
-                        type: "Expense",
-                        id: groupId
-                    }
+                    { type: "Expense", id: groupId },
+                    "Group"
                 ])
             );
         };
@@ -32,14 +30,8 @@ export default function ExpenseListener() {
 
             dispatch(
                 api.util.invalidateTags([
-                    {
-                        type: "Expense",
-                        id: groupId
-                    },
-                    {
-                        type: "Group",
-                        id: groupId
-                    }   
+                    { type: "Expense", id: groupId },
+                    "Group"
                 ])
             );
         };

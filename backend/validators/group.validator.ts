@@ -35,6 +35,7 @@ export const addContributionBodySchema = z.object({
     groupId: groupIdParamSchema,
     contribution: z.number().positive('Contribution must be positive'),
     userId: objectIdSchema.optional(),
+    description: z.string().trim().max(200, 'Description too long').optional(),
 });
 
 export const settlementBodySchema = z.object({

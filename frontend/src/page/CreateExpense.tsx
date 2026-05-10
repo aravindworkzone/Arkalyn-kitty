@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
 import { useGetCategoriesQuery } from "../redux/api/category";
 import { useGetPaymentMethodQuery } from "../redux/api/expense";
-import { useGetGroupMembersQuery } from "../redux/api/group";
+import { useGetGroupMembersQuery, useGetGroupByIdQuery } from "../redux/api/group";
 import type { SplitEntry } from "../interface/expense";
 import { useExpenseHandlers, toggleSplit, updateSplitAmount } from "../handlers/useExpenseHandlers";
 import type { ExpenseField } from "../handlers/useExpenseHandlers";
@@ -15,6 +15,7 @@ import {
   ErrorMessage,
   FormActions,
   FieldInput,
+  AmountInput,
 } from "../components/ui";
 import { sanitizeAmount } from "../helpers/validators";
 import { useFieldError } from "../hooks/useFieldError";
@@ -33,6 +34,8 @@ export default function CreateExpensePage() {
   const { data: paymentTypes = [], isLoading: pmLoading } = useGetPaymentMethodQuery();
   const { data: categories = [], isLoading: catLoading } = useGetCategoriesQuery(groupId!, { skip: !groupId });
   const { data: groupMembers = [], isLoading: membersLoading } = useGetGroupMembersQuery(groupId!, { skip: !groupId });
+  const { data: groupDetails } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
+  const groupBalance = Number(groupDetails?.balance) || 0;
   const { handleSubmit, isCreating } = useExpenseHandlers(groupId);
 
   const [title, setTitle]             = useState("");
@@ -57,7 +60,7 @@ export default function CreateExpensePage() {
 
       <form
         onSubmit={(e) =>
-          handleSubmit(e, { title, totalAmount, categoryId, paidBy, splits, splitValid, date, paymentType, setFieldError, setApiError })
+          handleSubmit(e, { title, totalAmount, maxAmount: groupBalance, categoryId, paidBy, splits, splitValid, date, paymentType, setFieldError, setApiError })
         }
         className="relative max-w-xl mx-auto px-4 py-10 space-y-3"
       >
@@ -98,19 +101,15 @@ export default function CreateExpensePage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={fieldLabel}>{t("createExpense.amount")}</label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-3 text-white/30 text-sm pointer-events-none z-10">₹</span>
-                <FieldInput
-                  className={`${inputCls} pl-7`}
-                  type="text"
-                  inputMode="decimal"
-                  value={amount}
-                  onChange={(e) => setAmount(sanitizeAmount(e.target.value))}
-                  error={fieldErrors.amount}
-                  onClearError={() => clearFieldError("amount")}
-                  placeholder="0"
-                />
-              </div>
+              <AmountInput
+                size="lg"
+                value={amount}
+                onChange={setAmount}
+                max={groupBalance}
+                error={fieldErrors.amount}
+                onClearError={() => clearFieldError("amount")}
+                inputClassName={inputCls}
+              />
             </div>
             <div>
               <label className={fieldLabel}>{t("createExpense.date")}</label>
@@ -287,7 +286,7 @@ export default function CreateExpensePage() {
                       type="text"
                       value={split.amount || ""}
                       inputMode="decimal"
-                      onChange={(e) => updateSplitAmount(setSplits, split.userId, Number(sanitizeAmount(e.target.value)))}
+                      onChange={(e) => updateSplitAmount(setSplits, split.userId, Number(sanitizeAmount(e.target.value, totalAmount)))}
                     />
                   </div>
                 </div>
