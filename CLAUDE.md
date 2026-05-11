@@ -45,15 +45,19 @@ Frontend/src/
   utils/           # Helpers
   App.tsx          # All route definitions + ProtectedRouter
 
-Backend/
-  Router/          # Express route definitions per feature
-  Middleware/      # auth.middleware.ts (verifyToken, loadGroup, authorizeRole)
-  Controller/      # Request parsing and response formatting only
-  Service/         # Business logic, validations, balance checks
-  Model/           # Mongoose schemas
-  Helper/          # Money.ts (cents conversion), AppError.ts
-  DB/              # MongoDB connection
-  Types/           # TypeScript type extensions (e.g., req.group, req.user)
+backend/
+  config/          # env.ts (validateEnv, typed env), constants.ts (JWT, cookie, pagination, rate-limit values)
+  controllers/     # Request parsing and response formatting only
+  db/              # MongoDB connection (exponential backoff, max 5 retries)
+  helpers/         # Money.ts (cents conversion), AppError.ts (extends Error)
+  middlewares/     # auth.middleware.ts (verifyToken, loadGroup, authorizeRole), error.middleware.ts, validate.ts
+  models/          # Mongoose schemas
+  routes/          # Express route definitions per feature
+  services/        # Business logic, validations, balance checks
+  sockets/         # Socket.io setup (group rooms, typed events) — scaffold, not yet emitting
+  types/           # TypeScript type extensions (e.g., req.group, req.user) + DTOs
+  utils/           # response.ts (sendSuccess/sendPaginated/sendError), asyncHandler, logger (pino)
+  validators/      # Zod schemas per feature (auth, group, expense, category)
 ```
 
 ## Key Conventions
@@ -77,7 +81,7 @@ Never hardcode. Always `process.env` (backend) or `import.meta.env` (frontend).
 
 ## What NOT to do
 - Don't bypass the Service layer — controllers must not call Mongoose models directly
-- Don't change the structure.
+- Don't change the structure without also updating this file — folder layout is documented above
 - Don't use `var` — only `const`/`let`
 - Don't do multi-document writes without a Mongoose session (transaction)
 - Don't add a PATCH endpoint for expenses — the design is intentionally immutable
@@ -102,29 +106,29 @@ Work through these one by one. Each item is self-contained so you can pick any o
 
 ### Backend — Critical
 
-- [x] **Enable strict TypeScript** — set `"strict": true` in `Backend/tsconfig.json` and fix all resulting type errors. This unlocks `noImplicitAny`, `strictNullChecks`, and more.
-- [ ] **Fix `AppError` class** — rewrite `Backend/Helper/AppError.ts` as `class AppError extends Error` with a `statusCode` field. Right now it throws a plain object, so `instanceof` checks and stack traces don't work.
-- [ ] **Standardize error shape** — controllers mix `error.status` and `error.statusCode`. Pick `statusCode` everywhere and enforce it through the new `AppError` class.
-- [ ] **Fix cookie `secure` flag** — `auth.controller.ts` hardcodes `secure: false`. Change to `secure: process.env.NODE_ENV === 'production'`.
-- [ ] **Fix `getExpenseAddDetailsService`** — this service function queries the DB but has no `return` statement. The data is fetched and thrown away. Add the return value.
+- [x] **Enable strict TypeScript** — set `"strict": true` in `backend/tsconfig.json` and fix all resulting type errors. This unlocks `noImplicitAny`, `strictNullChecks`, and more.
+- [x] **Fix `AppError` class** — `backend/helpers/AppError.ts` is now `class AppError extends Error` with `statusCode` and optional `errors[]` field. Captures stack via `Error.captureStackTrace`.
+- [x] **Standardize error shape** — central `error.middleware.ts` returns `{ success: false, message, errors? }`. All controllers use `asyncHandler` + `throw new AppError(msg, statusCode)`. No more `error.status` vs `error.statusCode` inconsistency.
+- [x] **Fix cookie `secure` flag** — `auth.controller.ts` now uses `secure: env.isProduction` and `sameSite: env.isProduction ? 'none' : 'lax'`.
+- [x] **Fix `getExpenseAddDetailsService`** — now returns `{ categories, payMethods, members }`. Removed the `console.log` that signalled the missing return.
 
 ### Backend — High Priority
 
-- [ ] **Request validation middleware** — install `zod` and create a `validate(schema)` middleware. Apply it to every route so invalid payloads are rejected before reaching the Service layer. This replaces scattered inline checks inside services.
-- [ ] **Rate limiting on auth routes** — install `express-rate-limit` and apply it to `/auth/login` and `/auth/register` to prevent brute-force attacks.
+- [x] **Request validation middleware** — `validators/` folder + `middlewares/validate.middleware.ts` (Zod). All routes validate body/params before reaching controllers. ZodError is converted to `{ field, message }[]` by the error middleware. Service-layer regex/length duplicates remain — slated for cleanup in Phase 7.
+- [x] **Rate limiting on auth routes** — `/api/auth/*` capped at 10 req / 15 min per IP via `express-rate-limit`. Global limiter (300 req / 15 min) applies to all routes.
 - [ ] **Pagination on all list endpoints** — every list endpoint returns all records. Add `page` and `limit` query params and return `{ data, total, page, limit }`. Apply to expenses, categories, group members, transactions.
-- [ ] **Fix `DB/connection.ts`** — it uses `require()` (CommonJS) inside an ESM/TypeScript codebase. Rewrite with `import`. Also replace the infinite retry loop with exponential backoff and a max-retry limit (e.g., 5 attempts).
+- [x] **Fix `db/connection.ts`** — uses `import mongoose from 'mongoose'`. Exponential backoff capped at 5 attempts (was infinite recursion).
 - [ ] **Complete transaction module** — the transaction service and router are unfinished. Implement `createTransaction` (deposit to group wallet) and `getTransactions` (list with pagination) following the same service-controller pattern.
 - [ ] **Complete report service** — `report.controller.ts` and `report.router.ts` are stubs. Implement aggregation: total spent per category, per member, and over time range using MongoDB `$group` and `$match`.
-- [ ] **Env var validation on startup** — add a `validateEnv()` function called at `main.ts` startup that checks all required env vars (`PORT`, `MONGODB_URI`, `JWT_SECRET`, `FRONTEND_URL`) and throws if any are missing, so the app fails fast rather than crashing mid-request.
+- [x] **Env var validation on startup** — `config/env.ts` exports `validateEnv()`, called at the top of `main.ts`. App throws on missing PORT/MONGO_URI/JWT_SECRET/FRONTEND_URL.
 
 ### Backend — Medium Priority
 
 - [ ] **Replace `console.log` with structured logging** — install `pino` or `winston`. Replace all `console.log` / `console.error` calls with a logger instance. Use log levels (`info`, `warn`, `error`) and never log sensitive fields (passwords, tokens).
-- [ ] **Input sanitization middleware** — install `express-mongo-sanitize` (prevents NoSQL injection) and `xss-clean` (strips HTML from inputs). Add both to `main.ts` before route registration.
-- [ ] **Race condition on group balance** — two concurrent expense creations can both pass the balance check before either commits. Fix by using MongoDB `findOneAndUpdate` with an atomic `$inc` and a `$gte: 0` condition check, or add a per-group document-level lock.
+- [x] **Input sanitization middleware** — custom `sanitizeMongoOperators` middleware strips `$`-prefixed and `.`-containing keys from `req.body` (NoSQL injection guard, Express-5-safe — `express-mongo-sanitize` mutates `req.query` which is read-only in Express 5). XSS protection comes from Zod's strict-string validation + React's auto-escape + helmet CSP; `xss-clean` is unmaintained (archived since 2019) so deliberately not used.
+- [x] **Race condition on group balance** — `createExpenseService` already uses `findOneAndUpdate({ balance: { $gte: amount } }, $inc: -amount)`. `SettlementService` updated to do the same atomic check (was a pre-check + non-atomic update). `addContribution` and refund-on-delete are simple `$inc` and don't need the guard.
 - [ ] **Soft delete global filter** — `GroupMember` and `Category` have `isDeleted` but queries don't always filter it. Add a Mongoose pre-find plugin or use `Schema.pre('find')` hook to automatically exclude `isDeleted: true` docs so it's impossible to forget.
-- [ ] **Remove duplicate validation** — email regex and password length checks exist in both `auth.service.ts` and the frontend `Authentication.ts`. Keep validation in the zod request schema (see validation middleware task above) and remove the duplicates.
+- [~] **Remove duplicate validation** — `auth.service.ts` and `category.service.ts` and `user.service.ts` cleaned. `expense.service.ts` and `group.service.ts` still have inline checks — they're dead code on the happy path (Zod blocks invalid inputs upstream) but remain as defensive guards. Frontend `Authentication.ts` still has duplicates — slated for Phase 9.
 
 ### Frontend — Critical
 
@@ -150,7 +154,7 @@ Work through these one by one. Each item is self-contained so you can pick any o
 - [ ] **Shared types package** — backend and frontend define duplicate interfaces (`IExpense` / `Expense`, `IGroup` / `Group`, etc.). Create a `shared/types/` folder at the repo root and import from there in both projects. Eliminates drift when a field changes.
 - [ ] **Service layer integration tests** — this is a financial app with balance mutation logic. Add integration tests (using `jest` + `mongodb-memory-server`) for at minimum: expense creation, balance deduction, and concurrent balance checks. Start with the service layer — no HTTP needed.
 - [ ] **OpenAPI / Swagger documentation** — use `zod-to-openapi` or `tsoa` to auto-generate API docs from your route schemas. Makes frontend-backend contract explicit and helps onboard new contributors.
-- [ ] **CORS hardening** — validate that `FRONTEND_URL` is set at startup (see env validation task). Add an explicit list of allowed methods and headers to the CORS config rather than relying on defaults.
+- [x] **CORS hardening** — `FRONTEND_URL` validated at startup via `validateEnv()`. CORS config now enumerates methods (GET/POST/PUT/DELETE/PATCH/OPTIONS) and headers (Content-Type, Authorization, X-Requested-With) with a 24h preflight cache. Helmet adds standard security headers; `app.disable('x-powered-by')` and `trust proxy` set explicitly.
 
 ### Rules
 - i am ask any question, The answer should be like why should we do this, what are the alternate options, how to implement this, etc.

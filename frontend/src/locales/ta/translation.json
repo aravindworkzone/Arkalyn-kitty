@@ -194,7 +194,8 @@
     "noExpensesToday": "இன்று செலவுகள் இல்லை — முழு வரலாற்றைக் காண தட்டவும்",
     "removeMemberLabel": "{{name}} ஐ அகற்று",
     "removeMemberConfirm": "தீர்வான பிறகே அகற்ற முடியும்.",
-    "deleteGroupConfirm": "அனைத்து தரவும் இழக்கப்படும்."
+    "deleteGroupConfirm": "அனைத்து தரவும் இழக்கப்படும்.",
+    "description": "இந்த குழுவிற்கான பரிவர்த்தனைகள் மற்றும் செயல்பாட்டு பதிவு."
   },
 
   "deleteModal": {

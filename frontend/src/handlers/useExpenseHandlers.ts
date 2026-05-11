@@ -34,12 +34,13 @@ export const useExpenseHandlers = (groupId: string | undefined) => {
   const handleSubmit = async (
     e: React.FormEvent,
     {
-      title, totalAmount, categoryId, paidBy,
+      title, totalAmount, maxAmount, categoryId, paidBy,
       splits, splitValid, date, paymentType,
       setFieldError, setApiError,
     }: {
       title: string;
       totalAmount: number;
+      maxAmount?: number;
       categoryId: string;
       paidBy: string;
       splits: SplitEntry[];
@@ -56,7 +57,7 @@ export const useExpenseHandlers = (groupId: string | undefined) => {
     const titleV = validateTitle(title);
     if (!titleV.valid) { setFieldError("title",  titleV.message);  valid = false; }
 
-    const amountV = validateAmount(totalAmount);
+    const amountV = validateAmount(totalAmount, maxAmount);
     if (!amountV.valid) { setFieldError("amount", amountV.message); valid = false; }
 
     const dateV = validateDate(date);

@@ -15,7 +15,7 @@ export const user = api.injectEndpoints({
         }),
         searchUsers: builder.query<UserSuggestion[], string>({
             query: (q) => `/user/search?q=${encodeURIComponent(q)}`,
-            transformResponse: (res: { users: UserSuggestion[] }) => res.users,
+            transformResponse: (res: { data: {users: UserSuggestion[]} }) => res.data.users,
         }),
         verifyUser: builder.mutation<IUser, string>({
             query: (email) => ({

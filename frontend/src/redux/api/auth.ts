@@ -14,7 +14,8 @@ export const auth = api.injectEndpoints({
                 url: '/auth/signin',
                 method: 'POST',
                 body: credentials
-            })
+            }),
+            invalidatesTags: ['Auth']
         }),
         signOut: builder.mutation<any, void>({
             query: () => ({

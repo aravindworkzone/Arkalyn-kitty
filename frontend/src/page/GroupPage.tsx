@@ -1,21 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGetUserGroupsQuery } from "../redux/api/user";
 import Header from "../components/header";
 import EmptyState from "../components/EmptyList";
 import GroupCard from "../components/GroupCard";
 import { useTranslation } from "react-i18next";
+import type { RootState } from "../redux/store";
+import { useDispatch, useSelector } from "react-redux";
+import { leaveGroup } from "../socket/emiter/group.emit";
+import { clearGroupId } from "../redux/slice/group.slice";
 
 const GroupPage = () => {
   const navigate = useNavigate();
   const { data, isLoading } = useGetUserGroupsQuery();
-  const groups = data?.j_groups || [];
+  const groups = data?.data?.groups || [];
   const [search, setSearch] = useState("");
   const { t } = useTranslation();
+  const dispatch = useDispatch();
+  const groupId = useSelector((state: RootState) => state.group);
 
   const filtered = groups.filter((g: any) =>
     g.name?.toLowerCase().includes(search.toLowerCase())
   );
+
+  useEffect(() => {
+      if (!groupId) return;
+      leaveGroup(groupId);
+      dispatch(clearGroupId());
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#080c14] text-white">

@@ -17,59 +17,81 @@ export const group = api.injectEndpoints({
                 url: `/group/getgroupbyid/${credentials}`,
                 method: 'GET'
             }),
-            transformResponse: (res: { group: any }) => res.group,
-            providesTags: ['Group','Expense']
+            transformResponse: (res: { data: {group: any} }) => res.data.group,
+            providesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId },
+                { type: 'Expense', id: groupId }
+            ]
         }),
         getGroupMembers: builder.query<GroupMember[], string>({
             query: (credentials) => ({
                 url: `/group/getgroupmembers/${credentials}`,
                 method: 'GET'
             }),
-            transformResponse: (res: { members: GroupMember[] }) => res.members,
-            providesTags: ['Group']
+            transformResponse: (res: { data: {members: GroupMember[]} }) => res.data.members,
+            providesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId }
+            ]
         }),
         getBasicTransaction: builder.query<any, any>({
             query: (credentials) => ({
                 url: `/group/getbasictransaction/${credentials}`,
                 method: 'GET'
             }),
-            providesTags: ['Group']
+            providesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId }
+            ]
         }),
         getTransaction: builder.query<any, any>({
             query: (credentials) => ({
                 url: `/group/gettransaction/${credentials}`,
                 method: 'GET'
             }),
-            transformResponse: (res: { transactions: GroupTransaction }) => res.transactions,
-            providesTags: ['Group']
+            transformResponse: (res: { data: {transactions: GroupTransaction[]} }) => res.data.transactions,
+            providesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId }
+            ]
         }),
         getEvent: builder.query<any, any>({
             query: (credentials) => ({
                 url: `/group/getevent/${credentials}`,
                 method: 'GET'
             }),
-            transformResponse: (res: { events: GroupEvent }) => res.events,
-            providesTags: ['Group']
+            transformResponse: (res: { data: {events: GroupEvent[]} }) => res.data.events,
+            providesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId }
+            ]
         }),
         manageMember: builder.mutation<any, { groupId: string; action: string; Member: string; contribution?: number }>({
             query: (body) => ({ url: '/group/managemember', method: 'POST', body }),
-            invalidatesTags: ['Group']
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId }
+            ]
         }),
         manageAdmin: builder.mutation<any, { groupId: string; action: string; member: string }>({
             query: (body) => ({ url: '/group/manageadmin', method: 'POST', body }),
-            invalidatesTags: ['Group']
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId }
+            ]
         }),
-        addContribution: builder.mutation<any, { groupId: string; contribution: number; userId?: string }>({
+        addContribution: builder.mutation<any, { groupId: string; contribution: number; userId?: string; description?: string }>({
             query: (body) => ({ url: '/group/addcontribution', method: 'POST', body }),
-            invalidatesTags: ['Group']
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId }
+            ]
         }),
         settlement: builder.mutation<any, { groupId: string; settlement: number; member: string }>({
             query: (body) => ({ url: '/group/settlement', method: 'POST', body }),
-            invalidatesTags: ['Group']
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId }
+            ]
         }),
         deleteGroup: builder.mutation<any, string>({
             query: (groupId) => ({ url: `/group/delete/${groupId}`, method: 'DELETE' }),
-            invalidatesTags: ['Group']
+            invalidatesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId },
+                'Group'
+            ]
         }),
     })
 })

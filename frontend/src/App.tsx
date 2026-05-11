@@ -9,9 +9,12 @@ import CreateExpense from './page/CreateExpense'
 import Report from './page/GroupReport'
 import AllExpensesPage from './page/AllExpensesPage'
 import ProtectedRouter from './components/ProtectedRouter'
+import UseSocket from './hooks/socket'
+
 function App() {
   return (
     <>
+      <UseSocket />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Registration />} />

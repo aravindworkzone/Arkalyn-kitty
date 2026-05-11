@@ -9,26 +9,33 @@ export const expense = api.injectEndpoints({
                 method: 'POST',
                 body: credentials
             }),
-            invalidatesTags: ['Expense']
+            invalidatesTags: (_result, _error, arg) => [
+                { type: "Expense", id: arg.groupId }
+            ]
         }),
         getExpenses: builder.query<any, any>({
             query: () => '/expense/getexpenses',
-            providesTags: ['Expense']
+            providesTags: (_result, _error, groupId) => [
+                { type: "Expense", id: groupId }
+            ],
         }),
         getPaymentMethod: builder.query<string[], void>({
             query: () => '/expense/paymentmethods',
-            transformResponse: (res: { paymentMethods: string[] }) => res.paymentMethods,
-            providesTags: ['Expense'],
+            transformResponse: (res: { data: {paymentMethods: string[]} }) => res.data.paymentMethods,
         }),
         getExpenseReport: builder.query<GetExpenseReport[], any>({
             query: (credentials) => `/expense/expensereport/${credentials}`,
-            transformResponse: (res: { report: GetExpenseReport[] }) => res.report,
-            providesTags: ['Expense']
+            transformResponse: (res: { data: {report: GetExpenseReport[]} }) => res.data.report,
+            providesTags: (_result, _error, groupId) => [
+                { type: "Expense", id: groupId }
+            ],
         }),
         getAllExpenses: builder.query<GetExpenseReport[], string>({
             query: (groupId) => `/expense/allexpenses/${groupId}`,
-            transformResponse: (res: { expenses: GetExpenseReport[] }) => res.expenses,
-            providesTags: ['Expense']
+            transformResponse: (res: { data: {expenses: GetExpenseReport[]} }) => res.data.expenses,
+            providesTags: (_result, _error, groupId) => [
+                { type: "Expense", id: groupId }
+            ],
         }),
         deleteExpense: builder.mutation<any, { expenseId: string; groupId: string; reason?: string }>({
             query: ({ expenseId, groupId, reason }) => ({
@@ -36,7 +43,10 @@ export const expense = api.injectEndpoints({
                 method: 'DELETE',
                 body: { groupId, reason }
             }),
-            invalidatesTags: ['Expense', 'Group']
+            invalidatesTags: (_result, _error, arg) => [
+                { type: "Expense", id: arg.groupId },
+                { type: "Group", id: arg.groupId }
+            ]
         }),
     })
 });

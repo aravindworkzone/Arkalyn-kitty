@@ -194,7 +194,8 @@
     "noExpensesToday": "No expenses today — tap to view full history",
     "removeMemberLabel": "Remove {{name}}",
     "removeMemberConfirm": "Member must be settled before removal.",
-    "deleteGroupConfirm": "All data will be lost."
+    "deleteGroupConfirm": "All data will be lost.",
+    "description": "Description"
   },
 
   "deleteModal": {

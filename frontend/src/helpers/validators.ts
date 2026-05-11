@@ -39,6 +39,13 @@ export const validateGroupName = (name: string): ValidationResult => {
   return ok();
 };
 
+export const validateDescription = (description: string): ValidationResult => {
+  if (!description?.trim()) return fail("Group description is required");
+  if (description.trim().length < 3) return fail("Group description must be at least 3 characters");
+  if (description.trim().length > 100) return fail("Group description must be at most 100 characters");
+  return ok();
+};
+
 // ── Category ──────────────────────────────────────────────────────
 
 export const validateCategoryName = (name: string): ValidationResult => {
@@ -69,12 +76,15 @@ export const validateDate = (date: string): ValidationResult => {
 
 // ── Money ─────────────────────────────────────────────────────────
 
-export const validateAmount = (value: string | number): ValidationResult => {
+export const validateAmount = (
+  value: string | number,
+  max: number = MAX_AMOUNT,
+): ValidationResult => {
   const num = typeof value === "string" ? Number(value) : value;
   if (!value && value !== 0) return fail("Amount is required");
   if (isNaN(num) || num <= 0) return fail("Amount must be a positive number");
-  if (num > MAX_AMOUNT)
-    return fail(`Amount cannot exceed ₹${MAX_AMOUNT.toLocaleString("en-IN")}`);
+  if (num > max)
+    return fail(`Amount cannot exceed ₹${max.toLocaleString("en-IN")}`);
   return ok();
 };
 
@@ -91,9 +101,10 @@ export const validateContribution = (value: string | number): ValidationResult =
 // ── Input sanitizers for onChange handlers (mobile-safe) ──────────
 
 // Returns a cleaned numeric string — use in onChange for amount fields.
-export const sanitizeAmount = (raw: string): string => {
+// Pass `max` to clamp the value to a context-specific ceiling (e.g. group balance).
+export const sanitizeAmount = (raw: string, max: number = MAX_AMOUNT): string => {
   let v = raw.replace(/\D/g, "");
-  if (Number(v) >= MAX_AMOUNT) v = String(MAX_AMOUNT);
+  if (Number(v) >= max) v = String(max);
   if (v[0] === "0") v = v.slice(1);
   if (Number(v) === 0) v = "";
   return v;
