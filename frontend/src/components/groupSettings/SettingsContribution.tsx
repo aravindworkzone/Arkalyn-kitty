@@ -4,6 +4,7 @@ import type { GroupMember } from "../../interface/member";
 import { useFieldError } from "../../hooks/useFieldError";
 import type { ContributionField, ContributionDescField } from "../../handlers/useGroupDetailHandlers";
 import { ActionButton, AmountInput, FieldInput, MemberSelect, INPUT_CLASS } from "../ui";
+import { useGetUserQuery } from "../../redux/api/auth";
 
 interface Props {
   members: GroupMember[] | undefined;
@@ -22,6 +23,8 @@ interface Props {
 
 export default function SettingsContribution({ members, isAddingContrib, handleAddContribution }: Props) {
   const { t } = useTranslation();
+  const { data: meData } = useGetUserQuery();
+  const currentUserName = meData?.data?.user?.name ?? "";
   const [myContrib, setMyContrib] = useState("");
   const [myContribDesc, setMyContribDesc] = useState("");
   const [contribMemberId, setContribMemberId] = useState("");
@@ -36,7 +39,7 @@ export default function SettingsContribution({ members, isAddingContrib, handleA
         members={members}
         value={contribMemberId}
         onChange={setContribMemberId}
-        placeholder={t("groupDetail.myContribution")}
+        placeholder={currentUserName ? `${currentUserName} (self)` : t("groupDetail.myContribution")}
         placeholderDisabled={false}
         renderLabel={(m) => `${m.userId.name} · ₹${m.contribution.toLocaleString("en-IN")} current`}
       />
