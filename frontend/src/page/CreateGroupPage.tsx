@@ -9,6 +9,7 @@ import { useFieldError } from "../hooks/useFieldError";
 import { FieldInput, ErrorMessage } from "../components/ui";
 import { useTranslation } from "react-i18next";
 import { useSearchUsersQuery, type UserSuggestion } from "../redux/api/user";
+import { useGetUserQuery } from "../redux/api/auth";
 
 const s = {
   input:
@@ -22,6 +23,16 @@ export default function CreateGroupPage() {
   const [groupName, setGroupName] = useState("");
   const [members, setMembers] = useState<CreateGroupMember[]>([]);
   const [emailInput, setEmailInput] = useState("");
+  const { data: meData } = useGetUserQuery();
+  const currentUser = meData?.data?.user as { _id: string; name: string; email: string } | undefined;
+
+  useEffect(() => {
+    if (!currentUser?._id) return;
+    setMembers((prev) => {
+      if (prev.some((m) => m._id === currentUser._id)) return prev;
+      return [{ _id: currentUser._id, user: currentUser.name, email: currentUser.email, contribution: 0 }, ...prev];
+    });
+  }, [currentUser?._id, currentUser?.name, currentUser?.email]);
   const [debouncedEmail, setDebouncedEmail] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const { fieldErrors, setFieldError, clearFieldError } = useFieldError<GroupField>();
@@ -249,15 +260,17 @@ export default function CreateGroupPage() {
                               onChange={(e) => updateContribution(setMembers, member._id, Number(sanitizeAmount(e.target.value)))}
                             />
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => removeMember(setMembers, member._id)}
-                            className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-red-400 transition-colors rounded-md hover:bg-red-500/10"
-                          >
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                              <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                            </svg>
-                          </button>
+                          {member._id !== currentUser?._id && (
+                            <button
+                              type="button"
+                              onClick={() => removeMember(setMembers, member._id)}
+                              className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-red-400 transition-colors rounded-md hover:bg-red-500/10"
+                            >
+                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
