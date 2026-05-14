@@ -495,12 +495,11 @@ export const SettlementService = async (data : {group: mongoose.Types.ObjectId, 
     try {
         session.startTransaction();
 
-        const group = await GroupMember.findOneAndUpdate(
+        await GroupMember.findOneAndUpdate(
             { groupId: groupData, userId: Member },
             { $set: { settlement: true } },
             { returnDocument: "after", session }
         );
-        console.log("Settlement updated for member:", group);
 
         if (settlement > 0) {
             const debited = await Group.findOneAndUpdate(
