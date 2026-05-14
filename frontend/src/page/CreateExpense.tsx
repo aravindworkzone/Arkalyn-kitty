@@ -157,7 +157,7 @@ export default function CreateExpensePage() {
                     ))}
                     <button
                       type="button"
-                      onClick={() => navigate(`/groups/${groupId}/create-category`)}
+                      onClick={() => navigate(`/groups/${groupId}/categories/new`)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border border-dashed border-white/[0.12] text-white/30 hover:border-cyan-500/40 hover:text-cyan-400 transition-all duration-150"
                     >
                       <svg width="10" height="10" viewBox="0 0 10 10" fill="none">

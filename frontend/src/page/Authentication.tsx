@@ -8,6 +8,8 @@ import type { AuthField } from '../handlers/useAuthHandlers';
 import { useFieldError } from '../hooks/useFieldError';
 import { FieldInput, ErrorMessage } from '../components/ui';
 import { useTranslation } from 'react-i18next';
+import { useEffect } from 'react';
+import { useGetUserQuery } from '../redux/api/auth';
 
 const Templete = ({inputs, link} : AuthFormProps) => {
     const { t } = useTranslation();
@@ -83,13 +85,24 @@ const Templete = ({inputs, link} : AuthFormProps) => {
 }
 
 export const Login = () => {
+    Authentication();
     return (
         <Templete inputs={loginDetails} link={"register"}/>
     )
 }
 
 export const Registration = () => {
+    Authentication();
     return (
         <Templete inputs={RegistrationDetails} link={"login"}/>
     )
+}
+
+const Authentication = () => {
+    const { data } = useGetUserQuery();
+    useEffect(() => {
+        if (data?.data.user) {
+            window.location.href = "/groups";
+        }
+    }, [data]);
 }

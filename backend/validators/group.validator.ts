@@ -1,11 +1,6 @@
 import { z } from 'zod';
 import { objectIdSchema, groupIdParamSchema } from './common';
 
-const memberInputSchema = z.object({
-    _id: objectIdSchema,
-    contribution: z.number().nonnegative('Contribution cannot be negative'),
-});
-
 export const createGroupBodySchema = z.object({
     name: z
         .string()
@@ -13,7 +8,8 @@ export const createGroupBodySchema = z.object({
         .min(3, 'Name must be at least 3 characters')
         .max(100, 'Name must be at most 100 characters')
         .regex(/^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/, 'Name may contain letters, numbers, and single spaces'),
-    members: z.array(memberInputSchema).min(1, 'At least one member is required'),
+    contribution: z.number().nonnegative('Contribution cannot be negative'),
+    invitees: z.array(objectIdSchema).default([]),
 });
 
 export const groupIdParamObject = z.object({ groupId: groupIdParamSchema });
@@ -23,6 +19,11 @@ export const manageMemberBodySchema = z.object({
     action: z.enum(['add', 'remove']),
     Member: objectIdSchema,
     contribution: z.number().nonnegative().optional(),
+});
+
+export const inviteMemberBodySchema = z.object({
+    groupId: groupIdParamSchema,
+    invitedUser: objectIdSchema,
 });
 
 export const manageAdminBodySchema = z.object({
@@ -40,12 +41,31 @@ export const addContributionBodySchema = z.object({
 
 export const settlementBodySchema = z.object({
     groupId: groupIdParamSchema,
-    settlement: z.number().positive('Settlement amount must be positive'),
+    settlement: z.number().nonnegative('Settlement amount cannot be negative'),
+    member: objectIdSchema,
+});
+
+export const leaveGroupBodySchema = z.object({
+    groupId: groupIdParamSchema,
+});
+
+export const approveLeaveBodySchema = z.object({
+    groupId: groupIdParamSchema,
+    member: objectIdSchema,
+    settlement: z.number().nonnegative('Settlement amount cannot be negative'),
+});
+
+export const rejectLeaveBodySchema = z.object({
+    groupId: groupIdParamSchema,
     member: objectIdSchema,
 });
 
 export type CreateGroupDto = z.infer<typeof createGroupBodySchema>;
 export type ManageMemberDto = z.infer<typeof manageMemberBodySchema>;
+export type InviteMemberDto = z.infer<typeof inviteMemberBodySchema>;
 export type ManageAdminDto = z.infer<typeof manageAdminBodySchema>;
 export type AddContributionDto = z.infer<typeof addContributionBodySchema>;
 export type SettlementDto = z.infer<typeof settlementBodySchema>;
+export type LeaveGroupDto = z.infer<typeof leaveGroupBodySchema>;
+export type ApproveLeaveDto = z.infer<typeof approveLeaveBodySchema>;
+export type RejectLeaveDto = z.infer<typeof rejectLeaveBodySchema>;

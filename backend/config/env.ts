@@ -5,7 +5,8 @@ dotenv.config();
 const REQUIRED_ENV_VARS = [
     'PORT',
     'MONGO_URI',
-    'JWT_SECRET',
+    'ACCESS_TOKEN_SECRET',
+    'REFRESH_TOKEN_SECRET',
     'FRONTEND_URL',
 ] as const;
 
@@ -32,7 +33,10 @@ export const env = {
     NODE_ENV: process.env.NODE_ENV ?? 'development',
     PORT: Number(process.env.PORT) || 5000,
     MONGO_URI: process.env.MONGO_URI as string,
-    JWT_SECRET: process.env.JWT_SECRET as string,
+    ACCESS_TOKEN_SECRET: process.env.ACCESS_TOKEN_SECRET as string,
+    REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET as string,
+    ACCESS_TOKEN_EXPIRES_IN: process.env.ACCESS_TOKEN_EXPIRES_IN?.trim() || '15m',
+    REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN?.trim() || '7d',
     FRONTEND_URL: process.env.FRONTEND_URL as string,
     isProduction: process.env.NODE_ENV === 'production',
     isDevelopment: process.env.NODE_ENV !== 'production',

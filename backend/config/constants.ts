@@ -1,8 +1,7 @@
-export const JWT_EXPIRES_IN = '1d';
+export const ACCESS_TOKEN_COOKIE = 'accessToken';
+export const REFRESH_TOKEN_COOKIE = 'refreshToken';
 
-export const COOKIE_NAME = 'AccessToken';
-
-export const COOKIE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+export const MAX_ACTIVE_SESSIONS = 3;
 
 export const BCRYPT_SALT_ROUNDS = 10;
 
@@ -16,8 +15,7 @@ export const PAGINATION = {
 
 export const RATE_LIMIT = {
     AUTH_WINDOW_MS: 15 * 60 * 1000,
-    AUTH_MAX_ATTEMPTS: 100,
-    // AUTH_MAX_ATTEMPTS: 10,
+    AUTH_MAX_ATTEMPTS: 15,
     GLOBAL_WINDOW_MS: 15 * 60 * 1000,
     GLOBAL_MAX_REQUESTS: 300,
 } as const;

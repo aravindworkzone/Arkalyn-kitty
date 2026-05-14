@@ -12,6 +12,7 @@ export const useAuthHandlers = (link: string) => {
 
   const Auth    = link !== "register" ? signUp      : signIn;
   const loading = link !== "register" ? signUpLoading : signInLoading;
+  const login = link === "login";
 
   const handleSubmit = async (
     e: React.FormEvent<HTMLFormElement>,
@@ -42,7 +43,11 @@ export const useAuthHandlers = (link: string) => {
     try {
       await Auth(data).unwrap();
       setApiError("");
-      navigate("/");
+      if(login){
+        navigate("/login");
+      } else {
+        navigate("/groups");
+      }
     } catch (error: any) {
       setApiError(error.data?.message || "An error occurred");
     }

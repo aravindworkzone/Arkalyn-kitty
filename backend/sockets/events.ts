@@ -14,9 +14,13 @@ export const SOCKET_EVENTS = {
     GROUP_ROLE_CHANGED: 'group:role:changed',
     GROUP_CONTRIBUTION_ADDED: 'group:contribution:added',
     GROUP_SETTLEMENT_COMPLETED: 'group:settlement:completed',
+    GROUP_LEAVE_REQUEST_UPDATED: 'group:leave:request:updated',
     GROUP_DELETED: 'group:deleted',
 
     ACTIVITY_EVENT: 'activity:event',
+
+    NOTIFICATION_NEW: 'notification:new',
+
     ERROR: 'error',
 } as const;
 
@@ -37,8 +41,10 @@ export interface ServerToClientEvents {
     [SOCKET_EVENTS.GROUP_ROLE_CHANGED]: (payload?: unknown) => void;
     [SOCKET_EVENTS.GROUP_CONTRIBUTION_ADDED]: (payload?: unknown) => void;
     [SOCKET_EVENTS.GROUP_SETTLEMENT_COMPLETED]: (payload?: unknown) => void;
+    [SOCKET_EVENTS.GROUP_LEAVE_REQUEST_UPDATED]: (payload?: unknown) => void;
     [SOCKET_EVENTS.GROUP_DELETED]: (payload?: unknown) => void;
     [SOCKET_EVENTS.ACTIVITY_EVENT]: (payload?: unknown) => void;
+    [SOCKET_EVENTS.NOTIFICATION_NEW]: (payload?: unknown) => void;
     [SOCKET_EVENTS.ERROR]: (payload: { message: string }) => void;
 }
 

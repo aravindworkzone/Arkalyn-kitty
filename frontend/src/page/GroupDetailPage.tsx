@@ -19,6 +19,7 @@ import {
   SettingsChangeRole,
   SettingsContribution,
   SettingsSettlement,
+  SettingsLeaveRequests,
   SettingsDangerZone,
 } from "../components/groupSettings";
 import { useTranslation } from "react-i18next";
@@ -48,6 +49,9 @@ export default function GroupDetailPage() {
   const [deleteMemberError,  setDeleteMemberError]  = useState("");
   const [deleteGroupOpen,  setDeleteGroupOpen]  = useState(false);
   const [deleteGroupError, setDeleteGroupError] = useState("");
+  const [leaveGroupOpen,   setLeaveGroupOpen]   = useState(false);
+  const [leaveGroupError,  setLeaveGroupError]  = useState("");
+  const [leaveRequestSent, setLeaveRequestSent] = useState(false);
 
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
   const [noCatAlert,      setNoCatAlert]      = useState(false);
@@ -63,11 +67,15 @@ export default function GroupDetailPage() {
 
   const {
     msg, setMsg,
-    isVerifying, isAddingMember, isChangingRole,
-    isAddingContrib, isSettling, isDeletingGroup, isRemovingMember,
-    handleVerifyUser, handleAddMember, handleChangeRole,
-    handleAddContribution, handleSettlement, handleDeleteMember, handleDeleteGroup,
+    isVerifying, isInvitingMember, isChangingRole,
+    isAddingContrib, isSettling, isDeletingGroup, isRemovingMember, isLeavingGroup,
+    isApprovingLeave, isRejectingLeave,
+    handleVerifyUser, handleInviteMember, handleChangeRole,
+    handleAddContribution, handleSettlement, handleDeleteMember, handleDeleteGroup, handleLeaveGroup,
+    handleApproveLeave, handleRejectLeave,
   } = useGroupDetailHandlers(groupId);
+
+  const pendingLeaveCount = GroupMembers?.filter((m) => m.leaveRequestedAt).length ?? 0;
 
   const memberNames   = GroupMembers?.map((m) => m.userId.name) ?? [];
   const todayTotal    = (TodayExpenses ?? []).reduce((s, e) => s + e.amount, 0);
@@ -82,7 +90,8 @@ export default function GroupDetailPage() {
   const openSettings = () => {
     setSettingsOpen(true);
     setMsg(null);
-    setTab("addMember");
+    // Members only see the Danger tab (leave group); admins land on Add Member.
+    setTab(isAdmin ? "addMember" : "danger");
   };
 
   const settingsTabs: { id: SettingsTab; label: string; show: boolean }[] = [
@@ -90,7 +99,14 @@ export default function GroupDetailPage() {
     { id: "changeRole",   label: t("groupDetail.tabChangeRole"),   show: isSuperAdmin },
     { id: "contribution", label: t("groupDetail.tabContribution"), show: isAdmin },
     { id: "settlement",   label: t("groupDetail.tabSettlement"),   show: isAdmin },
-    { id: "danger",       label: t("groupDetail.tabDanger"),       show: isSuperAdmin },
+    {
+      id: "leaveRequests",
+      label: pendingLeaveCount > 0
+        ? `${t("groupDetail.tabLeaveRequests")} (${pendingLeaveCount})`
+        : t("groupDetail.tabLeaveRequests"),
+      show: isAdmin,
+    },
+    { id: "danger",       label: t("groupDetail.tabDanger"),       show: !!role },
   ];
 
   if (groupLoading) {
@@ -220,7 +236,7 @@ export default function GroupDetailPage() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => navigate(`/groups/${groupId}/create-category`)}
+                onClick={() => navigate(`/groups/${groupId}/categories/new`)}
                 className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 transition-colors"
               >
                 {t("groupDetail.create")}
@@ -237,14 +253,35 @@ export default function GroupDetailPage() {
           </div>
         )}
 
+        {/* ── Leave request sent banner ── */}
+        {leaveRequestSent && (
+          <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-green-500/10 border border-green-500/25">
+            <svg className="shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M2 7.5l3.5 3.5L12 3.5" stroke="#34d399" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-semibold text-green-300 leading-tight">{t("groupDetail.leaveRequestSentTitle")}</p>
+              <p className="text-[11px] text-green-400/70 mt-0.5">{t("groupDetail.leaveRequestSentDesc")}</p>
+            </div>
+            <button
+              onClick={() => setLeaveRequestSent(false)}
+              className="text-green-500/60 hover:text-green-400 transition-colors shrink-0"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* ── Action buttons ── */}
-        <div className={`grid gap-2 ${isAdmin ? "grid-cols-4" : "grid-cols-3"}`}>
+        <div className={`grid gap-2 ${isAdmin ? "grid-cols-5" : "grid-cols-3"}`}>
           {[
             {
               label: t("groupDetail.addExpense"),
               onClick: () => {
                 if (categories.length === 0) { setNoCatAlert(true); return; }
-                navigate(`/groups/${groupId}/create-expense`);
+                navigate(`/groups/${groupId}/expenses/new`);
               },
               color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/20 hover:bg-cyan-500/20 hover:border-cyan-400/35",
               icon: <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />,
@@ -252,19 +289,31 @@ export default function GroupDetailPage() {
             },
             {
               label: t("groupDetail.category"),
-              onClick: () => navigate(`/groups/${groupId}/create-category`),
+              onClick: () => navigate(`/groups/${groupId}/categories/new`),
               color: "text-violet-300 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20 hover:border-violet-400/35",
               icon: <path d="M2 4h4v4H2zM8 4h4v4H8zM2 10h4v4H2zM8 10h4v4H8z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />,
               show: isAdmin,
             },
             {
               label: t("groupDetail.report"),
-              onClick: () => navigate(`/groups/${groupId}/report`),
+              onClick: () => navigate(`/groups/${groupId}/activity`),
               color: "text-slate-300 bg-slate-500/10 border-slate-500/20 hover:bg-slate-500/20 hover:border-slate-400/35",
               icon: <path d="M2 12V6l4-4h6l2 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />,
               show: true,
             },
-            ...(isAdmin ? [{
+            {
+              label: t("groupDetail.breakdown"),
+              onClick: () => navigate(`/groups/${groupId}/reports/categories`),
+              color: "text-indigo-300 bg-indigo-500/10 border-indigo-500/20 hover:bg-indigo-500/20 hover:border-indigo-400/35",
+              icon: (
+                <>
+                  <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.3" />
+                  <path d="M7 1.5v5.5l4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                </>
+              ),
+              show: true,
+            },
+            ...(role ? [{
               label: t("groupDetail.settings"),
               onClick: openSettings,
               color: "text-amber-300 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20 hover:border-amber-400/35",
@@ -315,7 +364,18 @@ export default function GroupDetailPage() {
             <div className="border-t border-white/[0.06]">
 
               <div className="px-5 py-3 border-b border-white/[0.04] bg-white/[0.015]">
-                <p className="text-[10px] uppercase tracking-widest text-white/25 mb-2.5">{t("groupDetail.contributions")}</p>
+                <div className="flex items-center justify-between mb-2.5">
+                  <p className="text-[10px] uppercase tracking-widest text-white/25">{t("groupDetail.contributions")}</p>
+                  <button
+                    onClick={() => navigate(`/groups/${groupId}/credits`)}
+                    className="text-[10px] font-semibold text-emerald-400/70 hover:text-emerald-300 transition-colors flex items-center gap-1"
+                  >
+                    {t("groupDetail.viewAllCredits", "View all credits")}
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M2 5h6M5.5 2.5L8 5l-2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
                 <div className="space-y-2">
                   {GroupMembers?.map((m) => {
                     const pct = totalContrib > 0 ? Math.round((m.contribution / totalContrib) * 100) : 0;
@@ -518,9 +578,9 @@ export default function GroupDetailPage() {
                 {tab === "addMember" && (
                   <SettingsAddMember
                     isVerifying={isVerifying}
-                    isAddingMember={isAddingMember}
+                    isInvitingMember={isInvitingMember}
                     handleVerifyUser={handleVerifyUser}
-                    handleAddMember={handleAddMember}
+                    handleInviteMember={handleInviteMember}
                   />
                 )}
 
@@ -548,9 +608,21 @@ export default function GroupDetailPage() {
                   />
                 )}
 
+                {tab === "leaveRequests" && (
+                  <SettingsLeaveRequests
+                    members={GroupMembers}
+                    isApprovingLeave={isApprovingLeave}
+                    isRejectingLeave={isRejectingLeave}
+                    handleApproveLeave={handleApproveLeave}
+                    handleRejectLeave={handleRejectLeave}
+                  />
+                )}
+
                 {tab === "danger" && (
                   <SettingsDangerZone
+                    isSuperAdmin={isSuperAdmin}
                     onRequestDeleteGroup={() => { setSettingsOpen(false); setDeleteGroupOpen(true); }}
+                    onRequestLeaveGroup={() => { setSettingsOpen(false); setLeaveGroupOpen(true); }}
                   />
                 )}
               </div>
@@ -589,6 +661,32 @@ export default function GroupDetailPage() {
         <p className="text-sm text-white/50">
           <span className="text-white/80 font-medium" translate="no">{GroupDetails?.name}</span> —{" "}
           {t("groupDetail.deleteGroupConfirm")}
+        </p>
+      </DeleteConfirmModal>
+
+      {/* ── Leave Group modal ── */}
+      <DeleteConfirmModal
+        isOpen={leaveGroupOpen}
+        onClose={() => { setLeaveGroupOpen(false); setLeaveGroupError(""); }}
+        onConfirm={async () => {
+          const result = await handleLeaveGroup(setLeaveGroupError);
+          if (result === "requested") {
+            setLeaveGroupOpen(false);
+            setLeaveGroupError("");
+            setLeaveRequestSent(true);
+          }
+        }}
+        label={t("groupDetail.leaveGroup", "Leave Group")}
+        confirmText="LEAVE"
+        isLoading={isLeavingGroup}
+        error={leaveGroupError}
+      >
+        <p className="text-sm text-white/50">
+          <span className="text-white/80 font-medium" translate="no">{GroupDetails?.name}</span> —{" "}
+          {t(
+            "groupDetail.leaveGroupConfirm",
+            "You will lose access to this group's expenses and activity. This cannot be undone by you."
+          )}
         </p>
       </DeleteConfirmModal>
 

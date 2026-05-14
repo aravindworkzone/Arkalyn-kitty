@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type AccentColor = "cyan" | "violet" | "indigo";
+type AccentColor = "cyan" | "violet" | "indigo" | "emerald";
 
 interface Props {
   icon: ReactNode;
@@ -11,9 +11,10 @@ interface Props {
 }
 
 const colorMap: Record<AccentColor, { iconBg: string; iconBorder: string; labelText: string }> = {
-  cyan:   { iconBg: "bg-cyan-500/15",   iconBorder: "border-cyan-500/25",   labelText: "text-cyan-400/70"   },
-  violet: { iconBg: "bg-violet-500/15", iconBorder: "border-violet-500/25", labelText: "text-violet-400/70" },
-  indigo: { iconBg: "bg-indigo-500/15", iconBorder: "border-indigo-500/25", labelText: "text-indigo-400/70" },
+  cyan:    { iconBg: "bg-cyan-500/15",    iconBorder: "border-cyan-500/25",    labelText: "text-cyan-400/70"    },
+  violet:  { iconBg: "bg-violet-500/15",  iconBorder: "border-violet-500/25",  labelText: "text-violet-400/70"  },
+  indigo:  { iconBg: "bg-indigo-500/15",  iconBorder: "border-indigo-500/25",  labelText: "text-indigo-400/70"  },
+  emerald: { iconBg: "bg-emerald-500/15", iconBorder: "border-emerald-500/25", labelText: "text-emerald-400/70" },
 };
 
 export default function PageHeader({ icon, color = "cyan", label, title, description }: Props) {

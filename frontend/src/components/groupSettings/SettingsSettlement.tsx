@@ -21,7 +21,7 @@ interface Props {
 export default function SettingsSettlement({ members, isSettling, handleSettlement }: Props) {
   const { t } = useTranslation();
   const [settleMemberId, setSettleMemberId] = useState("");
-  const [settleAmount, setSettleAmount] = useState("");
+  const [settleAmount, setSettleAmount] = useState("0");
   const { fieldErrors, setFieldError, clearFieldError } = useFieldError<SettlementField>();
 
   const settleMaxAmount =
@@ -53,7 +53,7 @@ export default function SettingsSettlement({ members, isSettling, handleSettleme
         tone="green"
         loading={isSettling}
         loadingLabel={t("groupDetail.settling")}
-        disabled={!settleMemberId || !settleAmount}
+        disabled={!settleMemberId}
         onClick={() => handleSettlement(settleMemberId, settleAmount, setSettleMemberId, setSettleAmount, setFieldError, settleMaxAmount)}
       >
         {t("groupDetail.settleMember")}

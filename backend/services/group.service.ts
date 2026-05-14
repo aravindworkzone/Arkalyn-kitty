@@ -4,17 +4,15 @@ import Group from "../models/group.model";
 import GroupTransaction from "../models/group_transaction.model";
 import GroupEvent from "../models/group_event.model";
 import GroupMember from "../models/group_member.model";
+import GroupInvite from "../models/group_invite.model";
+import { createNotification } from "./notification.service";
 
-interface members {
-    _id: string;
-    contribution: number;
-}
-export const createGroupService = async (data: {name: string, members: members[], superAdmin: string}) => {
+export const createGroupService = async (data: { name: string; invitees: string[]; contribution: number; superAdmin: string }) => {
     const name = data.name?.trim();
-    const members = data.members;
     const superAdmin = data.superAdmin;
+    const contribution = data.contribution ?? 0;
 
-    if ((!Array.isArray(members) || members.length === 0) || !superAdmin || !name) {
+    if (!superAdmin || !name) {
         throw new AppError("All fields are required", 400);
     }
 
@@ -26,48 +24,36 @@ export const createGroupService = async (data: {name: string, members: members[]
         throw new AppError("Invalid SuperAdmin ID format", 400);
     }
 
-    const isSuperAdmin = members.some((member) => member._id === superAdmin);
-    if (!isSuperAdmin) {
-        members.push({_id: superAdmin, contribution: 0 });
+    if (typeof contribution !== "number" || contribution < 0) {
+        throw new AppError("Contribution cannot be negative", 400);
     }
 
-    const validMembers = members.filter(obj => mongoose.Types.ObjectId.isValid(obj._id) && obj.contribution >= 0).map(obj => ({
-        _id: obj._id,
-        contribution: obj.contribution
-    }));
-
-    const uniqueUserIds = new Set(validMembers.map(m => m._id.toString()));
-
-    if (uniqueUserIds.size !== validMembers.length) {
-        throw new AppError("Duplicate user IDs are not allowed", 400);
-    }
-
-    if (validMembers.length !== members.length) {
-        console.log(members);
-        throw new AppError("member ID are invalid or contribution is negative", 400);
-    }
+    // Only the creator joins on creation. Everyone else gets a pending invite —
+    // their contribution is collected when they accept.
+    const invitees = Array.from(new Set((data.invitees ?? []).map(String)))
+        .filter((id) => mongoose.Types.ObjectId.isValid(id) && id !== superAdmin.toString());
 
     const session = await mongoose.startSession();
+    let group;
+    let createdInvites: { _id: mongoose.Types.ObjectId; invitedUser: mongoose.Types.ObjectId }[] = [];
     try {
         session.startTransaction();
 
-        const totalAmount = validMembers.reduce((total, member) => total + member.contribution, 0);
-
         const CreatGroup = new Group({
             name,
-            totalContribution: totalAmount,
-            balance: totalAmount,
-            createdBy: superAdmin
+            totalContribution: contribution,
+            balance: contribution,
+            createdBy: superAdmin,
         });
-        const group = await CreatGroup.save({session});
+        group = await CreatGroup.save({ session });
 
-        const groupMembers = validMembers.map(member => ({
+        const creatorMember = new GroupMember({
             groupId: group._id,
-            userId: member._id,
-            contribution: member.contribution,
-            role: superAdmin.toString() === member._id.toString() ? "SUPER_ADMIN" :  "MEMBER"
-        }));
-        await GroupMember.insertMany(groupMembers, { session });
+            userId: superAdmin,
+            contribution,
+            role: "SUPER_ADMIN",
+        });
+        await creatorMember.save({ session });
 
         const CreateGroupEvent = new GroupEvent({
             groupId: group._id,
@@ -75,25 +61,37 @@ export const createGroupService = async (data: {name: string, members: members[]
             eventType: "CREATE_GROUP",
             referenceId: group._id,
             referenceModel: "Group",
-            metadata: { name, totalContribution: totalAmount, memberCount: validMembers.length, note: `Group created "${name}"` }
+            metadata: { name, totalContribution: contribution, inviteeCount: invitees.length, note: `Group created "${name}"` },
         });
-        await CreateGroupEvent.save({session});
+        await CreateGroupEvent.save({ session });
 
         const CreateGroupTransaction = new GroupTransaction({
             groupId: group._id,
-            amount: totalAmount,
+            amount: contribution,
             action: "CREDIT",
-            description: "Group created with initial members and contributions",
-            referenceId: group._id,
-            referenceModel: "Group",
-            metadata: validMembers.map(member => ({ userId: member._id, contribution: member.contribution })),
-            performedBy: superAdmin
+            description: "Group created with creator's initial contribution",
+            referenceId: superAdmin,
+            referenceModel: "User",
+            metadata: [{ userId: superAdmin, contribution }],
+            performedBy: superAdmin,
         });
-        await CreateGroupTransaction.save({session});
+        await CreateGroupTransaction.save({ session });
+
+        if (invitees.length > 0) {
+            const inviteDocs = invitees.map((userId) => ({
+                groupId: group!._id,
+                invitedUser: userId,
+                invitedBy: superAdmin,
+                status: "PENDING" as const,
+            }));
+            const inserted = await GroupInvite.insertMany(inviteDocs, { session });
+            createdInvites = inserted.map((inv) => ({
+                _id: inv._id as mongoose.Types.ObjectId,
+                invitedUser: inv.invitedUser,
+            }));
+        }
 
         await session.commitTransaction();
-
-        return group;
     } catch (error: any) {
         await session.abortTransaction();
         if (error.name === "ValidationError") throw new AppError(error.message, 400);
@@ -102,6 +100,19 @@ export const createGroupService = async (data: {name: string, members: members[]
     } finally {
         await session.endSession();
     }
+
+    // Notifications are non-critical and not part of the group-creation transaction.
+    for (const invite of createdInvites) {
+        await createNotification({
+            recipient: invite.invitedUser,
+            actor: superAdmin,
+            group: group._id as mongoose.Types.ObjectId,
+            type: "GROUP_INVITE",
+            metadata: { inviteId: invite._id.toString(), groupName: name, groupDisplayId: group.displayId },
+        });
+    }
+
+    return group;
 };
 
 export const deleteGroupService = async (groupId: string) => {
@@ -245,6 +256,50 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
     } finally {
         await session.endSession();
     }
+};
+
+export const inviteMemberService = async (data: {
+    group: mongoose.Types.ObjectId;
+    invitedBy: mongoose.Types.ObjectId;
+    invitedUser: mongoose.Types.ObjectId;
+}) => {
+    const { group: groupId, invitedBy, invitedUser } = data;
+
+    if (!mongoose.Types.ObjectId.isValid(invitedUser)) {
+        throw new AppError("Invalid user ID format", 400);
+    }
+    if (invitedUser.toString() === invitedBy.toString()) {
+        throw new AppError("You cannot invite yourself", 400);
+    }
+
+    const group = await Group.findById(groupId);
+    if (!group) throw new AppError("Group not found", 404);
+
+    const existingMember = await GroupMember.findOne({ groupId, userId: invitedUser, isDeleted: false });
+    if (existingMember) throw new AppError("User is already a member of this group", 400);
+
+    const pendingInvite = await GroupInvite.findOne({ groupId, invitedUser, status: "PENDING" });
+    if (pendingInvite) throw new AppError("This user already has a pending invite", 400);
+
+    let invite;
+    try {
+        invite = await GroupInvite.create({ groupId, invitedUser, invitedBy, status: "PENDING" });
+    } catch (error: any) {
+        if (error.code === 11000) throw new AppError("This user already has a pending invite", 409);
+        if (error.name === "ValidationError") throw new AppError(error.message, 400);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
+    }
+
+    // Invitee sets their own contribution when they accept — mirrors group creation.
+    await createNotification({
+        recipient: invitedUser,
+        actor: invitedBy,
+        group: groupId,
+        type: "GROUP_INVITE",
+        metadata: { inviteId: invite._id.toString(), groupName: group.name, groupDisplayId: group.displayId },
+    });
+
+    return "Invitation sent";
 };
 
 export const manageAdminService = async (data: { group: mongoose.Types.ObjectId, user: mongoose.Types.ObjectId, action: string, member: mongoose.Types.ObjectId }) => {
@@ -440,33 +495,35 @@ export const SettlementService = async (data : {group: mongoose.Types.ObjectId, 
     try {
         session.startTransaction();
 
-        await GroupMember.findOneAndUpdate(
+        const group = await GroupMember.findOneAndUpdate(
             { groupId: groupData, userId: Member },
             { $set: { settlement: true } },
             { returnDocument: "after", session }
         );
+        console.log("Settlement updated for member:", group);
 
-        const debited = await Group.findOneAndUpdate(
-            { _id: groupData, balance: { $gte: settlement } },
-            { $inc: { balance: -settlement } },
-            { returnDocument: "after", session }
-        );
+        if (settlement > 0) {
+            const debited = await Group.findOneAndUpdate(
+                { _id: groupData, balance: { $gte: settlement } },
+                { $inc: { balance: -settlement } },
+                { returnDocument: "after", session }
+            );
+            if (!debited) {
+                throw new AppError("Insufficient balance for settlement", 400);
+            }
 
-        if (!debited) {
-            throw new AppError("Insufficient balance for settlement", 400);
+            const settlementLog = new GroupTransaction({
+                groupId: groupData,
+                amount: settlement,
+                action: "DEBIT",
+                description: `Settled completed ${settlement}`,
+                referenceId: Member,
+                referenceModel: "User",
+                metadata: [{ Member, settlement }],
+                performedBy: userId
+            });
+            await settlementLog.save({ session });
         }
-
-        const settlementLog = new GroupTransaction({
-            groupId: groupData,
-            amount: settlement,
-            action: "DEBIT",
-            description: `Settled compeleted ${settlement}`,
-            referenceId: Member,
-            referenceModel: "User",
-            metadata: [{ Member, settlement }],
-            performedBy: userId
-        });
-        await settlementLog.save({ session });
 
         await session.commitTransaction();
 
@@ -479,6 +536,208 @@ export const SettlementService = async (data : {group: mongoose.Types.ObjectId, 
     } finally {
         await session.endSession();
     }
+};
+
+export const leaveGroupService = async (data: { group: mongoose.Types.ObjectId, user: mongoose.Types.ObjectId }) => {
+    const groupData = data.group;
+    const userId = data.user;
+
+    const member = await GroupMember.findOne({ groupId: groupData, userId, isDeleted: false });
+
+    if (!member) {
+        throw new AppError("You are not a member of this group", 400);
+    }
+
+    if (member.role === "SUPER_ADMIN") {
+        throw new AppError("Super admin cannot leave the group", 400);
+    }
+
+    // An already-settled member can leave instantly. An unsettled member files a
+    // leave request that an admin/super admin must approve (settling them in the process).
+    if (!member.settlement) {
+        if (member.leaveRequestedAt) {
+            throw new AppError("Your leave request is already pending approval", 400);
+        }
+
+        member.leaveRequestedAt = new Date();
+        await member.save();
+
+        // Notify every admin / super admin of the group so they can act on the request.
+        // The requester is excluded in case an admin is the one leaving.
+        const admins = await GroupMember.find({
+            groupId: groupData,
+            role: { $in: ["ADMIN", "SUPER_ADMIN"] },
+            userId: { $ne: userId },
+            isDeleted: false,
+        });
+        const group = await Group.findById(groupData);
+        await Promise.all(
+            admins.map((admin) =>
+                createNotification({
+                    recipient: admin.userId,
+                    actor: userId,
+                    group: groupData,
+                    type: "LEAVE_REQUESTED",
+                    metadata: { memberId: userId, groupName: group?.name },
+                })
+            )
+        );
+
+        return { message: "Leave request sent to the group admins", left: false };
+    }
+
+    const session = await mongoose.startSession();
+    try {
+        session.startTransaction();
+
+        await GroupMember.findOneAndUpdate(
+            { groupId: groupData, userId },
+            { isDeleted: true, leaveRequestedAt: null },
+            { returnDocument: "after", session }
+        );
+
+        const leaveEvent = new GroupEvent({
+            groupId: groupData,
+            performedBy: userId,
+            eventType: "MEMBER_REMOVED",
+            metadata: { userId, note: "Left the group" },
+            referenceId: userId,
+            referenceModel: "User"
+        });
+        await leaveEvent.save({ session });
+
+        await session.commitTransaction();
+
+        return { message: "Left group", left: true };
+    } catch (error: any) {
+        await session.abortTransaction();
+        if (error.name === "ValidationError") throw new AppError(error.message, 400);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
+    } finally {
+        await session.endSession();
+    }
+};
+
+export const approveLeaveRequestService = async (data: {
+    group: mongoose.Types.ObjectId;
+    admin: mongoose.Types.ObjectId;
+    member: mongoose.Types.ObjectId;
+    settlement: number;
+    balance: number;
+}) => {
+    const { group: groupData, admin: adminId, member: memberId, settlement, balance } = data;
+
+    if (typeof settlement !== "number" || settlement < 0) {
+        throw new AppError("Settlement amount cannot be negative", 400);
+    }
+
+    const member = await GroupMember.findOne({ groupId: groupData, userId: memberId, isDeleted: false });
+    if (!member) {
+        throw new AppError("User is not a member of this group", 400);
+    }
+    if (!member.leaveRequestedAt) {
+        throw new AppError("This member has no pending leave request", 400);
+    }
+    if (member.role === "SUPER_ADMIN") {
+        throw new AppError("Super admin cannot leave the group", 400);
+    }
+    if (settlement > balance) {
+        throw new AppError("Settlement amount cannot be greater than group balance", 400);
+    }
+
+    const session = await mongoose.startSession();
+    try {
+        session.startTransaction();
+
+        // Settle the leaving member and remove them in a single atomic step.
+        await GroupMember.findOneAndUpdate(
+            { groupId: groupData, userId: memberId },
+            { $set: { settlement: true, isDeleted: true, leaveRequestedAt: null } },
+            { session }
+        );
+
+        if (settlement > 0) {
+            const debited = await Group.findOneAndUpdate(
+                { _id: groupData, balance: { $gte: settlement } },
+                { $inc: { balance: -settlement } },
+                { returnDocument: "after", session }
+            );
+            if (!debited) {
+                throw new AppError("Insufficient balance for settlement", 400);
+            }
+
+            const settlementLog = new GroupTransaction({
+                groupId: groupData,
+                amount: settlement,
+                action: "DEBIT",
+                description: `Settled ${settlement} on leave request approval`,
+                referenceId: memberId,
+                referenceModel: "User",
+                metadata: [{ member: memberId, settlement }],
+                performedBy: adminId,
+            });
+            await settlementLog.save({ session });
+        }
+
+        const leaveEvent = new GroupEvent({
+            groupId: groupData,
+            performedBy: adminId,
+            eventType: "MEMBER_REMOVED",
+            metadata: { userId: memberId, note: "Leave request approved and member settled" },
+            referenceId: memberId,
+            referenceModel: "User",
+        });
+        await leaveEvent.save({ session });
+
+        await session.commitTransaction();
+    } catch (error: any) {
+        await session.abortTransaction();
+        if (error.name === "ValidationError") throw new AppError(error.message, 400);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
+    } finally {
+        await session.endSession();
+    }
+
+    const group = await Group.findById(groupData);
+    await createNotification({
+        recipient: memberId,
+        actor: adminId,
+        group: groupData,
+        type: "LEAVE_APPROVED",
+        metadata: { groupName: group?.name, settlement },
+    });
+
+    return "Leave request approved";
+};
+
+export const rejectLeaveRequestService = async (data: {
+    group: mongoose.Types.ObjectId;
+    admin: mongoose.Types.ObjectId;
+    member: mongoose.Types.ObjectId;
+}) => {
+    const { group: groupData, admin: adminId, member: memberId } = data;
+
+    const member = await GroupMember.findOne({ groupId: groupData, userId: memberId, isDeleted: false });
+    if (!member) {
+        throw new AppError("User is not a member of this group", 400);
+    }
+    if (!member.leaveRequestedAt) {
+        throw new AppError("This member has no pending leave request", 400);
+    }
+
+    member.leaveRequestedAt = null;
+    await member.save();
+
+    const group = await Group.findById(groupData);
+    await createNotification({
+        recipient: memberId,
+        actor: adminId,
+        group: groupData,
+        type: "LEAVE_REJECTED",
+        metadata: { groupName: group?.name },
+    });
+
+    return "Leave request rejected";
 };
 
 export const getGroupByIdService = async (groupId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId) => {
@@ -547,6 +806,22 @@ export const getTransactionService = async (groupId: mongoose.Types.ObjectId) =>
         throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }
 }
+
+export const getAllCreditsService = async (groupId: mongoose.Types.ObjectId) => {
+    if (!groupId) throw new AppError("Group ID is required", 400);
+    try {
+        const credits = await GroupTransaction.find({
+            groupId,
+            action: "CREDIT",
+            isDeleted: false,
+        })
+            .populate("performedBy", "name email")
+            .sort({ createdAt: -1 });
+        return credits;
+    } catch (error: any) {
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
+    }
+};
 
 export const getEventService = async (groupId: mongoose.Types.ObjectId) => {
     try {

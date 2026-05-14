@@ -7,6 +7,187 @@
     "signOut": "Sign out"
   },
 
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you're looking for doesn't exist or may have been moved.",
+    "goBack": "Go back",
+    "goHome": "Go home"
+  },
+
+  "landing": {
+    "nav": {
+      "why": "Why",
+      "howItWorks": "How it works",
+      "whoFor": "Who it's for",
+      "features": "Features",
+      "faq": "FAQ",
+      "login": "Log in",
+      "register": "Get started"
+    },
+    "hero": {
+      "eyebrow": "Group expenses, without the math",
+      "title": "Share a wallet. Spend together. Settle never.",
+      "sub": "Arkalyn-Kitty replaces circular IOUs with a shared wallet. Everyone chips in, every expense debits the wallet, and the receipts speak for themselves.",
+      "ctaPrimary": "Create a group",
+      "ctaSecondary": "See how it works",
+      "badges": ["Free to try", "No card required", "Built in India"],
+      "cardStatus": "ACTIVE",
+      "cardPaidVia": "paid via wallet"
+    },
+    "why": {
+      "kicker": "Why this exists",
+      "title": "Splitting bills is a broken pattern.",
+      "sub": "Every group expense app we tried treats the symptom — debt — instead of the cause. Arkalyn-Kitty removes the debt entirely by making the wallet shared.",
+      "points": [
+        {
+          "title": "IOUs don't scale past three people",
+          "body": "Four roommates, six expenses, two reimbursements — and suddenly everyone's confused about who owes whom. A shared wallet collapses the math into one number."
+        },
+        {
+          "title": "Money disagreements are friendship taxes",
+          "body": "Most splits start as 'I'll pay this one, you get the next.' Most end as silent resentment. A transparent ledger removes the guesswork."
+        },
+        {
+          "title": "Spreadsheets are not a financial system",
+          "body": "A shared sheet is a workaround. Arkalyn-Kitty is purpose-built: contributions, expenses, roles, settlements — all auditable."
+        }
+      ]
+    },
+    "whoFor": {
+      "kicker": "Who it's for",
+      "title": "Any group that shares a wallet.",
+      "sub": "If two or more people regularly spend out of a shared wallet, Arkalyn-Kitty is built for you.",
+      "audiences": [
+        {
+          "title": "Households & roommates",
+          "body": "Rent, groceries, utility bills, the cleaner — chip in monthly and stop chasing each other on payday."
+        },
+        {
+          "title": "Trip groups",
+          "body": "Goa, Manali, Europe — one pot for cabs, stays, food. Nobody floats the whole bill anymore."
+        },
+        {
+          "title": "Families",
+          "body": "Joint expenses for parents, kids' school, festivals. A clean shared record without awkward Venmos."
+        },
+        {
+          "title": "Friend circles & clubs",
+          "body": "Monthly dinners, gifts, weekend plans. Everyone chips in once, the wallet handles the rest."
+        },
+        {
+          "title": "Small teams & offsites",
+          "body": "Team lunches, coffee runs, offsite expenses. Roles let an admin approve while members watch live."
+        },
+        {
+          "title": "Hostel & college groups",
+          "body": "Mess money, project supplies, snack runs. No more chai-stall mental math."
+        }
+      ]
+    },
+    "faq": {
+      "kicker": "FAQ",
+      "title": "Honest answers.",
+      "items": [
+        {
+          "q": "How is this different from Splitwise?",
+          "a": "Splitwise tracks who owes whom across many small debts. Arkalyn-Kitty avoids debt entirely — everyone contributes to a shared wallet, and expenses debit that wallet. No reconciliation needed."
+        },
+        {
+          "q": "What happens when someone leaves the group?",
+          "a": "Members and admins can leave once their settlement is completed. The Super Admin can't leave — they either delete the group."
+        },
+        {
+          "q": "Can I edit an expense if I made a mistake?",
+          "a": "No. Expenses are immutable on purpose — it keeps the ledger honest. You can delete an incorrect expense (with a reason) and create the right one."
+        },
+        {
+          "q": "Is my money actually stored in Arkalyn-Kitty?",
+          "a": "No. We don't hold funds. The wallet is a ledger — you collect contributions however your group prefers (UPI, bank transfer, cash) and record them here."
+        },
+        {
+          "q": "Does it cost anything?",
+          "a": "Free to try while we're in early development. No card, no trial timer."
+        }
+      ]
+    },
+    "finalCTA": {
+      "title": "Stop chasing each other for money.",
+      "sub": "Create your first group in under a minute.",
+      "cta": "Get started — it's free"
+    },
+    "howItWorks": {
+      "kicker": "How it works",
+      "title": "Four steps from chaos to clarity.",
+      "sub": "No spreadsheets. No reimbursements. No 'I'll pay you back next week.'",
+      "modeSummary": "Summary",
+      "modeDetailed": "Detailed",
+      "steps": [
+        {
+          "step": "01",
+          "title": "Create a group",
+          "summary": "Add your roommates, trip mates, or team. Each person sets a starting contribution.",
+          "detail": "Name the group and invite members by email. Each member can set an optional starting contribution that's credited right away. The group gets a unique ID like Grp-26-001, and whoever creates it becomes the Super Admin with full control over roles and settings."
+        },
+        {
+          "step": "02",
+          "title": "Money goes into the wallet",
+          "summary": "Every contribution credits a shared balance. There's no who-paid-for-what to track — it's one wallet.",
+          "detail": "Contributions are recorded as credits against the shared wallet — collected by UPI, bank transfer, or cash, however your group settles up off-app. Every credit is logged in the audit trail with who added it and when, so the balance always traces back to its source."
+        },
+        {
+          "step": "03",
+          "title": "Spend from the wallet",
+          "summary": "Log expenses against a category. The group balance debits automatically. Receipts are immutable.",
+          "detail": "Record an expense, tag it to a category, and the wallet debits instantly — with an atomic balance check so the pool can never be overspent. Expenses are immutable by design: to correct one you delete it with a reason and recreate it, keeping the ledger honest."
+        },
+        {
+          "step": "04",
+          "title": "Settle when you're done",
+          "summary": "Closing a trip? Splitting up the flat? Run a settlement and the ledger closes cleanly.",
+          "detail": "When a member leaves or the group wraps up, run a settlement to reconcile their share of the remaining balance. Members and admins can only leave once they're settled; the Super Admin closes everything out by deleting the group."
+        }
+      ]
+    },
+    "features": {
+      "kicker": "Features",
+      "title": "Built for trust, not just tracking.",
+      "modeSummary": "Summary",
+      "modeDetailed": "Detailed",
+      "items": [
+        {
+          "title": "Shared wallet, not split-the-bill math",
+          "summary": "One balance, one source of truth. No circular debts.",
+          "detail": "Instead of tracking who owes whom across dozens of small IOUs, everyone contributes to a single pooled wallet and every expense debits it. There's nothing to reconcile — the balance is the truth."
+        },
+        {
+          "title": "Roles that mean something",
+          "summary": "Super Admin, Admin, Member. Each level has clear permissions for expenses, members, and settlements.",
+          "detail": "The Super Admin owns the group and can't leave without deleting it. Admins manage members, categories, and settlements. Members log expenses and contributions. Every route is permission-checked, so people can only do what their role allows."
+        },
+        {
+          "title": "Immutable expense log",
+          "summary": "Expenses can't be edited — only deleted with a reason. Every change is traceable.",
+          "detail": "There's no edit button on an expense, on purpose. Correcting a mistake means deleting the entry with a recorded reason and creating a fresh one. The result is a ledger that can't be quietly rewritten after the fact."
+        },
+        {
+          "title": "Per-group categories",
+          "summary": "Food, rent, travel — categorise expenses your way and view reports by category.",
+          "detail": "Each group defines its own categories, each with a custom colour. Every expense is tagged to one, so you can break spending down by category and see exactly where the wallet went."
+        },
+        {
+          "title": "Audit trail by default",
+          "summary": "Every contribution, expense, and role change is logged in a group event feed.",
+          "detail": "Every balance-changing action writes to two places — a transaction record and an admin event log. Nothing happens silently: contributions, expenses, deletions, and role changes all leave a permanent, timestamped trail."
+        },
+        {
+          "title": "Live group updates",
+          "summary": "Socket-powered so balances, members, and expenses sync across devices in real time.",
+          "detail": "The app uses Socket.io group rooms to push changes the moment they happen. When someone logs an expense or adds a member, every other member's screen updates instantly — no refresh needed."
+        }
+      ]
+    }
+  },
+
   "auth": {
     "welcome": "Welcome back",
     "noAccount": "Don't have an account?",
@@ -36,7 +217,7 @@
 
   "groupCard": {
     "balance": "Balance",
-    "poolRemaining": "Pool remaining",
+    "poolRemaining": "Wallet remaining",
     "addExpense": "Add Expense",
     "expense_one": "{{count}} expense",
     "expense_other": "{{count}} expenses"
@@ -44,15 +225,15 @@
 
   "empty": {
     "noGroupsYet": "No groups yet",
-    "noGroupsDesc": "Create a shared pool and start tracking expenses together",
+    "noGroupsDesc": "Create a shared wallet and start tracking expenses together",
     "createFirst": "Create your first group"
   },
 
   "createGroup": {
     "backToGroups": "Back to groups",
     "newGroup": "New Group",
-    "title": "Set up your shared pool",
-    "description": "Name your group, add members, and set initial contributions.",
+    "title": "Set up your shared wallet",
+    "description": "Name your group and invite members. You set your own contribution; invitees set theirs when they accept.",
     "step1": "Group name",
     "groupNamePlaceholder": "e.g. Goa Trip 2025",
     "step2": "Members",
@@ -60,10 +241,42 @@
     "emailPlaceholder": "member@email.com",
     "add": "Add",
     "emailHint": "Enter an email and click Add — or press Enter.",
-    "initialPool": "Initial pool total",
+    "invitePending": "Will be invited",
+    "initialPool": "Your contribution",
     "cancel": "Cancel",
     "creating": "Creating...",
     "createGroup": "Create group"
+  },
+
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet",
+    "loading": "Loading…",
+    "markAllRead": "Mark all read",
+    "accept": "Accept",
+    "reject": "Decline",
+    "confirm": "Join",
+    "cancel": "Cancel",
+    "delete": "Delete notification",
+    "responseAccepted": "✓ You joined",
+    "responseRejected": "✕ You declined",
+    "justNow": "just now",
+    "someone": "Someone",
+    "contributionLabel": "Set your contribution to join",
+    "invalidAmount": "Enter a valid amount",
+    "actionFailed": "Something went wrong",
+    "msg": {
+      "GROUP_INVITE": "{{actor}} invited you to {{group}}",
+      "INVITE_ACCEPTED": "{{actor}} joined {{group}}",
+      "INVITE_REJECTED": "{{actor}} declined the invite to {{group}}",
+      "ROLE_CHANGED": "Your role changed in {{group}}",
+      "MEMBER_LEFT": "{{actor}} left {{group}}",
+      "GROUP_DELETED": "{{group}} was deleted",
+      "LEAVE_REQUESTED": "{{actor}} requested to leave {{group}}",
+      "LEAVE_APPROVED": "Your request to leave {{group}} was approved",
+      "LEAVE_REJECTED": "Your request to leave {{group}} was declined",
+      "default": "You have a new notification"
+    }
   },
 
   "createExpense": {
@@ -99,6 +312,7 @@
     "namePlaceholder": "e.g. Groceries",
     "add": "Add",
     "colorLabel": "Color",
+    "customColor": "Pick a custom color",
     "preview": "Preview",
     "existing": "Existing",
     "total": "{{count}} total",
@@ -144,14 +358,15 @@
     "fieldPerformedBy": "Performed by",
     "fieldReference": "Reference",
     "fieldDate": "Date",
-    "fieldDetails": "Details"
+    "fieldDetails": "Details",
+    "categoryReport": "Category Report"
   },
 
   "groupDetail": {
     "backToGroups": "Back to groups",
     "balance": "Balance",
     "contributed": "of ₹{{amount}} contributed",
-    "poolRemaining": "Pool remaining",
+    "poolRemaining": "Wallet remaining",
     "noCatTitle": "No categories yet",
     "noCatDesc": "Create a category before adding an expense.",
     "create": "Create",
@@ -160,7 +375,8 @@
     "settled": "SETTLED",
     "addExpense": "Add Expense",
     "category": "Category",
-    "report": "Report",
+    "report": "Activity",
+    "breakdown": "Report",
     "settings": "Settings",
     "tabAddMember": "Add Member",
     "tabChangeRole": "Change Role",
@@ -173,12 +389,15 @@
     "initialContribution": "Initial contribution (optional)",
     "addingMember": "Adding…",
     "addMemberBtn": "Add Member",
+    "inviteMemberHint": "They'll get an invite and set their own contribution when they accept.",
+    "invitingMember": "Sending invite…",
+    "inviteMemberBtn": "Send Invite",
     "selectMember": "Select member",
     "promoteToAdmin": "Promote to Admin",
     "demoteToMember": "Demote to Member",
     "updatingRole": "Updating…",
     "changeRole": "Change Role",
-    "addFundsDesc": "Add funds to the group pool. Select a member or leave as self.",
+    "addFundsDesc": "Add funds to the group wallet. Select a member or leave as self.",
     "myContribution": "My contribution (self)",
     "amount": "Amount",
     "addingContrib": "Adding…",
@@ -195,7 +414,20 @@
     "removeMemberLabel": "Remove {{name}}",
     "removeMemberConfirm": "Member must be settled before removal.",
     "deleteGroupConfirm": "All data will be lost.",
-    "description": "Description"
+    "description": "Description",
+    "tabLeaveRequests": "Leave Requests",
+    "leaveRequestSentTitle": "Leave request sent",
+    "leaveRequestSentDesc": "An admin will review and settle your request before you leave."
+  },
+
+  "leaveRequests": {
+    "description": "Approve a request to settle the member and remove them, or reject it to keep them in the group.",
+    "contributed": "Contributed ₹{{amount}}",
+    "approve": "Approve",
+    "approving": "Approving…",
+    "reject": "Reject",
+    "rejecting": "Rejecting…",
+    "empty": "No pending leave requests"
   },
 
   "deleteModal": {
@@ -219,5 +451,27 @@
     "MEMBER_REMOVED": "Member removed",
     "MANAGE_CATEGORY": "Category updated",
     "CHANGE_ROLE": "Role changed"
+  },
+
+  "categoryReport": {
+    "label": "Report",
+    "title": "Where did the money go?",
+    "description": "Spending by category over the selected range.",
+    "preset": {
+      "this_month": "This month",
+      "last_month": "Last month",
+      "all_time": "All time",
+      "custom": "Custom"
+    },
+    "startDate": "Start date",
+    "endDate": "End date",
+    "totalSpent": "Total spent",
+    "transactions": "Transactions",
+    "expenseCount_one": "{{count}} expense",
+    "expenseCount_other": "{{count}} expenses",
+    "deleted": "Deleted",
+    "emptyTitle": "No expenses in this range",
+    "emptyHint": "Widen the range or add an expense to see the breakdown.",
+    "errorLoading": "Couldn't load the report. Try again."
   }
 }

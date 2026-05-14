@@ -1,10 +1,10 @@
 import {api} from "./base";
 import type { GroupMember } from "../../interface/member";
-import type { GroupTransaction, GroupEvent } from "../../interface/transaction";
+import type { GroupTransaction, GroupEvent, GroupCredit } from "../../interface/transaction";
 
 export const group = api.injectEndpoints({
     endpoints: (builder) => ({
-        CreateGroup : builder.mutation<any, any>({
+        CreateGroup : builder.mutation<any, { name: string; contribution: number; invitees: string[] }>({
             query: (credentials) => ({
                 url: '/group/create',
                 method: 'POST',
@@ -52,6 +52,16 @@ export const group = api.injectEndpoints({
                 { type: 'Group', id: groupId }
             ]
         }),
+        getAllCredits: builder.query<GroupCredit[], string>({
+            query: (groupId) => ({
+                url: `/group/allcredits/${groupId}`,
+                method: 'GET'
+            }),
+            transformResponse: (res: { data: { credits: GroupCredit[] } }) => res.data.credits,
+            providesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId }
+            ]
+        }),
         getEvent: builder.query<any, any>({
             query: (credentials) => ({
                 url: `/group/getevent/${credentials}`,
@@ -64,6 +74,12 @@ export const group = api.injectEndpoints({
         }),
         manageMember: builder.mutation<any, { groupId: string; action: string; Member: string; contribution?: number }>({
             query: (body) => ({ url: '/group/managemember', method: 'POST', body }),
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId }
+            ]
+        }),
+        inviteMember: builder.mutation<any, { groupId: string; invitedUser: string }>({
+            query: (body) => ({ url: '/group/invitemember', method: 'POST', body }),
             invalidatesTags: (_result, _error, arg) => [
                 { type: 'Group', id: arg.groupId }
             ]
@@ -93,12 +109,34 @@ export const group = api.injectEndpoints({
                 'Group'
             ]
         }),
+        leaveGroup: builder.mutation<any, string>({
+            query: (groupId) => ({ url: '/group/leave', method: 'POST', body: { groupId } }),
+            invalidatesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId },
+                'Group'
+            ]
+        }),
+        approveLeave: builder.mutation<any, { groupId: string; member: string; settlement: number }>({
+            query: (body) => ({ url: '/group/leave/approve', method: 'POST', body }),
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId },
+                'Group'
+            ]
+        }),
+        rejectLeave: builder.mutation<any, { groupId: string; member: string }>({
+            query: (body) => ({ url: '/group/leave/reject', method: 'POST', body }),
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId }
+            ]
+        }),
     })
 })
 
 export const {
     useCreateGroupMutation, useGetGroupByIdQuery, useGetGroupMembersQuery,
     useGetBasicTransactionQuery, useGetTransactionQuery, useGetEventQuery,
-    useManageMemberMutation, useManageAdminMutation, useAddContributionMutation,
-    useSettlementMutation, useDeleteGroupMutation
+    useGetAllCreditsQuery,
+    useManageMemberMutation, useInviteMemberMutation, useManageAdminMutation, useAddContributionMutation,
+    useSettlementMutation, useDeleteGroupMutation, useLeaveGroupMutation,
+    useApproveLeaveMutation, useRejectLeaveMutation
 } = group;

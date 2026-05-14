@@ -13,4 +13,5 @@ export { default as AmountInput }    from "./AmountInput";
 export { default as ActionButton }   from "./ActionButton";
 export { default as MemberSelect }   from "./MemberSelect";
 export { default as StatusBanner }   from "./StatusBanner";
+export { default as SegmentedToggle } from "./SegmentedToggle";
 export { INPUT_CLASS, INPUT_CLASS_LG, FIELD_LABEL } from "./classes";

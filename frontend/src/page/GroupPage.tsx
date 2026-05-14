@@ -58,7 +58,7 @@ const GroupPage = () => {
             </h1>
           </div>
           <button
-            onClick={() => navigate("/groups/create")}
+            onClick={() => navigate("/groups/new")}
             className="group flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px]
               font-semibold text-violet-200 bg-violet-500/10 border border-violet-500/20
               hover:bg-violet-500/20 hover:border-violet-400/40 transition-all duration-200
@@ -148,7 +148,7 @@ const GroupPage = () => {
             </button>
           </div>
         ) : groups.length === 0 ? (
-          <EmptyState onClick={() => navigate("/groups/create")} />
+          <EmptyState onClick={() => navigate("/groups/new")} />
         ) : (
           <div className="flex flex-col gap-2.5">
             {filtered.map((group: any, i: number) => (
@@ -164,7 +164,7 @@ const GroupPage = () => {
                   key={group._id}
                   group={group}
                   onClick={() => navigate(`/groups/${group.displayId}`)}
-                  onAddExpense={() => navigate(`/groups/${group.displayId}/create-expense`)}
+                  onAddExpense={() => navigate(`/groups/${group.displayId}/expenses/new`)}
                 />
               </div>
             ))}

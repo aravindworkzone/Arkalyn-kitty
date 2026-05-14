@@ -8,6 +8,15 @@ export interface GroupTransaction {
   createdAt: string;
 }
 
+export interface GroupCredit {
+  _id: string;
+  amount: number;
+  description: string;
+  performedBy: { _id: string; name: string; email?: string };
+  referenceModel: string;
+  createdAt: string;
+}
+
 export interface GroupEvent {
   _id: string;
   eventType: string;

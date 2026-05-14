@@ -37,6 +37,7 @@ export default function GroupListener() {
             SOCKET_EVENTS.GROUP_ROLE_CHANGED,
             SOCKET_EVENTS.GROUP_CONTRIBUTION_ADDED,
             SOCKET_EVENTS.GROUP_SETTLEMENT_COMPLETED,
+            SOCKET_EVENTS.GROUP_LEAVE_REQUEST_UPDATED,
         ];
 
         refreshEvents.forEach((e) => socket.on(e, refreshGroup));

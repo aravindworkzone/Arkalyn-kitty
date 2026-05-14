@@ -1,27 +1,34 @@
-import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { Request, Response, NextFunction } from 'express';
 import Group from '../models/group.model';
 import Member from '../models/group_member.model';
 import { IUser } from '../models/user.model';
 import { AppError } from '../helpers/AppError';
-import { env } from '../config/env';
-import { COOKIE_NAME } from '../config/constants';
+import { ACCESS_TOKEN_COOKIE } from '../config/constants';
+import { verifyAccessToken } from '../services/session.service';
 import { asyncHandler } from '../utils/asyncHandler';
 
-const verifyToken = (req: Request, res: Response, next: NextFunction): void => {
-    const token = req.cookies[COOKIE_NAME];
+const verifyToken = (req: Request, _res: Response, next: NextFunction): void => {
+    const token = req.cookies[ACCESS_TOKEN_COOKIE];
     if (!token) {
+        // No access token — the client should hit /auth/refresh to mint one
+        // from its refresh-token cookie. Don't touch cookies here.
         next(new AppError('Unauthorized', 401));
         return;
     }
 
     try {
-        req.user = jwt.verify(token, env.JWT_SECRET) as IUser;
+        const payload = verifyAccessToken(token);
+        req.user = {
+            _id: new mongoose.Types.ObjectId(payload.userId),
+            role: payload.role,
+        } as unknown as IUser;
         next();
     } catch (error) {
-        res.clearCookie(COOKIE_NAME);
-        next(error);
+        // Expired/invalid access token. Leave the refresh-token cookie intact
+        // so /auth/refresh can still issue a new pair; cookie cleanup is the
+        // job of the refresh/logout controllers.
+        next(new AppError('Invalid or expired access token', 401));
     }
 };
 

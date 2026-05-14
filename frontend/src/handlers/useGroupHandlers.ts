@@ -60,19 +60,23 @@ export const useGroupHandlers = () => {
     e: React.FormEvent,
     groupName: string,
     members: CreateGroupMember[],
+    currentUserId: string,
     setFieldError: SetFieldError<GroupField>,
     setApiError:   React.Dispatch<React.SetStateAction<string>>
   ) => {
     e.preventDefault();
-    let valid = true;
 
     const nameV = validateGroupName(groupName);
-    if (!nameV.valid) { setFieldError("groupName", nameV.message); valid = false; }
-    if (members.length === 0) { setFieldError("members", "At least one member is required"); valid = false; }
-    if (!valid) return;
+    if (!nameV.valid) { setFieldError("groupName", nameV.message); return; }
+
+    // Only the creator's contribution is collected at creation time. Everyone
+    // else is invited and sets their own contribution when they accept.
+    const creator = members.find((m) => m._id === currentUserId);
+    const contribution = creator?.contribution || 0;
+    const invitees = members.filter((m) => m._id !== currentUserId).map((m) => m._id);
 
     try {
-      await createGroup({ name: groupName.trim(), members }).unwrap();
+      await createGroup({ name: groupName.trim(), contribution, invitees }).unwrap();
       navigate("/groups");
     } catch (err: any) {
       setApiError(err?.data?.message || "Failed to create group");

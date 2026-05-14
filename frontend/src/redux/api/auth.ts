@@ -11,7 +11,7 @@ export const auth = api.injectEndpoints({
         }),
         signIn: builder.mutation({
             query: (credentials) => ({
-                url: '/auth/signin',
+                url: '/auth/login',
                 method: 'POST',
                 body: credentials
             }),
@@ -19,7 +19,7 @@ export const auth = api.injectEndpoints({
         }),
         signOut: builder.mutation<any, void>({
             query: () => ({
-                url: '/auth/signout',
+                url: '/auth/logout',
                 method: 'POST'
             }),
             invalidatesTags: ['Auth']
