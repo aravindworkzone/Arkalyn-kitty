@@ -15,7 +15,7 @@ const isAuthEndpoint = (url: string): boolean =>
 
 const redirectToLogin = (): void => {
     const path = window.location.pathname;
-    if (path !== "/login" && path !== "/signup") {
+    if (path !== "/login" && path !== "/register") {
         window.location.href = "/login";
     }
 };
