@@ -28,4 +28,4 @@ export interface GroupCardProps {
   onAddExpense: () => void;
 }
 
-export type SettingsTab = "addMember" | "changeRole" | "contribution" | "settlement" | "danger";
+export type SettingsTab = "addMember" | "changeRole" | "contribution" | "settlement" | "leaveRequests" | "danger";

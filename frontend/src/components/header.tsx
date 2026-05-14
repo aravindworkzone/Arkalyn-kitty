@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext } from "react-router-dom";
 import { useSignOutMutation } from "../redux/api/auth";
 import { useTranslation } from "react-i18next";
 import LanguageToggle from "./LanguageToggle";
+import NotificationPanel from "./NotificationPanel";
 import { socket } from "../socket/socket";
 
 const Header = () => {
@@ -59,22 +60,7 @@ const Header = () => {
 
         <LanguageToggle />
 
-        {/* Notification bell */}
-        <button className="relative w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.07]
-          flex items-center justify-center hover:bg-white/[0.08] hover:border-white/[0.12]
-          active:bg-white/[0.08] active:border-white/[0.12] active:scale-[0.95]
-          transition-all duration-150 group">
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-            <path d="M7 1.5a4 4 0 0 1 4 4v2.5l1 1.5H2L3 8V5.5a4 4 0 0 1 4-4z"
-              stroke="rgba(255,255,255,0.35)" strokeWidth="1.2"
-              className="group-hover:stroke-white/60 transition-colors" />
-            <path d="M5.5 11.5a1.5 1.5 0 0 0 3 0"
-              stroke="rgba(255,255,255,0.35)" strokeWidth="1.2" strokeLinecap="round"
-              className="group-hover:stroke-white/60 transition-colors" />
-          </svg>
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full
-            bg-violet-400 shadow-sm shadow-violet-400/50" />
-        </button>
+        <NotificationPanel />
 
         {/* Avatar dropdown */}
         <div ref={dropdownRef} className="relative">

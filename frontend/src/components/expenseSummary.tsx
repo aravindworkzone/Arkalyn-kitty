@@ -29,7 +29,7 @@ export default function ExpenseDeleteSummary({ expense } : { expense : { title: 
           <path d="M4.5 7.5l2 2 3-4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         </svg>
         <p className="text-[11px] text-white/30">
-          Deleting restores <span className="text-white/50 font-medium">₹{amount.toLocaleString("en-IN")}</span> to the group pool
+          Deleting restores <span className="text-white/50 font-medium">₹{amount.toLocaleString("en-IN")}</span> to the group wallet
         </p>
       </div>
     </div>

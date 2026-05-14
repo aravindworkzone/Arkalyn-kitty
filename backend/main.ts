@@ -22,7 +22,10 @@ import AuthRouter from './routes/auth.router';
 import ExpenseRouter from './routes/expense.router';
 import CategoryRouter from './routes/category.router';
 import GroupRouter from './routes/group.router';
+import ReportRouter from './routes/report.router';
 import UserRouter from './routes/user.router';
+import NotificationRouter from './routes/notification.router';
+import InviteRouter from './routes/invite.router';
 
 const app: Application = express();
 
@@ -51,7 +54,10 @@ app.use('/api/auth', authRateLimiter, AuthRouter);
 app.use('/api/expense', ExpenseRouter);
 app.use('/api/category', CategoryRouter);
 app.use('/api/group', GroupRouter);
+app.use('/api/group', ReportRouter);
 app.use('/api/user', UserRouter);
+app.use('/api/notifications', NotificationRouter);
+app.use('/api/invite', InviteRouter);
 
 app.get('/', (_req: Request, res: Response) => {
     res.send('Hello World!');

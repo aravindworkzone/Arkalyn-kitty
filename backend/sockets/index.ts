@@ -1,6 +1,5 @@
 import type { Server as HttpServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
-import jwt from 'jsonwebtoken';
 
 const parseCookieHeader = (header: string): Record<string, string> => {
     const out: Record<string, string> = {};
@@ -15,7 +14,8 @@ const parseCookieHeader = (header: string): Record<string, string> => {
 };
 
 import { env } from '../config/env';
-import { COOKIE_NAME } from '../config/constants';
+import { ACCESS_TOKEN_COOKIE } from '../config/constants';
+import { verifyAccessToken } from '../services/session.service';
 import { logger } from '../utils/logger';
 import { groupRoom, SOCKET_EVENTS } from './events';
 import { registerGroupHandlers, type AppIO } from './group.socket';
@@ -39,14 +39,14 @@ export const initSocketServer = (httpServer: HttpServer): AppIO => {
             const cookieHeader = socket.handshake.headers.cookie;
             if (!cookieHeader) return next(new Error('Missing auth cookie'));
             const cookies = parseCookieHeader(cookieHeader);
-            const token = cookies[COOKIE_NAME];
+            const token = cookies[ACCESS_TOKEN_COOKIE];
             if (!token) return next(new Error('Missing auth token'));
 
-            const payload = jwt.verify(token, env.JWT_SECRET) as { _id?: string; email?: string };
-            if (!payload._id) return next(new Error('Invalid token payload'));
+            const payload = verifyAccessToken(token);
+            if (!payload.userId) return next(new Error('Invalid token payload'));
 
-            socket.data.userId = String(payload._id);
-            socket.data.email = String(payload.email ?? '');
+            socket.data.userId = String(payload.userId);
+            socket.data.email = '';
             next();
         } catch (err) {
             logger.warn({ err }, 'socket auth failed');
@@ -56,6 +56,12 @@ export const initSocketServer = (httpServer: HttpServer): AppIO => {
 
     io.on('connection', (socket) => {
         // logger.debug({ userId: socket.data.userId, sid: socket.id }, 'socket connected');
+
+        // Each socket joins a personal room keyed by userId so the server can
+        // emit user-targeted events (e.g. notifications) without tracking sids.
+        if (socket.data.userId) {
+            void socket.join(socket.data.userId);
+        }
 
         // socket.onAny((event, ...args) => {
         //     console.log("incoming", event, args);
@@ -87,6 +93,14 @@ export const emitToGroup = (groupId: string, event: string, payload?: unknown): 
         return;
     }
     (io.to(groupRoom(groupId)).emit as (e: string, p?: unknown) => void)(event, payload);
+};
+
+export const emitToUser = (userId: string, event: string, payload?: unknown): void => {
+    if (!io) {
+        logger.warn({ userId, event }, 'socket emit failed');
+        return;
+    }
+    (io.to(userId).emit as (e: string, p?: unknown) => void)(event, payload);
 };
 
 export { SOCKET_EVENTS };

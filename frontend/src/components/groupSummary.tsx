@@ -8,7 +8,7 @@ export default function GroupDeleteSummary({ group } : { group: {name: string, m
         <div className="flex gap-4">
           <span className="text-[10px] text-white/25">{members.length} member{members.length !== 1 ? "s" : ""}</span>
           <span className="text-[10px] text-white/25">{expenseCount} expense{expenseCount !== 1 ? "s" : ""}</span>
-          <span className="text-[10px] text-white/25">Pool ₹{balance.toLocaleString("en-IN")}</span>
+          <span className="text-[10px] text-white/25">Wallet ₹{balance.toLocaleString("en-IN")}</span>
         </div>
       </div>
 
@@ -18,7 +18,7 @@ export default function GroupDeleteSummary({ group } : { group: {name: string, m
           <path d="M7 5.5v3M7 10h.01" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         </svg>
         <p className="text-[11px] leading-relaxed text-red-300/50">
-          Permanently removes all members, categories, and expenses. Pool balance of{" "}
+          Permanently removes all members, categories, and expenses. Wallet balance of{" "}
           <span className="font-semibold text-red-300/70">₹{balance.toLocaleString("en-IN")}</span> will be lost.
         </p>
       </div>

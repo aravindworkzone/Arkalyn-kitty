@@ -1,10 +1,11 @@
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import User from '../models/user.model';
 import { AppError } from '../helpers/AppError';
-import { env } from '../config/env';
-import { BCRYPT_SALT_ROUNDS, JWT_EXPIRES_IN } from '../config/constants';
+import { BCRYPT_SALT_ROUNDS } from '../config/constants';
 import type { SignUpDto, SignInDto } from '../types/dto';
+import { issueTokensForUser, rotateSession, revokeSession, IssuedTokens } from './session.service';
+
+const DEFAULT_ROLE = 'user';
 
 export const SignUpService = async (data: SignUpDto) => {
     const hashedPassword = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
@@ -21,23 +22,45 @@ export const SignUpService = async (data: SignUpDto) => {
     };
 };
 
-export const SignInService = async (data: SignInDto) => {
+export interface LoginResult {
+    user: { _id: string; name: string; email: string };
+    tokens: IssuedTokens;
+}
+
+export const LoginService = async (
+    data: SignInDto,
+    deviceInfo: string
+): Promise<LoginResult> => {
     const user = await User.findOne({ email: data.email });
     if (!user) throw new AppError('Invalid credentials', 401);
 
     const match = await bcrypt.compare(data.password, user.password);
     if (!match) throw new AppError('Invalid credentials', 401);
 
-    const userData = {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-    };
-
-    const token = jwt.sign(userData, env.JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    const tokens = await issueTokensForUser(
+        user._id as import('mongoose').Types.ObjectId,
+        DEFAULT_ROLE,
+        deviceInfo
+    );
 
     return {
-        token,
-        user: userData,
+        user: {
+            _id: (user._id as import('mongoose').Types.ObjectId).toString(),
+            name: user.name,
+            email: user.email,
+        },
+        tokens,
     };
+};
+
+export const RefreshService = async (
+    rawRefreshToken: string,
+    deviceInfo: string
+): Promise<IssuedTokens> => {
+    return rotateSession(rawRefreshToken, DEFAULT_ROLE, deviceInfo);
+};
+
+export const LogoutService = async (rawRefreshToken: string | undefined): Promise<void> => {
+    if (!rawRefreshToken) return;
+    await revokeSession(rawRefreshToken);
 };

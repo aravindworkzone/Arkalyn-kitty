@@ -3,6 +3,12 @@ import GroupMember from '../models/group_member.model';
 import User from '../models/user.model';
 import { AppError } from '../helpers/AppError';
 
+export const getUserByIdService = async (userId: mongoose.Types.ObjectId) => {
+    const user = await User.findById(userId).select('_id name email');
+    if (!user) throw new AppError('User not found', 404);
+    return user;
+};
+
 export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
     const objectUserId = new mongoose.Types.ObjectId(userId);
 

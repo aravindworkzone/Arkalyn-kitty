@@ -2,13 +2,18 @@ import {
     createGroupService,
     deleteGroupService,
     manageMemberService,
+    inviteMemberService,
     manageAdminService,
     addContributionService,
     SettlementService,
+    leaveGroupService,
+    approveLeaveRequestService,
+    rejectLeaveRequestService,
     getGroupByIdService,
     getGroupMemberService,
     getBasicTransactionService,
     getTransactionService,
+    getAllCreditsService,
     getEventService,
 } from '../services/group.service';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -21,7 +26,8 @@ export const createGroup = asyncHandler(async (req, res) => {
 
     const data = {
         name: typeof req.body.name === 'string' ? req.body.name.trim() : '',
-        members: req.body.members,
+        invitees: Array.isArray(req.body.invitees) ? req.body.invitees : [],
+        contribution: typeof req.body.contribution === 'number' ? req.body.contribution : 0,
         superAdmin: req.user._id.toString(),
     };
 
@@ -56,6 +62,21 @@ export const manageMember = asyncHandler(async (req, res) => {
     emitToGroup(req.group.displayId, event);
 
     sendSuccess(res, null, result ?? 'Member updated');
+});
+
+export const inviteMember = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const result = await inviteMemberService({
+        group: req.group._id,
+        invitedBy: req.user._id,
+        invitedUser: req.body.invitedUser,
+    });
+
+    // The invitee is reached in real time through their notification socket room;
+    // no group-wide emit since membership only changes once they accept.
+    sendSuccess(res, null, result);
 });
 
 export const manageAdmin = asyncHandler(async (req, res) => {
@@ -107,6 +128,59 @@ export const Settlement = asyncHandler(async (req, res) => {
     sendSuccess(res, null, result ?? 'Settlement completed');
 });
 
+export const leaveGroup = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const result = await leaveGroupService({
+        group: req.group._id,
+        user: req.user._id,
+    });
+
+    // A real exit broadcasts a membership change; a pending leave request
+    // broadcasts a request update so admins' Leave Requests tab refreshes live.
+    if (result.left) {
+        emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_MEMBER_REMOVED);
+    } else {
+        emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_LEAVE_REQUEST_UPDATED);
+    }
+
+    sendSuccess(res, { left: result.left }, result.message);
+});
+
+export const approveLeaveRequest = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const result = await approveLeaveRequestService({
+        group: req.group._id,
+        admin: req.user._id,
+        member: req.body.member,
+        settlement: req.body.settlement,
+        balance: req.group.balance,
+    });
+
+    emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_MEMBER_REMOVED);
+    emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_SETTLEMENT_COMPLETED);
+
+    sendSuccess(res, null, result);
+});
+
+export const rejectLeaveRequest = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const result = await rejectLeaveRequestService({
+        group: req.group._id,
+        admin: req.user._id,
+        member: req.body.member,
+    });
+
+    emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_LEAVE_REQUEST_UPDATED);
+
+    sendSuccess(res, null, result);
+});
+
 export const getGroupById = asyncHandler(async (req, res) => {
     if (!req.group?._id) throw new AppError('Group not found', 400);
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
@@ -134,6 +208,13 @@ export const getTransaction = asyncHandler(async (req, res) => {
 
     const transactions = await getTransactionService(req.group._id);
     sendSuccess(res, { transactions }, 'Transactions fetched');
+});
+
+export const getAllCredits = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const credits = await getAllCreditsService(req.group._id);
+    sendSuccess(res, { credits }, 'Credits fetched');
 });
 
 export const getEvent = asyncHandler(async (req, res) => {

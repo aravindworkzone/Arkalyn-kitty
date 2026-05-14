@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
 import { useGetCategoriesQuery } from "../redux/api/category";
@@ -38,6 +38,9 @@ export default function CategoryPage() {
 
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory]     = useState<Category | null>(null);
+
+  const customColorRef = useRef<HTMLInputElement>(null);
+  const isCustomColor = !colorOptions.includes(color);
 
   useEffect(() => {
     if (data) setCategories(data);
@@ -179,6 +182,43 @@ export default function CategoryPage() {
                     )}
                   </button>
                 ))}
+
+                {isCustomColor && (
+                  <button
+                    type="button"
+                    onClick={() => customColorRef.current?.click()}
+                    className="w-7 h-7 rounded-full transition-all duration-150 flex items-center justify-center"
+                    style={{
+                      background: color,
+                      boxShadow: `0 0 0 2px #080c14, 0 0 0 3.5px ${color}`,
+                      transform: "scale(1.15)",
+                    }}
+                    title={t("createCategory.customColor")}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M2 5l2.5 2.5 3.5-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => customColorRef.current?.click()}
+                  className="w-7 h-7 rounded-full border border-dashed border-white/20 text-white/40 hover:text-white/70 hover:border-white/40 flex items-center justify-center transition-colors"
+                  title={t("createCategory.customColor")}
+                >
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path d="M5 1.5v7M1.5 5h7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  </svg>
+                </button>
+                <input
+                  ref={customColorRef}
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="sr-only"
+                  aria-label={t("createCategory.customColor")}
+                />
 
                 <div className="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-xl border"
                   style={{ background: color + "18", borderColor: color + "50" }}>

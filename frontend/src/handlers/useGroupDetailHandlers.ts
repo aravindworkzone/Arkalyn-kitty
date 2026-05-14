@@ -2,19 +2,24 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   useManageMemberMutation,
+  useInviteMemberMutation,
   useManageAdminMutation,
   useAddContributionMutation,
   useSettlementMutation,
   useDeleteGroupMutation,
+  useLeaveGroupMutation,
+  useApproveLeaveMutation,
+  useRejectLeaveMutation,
 } from "../redux/api/group";
 import { useVerifyUserMutation } from "../redux/api/user";
-import { validateEmail, validateAmount, validateContribution, validateDescription } from "../helpers/validators";
+import { validateEmail, validateAmount, validateDescription } from "../helpers/validators";
 import type { SetFieldError } from "../hooks/useFieldError";
 
-export type AddMemberField = "searchEmail" | "memberContrib";
+export type AddMemberField = "searchEmail";
 export type ContributionField = "myContrib";
 export type ContributionDescField = "myContribDesc";
 export type SettlementField = "settleAmount";
+export type LeaveRequestField = "leaveSettle";
 
 type Msg = { ok: boolean; text: string } | null;
 type FoundUser = { _id: string; name: string } | null;
@@ -26,12 +31,15 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
   const [msg, setMsg] = useState<Msg>(null);
 
   const [verifyUser, { isLoading: isVerifying }] = useVerifyUserMutation();
-  const [manageMember, { isLoading: isAddingMember }] = useManageMemberMutation();
+  const [inviteMemberMut, { isLoading: isInvitingMember }] = useInviteMemberMutation();
   const [manageAdmin, { isLoading: isChangingRole }] = useManageAdminMutation();
   const [addContributionMut, { isLoading: isAddingContrib }] = useAddContributionMutation();
   const [settlementMut, { isLoading: isSettling }] = useSettlementMutation();
   const [deleteGroupMut, { isLoading: isDeletingGroup }] = useDeleteGroupMutation();
+  const [leaveGroupMut, { isLoading: isLeavingGroup }] = useLeaveGroupMutation();
   const [removeMemberMut, { isLoading: isRemovingMember }] = useManageMemberMutation();
+  const [approveLeaveMut, { isLoading: isApprovingLeave }] = useApproveLeaveMutation();
+  const [rejectLeaveMut, { isLoading: isRejectingLeave }] = useRejectLeaveMutation();
 
   const handleVerifyUser = async (
     searchEmail: string,
@@ -53,35 +61,22 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
     }
   };
 
-  const handleAddMember = async (
+  // Adding a member to an existing group now goes through the invite flow —
+  // the invitee accepts and sets their own contribution, mirroring group creation.
+  const handleInviteMember = async (
     foundUser: FoundUser,
-    memberContrib: string,
     setFoundUser: React.Dispatch<React.SetStateAction<FoundUser>>,
-    setSearchEmail: React.Dispatch<React.SetStateAction<string>>,
-    setMemberContrib: React.Dispatch<React.SetStateAction<string>>,
-    setFieldError: SetFieldError<AddMemberField>
+    setSearchEmail: React.Dispatch<React.SetStateAction<string>>
   ) => {
     if (!foundUser || !groupId) return;
 
-    const contribV = validateContribution(memberContrib);
-    if (!contribV.valid) {
-      setFieldError("memberContrib", contribV.message);
-      return;
-    }
-
     try {
-      await manageMember({
-        groupId,
-        action: "add",
-        Member: foundUser._id,
-        contribution: Number(memberContrib) || 0,
-      }).unwrap();
-      setMsg({ ok: true, text: "Member added successfully" });
+      await inviteMemberMut({ groupId, invitedUser: foundUser._id }).unwrap();
+      setMsg({ ok: true, text: "Invitation sent" });
       setFoundUser(null);
       setSearchEmail("");
-      setMemberContrib("");
     } catch (e: any) {
-      setMsg({ ok: false, text: e?.data?.error || "Failed to add member" });
+      setMsg({ ok: false, text: e?.data?.error || e?.data?.message || "Failed to send invitation" });
     }
   };
 
@@ -162,21 +157,27 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
       return;
     }
 
-    const amtV = validateAmount(settleAmount, maxAmount);
-    if (!amtV.valid) {
-      setFieldError("settleAmount", amtV.message);
+    // Settlement may legitimately be 0 (a member who owes/contributed nothing),
+    // so we can't use validateAmount here — it rejects 0 by design.
+    const amount = Number(settleAmount);
+    if (settleAmount.trim() === "" || Number.isNaN(amount) || amount < 0) {
+      setFieldError("settleAmount", "Enter a valid amount");
+      return;
+    }
+    if (maxAmount !== undefined && amount > maxAmount) {
+      setFieldError("settleAmount", `Amount cannot exceed ₹${maxAmount.toLocaleString("en-IN")}`);
       return;
     }
 
     try {
       await settlementMut({
         groupId,
-        settlement: Number(settleAmount),
+        settlement: amount,
         member: settleMemberId,
       }).unwrap();
       setMsg({ ok: true, text: "Settlement completed" });
       setSettleMemberId("");
-      setSettleAmount("");
+      setSettleAmount("0");
     } catch (e: any) {
       setMsg({ ok: false, text: e?.data?.error || "Failed to process settlement" });
     }
@@ -216,11 +217,72 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
     }
   };
 
+  // Returns "left" when the member was removed immediately (already settled),
+  // "requested" when a leave request was filed for admin approval, or "error".
+  const handleLeaveGroup = async (
+    setLeaveGroupError: React.Dispatch<React.SetStateAction<string>>
+  ): Promise<"left" | "requested" | "error"> => {
+    if (!groupId) return "error";
+    setLeaveGroupError("");
+    try {
+      const res = await leaveGroupMut(groupId).unwrap() as any;
+      if (res?.data?.left) {
+        navigate("/groups");
+        return "left";
+      }
+      return "requested";
+    } catch (e: any) {
+      setLeaveGroupError(
+        e?.data?.error || e?.data?.message || "Failed to leave group. Please try again."
+      );
+      return "error";
+    }
+  };
+
+  const handleApproveLeave = async (
+    memberId: string,
+    settlementAmount: string,
+    maxAmount: number,
+    setFieldError: SetFieldError<LeaveRequestField>
+  ) => {
+    if (!groupId) return;
+
+    // A member who contributed nothing has nothing to settle — approve with 0.
+    let settlement = 0;
+    if (maxAmount > 0) {
+      const amtV = validateAmount(settlementAmount, maxAmount);
+      if (!amtV.valid) {
+        setFieldError("leaveSettle", amtV.message);
+        return;
+      }
+      settlement = Number(settlementAmount);
+    }
+
+    try {
+      await approveLeaveMut({ groupId, member: memberId, settlement }).unwrap();
+      setMsg({ ok: true, text: "Leave request approved" });
+    } catch (e: any) {
+      setMsg({ ok: false, text: e?.data?.error || e?.data?.message || "Failed to approve leave request" });
+    }
+  };
+
+  const handleRejectLeave = async (memberId: string) => {
+    if (!groupId) return;
+    try {
+      await rejectLeaveMut({ groupId, member: memberId }).unwrap();
+      setMsg({ ok: true, text: "Leave request rejected" });
+    } catch (e: any) {
+      setMsg({ ok: false, text: e?.data?.error || e?.data?.message || "Failed to reject leave request" });
+    }
+  };
+
   return {
     msg, setMsg,
-    isVerifying, isAddingMember, isChangingRole,
-    isAddingContrib, isSettling, isDeletingGroup, isRemovingMember,
-    handleVerifyUser, handleAddMember, handleChangeRole,
-    handleAddContribution, handleSettlement, handleDeleteMember, handleDeleteGroup,
+    isVerifying, isInvitingMember, isChangingRole,
+    isAddingContrib, isSettling, isDeletingGroup, isRemovingMember, isLeavingGroup,
+    isApprovingLeave, isRejectingLeave,
+    handleVerifyUser, handleInviteMember, handleChangeRole,
+    handleAddContribution, handleSettlement, handleDeleteMember, handleDeleteGroup, handleLeaveGroup,
+    handleApproveLeave, handleRejectLeave,
   };
 };

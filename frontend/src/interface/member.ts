@@ -4,6 +4,7 @@ export interface GroupMember {
   name: string;
   role: string;
   settlement?: boolean;
+  leaveRequestedAt?: string | null;
   userId: { _id: string; name: string; email: string };
 }
 

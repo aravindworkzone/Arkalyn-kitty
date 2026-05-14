@@ -63,13 +63,25 @@ export default function ReportPage() {
         </button>
 
         <div className="mb-6">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center">
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <path d="M2 12V6l4-4h6l2 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2z" stroke="#a5b4fc" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center">
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                  <path d="M2 12V6l4-4h6l2 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2z" stroke="#a5b4fc" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-400/70">{t("report.label")}</p>
             </div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-400/70">{t("report.label")}</p>
+            <button
+              onClick={() => navigate(`/groups/${groupId}/reports/categories`)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-400/35 transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4" />
+                <path d="M7 1.5v5.5l4 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+              {t("report.categoryReport")}
+            </button>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-[#f0eeff]">{t("report.title")}</h1>
           <p className="text-white/35 text-sm mt-1.5">{t("report.description")}</p>

@@ -1,10 +1,17 @@
-import { userGroupsService, verifyUserService, searchUsersService } from '../services/user.service';
+import {
+    userGroupsService,
+    verifyUserService,
+    searchUsersService,
+    getUserByIdService,
+} from '../services/user.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 import { AppError } from '../helpers/AppError';
 
 export const GetUser = asyncHandler(async (req, res) => {
-    sendSuccess(res, { user: req.user }, 'User fetched successfully');
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    const user = await getUserByIdService(req.user._id);
+    sendSuccess(res, { user }, 'User fetched successfully');
 });
 
 export const userGroups = asyncHandler(async (req, res) => {

@@ -7,6 +7,7 @@ export interface IGroupMember extends Document {
     contribution: number;
     role: "SUPER_ADMIN" | "ADMIN" | "MEMBER";
     settlement: boolean;
+    leaveRequestedAt: Date | null;
     isDeleted: boolean;
     createdAt?: Date;
     updatedAt?: Date;
@@ -18,6 +19,7 @@ const groupMemberSchema = new Schema<IGroupMember>({
     contribution: {type: Number, default: 0, set:toDBAmount, get:fromDBAmount},
     role: {type: String, enum: ["SUPER_ADMIN", "ADMIN", "MEMBER"], default: "MEMBER"},
     settlement: {type: Boolean, default: false},
+    leaveRequestedAt: {type: Date, default: null},
     isDeleted: {type: Boolean, default: false}
 }, {timestamps: true, toJSON: { getters: true }, toObject: { getters: true }});
 

@@ -2,6 +2,7 @@ import ConnectSocket from '../socket/listener/validateConnect.socket'
 import ExpenseListener from '../socket/listener/expense.listener'
 import CategoryListener from '../socket/listener/category.listener'
 import GroupListener from '../socket/listener/group.listener'
+import NotificationListener from '../socket/listener/notification.listener'
 
 export default function useSocket() {
     return (
@@ -10,6 +11,7 @@ export default function useSocket() {
             <ExpenseListener />
             <CategoryListener />
             <GroupListener />
+            <NotificationListener />
         </>
     )
 }

@@ -62,7 +62,7 @@ export default function CreateGroupPage() {
   const navigate = useNavigate();
   const { addMember, handleSubmit, isLoading, isVerifying } = useGroupHandlers();
 
-  const poolTotal = members.reduce((sum, m) => sum + (m.contribution || 0), 0);
+  const poolTotal = members.find((m) => m._id === currentUser?._id)?.contribution || 0;
 
   return (
     <div className="min-h-screen bg-[#080c14] text-white">
@@ -81,7 +81,7 @@ export default function CreateGroupPage() {
 
       <Header />
 
-      <form onSubmit={(e) => handleSubmit(e, groupName, members, setFieldError, setApiError)} className="relative max-w-xl mx-auto px-4 py-10">
+      <form onSubmit={(e) => handleSubmit(e, groupName, members, currentUser?._id ?? "", setFieldError, setApiError)} className="relative max-w-xl mx-auto px-4 py-10">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -249,27 +249,33 @@ export default function CreateGroupPage() {
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                          <div className="relative">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25 text-xs">₹</span>
-                            <input
-                              className="w-24 bg-white/[0.05] border border-white/[0.09] rounded-lg pl-6 pr-2.5 py-1.5 text-xs text-white placeholder-white/20 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all text-right"
-                              defaultValue={member.contribution || ""}
-                              placeholder="0"
-                              type="text"
-                              inputMode="decimal"
-                              onChange={(e) => updateContribution(setMembers, member._id, Number(sanitizeAmount(e.target.value)))}
-                            />
-                          </div>
-                          {member._id !== currentUser?._id && (
-                            <button
-                              type="button"
-                              onClick={() => removeMember(setMembers, member._id)}
-                              className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-red-400 transition-colors rounded-md hover:bg-red-500/10"
-                            >
-                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                              </svg>
-                            </button>
+                          {member._id === currentUser?._id ? (
+                            <div className="relative">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25 text-xs">₹</span>
+                              <input
+                                className="w-24 bg-white/[0.05] border border-white/[0.09] rounded-lg pl-6 pr-2.5 py-1.5 text-xs text-white placeholder-white/20 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all text-right"
+                                defaultValue={member.contribution || ""}
+                                placeholder="0"
+                                type="text"
+                                inputMode="decimal"
+                                onChange={(e) => updateContribution(setMembers, member._id, Number(sanitizeAmount(e.target.value)))}
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <span className="text-[10px] font-medium text-white/30 bg-white/[0.04] border border-white/[0.07] px-2 py-1 rounded-md">
+                                {t("createGroup.invitePending")}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeMember(setMembers, member._id)}
+                                className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-red-400 transition-colors rounded-md hover:bg-red-500/10"
+                              >
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                  <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                                </svg>
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>

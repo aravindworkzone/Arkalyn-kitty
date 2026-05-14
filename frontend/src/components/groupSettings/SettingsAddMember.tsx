@@ -3,33 +3,29 @@ import { useTranslation } from "react-i18next";
 import { useFieldError } from "../../hooks/useFieldError";
 import { useSearchUsersQuery, type UserSuggestion } from "../../redux/api/user";
 import type { AddMemberField } from "../../handlers/useGroupDetailHandlers";
-import { ActionButton, AmountInput, FieldInput, INPUT_CLASS } from "../ui";
+import { ActionButton, FieldInput, INPUT_CLASS } from "../ui";
 
 interface Props {
   isVerifying: boolean;
-  isAddingMember: boolean;
+  isInvitingMember: boolean;
   handleVerifyUser: (
     email: string,
     setFoundUser: React.Dispatch<React.SetStateAction<{ _id: string; name: string } | null>>,
     setFieldError: ReturnType<typeof useFieldError<AddMemberField>>["setFieldError"],
   ) => Promise<void>;
-  handleAddMember: (
+  handleInviteMember: (
     foundUser: { _id: string; name: string } | null,
-    memberContrib: string,
     setFoundUser: React.Dispatch<React.SetStateAction<{ _id: string; name: string } | null>>,
     setSearchEmail: React.Dispatch<React.SetStateAction<string>>,
-    setMemberContrib: React.Dispatch<React.SetStateAction<string>>,
-    setFieldError: ReturnType<typeof useFieldError<AddMemberField>>["setFieldError"],
   ) => Promise<void>;
 }
 
-export default function SettingsAddMember({ isVerifying, isAddingMember, handleVerifyUser, handleAddMember }: Props) {
+export default function SettingsAddMember({ isVerifying, isInvitingMember, handleVerifyUser, handleInviteMember }: Props) {
   const { t } = useTranslation();
   const [searchEmail, setSearchEmail] = useState("");
   const [debouncedEmail, setDebouncedEmail] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [foundUser, setFoundUser] = useState<{ _id: string; name: string } | null>(null);
-  const [memberContrib, setMemberContrib] = useState("");
   const { fieldErrors, setFieldError, clearFieldError } = useFieldError<AddMemberField>();
 
   useEffect(() => {
@@ -113,23 +109,15 @@ export default function SettingsAddMember({ isVerifying, isAddingMember, handleV
             <p className="text-sm text-white/70" translate="no">{foundUser.name}</p>
           </div>
 
-          <AmountInput
-            size="md"
-            value={memberContrib}
-            onChange={setMemberContrib}
-            error={fieldErrors.memberContrib}
-            onClearError={() => clearFieldError("memberContrib")}
-            placeholder={t("groupDetail.initialContribution")}
-            inputClassName={INPUT_CLASS}
-          />
+          <p className="text-[11px] text-white/30 px-0.5">{t("groupDetail.inviteMemberHint")}</p>
 
           <ActionButton
             tone="cyan"
-            loading={isAddingMember}
-            loadingLabel={t("groupDetail.addingMember")}
-            onClick={() => handleAddMember(foundUser, memberContrib, setFoundUser, setSearchEmail, setMemberContrib, setFieldError)}
+            loading={isInvitingMember}
+            loadingLabel={t("groupDetail.invitingMember")}
+            onClick={() => handleInviteMember(foundUser, setFoundUser, setSearchEmail)}
           >
-            {t("groupDetail.addMemberBtn")}
+            {t("groupDetail.inviteMemberBtn")}
           </ActionButton>
         </>
       )}

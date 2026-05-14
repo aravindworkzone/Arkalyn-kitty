@@ -23,7 +23,7 @@ const ProtectedRouter = () => {
     </div>
   );
 
-  if (!data.success && !isLoading) {
+  if (!data?.success && !isLoading) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
