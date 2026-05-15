@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /$
+Allow: /login
+Allow: /register
+
+# Private app routes — keep out of search results
+Disallow: /dashboard
+Disallow: /group
+Disallow: /groups
+Disallow: /expense
+Disallow: /expenses
+Disallow: /category
+Disallow: /categories
+Disallow: /report
+Disallow: /reports
+Disallow: /profile
+Disallow: /settings
+
+Sitemap: https://arkalyn.app/sitemap.xml
