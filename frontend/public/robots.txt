@@ -3,17 +3,17 @@ Allow: /$
 Allow: /login
 Allow: /register
 
-# Private app routes — keep out of search results
-Disallow: /dashboard
-Disallow: /group
-Disallow: /groups
-Disallow: /expense
-Disallow: /expenses
-Disallow: /category
-Disallow: /categories
-Disallow: /report
-Disallow: /reports
-Disallow: /profile
-Disallow: /settings
+# Private app routes — keep out of search results -- allowed temporarily
+Allow: /dashboard
+Allow: /group
+Allow: /groups
+Allow: /expense
+Allow: /expenses
+Allow: /category
+Allow: /categories
+Allow: /report
+Allow: /reports
+Allow: /profile
+Allow: /settings
 
 Sitemap: https://arkalyn.app/sitemap.xml
