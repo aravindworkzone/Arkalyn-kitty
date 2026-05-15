@@ -22,7 +22,7 @@ const CHROME_PATHS = [
 
 function findBrowser() {
   for (const p of CHROME_PATHS) if (existsSync(p)) return p
-  throw new Error('No Chrome/Edge install found. Set PUPPETEER_EXECUTABLE_PATH.')
+  return null
 }
 
 const MIME = {
@@ -83,6 +83,12 @@ async function main() {
   await copyFile(join(DIST, 'index.html'), join(DIST, 'app.html'))
 
   const executablePath = findBrowser()
+  if (!executablePath) {
+    console.warn('[prerender] No Chrome/Edge install found — skipping prerender.')
+    console.warn('[prerender] SEO meta tags, sitemap, and robots.txt still apply.')
+    console.warn('[prerender] To enable on CI, set PUPPETEER_EXECUTABLE_PATH or install Chromium.')
+    return
+  }
   console.log(`[prerender] using browser: ${executablePath}`)
   const server = await startStaticServer()
   let browser
