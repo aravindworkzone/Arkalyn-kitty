@@ -108,7 +108,7 @@ export default function AllCreditsPage() {
             <p className="text-white/25 text-sm">{t("allCredits.noResults", { search, defaultValue: `No results for "${search}"` })}</p>
             <button
               onClick={() => setSearch("")}
-              className="mt-2 text-emerald-400 text-xs hover:text-emerald-300 transition-colors"
+              className="mt-2 text-emerald-400 text-xs hover:text-emerald-300 active:text-emerald-300 transition-colors"
             >
               {t("allCredits.clearSearch", "Clear search")}
             </button>

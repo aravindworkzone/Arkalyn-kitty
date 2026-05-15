@@ -11,10 +11,12 @@ import {
     rejectLeaveRequestService,
     getGroupByIdService,
     getGroupMemberService,
+    getLeftContributorsService,
     getBasicTransactionService,
     getTransactionService,
     getAllCreditsService,
     getEventService,
+    toggleFavoriteService,
 } from '../services/group.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendCreated } from '../utils/response';
@@ -196,6 +198,13 @@ export const getGroupMember = asyncHandler(async (req, res) => {
     sendSuccess(res, { members }, 'Members fetched');
 });
 
+export const getLeftContributors = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const members = await getLeftContributorsService(req.group._id);
+    sendSuccess(res, { members }, 'Left contributors fetched');
+});
+
 export const getBasicTransaction = asyncHandler(async (req, res) => {
     if (!req.group?._id) throw new AppError('Group not found', 400);
 
@@ -222,4 +231,17 @@ export const getEvent = asyncHandler(async (req, res) => {
 
     const events = await getEventService(req.group._id);
     sendSuccess(res, { events }, 'Events fetched');
+});
+
+export const toggleFavorite = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const result = await toggleFavoriteService({
+        group: req.group._id,
+        user: req.user._id,
+        isFavorite: Boolean(req.body.isFavorite),
+    });
+
+    sendSuccess(res, result, 'Favorite updated');
 });

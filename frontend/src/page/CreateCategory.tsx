@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 
 const s = {
   input:
-    "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all duration-200",
+    "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-base sm:text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all duration-200",
   section:
     "bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden",
   sectionHeader:
@@ -79,12 +79,12 @@ export default function CategoryPage() {
 
       <Header />
 
-      <div className="relative max-w-xl mx-auto px-4 py-10 space-y-3">
+      <div className="relative max-w-xl mx-auto px-4 pt-8 pb-18 space-y-3">
 
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-white/35 hover:text-white/60 text-xs font-medium transition-colors mb-6"
+          className="flex items-center gap-2 text-white/35 hover:text-white/60 active:text-white/60 text-xs font-medium transition-colors mb-6"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -204,7 +204,7 @@ export default function CategoryPage() {
                 <button
                   type="button"
                   onClick={() => customColorRef.current?.click()}
-                  className="w-7 h-7 rounded-full border border-dashed border-white/20 text-white/40 hover:text-white/70 hover:border-white/40 flex items-center justify-center transition-colors"
+                  className="w-7 h-7 rounded-full border border-dashed border-white/20 text-white/40 hover:text-white/70 hover:border-white/40 active:text-white/70 active:border-white/40 flex items-center justify-center transition-colors"
                   title={t("createCategory.customColor")}
                 >
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none">

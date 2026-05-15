@@ -103,7 +103,7 @@ export default function ExpenseDetailModal({
           {!showRefund ? (
             <button
               onClick={() => setShowRefund(true)}
-              className="w-full py-2 rounded-xl border border-red-500/20 bg-red-500/[0.07] text-red-400 text-[12px] font-semibold hover:bg-red-500/[0.14] transition-colors"
+              className="w-full py-2 rounded-xl border border-red-500/20 bg-red-500/[0.07] text-red-400 text-[12px] font-semibold hover:bg-red-500/[0.14] active:bg-red-500/[0.14] transition-colors"
             >
               Refund Expense
             </button>
@@ -123,14 +123,14 @@ export default function ExpenseDetailModal({
               <div className="flex gap-2">
                 <button
                   onClick={() => { setShowRefund(false); setReason(""); setRefundError(""); }}
-                  className="flex-1 py-2 rounded-xl border border-white/10 text-white/40 text-[12px] font-semibold hover:bg-white/[0.04] transition-colors"
+                  className="flex-1 py-2 rounded-xl border border-white/10 text-white/40 text-[12px] font-semibold hover:bg-white/[0.04] active:bg-white/[0.04] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => handleRefund(expense, groupId)}
                   disabled={isDeleting}
-                  className="flex-1 py-2 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 text-[12px] font-semibold hover:bg-red-500/30 disabled:opacity-50 transition-colors"
+                  className="flex-1 py-2 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 text-[12px] font-semibold hover:bg-red-500/30 active:bg-red-500/30 disabled:opacity-50 transition-colors"
                 >
                   {isDeleting ? "Processing…" : "Confirm Refund"}
                 </button>

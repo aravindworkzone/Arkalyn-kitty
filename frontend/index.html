@@ -2,13 +2,78 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- Primary SEO -->
+    <title>Arkalyn Kitty — Shared Wallet for Group Expenses (No More IOUs)</title>
+    <meta
+      name="description"
+      content="Arkalyn Kitty is a shared-wallet expense tracker for friends, roommates, families, and teams. Pool funds, debit every expense from the kitty, and skip the IOU math. Free to use."
+    />
+    <meta name="keywords" content="group expense tracker, shared wallet, kitty app, split expenses, group budget, roommate expenses, trip expense app, Splitwise alternative" />
+    <meta name="author" content="Arkalyn" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://arkalyn.app/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Arkalyn Kitty" />
+    <meta property="og:title" content="Arkalyn Kitty — Shared Wallet for Group Expenses" />
+    <meta property="og:description" content="Pool funds, debit every expense from the shared kitty, and skip the IOU math. Built for friends, roommates, families, and teams." />
+    <meta property="og:url" content="https://arkalyn.app/" />
+    <meta property="og:image" content="https://arkalyn.app/main-logo.png" />
+    <meta property="og:image:alt" content="Arkalyn Kitty logo" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="ta_IN" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Arkalyn Kitty — Shared Wallet for Group Expenses" />
+    <meta name="twitter:description" content="Pool funds, debit every expense from the shared kitty, and skip the IOU math." />
+    <meta name="twitter:image" content="https://arkalyn.app/main-logo.png" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="/mini-logo.png" />
+    <link rel="apple-touch-icon" href="/mini-logo.png" />
+
+    <!-- PWA / Mobile -->
+    <meta name="theme-color" content="#080c14" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Arkalyn" />
+    <meta name="format-detection" content="telephone=no" />
     <meta name="google" content="notranslate" />
-    <title>Arkalyn - Kitty</title>
+
+    <!-- Structured data: SoftwareApplication -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Arkalyn Kitty",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web",
+        "url": "https://arkalyn.app/",
+        "description": "Shared-wallet expense tracker for groups. Contribute to a pooled kitty, debit every expense from it, and skip the IOU math.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "publisher": { "@type": "Organization", "name": "Arkalyn", "url": "https://arkalyn.app/" }
+      }
+    </script>
+
+    <!-- Structured data: Organization -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Arkalyn",
+        "url": "https://arkalyn.app/",
+        "logo": "https://arkalyn.app/main-logo.png"
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

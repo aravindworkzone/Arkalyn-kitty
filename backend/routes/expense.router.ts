@@ -7,7 +7,7 @@ import {
     expenseReport,
     getAllExpenses,
 } from '../controllers/expense.controller';
-import { verifyToken, authorizeRole, loadGroup } from '../middlewares/auth.middleware';
+import { verifyToken, authorizeRole, loadGroup, ensureGroupActive } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import {
     createExpenseBodySchema,
@@ -23,6 +23,7 @@ router.post(
     validate({ body: createExpenseBodySchema }),
     verifyToken,
     loadGroup,
+    ensureGroupActive,
     createExpense
 );
 
@@ -31,6 +32,7 @@ router.delete(
     validate({ params: deleteExpenseParamsSchema, body: deleteExpenseBodySchema }),
     verifyToken,
     loadGroup,
+    ensureGroupActive,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
     deleteExpense
 );

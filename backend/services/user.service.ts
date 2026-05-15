@@ -52,12 +52,28 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
                 as: 'membersuser',
             },
         },
-        { $sort: { 'group.createdAt': -1 } },
+        {
+            $addFields: {
+                sortBucket: {
+                    $switch: {
+                        branches: [
+                            { case: { $eq: ['$group.status', 'CLOSED'] }, then: 2 },
+                            { case: { $eq: ['$isFavorite', true] }, then: 0 },
+                        ],
+                        default: 1,
+                    },
+                },
+                recencyAt: { $ifNull: ['$group.updatedAt', '$group.createdAt'] },
+            },
+        },
+        { $sort: { sortBucket: 1, recencyAt: -1 } },
         {
             $project: {
                 _id: '$group._id',
                 displayId: '$group.displayId',
                 name: '$group.name',
+                status: '$group.status',
+                isFavorite: { $ifNull: ['$isFavorite', false] },
                 balance: { $divide: ['$group.balance', 100] },
                 members: {
                     $map: {

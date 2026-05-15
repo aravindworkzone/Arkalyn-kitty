@@ -22,7 +22,7 @@ import { useFieldError } from "../hooks/useFieldError";
 import { useTranslation } from "react-i18next";
 
 export const inputCls =
-  "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all duration-200";
+  "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-base sm:text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all duration-200";
 
 export const fieldLabel =
   "block text-[10px] font-semibold text-white/40 mb-2 uppercase tracking-widest";
@@ -62,7 +62,7 @@ export default function CreateExpensePage() {
         onSubmit={(e) =>
           handleSubmit(e, { title, totalAmount, maxAmount: groupBalance, categoryId, paidBy, splits, splitValid, date, paymentType, setFieldError, setApiError })
         }
-        className="relative max-w-xl mx-auto px-4 py-10 space-y-3"
+        className="relative max-w-xl mx-auto px-4 pt-8 pb-18 space-y-3"
       >
         <BackButton />
 
@@ -158,7 +158,7 @@ export default function CreateExpensePage() {
                     <button
                       type="button"
                       onClick={() => navigate(`/groups/${groupId}/categories/new`)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border border-dashed border-white/[0.12] text-white/30 hover:border-cyan-500/40 hover:text-cyan-400 transition-all duration-150"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border border-dashed border-white/[0.12] text-white/30 hover:border-cyan-500/40 hover:text-cyan-400 active:border-cyan-500/40 active:text-cyan-400 transition-all duration-150"
                     >
                       <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                         <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

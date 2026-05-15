@@ -139,7 +139,7 @@ export default function NotificationPanel() {
             {unreadCount > 0 && (
               <button
                 onClick={() => markAllRead()}
-                className="text-[11px] font-medium text-violet-400/80 hover:text-violet-300 transition-colors"
+                className="text-[11px] font-medium text-violet-400/80 hover:text-violet-300 active:text-violet-300 transition-colors"
               >
                 {t("notifications.markAllRead")}
               </button>
@@ -198,7 +198,7 @@ export default function NotificationPanel() {
                               onClick={(e) => { e.stopPropagation(); setActionError(""); setContribution(""); setAcceptingId(n._id); }}
                               className="px-3 py-1 rounded-lg text-[11px] font-semibold
                                 bg-cyan-500/15 border border-cyan-500/25 text-cyan-300
-                                hover:bg-cyan-500/25 transition-colors"
+                                hover:bg-cyan-500/25 active:bg-cyan-500/25 transition-colors"
                             >
                               {t("notifications.accept")}
                             </button>
@@ -208,6 +208,7 @@ export default function NotificationPanel() {
                               className="px-3 py-1 rounded-lg text-[11px] font-semibold
                                 bg-white/[0.04] border border-white/[0.08] text-white/45
                                 hover:text-red-300 hover:border-red-500/30 hover:bg-red-500/[0.08]
+                                active:text-red-300 active:border-red-500/30 active:bg-red-500/[0.08]
                                 disabled:opacity-40 transition-colors"
                             >
                               {t("notifications.reject")}
@@ -236,14 +237,14 @@ export default function NotificationPanel() {
                                 onClick={() => handleAccept(inviteId)}
                                 disabled={isAccepting}
                                 className="px-3 py-1.5 rounded-lg text-[11px] font-semibold
-                                  bg-cyan-400 text-black hover:bg-cyan-300 disabled:opacity-40 transition-colors"
+                                  bg-cyan-400 text-black hover:bg-cyan-300 active:bg-cyan-300 disabled:opacity-40 transition-colors"
                               >
                                 {t("notifications.confirm")}
                               </button>
                               <button
                                 onClick={() => { setAcceptingId(null); setActionError(""); }}
                                 className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium
-                                  text-white/40 hover:text-white/70 transition-colors"
+                                  text-white/40 hover:text-white/70 active:text-white/70 transition-colors"
                               >
                                 {t("notifications.cancel")}
                               </button>
@@ -260,7 +261,7 @@ export default function NotificationPanel() {
                         onClick={(e) => { e.stopPropagation(); handleDelete(n._id); }}
                         aria-label={t("notifications.delete")}
                         className="shrink-0 -mt-0.5 -mr-1 w-6 h-6 flex items-center justify-center rounded-md
-                          text-white/20 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                          text-white/20 hover:text-red-300 hover:bg-red-500/10 active:text-red-300 active:bg-red-500/10 transition-colors"
                       >
                         <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
                           <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

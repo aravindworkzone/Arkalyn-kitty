@@ -241,17 +241,16 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
 
   const handleApproveLeave = async (
     memberId: string,
-    settlementAmount: string,
+    settlementAmountReq: string,
     maxAmount: number,
     setFieldError: SetFieldError<LeaveRequestField>
   ) => {
     if (!groupId) return;
-
-    // A member who contributed nothing has nothing to settle — approve with 0.
+    const settlementAmount = settlementAmountReq || "0";
     let settlement = 0;
     if (maxAmount > 0) {
       const amtV = validateAmount(settlementAmount, maxAmount);
-      if (!amtV.valid) {
+      if (!amtV.valid && settlementAmount != "0") {
         setFieldError("leaveSettle", amtV.message);
         return;
       }

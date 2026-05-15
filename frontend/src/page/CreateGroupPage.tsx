@@ -13,7 +13,7 @@ import { useGetUserQuery } from "../redux/api/auth";
 
 const s = {
   input:
-    "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all duration-200",
+    "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-base sm:text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all duration-200",
   label:
     "block text-[10px] font-semibold text-white/40 mb-2 uppercase tracking-widest",
 };
@@ -81,11 +81,11 @@ export default function CreateGroupPage() {
 
       <Header />
 
-      <form onSubmit={(e) => handleSubmit(e, groupName, members, currentUser?._id ?? "", setFieldError, setApiError)} className="relative max-w-xl mx-auto px-4 py-10">
+      <form onSubmit={(e) => handleSubmit(e, groupName, members, currentUser?._id ?? "", setFieldError, setApiError)} className="relative max-w-xl mx-auto px-4 pt-8 pb-18">
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-white/35 hover:text-white/60 text-xs font-medium transition-colors mb-10 group"
+          className="flex items-center gap-2 text-white/35 hover:text-white/60 active:text-white/60 text-xs font-medium transition-colors mb-10 group"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -269,7 +269,7 @@ export default function CreateGroupPage() {
                               <button
                                 type="button"
                                 onClick={() => removeMember(setMembers, member._id)}
-                                className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-red-400 transition-colors rounded-md hover:bg-red-500/10"
+                                className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 active:text-red-400 active:bg-red-500/10 transition-colors rounded-md"
                               >
                                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                                   <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -306,8 +306,8 @@ export default function CreateGroupPage() {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="flex-1 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08]
-              rounded-xl px-6 py-3 text-sm text-white/40 hover:text-white/60 transition-all"
+            className="flex-1 bg-white/[0.03] hover:bg-white/[0.06] active:bg-white/[0.06] border border-white/[0.08]
+              rounded-xl px-6 py-3 text-sm text-white/40 hover:text-white/60 active:text-white/60 transition-all"
           >
             {t("createGroup.cancel")}
           </button>

@@ -65,4 +65,12 @@ const authorizeRole = (...roles: string[]) =>
         next();
     });
 
-export { verifyToken, loadGroup, authorizeRole };
+const ensureGroupActive = asyncHandler(async (req, _res, next) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+    if (req.group.status === 'CLOSED') {
+        throw new AppError('Group is closed — no further changes are allowed', 403);
+    }
+    next();
+});
+
+export { verifyToken, loadGroup, authorizeRole, ensureGroupActive };

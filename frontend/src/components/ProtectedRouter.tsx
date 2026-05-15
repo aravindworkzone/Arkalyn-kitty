@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom"
 import { useGetUserQuery } from "../redux/api/auth"
 import { useEffect } from "react";
 import { socket } from "../socket/socket";
+import { Logo } from "./ui";
 
 const ProtectedRouter = () => {
   const location = useLocation();

@@ -4,6 +4,13 @@ export const roleGrade: Record<string, string> = {
   MEMBER:      "border-slate-500/30 bg-slate-500/10 text-slate-400",
 };
 
+export const roleLabel = (role: string): string =>
+  role
+    .toLowerCase()
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+
 export const colorOptions = [
   "#f97316",
   "#06b6d4",
