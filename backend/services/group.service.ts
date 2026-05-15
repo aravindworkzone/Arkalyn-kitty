@@ -229,7 +229,7 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
         if (action === "remove") {
 
             await GroupMember.findOneAndUpdate(
-                {groupId: groupData, userId: Member},
+                {groupId: groupData, userId: Member, isDeleted: false},
                 { isDeleted: true },
                 { returnDocument: "after", session }
             );
@@ -345,7 +345,7 @@ export const manageAdminService = async (data: { group: mongoose.Types.ObjectId,
         if (action === "promote") {
 
             await GroupMember.findOneAndUpdate(
-                { groupId: groupData, userId: Member },
+                { groupId: groupData, userId: Member, isDeleted: false },
                 { $set: { role: "ADMIN" } },
                 { returnDocument: "after", session}
             );
@@ -368,7 +368,7 @@ export const manageAdminService = async (data: { group: mongoose.Types.ObjectId,
         if (action === "demote") {
 
            await GroupMember.findOneAndUpdate(
-                { groupId: groupData, userId: Member },
+                { groupId: groupData, userId: Member, isDeleted: false },
                 { $set: { role: "MEMBER" } },
                 { returnDocument: "after", session}
             );
@@ -426,7 +426,7 @@ export const addContributionService = async (data: {group: mongoose.Types.Object
         session.startTransaction();
 
         const AddContributionMember = await GroupMember.findOneAndUpdate(
-            { groupId: groupData, userId: userId },
+            { groupId: groupData, userId: userId, isDeleted: false },
             { $inc: { contribution: contribution } },
             { returnDocument: "after", session }
         );
@@ -462,76 +462,86 @@ export const addContributionService = async (data: {group: mongoose.Types.Object
     }
 };
 
-export const SettlementService = async (data : {group: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, settlement: number, member: mongoose.Types.ObjectId, balance: number}) => {
-    const groupData = data.group;
-    const groupBalance = data.balance;
-    const userId = data.userId;
-    const Member = data.member;
-    const settlement = data.settlement;
+export const SettlementService = async (data: {
+    group: mongoose.Types.ObjectId,
+    userId: mongoose.Types.ObjectId,
+    settlement: number,
+    member: mongoose.Types.ObjectId,
+    balance: number
+}) => {
 
-    if (!userId || settlement === undefined) {
+    const { group, userId, settlement, member, balance } = data;
+
+    if (!userId || settlement === undefined)
         throw new AppError("User ID and settlement amount are required", 400);
-    }
 
-    if (typeof settlement !== "number") {
-        throw new AppError("Settlement amount must be a positive number", 400);
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
+    if (!mongoose.Types.ObjectId.isValid(userId))
         throw new AppError("Invalid user ID format", 400);
-    }
 
-    const isMember = await GroupMember.findOne({ groupId: groupData, userId: Member, isDeleted: false });
-    
-    if (!isMember) {
-        throw new AppError("User is not a member of this group", 400);
-    }
+    if (!mongoose.Types.ObjectId.isValid(member))
+        throw new AppError("Invalid member ID format", 400);
 
-    if(settlement > groupBalance) {
+    if (!mongoose.Types.ObjectId.isValid(group))
+        throw new AppError("Invalid group ID format", 400);
+
+    if (typeof settlement !== "number" || settlement < 0)
+        throw new AppError("Settlement amount must be a positive number", 400);
+
+    if (settlement > balance)
         throw new AppError("Settlement amount cannot be greater than group balance", 400);
-    }
+
+
+    const isMember = await GroupMember.findOne({
+        groupId: group,
+        userId: member,
+        isDeleted: false
+    });
+
+    if (!isMember)
+        throw new AppError("User is not a member of this group", 400);
+
 
     const session = await mongoose.startSession();
+
     try {
         session.startTransaction();
 
         await GroupMember.findOneAndUpdate(
-            { groupId: groupData, userId: Member },
-            { $set: { settlement: true } },
-            { returnDocument: "after", session }
+            { groupId: group, userId: member, isDeleted: false },
+            { $set: { settlement: true, settlementAmount: settlement } },
+            { new: true, session }
         );
 
         if (settlement > 0) {
-            const debited = await Group.findOneAndUpdate(
-                { _id: groupData, balance: { $gte: settlement } },
-                { $inc: { balance: -settlement } },
-                { returnDocument: "after", session }
-            );
-            if (!debited) {
-                throw new AppError("Insufficient balance for settlement", 400);
-            }
 
-            const settlementLog = new GroupTransaction({
-                groupId: groupData,
+            const debited = await Group.findOneAndUpdate(
+                { _id: group, balance: { $gte: settlement } },
+                { $inc: { balance: -settlement } },
+                { new: true, session }
+            );
+
+            if (!debited)
+                throw new AppError("Insufficient balance for settlement", 400);
+
+            await GroupTransaction.create([{
+                groupId: group,
                 amount: settlement,
                 action: "DEBIT",
-                description: `Settled completed ${settlement}`,
-                referenceId: Member,
+                description: `Settlement completed: ${settlement}`,
+                referenceId: member,
                 referenceModel: "User",
-                metadata: [{ Member, settlement }],
+                metadata: { member, settlement },
                 performedBy: userId
-            });
-            await settlementLog.save({ session });
+            }], { session });
         }
 
         await session.commitTransaction();
-
         return "Settlement Completed";
-    } catch (error : any) {
+
+    } catch (error: any) {
         await session.abortTransaction();
-        if (error.code === 11000) throw new AppError("User is already a member", 409);
-        if (error.name === "ValidationError") throw new AppError(error.message, 400);
         throw new AppError(error.message || "Internal server error", error.statusCode || 500);
+
     } finally {
         await session.endSession();
     }
@@ -590,7 +600,7 @@ export const leaveGroupService = async (data: { group: mongoose.Types.ObjectId, 
         session.startTransaction();
 
         await GroupMember.findOneAndUpdate(
-            { groupId: groupData, userId },
+            { groupId: groupData, userId, isDeleted: false },
             { isDeleted: true, leaveRequestedAt: null },
             { returnDocument: "after", session }
         );
@@ -648,9 +658,8 @@ export const approveLeaveRequestService = async (data: {
     try {
         session.startTransaction();
 
-        // Settle the leaving member and remove them in a single atomic step.
         await GroupMember.findOneAndUpdate(
-            { groupId: groupData, userId: memberId },
+            { groupId: groupData, userId: memberId, isDeleted: false },
             { $set: { settlement: true, isDeleted: true, leaveRequestedAt: null } },
             { session }
         );
@@ -768,6 +777,19 @@ export const getGroupMemberService = async (groupId: mongoose.Types.ObjectId) =>
     }
 };
 
+export const getLeftContributorsService = async (groupId: mongoose.Types.ObjectId) => {
+    try {
+        const members = await GroupMember.find({
+            groupId,
+            isDeleted: true,
+            contribution: { $gt: 0 },
+        }).populate("userId");
+        return members;
+    } catch (error: any) {
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
+    }
+};
+
 export const getBasicTransactionService = async (groupId: mongoose.Types.ObjectId) => {
     try {
         const transactions = await GroupTransaction.find({ groupId, isDeleted: false });
@@ -841,3 +863,21 @@ export const getEventService = async (groupId: mongoose.Types.ObjectId) => {
         throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }
 }
+
+export const toggleFavoriteService = async (data: {
+    group: mongoose.Types.ObjectId;
+    user: mongoose.Types.ObjectId;
+    isFavorite: boolean;
+}) => {
+    const { group: groupId, user: userId, isFavorite } = data;
+
+    const updated = await GroupMember.findOneAndUpdate(
+        { groupId, userId, isDeleted: false },
+        { $set: { isFavorite } },
+        { new: true }
+    );
+
+    if (!updated) throw new AppError("Not a group member", 403);
+
+    return { isFavorite: updated.isFavorite };
+};

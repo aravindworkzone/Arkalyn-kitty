@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { SegmentedToggle } from "../components/ui";
+import { SegmentedToggle, Logo } from "../components/ui";
 
 type Mode = "summary" | "detailed";
 
@@ -38,30 +38,36 @@ const AUDIENCE_ICONS = ["🏠", "✈️", "👨‍👩‍👧", "🧑‍🤝‍�
 function Nav() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith("ta") ? "ta" : "en";
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const changeLang = (next: "en" | "ta") => {
     i18n.changeLanguage(next);
     localStorage.setItem("i18n_lang", next);
   };
 
+  const navLinks: [string, string][] = [
+    [t("landing.nav.why"), "#why"],
+    [t("landing.nav.howItWorks"), "#how"],
+    [t("landing.nav.whoFor"), "#who"],
+    [t("landing.nav.features"), "#features"],
+    [t("landing.nav.faq"), "#faq"],
+  ];
+
+  useEffect(() => {
+    if (menuOpen) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => { document.body.style.overflow = ""; };
+  }, [menuOpen]);
+
   return (
-    <header className="sticky top-0 z-40 border-b border-stone-200 dark:border-stone-800 bg-stone-50/85 dark:bg-stone-950/85 backdrop-blur-md backdrop-saturate-150">
-      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-4 h-16 flex items-center gap-3">
+    <header className="sticky top-0 z-40 border-b border-stone-200 dark:border-stone-800 bg-stone-50/85 dark:bg-stone-950/85 backdrop-blur-md backdrop-saturate-150 pt-safe">
+      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-4 h-16 sm:h-20 flex items-center gap-3">
         <a href="#top" className="flex items-center gap-2 font-semibold text-[15px] tracking-tight text-stone-950 dark:text-stone-50 flex-shrink-0">
-          <span className="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 to-violet-500" />
-          <span>
-            <strong>Arkalyn</strong>
-            <span className="text-stone-400 font-medium">-Kitty</span>
-          </span>
+          <Logo variant="mini" className="h-10 w-10 sm:h-12 sm:w-12 rounded-md" />
+          <Logo variant="word" className="h-10 w-24 sm:h-12 sm:w-28 rounded-md" />
         </a>
         <nav className="hidden lg:flex items-center gap-1 ml-2">
-          {[
-            [t("landing.nav.why"), "#why"],
-            [t("landing.nav.howItWorks"), "#how"],
-            [t("landing.nav.whoFor"), "#who"],
-            [t("landing.nav.features"), "#features"],
-            [t("landing.nav.faq"), "#faq"],
-          ].map(([label, href]) => (
+          {navLinks.map(([label, href]) => (
             <a
               key={href}
               href={href}
@@ -91,12 +97,54 @@ function Nav() {
           </Link>
           <Link
             to="/register"
-            className="inline-flex h-9 px-4 items-center rounded-lg text-sm font-semibold bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white transition-colors shadow-sm shadow-indigo-500/20"
+            className="hidden sm:inline-flex h-9 px-4 items-center rounded-lg text-sm font-semibold bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white transition-colors shadow-sm shadow-indigo-500/20"
           >
             {t("landing.nav.register")}
           </Link>
+
+          {/* Mobile hamburger — hidden on lg+ where full nav shows */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen((p) => !p)}
+            className="lg:hidden min-h-touch min-w-touch flex items-center justify-center rounded-lg text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 active:bg-stone-100 dark:active:bg-stone-800 transition-colors"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+          >
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+              {menuOpen ? (
+                <path d="M5 5l12 12M17 5L5 17" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              ) : (
+                <path d="M3 6h16M3 11h16M3 16h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              )}
+            </svg>
+          </button>
         </div>
       </div>
+
+      {/* Mobile dropdown panel */}
+      {menuOpen && (
+        <div className="lg:hidden border-t border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 pb-safe">
+          <nav className="max-w-screen-xl mx-auto px-4 py-3 flex flex-col gap-1">
+            {navLinks.map(([label, href]) => (
+              <a
+                key={href}
+                href={href}
+                onClick={() => setMenuOpen(false)}
+                className="px-3 min-h-touch flex items-center text-[15px] font-medium text-stone-700 dark:text-stone-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 active:bg-indigo-50 dark:active:bg-indigo-950/30 rounded-lg transition-colors"
+              >
+                {label}
+              </a>
+            ))}
+            <Link
+              to="/login"
+              onClick={() => setMenuOpen(false)}
+              className="mt-2 px-3 min-h-touch flex items-center text-[15px] font-medium text-stone-600 dark:text-stone-300 border-t border-stone-200 dark:border-stone-800 pt-3"
+            >
+              {t("landing.nav.login")}
+            </Link>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
@@ -154,7 +202,7 @@ function Hero() {
               </Link>
               <a
                 href="#how"
-                className="inline-flex items-center gap-2 h-12 px-6 rounded-xl text-[15px] font-medium bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-stone-400 dark:hover:border-stone-500 transition-colors"
+                className="inline-flex items-center gap-2 h-12 px-6 rounded-xl text-[15px] font-medium bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-stone-400 dark:hover:border-stone-500 active:border-stone-400 dark:active:border-stone-500 transition-colors"
               >
                 {t("landing.hero.ctaSecondary")}
               </a>

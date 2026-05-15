@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGetUserGroupsQuery } from "../redux/api/user";
+import { useToggleFavoriteMutation } from "../redux/api/group";
 import Header from "../components/header";
 import EmptyState from "../components/EmptyList";
 import GroupCard from "../components/GroupCard";
@@ -18,6 +19,7 @@ const GroupPage = () => {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const groupId = useSelector((state: RootState) => state.group);
+  const [toggleFavorite, { isLoading: isTogglingFavorite, originalArgs }] = useToggleFavoriteMutation();
 
   const filtered = groups.filter((g: any) =>
     g.name?.toLowerCase().includes(search.toLowerCase())
@@ -59,9 +61,11 @@ const GroupPage = () => {
           </div>
           <button
             onClick={() => navigate("/groups/new")}
-            className="group flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px]
+            className="hidden sm:inline-flex group items-center gap-2 px-4 py-2.5 rounded-xl text-[13px]
               font-semibold text-violet-200 bg-violet-500/10 border border-violet-500/20
-              hover:bg-violet-500/20 hover:border-violet-400/40 transition-all duration-200
+              hover:bg-violet-500/20 hover:border-violet-400/40
+              active:bg-violet-500/20 active:border-violet-400/40
+              transition-all duration-200
               shadow-lg shadow-violet-900/10"
           >
             <span className="flex items-center justify-center w-4 h-4 rounded-full bg-violet-500/30 group-hover:bg-violet-500/50 transition-colors">
@@ -108,19 +112,21 @@ const GroupPage = () => {
               <path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
             <input
-              type="text"
+              type="search"
+              inputMode="search"
+              autoComplete="off"
               placeholder={t("groups.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
-                text-[13px] text-slate-300 placeholder:text-slate-600
+                text-base sm:text-[13px] text-slate-300 placeholder:text-slate-600
                 focus:outline-none focus:border-violet-500/40 focus:bg-white/[0.06]
                 transition-all duration-200"
             />
             {search && (
               <button
                 onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 active:text-slate-400 transition-colors"
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -143,7 +149,7 @@ const GroupPage = () => {
         ) : filtered.length === 0 && search ? (
           <div className="text-center py-16">
             <p className="text-slate-500 text-sm">{t("groups.noMatch", { search })}</p>
-            <button onClick={() => setSearch("")} className="mt-2 text-violet-400 text-xs hover:text-violet-300 transition-colors">
+            <button onClick={() => setSearch("")} className="mt-2 text-violet-400 text-xs hover:text-violet-300 active:text-violet-300 transition-colors">
               {t("groups.clearSearch")}
             </button>
           </div>
@@ -165,6 +171,10 @@ const GroupPage = () => {
                   group={group}
                   onClick={() => navigate(`/groups/${group.displayId}`)}
                   onAddExpense={() => navigate(`/groups/${group.displayId}/expenses/new`)}
+                  onToggleFavorite={() => {
+                    toggleFavorite({ groupId: group._id, isFavorite: !group.isFavorite });
+                  }}
+                  isTogglingFavorite={isTogglingFavorite && originalArgs?.groupId === group._id}
                 />
               </div>
             ))}

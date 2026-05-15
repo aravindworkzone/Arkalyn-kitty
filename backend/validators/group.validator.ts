@@ -60,6 +60,11 @@ export const rejectLeaveBodySchema = z.object({
     member: objectIdSchema,
 });
 
+export const toggleFavoriteBodySchema = z.object({
+    groupId: groupIdParamSchema,
+    isFavorite: z.boolean(),
+});
+
 export type CreateGroupDto = z.infer<typeof createGroupBodySchema>;
 export type ManageMemberDto = z.infer<typeof manageMemberBodySchema>;
 export type InviteMemberDto = z.infer<typeof inviteMemberBodySchema>;

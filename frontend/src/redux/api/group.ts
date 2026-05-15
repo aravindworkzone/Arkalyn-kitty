@@ -33,6 +33,16 @@ export const group = api.injectEndpoints({
                 { type: 'Group', id: groupId }
             ]
         }),
+        getLeftContributors: builder.query<GroupMember[], string>({
+            query: (groupId) => ({
+                url: `/group/leftcontributors/${groupId}`,
+                method: 'GET'
+            }),
+            transformResponse: (res: { data: { members: GroupMember[] } }) => res.data.members,
+            providesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId }
+            ]
+        }),
         getBasicTransaction: builder.query<any, any>({
             query: (credentials) => ({
                 url: `/group/getbasictransaction/${credentials}`,
@@ -129,14 +139,59 @@ export const group = api.injectEndpoints({
                 { type: 'Group', id: arg.groupId }
             ]
         }),
+        getGroupClosePreview: builder.query<{
+            groupId: string;
+            status: string;
+            currentBalance: number;
+            totalContribution: number;
+            members: {
+                userId: string;
+                name: string;
+                contribution: number;
+                proportionalRefund: number;
+            }[];
+        }, string>({
+            query: (groupId) => ({
+                url: `/group/${groupId}/close-preview`,
+                method: 'GET'
+            }),
+            transformResponse: (res: { data: { preview: any } }) => res.data.preview,
+            providesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId }
+            ]
+        }),
+        closeGroup: builder.mutation<any, {
+            groupId: string;
+            overrides?: { userId: string; refundAmount: number }[];
+        }>({
+            query: ({ groupId, overrides }) => ({
+                url: `/group/${groupId}/close`,
+                method: 'POST',
+                body: overrides && overrides.length > 0 ? { overrides } : {}
+            }),
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId },
+                'Group', 'Expense', 'Transaction', 'Event'
+            ]
+        }),
+        toggleFavorite: builder.mutation<{ isFavorite: boolean }, { groupId: string; isFavorite: boolean }>({
+            query: (body) => ({ url: '/group/favorite', method: 'POST', body }),
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId },
+                'Group', 'User'
+            ]
+        }),
     })
 })
 
 export const {
     useCreateGroupMutation, useGetGroupByIdQuery, useGetGroupMembersQuery,
+    useGetLeftContributorsQuery,
     useGetBasicTransactionQuery, useGetTransactionQuery, useGetEventQuery,
     useGetAllCreditsQuery,
     useManageMemberMutation, useInviteMemberMutation, useManageAdminMutation, useAddContributionMutation,
     useSettlementMutation, useDeleteGroupMutation, useLeaveGroupMutation,
-    useApproveLeaveMutation, useRejectLeaveMutation
+    useApproveLeaveMutation, useRejectLeaveMutation,
+    useGetGroupClosePreviewQuery, useCloseGroupMutation,
+    useToggleFavoriteMutation
 } = group;

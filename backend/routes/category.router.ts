@@ -1,6 +1,6 @@
 import express from 'express';
 import { createCategory, deleteCategory, getCategoryDetails } from '../controllers/category.controller';
-import { verifyToken, authorizeRole, loadGroup } from '../middlewares/auth.middleware';
+import { verifyToken, authorizeRole, loadGroup, ensureGroupActive } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import {
     createCategoryBodySchema,
@@ -15,6 +15,7 @@ router.post(
     validate({ body: createCategoryBodySchema }),
     verifyToken,
     loadGroup,
+    ensureGroupActive,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
     createCategory
 );
@@ -24,6 +25,7 @@ router.delete(
     validate({ params: deleteCategoryParamsSchema }),
     verifyToken,
     loadGroup,
+    ensureGroupActive,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
     deleteCategory
 );

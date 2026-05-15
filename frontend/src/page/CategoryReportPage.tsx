@@ -141,7 +141,7 @@ export default function CategoryReportPage() {
                                 className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors ${
                                     preset === p
                                         ? 'bg-indigo-500/15 border-indigo-400/35 text-indigo-200'
-                                        : 'bg-white/[0.03] border-white/[0.08] text-white/40 hover:text-white/60'
+                                        : 'bg-white/[0.03] border-white/[0.08] text-white/40 hover:text-white/60 active:text-white/60'
                                 }`}
                             >
                                 {t(`categoryReport.preset.${p}`)}
@@ -243,7 +243,7 @@ export default function CategoryReportPage() {
                                 <button
                                     key={row.categoryId}
                                     onClick={() => goToExpenses(row.categoryId)}
-                                    className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between hover:bg-white/[0.05] hover:border-white/[0.12] transition-colors text-left"
+                                    className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.05] active:border-white/[0.12] transition-colors text-left"
                                     style={{
                                         animation: 'fadeSlideIn 0.22s ease forwards',
                                         animationDelay: `${i * 40}ms`,

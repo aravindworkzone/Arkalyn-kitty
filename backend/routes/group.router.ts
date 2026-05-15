@@ -12,12 +12,14 @@ import {
     rejectLeaveRequest,
     getGroupById,
     getGroupMember,
+    getLeftContributors,
     getBasicTransaction,
     getTransaction,
     getAllCredits,
     getEvent,
+    toggleFavorite,
 } from '../controllers/group.controller';
-import { verifyToken, authorizeRole, loadGroup } from '../middlewares/auth.middleware';
+import { verifyToken, authorizeRole, loadGroup, ensureGroupActive } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import {
     createGroupBodySchema,
@@ -30,7 +32,10 @@ import {
     leaveGroupBodySchema,
     approveLeaveBodySchema,
     rejectLeaveBodySchema,
+    toggleFavoriteBodySchema,
 } from '../validators/group.validator';
+import { closeGroupBodySchema } from '../validators/groupClose.validator';
+import { getGroupClosePreview, closeGroup } from '../controllers/groupClose.controller';
 
 const router = express.Router();
 
@@ -55,6 +60,7 @@ router.post(
     validate({ body: manageMemberBodySchema }),
     verifyToken,
     loadGroup,
+    ensureGroupActive,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
     manageMember
 );
@@ -64,6 +70,7 @@ router.post(
     validate({ body: inviteMemberBodySchema }),
     verifyToken,
     loadGroup,
+    ensureGroupActive,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
     inviteMember
 );
@@ -73,6 +80,7 @@ router.post(
     validate({ body: manageAdminBodySchema }),
     verifyToken,
     loadGroup,
+    ensureGroupActive,
     authorizeRole('SUPER_ADMIN'),
     manageAdmin
 );
@@ -82,6 +90,7 @@ router.post(
     validate({ body: addContributionBodySchema }),
     verifyToken,
     loadGroup,
+    ensureGroupActive,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
     addContribution
 );
@@ -91,6 +100,7 @@ router.post(
     validate({ body: settlementBodySchema }),
     verifyToken,
     loadGroup,
+    ensureGroupActive,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
     Settlement
 );
@@ -100,6 +110,7 @@ router.post(
     validate({ body: leaveGroupBodySchema }),
     verifyToken,
     loadGroup,
+    ensureGroupActive,
     authorizeRole('ADMIN', 'MEMBER'),
     leaveGroup
 );
@@ -109,6 +120,7 @@ router.post(
     validate({ body: approveLeaveBodySchema }),
     verifyToken,
     loadGroup,
+    ensureGroupActive,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
     approveLeaveRequest
 );
@@ -118,8 +130,29 @@ router.post(
     validate({ body: rejectLeaveBodySchema }),
     verifyToken,
     loadGroup,
+    ensureGroupActive,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
     rejectLeaveRequest
+);
+
+router.get(
+    '/:groupId/close-preview',
+    validate({ params: groupIdParamObject }),
+    verifyToken,
+    loadGroup,
+    ensureGroupActive,
+    authorizeRole('SUPER_ADMIN'),
+    getGroupClosePreview
+);
+
+router.post(
+    '/:groupId/close',
+    validate({ params: groupIdParamObject, body: closeGroupBodySchema }),
+    verifyToken,
+    loadGroup,
+    ensureGroupActive,
+    authorizeRole('SUPER_ADMIN'),
+    closeGroup
 );
 
 router.get(
@@ -136,6 +169,14 @@ router.get(
     verifyToken,
     loadGroup,
     getGroupMember
+);
+
+router.get(
+    '/leftcontributors/:groupId',
+    validate({ params: groupIdParamObject }),
+    verifyToken,
+    loadGroup,
+    getLeftContributors
 );
 
 router.get(
@@ -168,6 +209,14 @@ router.get(
     verifyToken,
     loadGroup,
     getAllCredits
+);
+
+router.post(
+    '/favorite',
+    validate({ body: toggleFavoriteBodySchema }),
+    verifyToken,
+    loadGroup,
+    toggleFavorite
 );
 
 export default router;

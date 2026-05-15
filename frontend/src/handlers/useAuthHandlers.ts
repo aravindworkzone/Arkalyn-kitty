@@ -3,7 +3,7 @@ import { useSignUpMutation, useSignInMutation } from "../redux/api/auth";
 import { validators } from "../helpers/validators";
 import type { SetFieldError } from "../hooks/useFieldError";
 
-export type AuthField = "email" | "password" | "name";
+export type AuthField = "email" | "password" | "name" | "confirmPassword";
 
 export const useAuthHandlers = (link: string) => {
   const navigate = useNavigate();
@@ -36,6 +36,17 @@ export const useAuthHandlers = (link: string) => {
         }
         data[key] = value;
       }
+    }
+
+    if ("confirmPassword" in data) {
+      if (!data.confirmPassword) {
+        setFieldError("confirmPassword", "Please confirm your password");
+        valid = false;
+      } else if (data.password !== data.confirmPassword) {
+        setFieldError("confirmPassword", "Passwords do not match");
+        valid = false;
+      }
+      delete data.confirmPassword;
     }
 
     if (!valid) return;

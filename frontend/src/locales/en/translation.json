@@ -201,7 +201,11 @@
     "fieldPassword": "Password",
     "fieldPasswordPlaceholder": "Enter your password",
     "fieldName": "Name",
-    "fieldNamePlaceholder": "Enter your name"
+    "fieldNamePlaceholder": "Enter your name",
+    "fieldConfirmPassword": "Confirm password",
+    "fieldConfirmPasswordPlaceholder": "Re-enter your password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
 
   "groups": {
@@ -220,7 +224,10 @@
     "poolRemaining": "Wallet remaining",
     "addExpense": "Add Expense",
     "expense_one": "{{count}} expense",
-    "expense_other": "{{count}} expenses"
+    "expense_other": "{{count}} expenses",
+    "closed": "Closed",
+    "favorite": "Mark favorite",
+    "unfavorite": "Remove favorite"
   },
 
   "empty": {
@@ -418,6 +425,25 @@
     "tabLeaveRequests": "Leave Requests",
     "leaveRequestSentTitle": "Leave request sent",
     "leaveRequestSentDesc": "An admin will review and settle your request before you leave."
+  },
+
+  "closeGroup": {
+    "title": "Close Group",
+    "dangerDesc": "Refund the remaining balance to members and lock the group. No further changes can be made after closing.",
+    "description": "Closing distributes the remaining balance back to members as a single refund expense. Edit amounts if you need to override the proportional split — the total must match the current balance.",
+    "loading": "Loading preview…",
+    "balance": "Group balance",
+    "refundsTotal": "Refunds total",
+    "over": "Refunds exceed balance by ₹{{amount}}",
+    "under": "Refunds short of balance by ₹{{amount}}",
+    "member": "Member",
+    "contributed": "Contributed",
+    "refund": "Refund",
+    "proportional": "Proportional",
+    "confirm": "Close Group",
+    "closing": "Closing…",
+    "bannerTitle": "Group closed",
+    "bannerDesc": "Refunds were issued and no further changes are allowed."
   },
 
   "leaveRequests": {

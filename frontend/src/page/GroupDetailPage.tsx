@@ -3,15 +3,17 @@ import { useNavigate, useParams } from "react-router-dom";
 import MemberAvatars from "../components/ListMember";
 import Header from "../components/header";
 import DeleteConfirmModal from "../components/deleteModel";
+import CloseGroupModal from "../components/CloseGroupModal";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import { useGetExpenseReportQuery } from "../redux/api/expense";
 import { useGetCategoriesQuery } from "../redux/api/category";
 import {
   useGetGroupMembersQuery,
   useGetGroupByIdQuery,
+  useGetLeftContributorsQuery,
 } from "../redux/api/group";
 import { useGroupDetailHandlers } from "../handlers/useGroupDetailHandlers";
-import { roleGrade } from "../helpers/constants";
+import { roleGrade, roleLabel } from "../helpers/constants";
 import type { SettingsTab } from "../interface/group";
 import { StatusBanner } from "../components/ui";
 import {
@@ -52,6 +54,8 @@ export default function GroupDetailPage() {
   const [leaveGroupOpen,   setLeaveGroupOpen]   = useState(false);
   const [leaveGroupError,  setLeaveGroupError]  = useState("");
   const [leaveRequestSent, setLeaveRequestSent] = useState(false);
+  const [closeGroupOpen,   setCloseGroupOpen]   = useState(false);
+  const [groupClosedBanner, setGroupClosedBanner] = useState(false);
 
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
   const [noCatAlert,      setNoCatAlert]      = useState(false);
@@ -62,6 +66,8 @@ export default function GroupDetailPage() {
     useGetExpenseReportQuery(groupId!, { skip: !groupId });
   const { data: GroupMembers } =
     useGetGroupMembersQuery(groupId!, { skip: !groupId });
+  const { data: LeftContributors } =
+    useGetLeftContributorsQuery(groupId!, { skip: !groupId });
   const { data: categories = [] } =
     useGetCategoriesQuery(groupId!, { skip: !groupId });
 
@@ -167,7 +173,7 @@ export default function GroupDetailPage() {
 
         <button
           onClick={() => navigate("/groups")}
-          className="flex items-center gap-2 text-white/35 hover:text-white/60 text-xs font-medium transition-colors mb-2"
+          className="flex items-center gap-2 text-white/35 hover:text-white/60 active:text-white/60 text-xs font-medium transition-colors mb-2"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -187,7 +193,7 @@ export default function GroupDetailPage() {
                   {GroupDetails?.displayId}
                 </span>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleGrade[role || "MEMBER"]}`}>
-                  {role}
+                  {roleLabel(role || "MEMBER")}
                 </span>
               </div>
             </div>
@@ -237,13 +243,13 @@ export default function GroupDetailPage() {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => navigate(`/groups/${groupId}/categories/new`)}
-                className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 transition-colors"
+                className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 active:text-amber-200 transition-colors"
               >
                 {t("groupDetail.create")}
               </button>
               <button
                 onClick={() => setNoCatAlert(false)}
-                className="text-amber-500/60 hover:text-amber-400 transition-colors"
+                className="text-amber-500/60 hover:text-amber-400 active:text-amber-400 transition-colors"
               >
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                   <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -265,7 +271,7 @@ export default function GroupDetailPage() {
             </div>
             <button
               onClick={() => setLeaveRequestSent(false)}
-              className="text-green-500/60 hover:text-green-400 transition-colors shrink-0"
+              className="text-green-500/60 hover:text-green-400 active:text-green-400 transition-colors shrink-0"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                 <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -274,8 +280,26 @@ export default function GroupDetailPage() {
           </div>
         )}
 
+        {/* ── Group closed banner ── */}
+        {(groupClosedBanner || GroupDetails?.status === "CLOSED") && (
+          <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25">
+            <svg className="shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="7" r="5.5" stroke="#fbbf24" strokeWidth="1.3" />
+              <path d="M4.5 7l1.8 1.8L9.5 5.5" stroke="#fbbf24" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-semibold text-amber-300 leading-tight">
+                {t("closeGroup.bannerTitle", "Group closed")}
+              </p>
+              <p className="text-[11px] text-amber-400/70 mt-0.5">
+                {t("closeGroup.bannerDesc", "Refunds were issued and no further changes are allowed.")}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* ── Action buttons ── */}
-        <div className={`grid gap-2 ${isAdmin ? "grid-cols-5" : "grid-cols-3"}`}>
+        <div className={`grid gap-2 grid-cols-3 ${isAdmin ? "sm:grid-cols-5" : ""}`}>
           {[
             {
               label: t("groupDetail.addExpense"),
@@ -344,7 +368,7 @@ export default function GroupDetailPage() {
         <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
           <button
             onClick={() => setMembersOpen((p) => !p)}
-            className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors"
+            className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] active:bg-white/[0.02] transition-colors"
           >
             <div className="flex items-center gap-3">
               <MemberAvatars members={memberNames} />
@@ -368,7 +392,7 @@ export default function GroupDetailPage() {
                   <p className="text-[10px] uppercase tracking-widest text-white/25">{t("groupDetail.contributions")}</p>
                   <button
                     onClick={() => navigate(`/groups/${groupId}/credits`)}
-                    className="text-[10px] font-semibold text-emerald-400/70 hover:text-emerald-300 transition-colors flex items-center gap-1"
+                    className="text-[10px] font-semibold text-emerald-400/70 hover:text-emerald-300 active:text-emerald-300 transition-colors flex items-center gap-1"
                   >
                     {t("groupDetail.viewAllCredits", "View all credits")}
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -398,6 +422,37 @@ export default function GroupDetailPage() {
                     );
                   })}
                 </div>
+
+                {(LeftContributors?.length ?? 0) > 0 && (
+                  <div className="mt-4 pt-3 border-t border-white/[0.05] space-y-2">
+                    <p className="text-[10px] uppercase tracking-widest text-white/25">
+                      {t("groupDetail.leftContributions", "Left member contributions")}
+                    </p>
+                    {LeftContributors!.map((m) => {
+                      const pct = totalContrib > 0 ? Math.round((m.contribution / totalContrib) * 100) : 0;
+                      return (
+                        <div key={m._id} className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-white/40 italic" translate="no">
+                              {m.userId.name}
+                              <span className="text-white/20 ml-1 not-italic">· {t("groupDetail.left", "left")}</span>
+                            </span>
+                            <span className="text-[11px] font-mono text-white/35" translate="no">
+                              ₹{m.contribution.toLocaleString("en-IN")}
+                              <span className="text-white/20 ml-1">({pct}%)</span>
+                            </span>
+                          </div>
+                          <div className="w-full h-[2px] bg-white/[0.05] rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${pct}%`, background: "#64748b" }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="divide-y divide-white/[0.04]">
@@ -424,13 +479,13 @@ export default function GroupDetailPage() {
                         )}
                       </div>
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleGrade[member.role]}`}>
-                        {member.role === "SUPER_ADMIN" ? "S.ADMIN" : member.role}
+                        {roleLabel(member.role)}
                       </span>
                       {isAdmin && member.role !== "SUPER_ADMIN" && (
                         <button
                           onClick={() => setDeleteMemberTarget({ id: member.userId._id, name: member.userId.name })}
                           className="w-7 h-7 flex items-center justify-center rounded-lg text-white/20
-                            hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                            hover:text-red-400 hover:bg-red-500/10 active:text-red-400 active:bg-red-500/10 transition-colors"
                           title={t("groupDetail.removeMemberLabel", { name: member.userId.name })}
                         >
                           <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
@@ -458,7 +513,7 @@ export default function GroupDetailPage() {
               )}
               <button
                 onClick={() => navigate(`/groups/${groupId}/expenses`)}
-                className="text-[10px] font-semibold text-violet-400/70 hover:text-violet-300 transition-colors flex items-center gap-1"
+                className="text-[10px] font-semibold text-violet-400/70 hover:text-violet-300 active:text-violet-300 transition-colors flex items-center gap-1"
               >
                 {t("groupDetail.viewAll")}
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -531,9 +586,11 @@ export default function GroupDetailPage() {
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
             onClick={() => setSettingsOpen(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-            <div className="w-full max-w-2xl pointer-events-auto bg-[#0d1220]
-              border border-white/[0.08] border-b-0 rounded-2xl
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
+            <div className="w-full sm:max-w-2xl pointer-events-auto bg-[#0d1220]
+              border border-white/[0.08] sm:border-b sm:rounded-2xl
+              rounded-t-2xl max-h-[92vh] sm:max-h-[85vh] flex flex-col
+              pb-safe
               shadow-[0_-8px_40px_rgba(0,0,0,0.5)]">
 
               <div className="flex justify-center pt-3 pb-1">
@@ -545,7 +602,7 @@ export default function GroupDetailPage() {
                 <button
                   onClick={() => setSettingsOpen(false)}
                   className="w-7 h-7 flex items-center justify-center rounded-lg
-                    bg-white/[0.04] text-white/40 hover:text-white/70 hover:bg-white/[0.08] transition-colors"
+                    bg-white/[0.04] text-white/40 hover:text-white/70 hover:bg-white/[0.08] active:text-white/70 active:bg-white/[0.08] transition-colors"
                 >
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                     <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -553,25 +610,28 @@ export default function GroupDetailPage() {
                 </button>
               </div>
 
-              <div className="flex border-b border-white/[0.06] overflow-x-auto px-4 pt-2 gap-1" style={{ scrollbarWidth: "none" }}>
-                {settingsTabs.filter((t) => t.show).map((tabItem) => (
-                  <button
-                    key={tabItem.id}
-                    onClick={() => switchTab(tabItem.id)}
-                    className={`px-3.5 pb-2 text-xs font-semibold whitespace-nowrap transition-colors border-b-2
-                      ${tab === tabItem.id
-                        ? tabItem.id === "danger"
-                          ? "text-red-400 border-red-500"
-                          : "text-cyan-300 border-cyan-400"
-                        : "text-white/35 border-transparent hover:text-white/55"
-                      }`}
-                  >
-                    {tabItem.label}
-                  </button>
-                ))}
+              <div className="relative border-b border-white/[0.06] shrink-0">
+                <div className="flex overflow-x-auto no-scrollbar px-4 pt-2 gap-1">
+                  {settingsTabs.filter((t) => t.show).map((tabItem) => (
+                    <button
+                      key={tabItem.id}
+                      onClick={() => switchTab(tabItem.id)}
+                      className={`px-3.5 pb-2 text-xs font-semibold whitespace-nowrap transition-colors border-b-2
+                        ${tab === tabItem.id
+                          ? tabItem.id === "danger"
+                            ? "text-red-400 border-red-500"
+                            : "text-cyan-300 border-cyan-400"
+                          : "text-white/35 border-transparent hover:text-white/55 active:text-white/55"
+                        }`}
+                    >
+                      {tabItem.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-[#0d1220] to-transparent sm:hidden" />
               </div>
 
-              <div className="px-5 py-4 space-y-3">
+              <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1">
 
                 <StatusBanner status={msg ? (msg.ok ? "ok" : "err") : null} text={msg?.text ?? ""} />
 
@@ -623,6 +683,11 @@ export default function GroupDetailPage() {
                     isSuperAdmin={isSuperAdmin}
                     onRequestDeleteGroup={() => { setSettingsOpen(false); setDeleteGroupOpen(true); }}
                     onRequestLeaveGroup={() => { setSettingsOpen(false); setLeaveGroupOpen(true); }}
+                    onRequestCloseGroup={
+                      isSuperAdmin && GroupDetails?.status !== "CLOSED"
+                        ? () => { setSettingsOpen(false); setCloseGroupOpen(true); }
+                        : undefined
+                    }
                   />
                 )}
               </div>
@@ -689,6 +754,19 @@ export default function GroupDetailPage() {
           )}
         </p>
       </DeleteConfirmModal>
+
+      {/* ── Close Group modal ── */}
+      {groupId && (
+        <CloseGroupModal
+          isOpen={closeGroupOpen}
+          groupId={groupId}
+          onClose={() => setCloseGroupOpen(false)}
+          onClosed={() => {
+            setCloseGroupOpen(false);
+            setGroupClosedBanner(true);
+          }}
+        />
+      )}
 
       {/* ── Expense detail modal ── */}
       <ExpenseDetailModal expense={selectedExpense} onClose={() => setSelectedExpense(null)} role={role} groupId={groupId} />

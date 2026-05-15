@@ -11,7 +11,7 @@ export default function BackButton({ label = "Back", onClick }: Props) {
     <button
       type="button"
       onClick={onClick ?? (() => navigate(-1))}
-      className="flex items-center gap-2 text-white/35 hover:text-white/60 text-xs font-medium transition-colors"
+      className="flex items-center gap-2 text-white/35 hover:text-white/60 active:text-white/60 text-xs font-medium transition-colors"
     >
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
         <path

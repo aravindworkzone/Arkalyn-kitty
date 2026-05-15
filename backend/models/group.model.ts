@@ -8,7 +8,7 @@ export interface IGroup extends Document {
     groupType: "POOL" | "SPLIT";
     balance: number;
     totalContribution: number;
-    status: "ACTIVE" | "INACTIVE";
+    status: "ACTIVE" | "INACTIVE" | "CLOSED";
     createdBy: mongoose.Types.ObjectId;
     createdAt?: Date;
     updatedAt?: Date;
@@ -20,7 +20,7 @@ const groupSchema = new Schema<IGroup>({
     groupType: {type: String, enum: ["POOL", "SPLIT"], default: "POOL"},
     balance: {type: Number, default: 0, set:toDBAmount, get:fromDBAmount},
     totalContribution: {type: Number, default: 0, set:toDBAmount, get:fromDBAmount},
-    status: {type: String, enum: ["ACTIVE", "INACTIVE"], default: "ACTIVE"},
+    status: {type: String, enum: ["ACTIVE", "INACTIVE", "CLOSED"], default: "ACTIVE"},
     createdBy: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true}
 }, {timestamps: true, toJSON: { getters: true }, toObject: { getters: true }});
 

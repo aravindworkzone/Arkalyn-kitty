@@ -50,11 +50,11 @@ export default function ReportPage() {
 
       <Header />
 
-      <div className="relative max-w-2xl mx-auto px-4 py-10 space-y-4">
+      <div className="relative max-w-2xl mx-auto px-4 pt-8 pb-18 space-y-4">
 
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-white/35 hover:text-white/60 text-xs font-medium transition-colors mb-4"
+          className="flex items-center gap-2 text-white/35 hover:text-white/60 active:text-white/60 text-xs font-medium transition-colors mb-4"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -74,7 +74,7 @@ export default function ReportPage() {
             </div>
             <button
               onClick={() => navigate(`/groups/${groupId}/reports/categories`)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-400/35 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-400/35 active:bg-indigo-500/20 active:border-indigo-400/35 transition-colors"
             >
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
                 <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4" />

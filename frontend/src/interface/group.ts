@@ -12,6 +12,7 @@ export interface IGroup {
 }
 
 export interface Group {
+  _id: string;
   name: string;
   displayId: string;
   members: string[];
@@ -20,12 +21,16 @@ export interface Group {
   barLength: number;
   createdAt: string;
   role: "SUPER_ADMIN" | "ADMIN" | "MEMBER";
+  status?: "ACTIVE" | "INACTIVE" | "CLOSED";
+  isFavorite?: boolean;
 }
 
 export interface GroupCardProps {
   group: Group;
   onClick: () => void;
   onAddExpense: () => void;
+  onToggleFavorite: () => void;
+  isTogglingFavorite?: boolean;
 }
 
 export type SettingsTab = "addMember" | "changeRole" | "contribution" | "settlement" | "leaveRequests" | "danger";

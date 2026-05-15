@@ -28,7 +28,7 @@ export default function NotFoundPage() {
             onClick={() => navigate(-1)}
             className="px-4 py-2.5 rounded-xl text-sm font-semibold border
               bg-white/[0.04] border-white/[0.08] text-white/60
-              hover:bg-white/[0.07] hover:text-white/80 transition-all duration-150"
+              hover:bg-white/[0.07] hover:text-white/80 active:bg-white/[0.07] active:text-white/80 transition-all duration-150"
           >
             {t("notFound.goBack")}
           </button>
@@ -37,7 +37,7 @@ export default function NotFoundPage() {
             onClick={() => navigate("/groups")}
             className="px-4 py-2.5 rounded-xl text-sm font-semibold border
               bg-violet-500/10 border-violet-500/25 text-violet-300
-              hover:bg-violet-500/20 hover:border-violet-400/40 transition-all duration-150"
+              hover:bg-violet-500/20 hover:border-violet-400/40 active:bg-violet-500/20 active:border-violet-400/40 transition-all duration-150"
           >
             {t("notFound.goHome")}
           </button>

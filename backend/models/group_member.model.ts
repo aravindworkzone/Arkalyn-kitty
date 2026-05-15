@@ -9,6 +9,7 @@ export interface IGroupMember extends Document {
     settlement: boolean;
     leaveRequestedAt: Date | null;
     isDeleted: boolean;
+    isFavorite: boolean;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -20,7 +21,8 @@ const groupMemberSchema = new Schema<IGroupMember>({
     role: {type: String, enum: ["SUPER_ADMIN", "ADMIN", "MEMBER"], default: "MEMBER"},
     settlement: {type: Boolean, default: false},
     leaveRequestedAt: {type: Date, default: null},
-    isDeleted: {type: Boolean, default: false}
+    isDeleted: {type: Boolean, default: false},
+    isFavorite: {type: Boolean, default: false}
 }, {timestamps: true, toJSON: { getters: true }, toObject: { getters: true }});
 
 groupMemberSchema.index({ groupId: 1, userId: 1 }, { unique: true, partialFilterExpression: { isDeleted: false } });

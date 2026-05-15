@@ -114,7 +114,7 @@ export default function AllExpensesPage() {
             <p className="text-white/25 text-sm">{t("allExpenses.noResults", { search })}</p>
             <button
               onClick={() => setSearch("")}
-              className="mt-2 text-violet-400 text-xs hover:text-violet-300 transition-colors"
+              className="mt-2 text-violet-400 text-xs hover:text-violet-300 active:text-violet-300 transition-colors"
             >
               {t("allExpenses.clearSearch")}
             </button>
