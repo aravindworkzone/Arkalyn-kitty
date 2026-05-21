@@ -763,7 +763,9 @@ export const getGroupByIdService = async (groupId: mongoose.Types.ObjectId, user
     if (!currentUser) {
         throw new AppError("Created user not found", 404);
     }
-    const barLength = Math.round((1 - group.balance / group.totalContribution) * 100);
+    const barLength = group.totalContribution > 0
+        ? Math.round((1 - group.balance / group.totalContribution) * 100)
+        : 0;
     const groupData = {...group.toObject(),role: currentUser.role, barLength};
     return groupData;
 };
@@ -841,6 +843,92 @@ export const getAllCreditsService = async (groupId: mongoose.Types.ObjectId) => 
         return credits;
     } catch (error: any) {
         throw new AppError(error.message || "Internal server error", error.statusCode || 500);
+    }
+};
+
+export const removeCreditService = async (data: {
+    creditId: string;
+    groupId: mongoose.Types.ObjectId;
+    userId: mongoose.Types.ObjectId;
+    reason?: string;
+}) => {
+    if (!mongoose.Types.ObjectId.isValid(data.creditId)) {
+        throw new AppError("Invalid credit ID format", 400);
+    }
+
+    const session = await mongoose.startSession();
+    try {
+        session.startTransaction();
+
+        // A "credit" is a CREDIT-action GroupTransaction. Unlike expenses
+        // (which live in their own collection), the credits list IS the
+        // transaction log — so removal soft-deletes the transaction itself
+        // and skips a reversal row, which would otherwise double-count.
+        const credit = await GroupTransaction.findOne({
+            _id: data.creditId,
+            groupId: data.groupId,
+            action: "CREDIT",
+            isDeleted: false,
+        }).session(session);
+
+        if (!credit) throw new AppError("Credit not found", 404);
+
+        const amount = credit.amount;
+
+        // A credit added money to the wallet, so removing it pulls money back
+        // out. The $gte guard means we never drive the balance negative — if
+        // those funds were already spent on an expense, the credit is locked.
+        const updatedGroup = await Group.findOneAndUpdate(
+            { _id: data.groupId, balance: { $gte: amount } },
+            { $inc: { balance: -amount, totalContribution: -amount } },
+            { returnDocument: "after", session }
+        );
+
+        if (!updatedGroup) {
+            throw new AppError(
+                "Cannot remove this credit — its funds have already been spent. The group balance is lower than the credit amount.",
+                400
+            );
+        }
+
+        // Roll back the contributor's running contribution total. referenceId
+        // is the contributing user for every credit source (group creation,
+        // member-add, addContribution). Not filtered by isDeleted so a member
+        // who has since left still has their contribution corrected.
+        await GroupMember.updateOne(
+            { groupId: data.groupId, userId: credit.referenceId },
+            { $inc: { contribution: -amount } },
+            { session }
+        );
+
+        await GroupTransaction.updateOne(
+            { _id: credit._id },
+            { $set: { isDeleted: true } },
+            { session }
+        );
+
+        // The credit's soft-delete is the transaction-side record; GroupEvent
+        // is the admin-facing log of who removed it and why.
+        await GroupEvent.create([{
+            groupId: data.groupId,
+            performedBy: data.userId,
+            eventType: "CREDIT_REMOVED",
+            amount,
+            referenceId: credit.referenceId,
+            referenceModel: "User",
+            metadata: {
+                creditId: credit._id.toString(),
+                note: `Credit of ${amount} removed${data.reason ? `. Reason: ${data.reason}` : ""}`,
+            },
+        }], { session });
+
+        await session.commitTransaction();
+        return credit;
+    } catch (error) {
+        await session.abortTransaction();
+        throw error;
+    } finally {
+        await session.endSession();
     }
 };
 

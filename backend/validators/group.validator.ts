@@ -65,6 +65,15 @@ export const toggleFavoriteBodySchema = z.object({
     isFavorite: z.boolean(),
 });
 
+export const removeCreditParamsSchema = z.object({
+    creditId: objectIdSchema,
+});
+
+export const removeCreditBodySchema = z.object({
+    groupId: groupIdParamSchema,
+    reason: z.string().trim().min(1).max(500).optional(),
+});
+
 export type CreateGroupDto = z.infer<typeof createGroupBodySchema>;
 export type ManageMemberDto = z.infer<typeof manageMemberBodySchema>;
 export type InviteMemberDto = z.infer<typeof inviteMemberBodySchema>;

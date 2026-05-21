@@ -16,6 +16,7 @@ import {
     getBasicTransaction,
     getTransaction,
     getAllCredits,
+    removeCredit,
     getEvent,
     toggleFavorite,
 } from '../controllers/group.controller';
@@ -33,6 +34,8 @@ import {
     approveLeaveBodySchema,
     rejectLeaveBodySchema,
     toggleFavoriteBodySchema,
+    removeCreditParamsSchema,
+    removeCreditBodySchema,
 } from '../validators/group.validator';
 import { closeGroupBodySchema } from '../validators/groupClose.validator';
 import { getGroupClosePreview, closeGroup } from '../controllers/groupClose.controller';
@@ -209,6 +212,16 @@ router.get(
     verifyToken,
     loadGroup,
     getAllCredits
+);
+
+router.delete(
+    '/credit/:creditId',
+    validate({ params: removeCreditParamsSchema, body: removeCreditBodySchema }),
+    verifyToken,
+    loadGroup,
+    ensureGroupActive,
+    authorizeRole('SUPER_ADMIN'),
+    removeCredit
 );
 
 router.post(
