@@ -15,6 +15,7 @@ import {
     getBasicTransactionService,
     getTransactionService,
     getAllCreditsService,
+    removeCreditService,
     getEventService,
     toggleFavoriteService,
 } from '../services/group.service';
@@ -224,6 +225,25 @@ export const getAllCredits = asyncHandler(async (req, res) => {
 
     const credits = await getAllCreditsService(req.group._id);
     sendSuccess(res, { credits }, 'Credits fetched');
+});
+
+export const removeCredit = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const creditId = typeof req.params.creditId === 'string' ? req.params.creditId : '';
+    if (!creditId) throw new AppError('Credit ID required', 400);
+
+    const credit = await removeCreditService({
+        creditId,
+        groupId: req.group._id,
+        userId: req.user._id,
+        reason: typeof req.body.reason === 'string' ? req.body.reason : undefined,
+    });
+
+    emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_CONTRIBUTION_ADDED);
+
+    sendSuccess(res, { credit }, 'Credit removed');
 });
 
 export const getEvent = asyncHandler(async (req, res) => {

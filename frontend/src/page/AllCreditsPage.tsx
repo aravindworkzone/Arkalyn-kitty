@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import Header from "../components/header";
-import { useGetAllCreditsQuery } from "../redux/api/group";
+import { useGetAllCreditsQuery, useGetGroupByIdQuery } from "../redux/api/group";
+import CreditDetailModal from "../components/CreditDetailModal";
 import { dateLabel, timeLabel } from "../helpers/formatters";
 import {
   PageBackground,
@@ -16,8 +17,12 @@ import type { GroupCredit } from "../interface/transaction";
 export default function AllCreditsPage() {
   const { groupId } = useParams();
   const { data: credits, isLoading } = useGetAllCreditsQuery(groupId!, { skip: !groupId });
+  const { data: GroupDetails } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
+  const [selectedCredit, setSelectedCredit] = useState<GroupCredit | null>(null);
   const [search, setSearch] = useState("");
   const { t } = useTranslation();
+
+  const role = GroupDetails?.role as string | undefined;
 
   const filtered: GroupCredit[] = credits?.filter((c) => {
     const q = search.toLowerCase();
@@ -129,7 +134,8 @@ export default function AllCreditsPage() {
             {group.items.map((credit, i) => (
               <div
                 key={credit._id}
-                className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between transition-colors"
+                onClick={() => setSelectedCredit(credit)}
+                className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.07] active:border-white/[0.12] transition-colors"
                 style={{
                   animation: "fadeSlideIn 0.22s ease forwards",
                   animationDelay: `${(gi * 3 + i) * 40}ms`,
@@ -171,6 +177,13 @@ export default function AllCreditsPage() {
           </div>
         ))}
       </main>
+
+      <CreditDetailModal
+        credit={selectedCredit}
+        onClose={() => setSelectedCredit(null)}
+        role={role}
+        groupId={groupId}
+      />
 
       <style>{`
         @keyframes fadeSlideIn {

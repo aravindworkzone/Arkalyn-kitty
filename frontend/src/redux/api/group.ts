@@ -72,6 +72,16 @@ export const group = api.injectEndpoints({
                 { type: 'Group', id: groupId }
             ]
         }),
+        removeCredit: builder.mutation<any, { creditId: string; groupId: string; reason?: string }>({
+            query: ({ creditId, groupId, reason }) => ({
+                url: `/group/credit/${creditId}`,
+                method: 'DELETE',
+                body: { groupId, reason }
+            }),
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId }
+            ]
+        }),
         getEvent: builder.query<any, any>({
             query: (credentials) => ({
                 url: `/group/getevent/${credentials}`,
@@ -188,7 +198,7 @@ export const {
     useCreateGroupMutation, useGetGroupByIdQuery, useGetGroupMembersQuery,
     useGetLeftContributorsQuery,
     useGetBasicTransactionQuery, useGetTransactionQuery, useGetEventQuery,
-    useGetAllCreditsQuery,
+    useGetAllCreditsQuery, useRemoveCreditMutation,
     useManageMemberMutation, useInviteMemberMutation, useManageAdminMutation, useAddContributionMutation,
     useSettlementMutation, useDeleteGroupMutation, useLeaveGroupMutation,
     useApproveLeaveMutation, useRejectLeaveMutation,
