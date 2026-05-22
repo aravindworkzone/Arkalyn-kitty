@@ -24,3 +24,10 @@ export interface GroupEvent {
   metadata: Record<string, any>;
   createdAt: string;
 }
+
+// Whole-group transaction totals by action (from getBasicTransaction).
+export interface BasicTransactionTotals {
+  CREDIT?: number;
+  DEBIT?: number;
+  REFUND?: number;
+}

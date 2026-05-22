@@ -1,0 +1,31 @@
+# Render Blueprint — backend web service (free tier).
+# In the Render dashboard: New > Blueprint, connect this repo. Render reads this
+# file, creates the service, auto-generates the token secrets, and prompts for
+# the `sync: false` values (MONGO_URI, FRONTEND_URL).
+# Frontend is deployed separately on Vercel — see DEPLOYMENT.md.
+services:
+  - type: web
+    name: expense-tracker-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    region: singapore          # set close to your MongoDB Atlas cluster to cut DB latency
+    buildCommand: npm run build # runs `npm install --include=dev && tsc`
+    startCommand: npm start     # runs `node dist/main.js`
+    healthCheckPath: /health
+    autoDeploy: true            # redeploy on every push to the default branch
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false             # paste your Atlas connection string in the dashboard
+      - key: FRONTEND_URL
+        sync: false             # set to the Vercel URL after the frontend is deployed
+      - key: ACCESS_TOKEN_SECRET
+        generateValue: true     # Render generates a strong random secret
+      - key: REFRESH_TOKEN_SECRET
+        generateValue: true
+      - key: SMTP_USER
+        sync: false             # Gmail address for password-reset email (optional)
+      - key: SMTP_PASS
+        sync: false             # Gmail App Password (optional)

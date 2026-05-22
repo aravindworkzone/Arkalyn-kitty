@@ -2,16 +2,37 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Header from '../components/header';
-import { useGetCategoryBreakdownQuery } from '../redux/api/report';
+import {
+    useGetCategoryBreakdownQuery,
+    useGetMemberBreakdownQuery,
+    useGetSpendTrendQuery,
+} from '../redux/api/report';
 import {
     PageBackground,
     BackButton,
     PageHeader,
     StatCard,
 } from '../components/ui';
-import type { ReportPreset, CategoryBreakdownRow } from '../interface/report';
+import type { ReportPreset, CategoryBreakdownRow, TrendGranularity } from '../interface/report';
 
 const PRESETS: ReportPreset[] = ['this_month', 'last_month', 'all_time', 'custom'];
+
+const VIEWS = ['category', 'member', 'trend'] as const;
+type ReportView = (typeof VIEWS)[number];
+const VIEW_LABEL: Record<ReportView, string> = {
+    category: 'Category',
+    member: 'By member',
+    trend: 'Trend',
+};
+
+const GRANULARITY_LABEL: Record<TrendGranularity, string> = {
+    day: 'Daily',
+    week: 'Weekly',
+    month: 'Monthly',
+};
+
+// Colours assigned to members by rank — members have no stored colour.
+const MEMBER_COLORS = ['#818cf8', '#f472b6', '#34d399', '#fbbf24', '#60a5fa', '#fb923c', '#a78bfa', '#4ade80'];
 
 const formatCents = (cents: number, locale: string) =>
     new Intl.NumberFormat(locale === 'ta' ? 'ta-IN' : 'en-IN', {
@@ -26,6 +47,23 @@ const formatDate = (iso: string, locale: string) =>
         month: 'short',
         year: 'numeric',
     }).format(new Date(iso));
+
+const formatPeriod = (iso: string, granularity: TrendGranularity, locale: string) => {
+    const loc = locale === 'ta' ? 'ta-IN' : 'en-IN';
+    const opts: Intl.DateTimeFormatOptions =
+        granularity === 'month'
+            ? { month: 'short', year: '2-digit' }
+            : { day: '2-digit', month: 'short' };
+    return new Intl.DateTimeFormat(loc, opts).format(new Date(iso));
+};
+
+const initials = (name: string) =>
+    name
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((w) => w[0]?.toUpperCase() ?? '')
+        .join('') || '?';
 
 interface DonutProps {
     rows: CategoryBreakdownRow[];
@@ -79,6 +117,7 @@ export default function CategoryReportPage() {
     const { t, i18n } = useTranslation();
     const locale = i18n.language;
 
+    const [view, setView] = useState<ReportView>('category');
     const [preset, setPreset] = useState<ReportPreset>('this_month');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -99,14 +138,26 @@ export default function CategoryReportPage() {
 
     const skip = !groupId || (preset === 'custom' && (!startDate || !endDate));
 
-    const { data, isLoading, isFetching, error } = useGetCategoryBreakdownQuery(args, { skip });
+    // Only the active tab's query runs; switching tabs serves cached data.
+    const categoryQ = useGetCategoryBreakdownQuery(args, { skip: skip || view !== 'category' });
+    const memberQ = useGetMemberBreakdownQuery(args, { skip: skip || view !== 'member' });
+    const trendQ = useGetSpendTrendQuery(args, { skip: skip || view !== 'trend' });
+
+    const activeQ = view === 'category' ? categoryQ : view === 'member' ? memberQ : trendQ;
+    const activeData = activeQ.data;
+    const { isLoading, isFetching, error } = activeQ;
+
+    const trendData = trendQ.data;
+    const maxTrendCents = trendData
+        ? Math.max(...trendData.points.map((p) => p.totalCents), 1)
+        : 1;
 
     const goToExpenses = (categoryId: string) => {
-        if (!data) return;
+        if (!categoryQ.data) return;
         const params = new URLSearchParams({
             categoryId,
-            start: data.range.start,
-            end: data.range.end,
+            start: categoryQ.data.range.start,
+            end: categoryQ.data.range.end,
         });
         navigate(`/groups/${groupId}/expenses?${params.toString()}`);
     };
@@ -127,11 +178,29 @@ export default function CategoryReportPage() {
                             <path d="M7 1.5v5.5l4 3" stroke="#a5b4fc" strokeWidth="1.4" strokeLinecap="round" />
                         </svg>
                     }
-                    label={t('categoryReport.label')}
-                    title={t('categoryReport.title')}
-                    description={t('categoryReport.description')}
+                    label={t('reports.label', 'Insights')}
+                    title={t('reports.title', 'Spending Reports')}
+                    description={t('reports.description', 'See how your group spends — by category, by member, and over time.')}
                 />
 
+                {/* view tabs */}
+                <div className="flex gap-1.5 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1">
+                    {VIEWS.map((v) => (
+                        <button
+                            key={v}
+                            onClick={() => setView(v)}
+                            className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+                                view === v
+                                    ? 'bg-indigo-500/15 text-indigo-200'
+                                    : 'text-white/40 hover:text-white/65 active:text-white/65'
+                            }`}
+                        >
+                            {t(`reports.tab.${v}`, VIEW_LABEL[v])}
+                        </button>
+                    ))}
+                </div>
+
+                {/* date range selector */}
                 <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-3 space-y-3">
                     <div className="flex flex-wrap gap-2">
                         {PRESETS.map((p) => (
@@ -176,24 +245,28 @@ export default function CategoryReportPage() {
                     )}
                 </div>
 
-                {data && (
+                {activeData && (
                     <div className="grid grid-cols-2 gap-2">
                         <StatCard
                             label={t('categoryReport.totalSpent')}
-                            value={data.totalSpendCents / 100}
+                            value={activeData.totalSpendCents / 100}
                             currency
                         />
-                        <StatCard label={t('categoryReport.transactions')} value={data.expenseCount} />
+                        <StatCard
+                            label={t('categoryReport.transactions')}
+                            value={activeData.expenseCount}
+                        />
                     </div>
                 )}
 
-                {data && (
+                {activeData && (
                     <p className="text-[11px] text-white/30 px-0.5">
-                        {formatDate(data.range.start, locale)} — {formatDate(data.range.end, locale)}
+                        {formatDate(activeData.range.start, locale)} —{' '}
+                        {formatDate(activeData.range.end, locale)}
                     </p>
                 )}
 
-                {(isLoading || isFetching) && !data && (
+                {(isLoading || isFetching) && !activeData && (
                     <div className="space-y-4">
                         <div className="h-[220px] bg-white/[0.04] rounded-2xl animate-pulse" />
                         <div className="space-y-2">
@@ -219,27 +292,28 @@ export default function CategoryReportPage() {
                     </div>
                 )}
 
-                {data && data.totalSpendCents === 0 && (
+                {activeData && activeData.totalSpendCents === 0 && (
                     <div className="text-center py-16 space-y-2">
                         <p className="text-white/40 text-sm font-medium">{t('categoryReport.emptyTitle')}</p>
                         <p className="text-white/25 text-xs">{t('categoryReport.emptyHint')}</p>
                     </div>
                 )}
 
-                {data && data.totalSpendCents > 0 && (
+                {/* CATEGORY view */}
+                {view === 'category' && categoryQ.data && categoryQ.data.totalSpendCents > 0 && (
                     <>
                         <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 flex flex-col items-center">
-                            <Donut rows={data.categories} totalCents={data.totalSpendCents} />
+                            <Donut rows={categoryQ.data.categories} totalCents={categoryQ.data.totalSpendCents} />
                             <p className="text-[11px] uppercase tracking-widest text-white/30 mt-4">
                                 {t('categoryReport.totalSpent')}
                             </p>
                             <p className="text-2xl font-semibold font-mono text-[#f0eeff] mt-1" translate="no">
-                                {formatCents(data.totalSpendCents, locale)}
+                                {formatCents(categoryQ.data.totalSpendCents, locale)}
                             </p>
                         </div>
 
                         <div className="space-y-2">
-                            {data.categories.map((row, i) => (
+                            {categoryQ.data.categories.map((row, i) => (
                                 <button
                                     key={row.categoryId}
                                     onClick={() => goToExpenses(row.categoryId)}
@@ -253,10 +327,7 @@ export default function CategoryReportPage() {
                                     <div className="flex items-center gap-3 min-w-0">
                                         <span
                                             className="w-3 h-3 rounded-full shrink-0"
-                                            style={{
-                                                background: row.color,
-                                                opacity: row.isDeleted ? 0.4 : 1,
-                                            }}
+                                            style={{ background: row.color, opacity: row.isDeleted ? 0.4 : 1 }}
                                         />
                                         <div className="min-w-0">
                                             <p
@@ -285,6 +356,119 @@ export default function CategoryReportPage() {
                                         {formatCents(row.totalCents, locale)}
                                     </p>
                                 </button>
+                            ))}
+                        </div>
+                    </>
+                )}
+
+                {/* MEMBER view */}
+                {view === 'member' && memberQ.data && memberQ.data.totalSpendCents > 0 && (
+                    <div className="space-y-2">
+                        {memberQ.data.members.map((m, i) => {
+                            const color = MEMBER_COLORS[i % MEMBER_COLORS.length];
+                            return (
+                                <div
+                                    key={m.userId}
+                                    className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5"
+                                    style={{
+                                        animation: 'fadeSlideIn 0.22s ease forwards',
+                                        animationDelay: `${i * 40}ms`,
+                                        opacity: 0,
+                                    }}
+                                >
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <span
+                                                className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0"
+                                                style={{ background: color + '22', color }}
+                                                translate="no"
+                                            >
+                                                {initials(m.name)}
+                                            </span>
+                                            <div className="min-w-0">
+                                                <p className="text-[13px] font-medium text-white/80 truncate leading-tight" translate="no">
+                                                    {m.name}
+                                                </p>
+                                                <p className="text-[10px] text-white/30 mt-0.5">
+                                                    {t('categoryReport.expenseCount', { count: m.expenseCount })} ·{' '}
+                                                    {m.sharePct.toFixed(1)}%
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <p
+                                            className="text-[15px] font-semibold font-mono text-[#f0eeff] shrink-0 ml-3"
+                                            translate="no"
+                                        >
+                                            {formatCents(m.totalCents, locale)}
+                                        </p>
+                                    </div>
+                                    <div className="mt-2.5 h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+                                        <div
+                                            className="h-full rounded-full"
+                                            style={{ width: `${Math.max(m.sharePct, 2)}%`, background: color }}
+                                        />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* TREND view */}
+                {view === 'trend' && trendData && trendData.totalSpendCents > 0 && (
+                    <>
+                        <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5">
+                            <p className="text-[10px] uppercase tracking-widest text-white/30 mb-3">
+                                {t(
+                                    `reports.granularity.${trendData.granularity}`,
+                                    GRANULARITY_LABEL[trendData.granularity]
+                                )}
+                            </p>
+                            <div className="flex items-end gap-1.5 h-40">
+                                {trendData.points.map((p) => {
+                                    const h = Math.max((p.totalCents / maxTrendCents) * 100, 4);
+                                    return (
+                                        <div
+                                            key={p.periodStart}
+                                            className="flex-1 flex items-end h-full min-w-0"
+                                            title={`${formatPeriod(p.periodStart, trendData.granularity, locale)}: ${formatCents(p.totalCents, locale)}`}
+                                        >
+                                            <div
+                                                className="w-full rounded-t bg-gradient-to-t from-indigo-500/40 to-indigo-400/80"
+                                                style={{ height: `${h}%` }}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            {[...trendData.points].reverse().map((p, i) => (
+                                <div
+                                    key={p.periodStart}
+                                    className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 flex items-center justify-between"
+                                    style={{
+                                        animation: 'fadeSlideIn 0.22s ease forwards',
+                                        animationDelay: `${i * 40}ms`,
+                                        opacity: 0,
+                                    }}
+                                >
+                                    <div className="min-w-0">
+                                        <p className="text-[13px] font-medium text-white/80 leading-tight" translate="no">
+                                            {formatPeriod(p.periodStart, trendData.granularity, locale)}
+                                        </p>
+                                        <p className="text-[10px] text-white/30 mt-0.5">
+                                            {t('categoryReport.expenseCount', { count: p.expenseCount })}
+                                        </p>
+                                    </div>
+                                    <p
+                                        className="text-[15px] font-semibold font-mono text-[#f0eeff] shrink-0 ml-3"
+                                        translate="no"
+                                    >
+                                        {formatCents(p.totalCents, locale)}
+                                    </p>
+                                </div>
                             ))}
                         </div>
                     </>

@@ -5,6 +5,9 @@ export const MAX_ACTIVE_SESSIONS = 3;
 
 export const BCRYPT_SALT_ROUNDS = 10;
 
+// How long a password-reset link stays valid.
+export const PASSWORD_RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
+
 export const REQUEST_BODY_LIMIT = '1mb';
 
 export const PAGINATION = {

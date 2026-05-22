@@ -1,5 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { Login, Registration } from './page/Authentication'
+import ForgotPasswordPage from './page/ForgotPasswordPage'
+import ResetPasswordPage from './page/ResetPasswordPage'
 import LandingPage from './page/landingPage'
 import GroupPage from './page/GroupPage'
 import CreateGroupPage from './page/CreateGroupPage'
@@ -23,6 +25,8 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Registration />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         <Route element={<ProtectedRouter />}>
           <Route path="/groups" element={<GroupPage />} />

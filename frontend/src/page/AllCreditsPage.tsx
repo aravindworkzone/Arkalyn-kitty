@@ -14,13 +14,24 @@ import {
 import { useTranslation } from "react-i18next";
 import type { GroupCredit } from "../interface/transaction";
 
+const PAGE_STEP = 20;
+const MAX_LIMIT = 200;
+
 export default function AllCreditsPage() {
   const { groupId } = useParams();
-  const { data: credits, isLoading } = useGetAllCreditsQuery(groupId!, { skip: !groupId });
+  const [limit, setLimit] = useState(PAGE_STEP);
+  const { data, isLoading, isFetching } = useGetAllCreditsQuery(
+    { groupId: groupId!, limit },
+    { skip: !groupId }
+  );
   const { data: GroupDetails } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
   const [selectedCredit, setSelectedCredit] = useState<GroupCredit | null>(null);
   const [search, setSearch] = useState("");
   const { t } = useTranslation();
+
+  const credits = data?.items ?? [];
+  const totalCount = data?.total ?? 0;
+  const canLoadMore = credits.length < totalCount && limit < MAX_LIMIT;
 
   const role = GroupDetails?.role as string | undefined;
 
@@ -68,7 +79,7 @@ export default function AllCreditsPage() {
         {!isLoading && (
           <div className="grid grid-cols-2 gap-2">
             <StatCard label={t("allCredits.totalCredited", "Total credited")} value={total} currency />
-            <StatCard label={t("allCredits.transactions", "Transactions")} value={filtered.length} />
+            <StatCard label={t("allCredits.transactions", "Transactions")} value={search ? filtered.length : totalCount} />
           </div>
         )}
 
@@ -176,6 +187,27 @@ export default function AllCreditsPage() {
             ))}
           </div>
         ))}
+
+        {!isLoading && canLoadMore && (
+          <div className="space-y-2">
+            <button
+              onClick={() => setLimit((l) => Math.min(l + PAGE_STEP, MAX_LIMIT))}
+              disabled={isFetching}
+              className="w-full py-2.5 rounded-xl border border-white/10 text-white/50 text-xs font-semibold hover:bg-white/[0.04] active:bg-white/[0.04] disabled:opacity-50 transition-colors"
+            >
+              {isFetching
+                ? t("allCredits.loading", "Loading…")
+                : t("allCredits.loadMore", "Load more")}
+            </button>
+            <p className="text-center text-[10px] text-white/25">
+              {t("allCredits.showingCount", {
+                shown: credits.length,
+                total: totalCount,
+                defaultValue: `Showing ${credits.length} of ${totalCount}`,
+              })}
+            </p>
+          </div>
+        )}
       </main>
 
       <CreditDetailModal

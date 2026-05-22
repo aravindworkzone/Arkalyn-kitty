@@ -213,15 +213,24 @@ export const expenseReportService = async (groupId: mongoose.Types.ObjectId) => 
     }
 }
 
-export const getAllExpensesService = async (groupId: mongoose.Types.ObjectId) => {
+export const getAllExpensesService = async (
+    groupId: mongoose.Types.ObjectId,
+    page: number,
+    limit: number
+) => {
     if(!groupId) throw new AppError("Group ID is required", 400);
     try {
-        const expenses = await Expense.find({ groupId, isDeleted: false })
-            .populate("paidBy")
-            .populate("category")
-            .populate("splitBetween.userId", "name email")
-            .sort({ date: -1 });
-        return expenses;
+        const [items, total] = await Promise.all([
+            Expense.find({ groupId, isDeleted: false })
+                .populate("paidBy")
+                .populate("category")
+                .populate("splitBetween.userId", "name email")
+                .sort({ date: -1 })
+                .skip((page - 1) * limit)
+                .limit(limit),
+            Expense.countDocuments({ groupId, isDeleted: false }),
+        ]);
+        return { items, total };
     } catch (error : any) {
         throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }

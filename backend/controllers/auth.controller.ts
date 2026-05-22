@@ -4,6 +4,8 @@ import {
     LoginService,
     RefreshService,
     LogoutService,
+    requestPasswordResetService,
+    resetPasswordService,
 } from '../services/auth.service';
 import { AppError } from '../helpers/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -75,4 +77,19 @@ export const Logout = asyncHandler(async (req, res) => {
     await LogoutService(rawRefreshToken);
     clearAuthCookies(res);
     sendSuccess(res, null, 'User signed out successfully');
+});
+
+export const ForgotPassword = asyncHandler(async (req, res) => {
+    await requestPasswordResetService(req.body.email);
+    // Always the same generic response — never reveal whether the email exists.
+    sendSuccess(
+        res,
+        null,
+        'If an account exists for that email, a password reset link has been sent.'
+    );
+});
+
+export const ResetPassword = asyncHandler(async (req, res) => {
+    await resetPasswordService(req.body.token, req.body.password);
+    sendSuccess(res, null, 'Password reset successfully. You can now sign in.');
 });

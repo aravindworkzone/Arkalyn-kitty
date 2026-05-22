@@ -34,4 +34,5 @@ export const eventConfig: Record<string, { label: string; icon: React.ReactNode;
   MEMBER_REMOVED:  { label: "Member removed",   color: "#f87171", icon: <><circle cx="6" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1 11c0-2.5 2-4 5-4s5 1.5 5 4M10 7h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></> },
   MANAGE_CATEGORY: { label: "Category updated", color: "#a78bfa", icon: <path d="M2 3h4v4H2zM8 3h4v4H8zM2 9h4v4H2zM8 9h4v4H8z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/> },
   CHANGE_ROLE:     { label: "Role changed",     color: "#fbbf24", icon: <path d="M2 6h10M7 2l4 4-4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/> },
+  CREDIT_REMOVED:     { label: "Credit removed",     color: "#f87171", icon: <path d="M2 6h10M7 2l4 4-4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/> },
 };

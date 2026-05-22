@@ -1,5 +1,6 @@
 import {api} from './base';
 import type { GetExpenseReport } from "../../interface/expense";
+import type { PaginatedData } from "../../interface/api";
 
 export const expense = api.injectEndpoints({
     endpoints: (builder) => ({
@@ -30,11 +31,11 @@ export const expense = api.injectEndpoints({
                 { type: "Expense", id: groupId }
             ],
         }),
-        getAllExpenses: builder.query<GetExpenseReport[], string>({
-            query: (groupId) => `/expense/allexpenses/${groupId}`,
-            transformResponse: (res: { data: {expenses: GetExpenseReport[]} }) => res.data.expenses,
-            providesTags: (_result, _error, groupId) => [
-                { type: "Expense", id: groupId }
+        getAllExpenses: builder.query<PaginatedData<GetExpenseReport>, { groupId: string; limit: number }>({
+            query: ({ groupId, limit }) => `/expense/allexpenses/${groupId}?limit=${limit}`,
+            transformResponse: (res: { data: PaginatedData<GetExpenseReport> }) => res.data,
+            providesTags: (_result, _error, arg) => [
+                { type: "Expense", id: arg.groupId }
             ],
         }),
         deleteExpense: builder.mutation<any, { expenseId: string; groupId: string; reason?: string }>({
