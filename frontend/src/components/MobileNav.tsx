@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useSignOutMutation } from "../redux/api/auth";
+import { useGetCategoriesQuery } from "../redux/api/category";
 import { socket } from "../socket/socket";
 import { BottomSheet } from "./ui";
 import LanguageToggle from "./LanguageToggle";
@@ -31,10 +32,19 @@ export default function MobileNav({ user }: Props) {
   const inGroup = !!groupId;
   const path = location.pathname;
 
+  // An expense needs a category — keep the "+ Expense" action disabled until
+  // the group has one. Shown optimistically while the list is still loading.
+  const { data: categories = [], isLoading: catLoading } = useGetCategoriesQuery(groupId, {
+    skip: !inGroup,
+  });
+  const canAddExpense = catLoading || categories.length > 0;
+
   // Contextual middle action: "+ Expense" inside a group, "+ Group" on the list,
   // disabled elsewhere so the nav stays predictable.
   const addAction = inGroup
-    ? { label: t("groupDetail.addExpense", "Add Expense"), to: `/groups/${groupId}/expenses/new` }
+    ? canAddExpense
+      ? { label: t("groupDetail.addExpense", "Add Expense"), to: `/groups/${groupId}/expenses/new` }
+      : null
     : onGroupsList
       ? { label: t("groups.newGroup", "New Group"), to: "/groups/new" }
       : null;

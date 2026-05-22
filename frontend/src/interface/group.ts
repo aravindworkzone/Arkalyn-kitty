@@ -17,6 +17,7 @@ export interface Group {
   displayId: string;
   members: string[];
   expenseCount: number;
+  categoryCount: number;
   balance: number;
   barLength: number;
   createdAt: string;

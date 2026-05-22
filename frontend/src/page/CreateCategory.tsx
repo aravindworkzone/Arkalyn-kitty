@@ -26,8 +26,8 @@ export default function CategoryPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const { handleAdd, handleDelete, isDeleting } = useCategoryHandlers(groupId);
-  const { data } = useGetCategoriesQuery(groupId);
+  const { handleAdd, handleDelete, isCreating, isDeleting } = useCategoryHandlers(groupId);
+  const { data, isLoading } = useGetCategoriesQuery(groupId);
 
   const [name, setName]   = useState("");
   const [color, setColor] = useState(colorOptions[0]);
@@ -135,24 +135,33 @@ export default function CategoryPage() {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), doAdd())}
+                    onKeyDown={(e) => e.key === "Enter" && !isCreating && (e.preventDefault(), doAdd())}
                     error={fieldErrors.name}
                     onClearError={() => clearFieldError("name")}
                     placeholder={t("createCategory.namePlaceholder")}
                     autoComplete="off"
                     maxLength={40}
+                    disabled={isCreating}
                   />
                 </div>
                 <button
                   type="button"
                   onClick={doAdd}
-                  className="shrink-0 px-4 py-3 rounded-xl text-sm font-semibold border
+                  disabled={isCreating}
+                  className="shrink-0 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold border
                     bg-violet-500/10 border-violet-500/25 text-violet-300
                     hover:bg-violet-500/20 hover:border-violet-400/40
                     active:bg-violet-500/20 active:border-violet-400/40 active:scale-[0.97]
+                    disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
                     transition-all duration-150"
                 >
-                  {t("createCategory.add")}
+                  {isCreating && (
+                    <svg className="animate-spin" width="13" height="13" viewBox="0 0 14 14" fill="none">
+                      <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.6" opacity="0.25" />
+                      <path d="M7 1.5A5.5 5.5 0 0 1 12.5 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  )}
+                  {isCreating ? t("createCategory.adding", "Adding…") : t("createCategory.add")}
                 </button>
               </div>
               {apiError && <div className="mt-1.5"><ErrorMessage error={apiError} /></div>}
@@ -246,7 +255,22 @@ export default function CategoryPage() {
             </span>
           </div>
 
-          {categories?.length === 0 ? (
+          {isLoading ? (
+            <div className="divide-y divide-white/[0.04]">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex items-center justify-between px-5 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-white/[0.05] animate-pulse shrink-0" style={{ animationDelay: `${i * 90}ms` }} />
+                    <div className="space-y-1.5">
+                      <div className="h-3 w-28 bg-white/[0.06] rounded animate-pulse" style={{ animationDelay: `${i * 90}ms` }} />
+                      <div className="h-2.5 w-16 bg-white/[0.04] rounded animate-pulse" style={{ animationDelay: `${i * 90}ms` }} />
+                    </div>
+                  </div>
+                  <div className="w-7 h-7 rounded-lg bg-white/[0.04] animate-pulse" style={{ animationDelay: `${i * 90}ms` }} />
+                </div>
+              ))}
+            </div>
+          ) : categories?.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <p className="text-white/20 text-xs">{t("createCategory.noCategoriesYet")}</p>
             </div>

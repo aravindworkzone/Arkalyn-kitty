@@ -12,11 +12,18 @@ export const createCategoryService = async (data: {
 }) => {
     const { groupId, userId, name, color } = data;
 
+    // Collapse internal whitespace so "test  name" and "test name" can't both
+    // exist — the { groupId, name } unique index only catches exact matches.
+    const cleanName = name.replace(/\s+/g, ' ').trim();
+
     const session = await mongoose.startSession();
     try {
         session.startTransaction();
 
-        const categorySave = new Category({ name, groupId, color });
+        const existing = await Category.findOne({ groupId, name: cleanName, isDeleted: false }).session(session);
+        if (existing) throw new AppError('Category already exists', 409);
+
+        const categorySave = new Category({ name: cleanName, groupId, color });
         await categorySave.save({ session });
 
         const event = await GroupEvent.create(
@@ -24,7 +31,7 @@ export const createCategoryService = async (data: {
                 groupId,
                 performedBy: userId,
                 eventType: "MANAGE_CATEGORY",
-                metadata: { userId, note: `Created category: ${name}` },
+                metadata: { userId, note: `Created category: ${cleanName}` },
                 referenceId: categorySave._id,
                 referenceModel: "Category",
             }],

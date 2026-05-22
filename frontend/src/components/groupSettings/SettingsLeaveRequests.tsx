@@ -7,6 +7,7 @@ import { ActionButton, AmountInput, INPUT_CLASS } from "../ui";
 
 interface Props {
   members: GroupMember[] | undefined;
+  isSuperAdmin: boolean;
   isApprovingLeave: boolean;
   isRejectingLeave: boolean;
   handleApproveLeave: (
@@ -20,17 +21,21 @@ interface Props {
 
 interface RowProps {
   member: GroupMember;
+  isSuperAdmin: boolean;
   isApprovingLeave: boolean;
   isRejectingLeave: boolean;
   onApprove: Props["handleApproveLeave"];
   onReject: Props["handleRejectLeave"];
 }
 
-function LeaveRequestRow({ member, isApprovingLeave, isRejectingLeave, onApprove, onReject }: RowProps) {
+function LeaveRequestRow({ member, isSuperAdmin, isApprovingLeave, isRejectingLeave, onApprove, onReject }: RowProps) {
   const { t } = useTranslation();
   const maxAmount = member.contribution ?? 0;
   const [amount, setAmount] = useState(maxAmount > 0 ? String(maxAmount) : "");
   const { fieldErrors, setFieldError, clearFieldError } = useFieldError<LeaveRequestField>();
+
+  // An admin's leave request can only be acted on by the super admin.
+  const locked = member.role === "ADMIN" && !isSuperAdmin;
 
   return (
     <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 space-y-3">
@@ -53,7 +58,7 @@ function LeaveRequestRow({ member, isApprovingLeave, isRejectingLeave, onApprove
         )}
       </div>
 
-      {maxAmount > 0 && (
+      {maxAmount > 0 && !locked && (
         <AmountInput
           size="md"
           value={amount}
@@ -66,30 +71,40 @@ function LeaveRequestRow({ member, isApprovingLeave, isRejectingLeave, onApprove
         />
       )}
 
-      <div className="flex gap-2">
-        <ActionButton
-          tone="green"
-          loading={isApprovingLeave}
-          loadingLabel={t("leaveRequests.approving")}
-          onClick={() => onApprove(member.userId._id, amount, maxAmount, setFieldError)}
-        >
-          {t("leaveRequests.approve")}
-        </ActionButton>
-        <ActionButton
-          tone="red"
-          loading={isRejectingLeave}
-          loadingLabel={t("leaveRequests.rejecting")}
-          onClick={() => onReject(member.userId._id)}
-        >
-          {t("leaveRequests.reject")}
-        </ActionButton>
-      </div>
+      {locked ? (
+        <p className="text-[11px] text-amber-400/70">
+          {t(
+            "leaveRequests.superAdminOnly",
+            "Only the super admin can approve or reject an admin's leave request.",
+          )}
+        </p>
+      ) : (
+        <div className="flex gap-2">
+          <ActionButton
+            tone="green"
+            loading={isApprovingLeave}
+            loadingLabel={t("leaveRequests.approving")}
+            onClick={() => onApprove(member.userId._id, amount, maxAmount, setFieldError)}
+          >
+            {t("leaveRequests.approve")}
+          </ActionButton>
+          <ActionButton
+            tone="red"
+            loading={isRejectingLeave}
+            loadingLabel={t("leaveRequests.rejecting")}
+            onClick={() => onReject(member.userId._id)}
+          >
+            {t("leaveRequests.reject")}
+          </ActionButton>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function SettingsLeaveRequests({
   members,
+  isSuperAdmin,
   isApprovingLeave,
   isRejectingLeave,
   handleApproveLeave,
@@ -113,6 +128,7 @@ export default function SettingsLeaveRequests({
         <LeaveRequestRow
           key={member._id}
           member={member}
+          isSuperAdmin={isSuperAdmin}
           isApprovingLeave={isApprovingLeave}
           isRejectingLeave={isRejectingLeave}
           onApprove={handleApproveLeave}

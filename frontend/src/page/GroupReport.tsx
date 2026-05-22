@@ -116,6 +116,9 @@ export default function ReportPage() {
           ))}
         </div>
 
+        {/* Sticks below the global header so the Transactions/Activity switch
+            stays reachable while scrolling a long list. */}
+        <div className="sticky top-14 lg:top-16 z-20 -mx-4 px-4 py-2 bg-[#080c14]/95 backdrop-blur-md">
         <div className="flex gap-1 p-1 bg-white/[0.03] border border-white/[0.07] rounded-xl">
           {(["transactions", "events"] as const).map((tabKey) => (
             <button
@@ -130,6 +133,7 @@ export default function ReportPage() {
               {tabKey === "transactions" ? t("report.tabTransactions") : t("report.tabActivity")}
             </button>
           ))}
+        </div>
         </div>
 
         {tab === "transactions" && (

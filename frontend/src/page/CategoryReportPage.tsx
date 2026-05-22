@@ -12,8 +12,10 @@ import {
     BackButton,
     PageHeader,
     StatCard,
+    DATE_INPUT_EXTRA,
 } from '../components/ui';
 import type { ReportPreset, CategoryBreakdownRow, TrendGranularity } from '../interface/report';
+import { MIN_DATE, todayISODate, blockDateTyping } from '../helpers/validators';
 
 const PRESETS: ReportPreset[] = ['this_month', 'last_month', 'all_time', 'custom'];
 
@@ -189,7 +191,10 @@ export default function CategoryReportPage() {
                     description={t('reports.description', 'See how your group spends — by category, by member, and over time.')}
                 />
 
-                {/* view tabs */}
+                {/* view tabs + date range — sticks below the global header so
+                    the view switch and the preset range stay reachable while
+                    scrolling. */}
+                <div className="sticky top-14 lg:top-16 z-20 -mx-4 px-4 py-2 bg-[#080c14]/95 backdrop-blur-md space-y-3">
                 <div className="flex gap-1.5 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1">
                     {VIEWS.map((v) => (
                         <button
@@ -232,8 +237,17 @@ export default function CategoryReportPage() {
                                 <input
                                     type="date"
                                     value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    className="mt-1 w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white/80"
+                                    min={MIN_DATE}
+                                    max={endDate || todayISODate()}
+                                    onKeyDown={blockDateTyping}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        setStartDate(v);
+                                        // Keep the range coherent: a "to" earlier
+                                        // than the new "from" is snapped forward.
+                                        if (endDate && v && endDate < v) setEndDate(v);
+                                    }}
+                                    className={`mt-1 w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white/80 ${DATE_INPUT_EXTRA}`}
                                 />
                             </label>
                             <label className="block">
@@ -243,12 +257,16 @@ export default function CategoryReportPage() {
                                 <input
                                     type="date"
                                     value={endDate}
+                                    min={startDate || MIN_DATE}
+                                    max={todayISODate()}
+                                    onKeyDown={blockDateTyping}
                                     onChange={(e) => setEndDate(e.target.value)}
-                                    className="mt-1 w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white/80"
+                                    className={`mt-1 w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white/80 ${DATE_INPUT_EXTRA}`}
                                 />
                             </label>
                         </div>
                     )}
+                </div>
                 </div>
 
                 {activeData && (

@@ -25,11 +25,17 @@ export default function SettingsContribution({ members, isAddingContrib, handleA
   const { t } = useTranslation();
   const { data: meData } = useGetUserQuery();
   const currentUserName = meData?.data?.user?.name ?? "";
+  const currentUserId = meData?.data?.user?._id ?? "";
   const [myContrib, setMyContrib] = useState("");
   const [myContribDesc, setMyContribDesc] = useState("");
   const [contribMemberId, setContribMemberId] = useState("");
   const { fieldErrors, setFieldError, clearFieldError } = useFieldError<ContributionField>();
   const { fieldErrors: descErrors, setFieldError: setDescError, clearFieldError: clearDescError } = useFieldError<ContributionDescField>();
+
+  // A settled member is closed out — no further money may be added for them.
+  // When no member is picked, the contribution defaults to the current user.
+  const targetMemberId = contribMemberId || currentUserId;
+  const targetSettled = !!members?.find((m) => m.userId._id === targetMemberId)?.settlement;
 
   return (
     <div className="space-y-3">
@@ -41,8 +47,18 @@ export default function SettingsContribution({ members, isAddingContrib, handleA
         onChange={setContribMemberId}
         placeholder={currentUserName ? `${currentUserName} (self)` : t("groupDetail.myContribution")}
         placeholderDisabled={false}
+        filter={(m) => !m.settlement}
         renderLabel={(m) => `${m.userId.name} · ₹${m.contribution.toLocaleString("en-IN")} current`}
       />
+
+      {targetSettled && (
+        <p className="text-[11px] text-amber-400/70">
+          {t(
+            "groupDetail.settledNoContribution",
+            "This member is already settled — contributions can no longer be added for them.",
+          )}
+        </p>
+      )}
 
       <AmountInput
         size="md"
@@ -69,7 +85,7 @@ export default function SettingsContribution({ members, isAddingContrib, handleA
         tone="violet"
         loading={isAddingContrib}
         loadingLabel={t("groupDetail.addingContrib")}
-        disabled={!myContrib || Number(myContrib) <= 0}
+        disabled={!myContrib || Number(myContrib) <= 0 || targetSettled}
         onClick={() =>
           handleAddContribution(
             myContrib, contribMemberId,

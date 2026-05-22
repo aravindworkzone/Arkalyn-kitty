@@ -17,8 +17,10 @@ export default function SearchInput({ value, onChange, placeholder = "Search…"
         <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4" />
         <path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
       </svg>
+      {/* type="text" (not "search") — a search input renders a native clear
+          button that would double up with the custom X below. */}
       <input
-        type="search"
+        type="text"
         inputMode="search"
         autoComplete="off"
         placeholder={placeholder}

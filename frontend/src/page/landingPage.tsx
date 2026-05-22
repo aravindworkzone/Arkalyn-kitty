@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { SegmentedToggle, Logo } from "../components/ui";
+import DemoShowcase from "../components/landing/DemoShowcase";
 
 type Mode = "summary" | "detailed";
 
@@ -217,38 +218,8 @@ function Hero() {
             </div>
           </div>
 
-          <div className="relative">
-            <div className="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 shadow-xl shadow-stone-200/50 dark:shadow-black/30 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-xs text-stone-400">Goa Trip · Grp-26-001</p>
-                  <p className="text-2xl font-semibold tracking-tight">₹ 18,400</p>
-                </div>
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                  {t("landing.hero.cardStatus")}
-                </span>
-              </div>
-              <div className="h-2 rounded-full bg-stone-100 dark:bg-stone-800 overflow-hidden mb-5">
-                <div className="h-full w-[62%] bg-gradient-to-r from-indigo-500 to-violet-500" />
-              </div>
-              <div className="space-y-3">
-                {[
-                  { name: "Dinner @ Curlies", who: "Asha", amt: 2400 },
-                  { name: "Scooter rental", who: "Karthik", amt: 1800 },
-                  { name: "Beach shack stay", who: "Priya", amt: 6200 },
-                ].map((e) => (
-                  <div key={e.name} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-stone-800 dark:text-stone-100">{e.name}</p>
-                      <p className="text-xs text-stone-400">{t("landing.hero.cardPaidVia")} · {e.who}</p>
-                    </div>
-                    <p className="text-sm font-mono text-stone-700 dark:text-stone-300">
-                      ₹{e.amt.toLocaleString("en-IN")}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="relative flex justify-center lg:justify-end">
+            <DemoShowcase />
           </div>
         </div>
       </div>

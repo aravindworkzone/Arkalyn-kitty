@@ -5,6 +5,19 @@ const fail = (message: string): ValidationResult => ({ valid: false, message });
 
 export const MAX_AMOUNT = 1_000_000;
 
+// ── Date bounds ───────────────────────────────────────────────────
+// Dates are locked to a sane window: no future dates, nothing before 1967.
+export const MIN_YEAR = 1967;
+export const MIN_DATE = `${MIN_YEAR}-01-01`;
+
+// Today's date as a local-timezone YYYY-MM-DD string — used for the `max`
+// attribute on date inputs so a future date can't even be picked.
+export const todayISODate = (): string => {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().split("T")[0]!;
+};
+
 // ── Auth ──────────────────────────────────────────────────────────
 
 export const validateEmail = (email: string): ValidationResult => {
@@ -71,6 +84,7 @@ export const validateDate = (date: string): ValidationResult => {
   const today = new Date();
   today.setHours(23, 59, 59, 999);
   if (d > today) return fail("Date cannot be in the future");
+  if (d.getFullYear() < MIN_YEAR) return fail(`Date cannot be before ${MIN_YEAR}`);
   return ok();
 };
 
@@ -117,6 +131,13 @@ export const sanitizeGroupName = (raw: string): string =>
 // Legacy event-handler form — kept for any remaining onInput usages.
 export const handleAmountInput = (e: React.FormEvent<HTMLInputElement>): void => {
   e.currentTarget.value = sanitizeAmount(e.currentTarget.value);
+};
+
+// Blocks manual keyboard entry on a native <input type="date"> so a date can
+// only be chosen through the picker — stops users typing an out-of-range or
+// malformed value. Tab/Escape stay free so focus and the picker still behave.
+export const blockDateTyping = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+  if (e.key !== "Tab" && e.key !== "Escape") e.preventDefault();
 };
 
 // ── Grouped validators (used by auth handler form iteration) ──────

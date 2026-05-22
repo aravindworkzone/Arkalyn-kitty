@@ -111,7 +111,8 @@ const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingF
           </span>
         </div>
 
-        {!isClosed && (
+        {/* An expense needs a category — hide the action until one exists. */}
+        {!isClosed && group.categoryCount > 0 && (
           <button
             onClick={(e) => {
               e.stopPropagation();

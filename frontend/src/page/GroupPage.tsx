@@ -112,7 +112,7 @@ const GroupPage = () => {
               <path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
             <input
-              type="search"
+              type="text"
               inputMode="search"
               autoComplete="off"
               placeholder={t("groups.searchPlaceholder")}

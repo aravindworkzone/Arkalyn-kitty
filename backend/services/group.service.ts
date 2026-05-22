@@ -650,6 +650,14 @@ export const approveLeaveRequestService = async (data: {
     if (member.role === "SUPER_ADMIN") {
         throw new AppError("Super admin cannot leave the group", 400);
     }
+    // An admin's exit must be authorised by the super admin — a peer admin
+    // cannot approve another admin's leave request.
+    if (member.role === "ADMIN") {
+        const approver = await GroupMember.findOne({ groupId: groupData, userId: adminId, isDeleted: false });
+        if (approver?.role !== "SUPER_ADMIN") {
+            throw new AppError("Only the super admin can approve an admin's leave request", 403);
+        }
+    }
     if (settlement > balance) {
         throw new AppError("Settlement amount cannot be greater than group balance", 400);
     }
@@ -731,6 +739,13 @@ export const rejectLeaveRequestService = async (data: {
     }
     if (!member.leaveRequestedAt) {
         throw new AppError("This member has no pending leave request", 400);
+    }
+    // An admin's leave request can only be rejected by the super admin.
+    if (member.role === "ADMIN") {
+        const approver = await GroupMember.findOne({ groupId: groupData, userId: adminId, isDeleted: false });
+        if (approver?.role !== "SUPER_ADMIN") {
+            throw new AppError("Only the super admin can reject an admin's leave request", 403);
+        }
     }
 
     member.leaveRequestedAt = null;

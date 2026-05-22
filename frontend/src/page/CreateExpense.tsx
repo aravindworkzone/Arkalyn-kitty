@@ -16,8 +16,9 @@ import {
   FormActions,
   FieldInput,
   AmountInput,
+  DATE_INPUT_EXTRA,
 } from "../components/ui";
-import { sanitizeAmount } from "../helpers/validators";
+import { sanitizeAmount, MIN_DATE, todayISODate } from "../helpers/validators";
 import { useFieldError } from "../hooks/useFieldError";
 import { useTranslation } from "react-i18next";
 
@@ -38,9 +39,13 @@ export default function CreateExpensePage() {
   const groupBalance = Number(groupDetails?.balance) || 0;
   const { handleSubmit, isCreating } = useExpenseHandlers(groupId);
 
+  // Only admins/super-admins manage categories — members can't create them.
+  const role = groupDetails?.role as string | undefined;
+  const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
+
   const [title, setTitle]             = useState("");
   const [amount, setAmount]           = useState("");
-  const [date, setDate]               = useState(() => new Date().toISOString().split("T")[0]);
+  const [date, setDate]               = useState(() => todayISODate());
   const [categoryId, setCategoryId]   = useState("");
   const [paymentType, setPaymentType] = useState("Cash");
   const [paidBy, setPaidBy]           = useState("");
@@ -114,12 +119,14 @@ export default function CreateExpensePage() {
             <div>
               <label className={fieldLabel}>{t("createExpense.date")}</label>
               <FieldInput
-                className={`${inputCls} text-white/70`}
+                className={`${inputCls} text-white/70 ${DATE_INPUT_EXTRA}`}
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 error={fieldErrors.date}
                 onClearError={() => clearFieldError("date")}
+                min={MIN_DATE}
+                max={todayISODate()}
               />
             </div>
           </div>
@@ -155,16 +162,22 @@ export default function CreateExpensePage() {
                         <span translate="no">{cat.name}</span>
                       </button>
                     ))}
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/groups/${groupId}/categories/new`)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border border-dashed border-white/[0.12] text-white/30 hover:border-cyan-500/40 hover:text-cyan-400 active:border-cyan-500/40 active:text-cyan-400 transition-all duration-150"
-                    >
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                        <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      </svg>
-                      {categories.length === 0 ? t("createExpense.noCategoriesCreate") : t("createExpense.add")}
-                    </button>
+                    {isAdmin ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/groups/${groupId}/categories/new`)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border border-dashed border-white/[0.12] text-white/30 hover:border-cyan-500/40 hover:text-cyan-400 active:border-cyan-500/40 active:text-cyan-400 transition-all duration-150"
+                      >
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
+                        {categories.length === 0 ? t("createExpense.noCategoriesCreate") : t("createExpense.add")}
+                      </button>
+                    ) : categories.length === 0 ? (
+                      <span className="text-[12px] text-white/30 px-1 py-1.5">
+                        {t("createExpense.noCategoriesMember", "No categories yet — ask an admin to add one.")}
+                      </span>
+                    ) : null}
                   </>
                 )
               }

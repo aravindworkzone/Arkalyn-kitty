@@ -58,7 +58,6 @@ export default function GroupDetailPage() {
   const [groupClosedBanner, setGroupClosedBanner] = useState(false);
 
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
-  const [noCatAlert,      setNoCatAlert]      = useState(false);
 
   const { data: GroupDetails, isLoading: groupLoading } =
     useGetGroupByIdQuery(groupId!, { skip: !groupId });
@@ -68,7 +67,7 @@ export default function GroupDetailPage() {
     useGetGroupMembersQuery(groupId!, { skip: !groupId });
   const { data: LeftContributors } =
     useGetLeftContributorsQuery(groupId!, { skip: !groupId });
-  const { data: categories = [] } =
+  const { data: categories = [], isLoading: catLoading } =
     useGetCategoriesQuery(groupId!, { skip: !groupId });
 
   const {
@@ -229,36 +228,6 @@ export default function GroupDetailPage() {
           <MemberAvatars members={memberNames} />
         </div>
 
-        {/* ── No-category alert ── */}
-        {noCatAlert && (
-          <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25">
-            <svg className="shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M7 1l6 11H1L7 1z" stroke="#fbbf24" strokeWidth="1.3" strokeLinejoin="round" />
-              <path d="M7 5.5v3M7 9.5h.01" stroke="#fbbf24" strokeWidth="1.3" strokeLinecap="round" />
-            </svg>
-            <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold text-amber-300 leading-tight">{t("groupDetail.noCatTitle")}</p>
-              <p className="text-[11px] text-amber-400/70 mt-0.5">{t("groupDetail.noCatDesc")}</p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => navigate(`/groups/${groupId}/categories/new`)}
-                className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 active:text-amber-200 transition-colors"
-              >
-                {t("groupDetail.create")}
-              </button>
-              <button
-                onClick={() => setNoCatAlert(false)}
-                className="text-amber-500/60 hover:text-amber-400 active:text-amber-400 transition-colors"
-              >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                  <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* ── Leave request sent banner ── */}
         {leaveRequestSent && (
           <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-green-500/10 border border-green-500/25">
@@ -303,13 +272,11 @@ export default function GroupDetailPage() {
           {[
             {
               label: t("groupDetail.addExpense"),
-              onClick: () => {
-                if (categories.length === 0) { setNoCatAlert(true); return; }
-                navigate(`/groups/${groupId}/expenses/new`);
-              },
+              onClick: () => navigate(`/groups/${groupId}/expenses/new`),
               color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/20 hover:bg-cyan-500/20 hover:border-cyan-400/35",
               icon: <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />,
-              show: true,
+              // An expense needs a category — hide the entry until one exists.
+              show: catLoading || categories.length > 0,
             },
             {
               label: t("groupDetail.category"),
@@ -475,7 +442,9 @@ export default function GroupDetailPage() {
                           ₹{member.contribution.toLocaleString("en-IN")}
                         </p>
                         {member.settlement && (
-                          <p className="text-[9px] text-green-400/70 font-semibold">{t("groupDetail.settled")}</p>
+                          <p className="text-[9px] text-green-400/70 font-semibold" translate="no">
+                            {t("groupDetail.settled")} · ₹{(member.settlementAmount ?? 0).toLocaleString("en-IN")}
+                          </p>
                         )}
                       </div>
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleGrade[member.role]}`}>
@@ -631,7 +600,7 @@ export default function GroupDetailPage() {
                 <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-[#0d1220] to-transparent sm:hidden" />
               </div>
 
-              <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1">
+              <div className="px-5 py-4 space-y-3 flex-1">
 
                 <StatusBanner status={msg ? (msg.ok ? "ok" : "err") : null} text={msg?.text ?? ""} />
 
@@ -671,6 +640,7 @@ export default function GroupDetailPage() {
                 {tab === "leaveRequests" && (
                   <SettingsLeaveRequests
                     members={GroupMembers}
+                    isSuperAdmin={isSuperAdmin}
                     isApprovingLeave={isApprovingLeave}
                     isRejectingLeave={isRejectingLeave}
                     handleApproveLeave={handleApproveLeave}
