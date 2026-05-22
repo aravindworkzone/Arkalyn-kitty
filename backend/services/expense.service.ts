@@ -213,22 +213,41 @@ export const expenseReportService = async (groupId: mongoose.Types.ObjectId) => 
     }
 }
 
+interface ExpenseListFilters {
+    categoryId?: string;
+    paidBy?: string;
+    startDate?: Date;
+    endDate?: Date;
+}
+
 export const getAllExpensesService = async (
     groupId: mongoose.Types.ObjectId,
     page: number,
-    limit: number
+    limit: number,
+    filters: ExpenseListFilters = {}
 ) => {
     if(!groupId) throw new AppError("Group ID is required", 400);
     try {
+        // Optional filters let the report page deep-link into a pre-filtered view.
+        const query: Record<string, unknown> = { groupId, isDeleted: false };
+        if (filters.categoryId) query.category = filters.categoryId;
+        if (filters.paidBy) query.paidBy = filters.paidBy;
+        if (filters.startDate || filters.endDate) {
+            const dateRange: Record<string, Date> = {};
+            if (filters.startDate) dateRange.$gte = filters.startDate;
+            if (filters.endDate) dateRange.$lte = filters.endDate;
+            query.date = dateRange;
+        }
+
         const [items, total] = await Promise.all([
-            Expense.find({ groupId, isDeleted: false })
+            Expense.find(query)
                 .populate("paidBy")
                 .populate("category")
                 .populate("splitBetween.userId", "name email")
                 .sort({ date: -1 })
                 .skip((page - 1) * limit)
                 .limit(limit),
-            Expense.countDocuments({ groupId, isDeleted: false }),
+            Expense.countDocuments(query),
         ]);
         return { items, total };
     } catch (error : any) {

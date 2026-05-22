@@ -79,7 +79,7 @@ app.use('/api/auth', authRateLimiter, AuthRouter);
 app.use('/api/expense', ExpenseRouter);
 app.use('/api/category', CategoryRouter);
 app.use('/api/group', GroupRouter);
-app.use('/api/group', ReportRouter);
+app.use('/api/groupreport', ReportRouter);
 app.use('/api/user', UserRouter);
 app.use('/api/notifications', NotificationRouter);
 app.use('/api/invite', InviteRouter);

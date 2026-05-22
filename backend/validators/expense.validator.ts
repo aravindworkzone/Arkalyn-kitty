@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { objectIdSchema, groupIdParamSchema } from './common';
+import { objectIdSchema, groupIdParamSchema, paginationQuerySchema } from './common';
 import { PAYMENT_TYPES } from '../models/expense.model';
 
 const splitBetweenItemSchema = z.object({
@@ -35,4 +35,14 @@ export const groupIdOnlyParamsSchema = z.object({
     groupId: groupIdParamSchema,
 });
 
+// Pagination + optional filters for the "all expenses" list. Lets the report page
+// deep-link into a pre-filtered view by category, member, or date range.
+export const allExpensesQuerySchema = paginationQuerySchema.extend({
+    categoryId: objectIdSchema.optional(),
+    paidBy: objectIdSchema.optional(),
+    startDate: z.coerce.date({ message: 'Invalid start date' }).optional(),
+    endDate: z.coerce.date({ message: 'Invalid end date' }).optional(),
+});
+
 export type CreateExpenseDto = z.infer<typeof createExpenseBodySchema>;
+export type AllExpensesQuery = z.infer<typeof allExpensesQuerySchema>;

@@ -21,7 +21,7 @@ export const report = api.injectEndpoints({
     endpoints: (builder) => ({
         getCategoryBreakdown: builder.query<CategoryBreakdown, CategoryBreakdownArgs>({
             query: (args) => ({
-                url: `/group/${args.groupId}/reports/category-breakdown${rangeQuery(args)}`,
+                url: `/groupreport/${args.groupId}/reports/category-breakdown${rangeQuery(args)}`,
                 method: 'GET',
             }),
             transformResponse: (res: { data: CategoryBreakdown }) => res.data,
@@ -33,7 +33,7 @@ export const report = api.injectEndpoints({
         }),
         getMemberBreakdown: builder.query<MemberBreakdown, ReportRangeArgs>({
             query: (args) => ({
-                url: `/group/${args.groupId}/reports/member-breakdown${rangeQuery(args)}`,
+                url: `/groupreport/${args.groupId}/reports/member-breakdown${rangeQuery(args)}`,
                 method: 'GET',
             }),
             transformResponse: (res: { data: MemberBreakdown }) => res.data,
@@ -44,7 +44,7 @@ export const report = api.injectEndpoints({
         }),
         getSpendTrend: builder.query<SpendTrend, ReportRangeArgs>({
             query: (args) => ({
-                url: `/group/${args.groupId}/reports/spend-trend${rangeQuery(args)}`,
+                url: `/groupreport/${args.groupId}/reports/spend-trend${rangeQuery(args)}`,
                 method: 'GET',
             }),
             transformResponse: (res: { data: SpendTrend }) => res.data,

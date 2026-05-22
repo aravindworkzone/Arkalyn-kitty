@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import Header from "../components/header";
 import { useGetAllExpensesQuery } from "../redux/api/expense";
 import { useGetGroupByIdQuery } from "../redux/api/group";
@@ -19,15 +19,33 @@ const MAX_LIMIT = 200;
 
 export default function AllExpensesPage() {
   const { groupId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Filters arrive as URL params when the user drills in from a report card.
+  const categoryId = searchParams.get("categoryId") ?? undefined;
+  const paidBy = searchParams.get("paidBy") ?? undefined;
+  const startDate = searchParams.get("startDate") ?? undefined;
+  const endDate = searchParams.get("endDate") ?? undefined;
+  const filterLabel = searchParams.get("label") ?? undefined;
+  const hasFilter = Boolean(categoryId || paidBy || startDate || endDate);
+
   const [limit, setLimit] = useState(PAGE_STEP);
+
+  // A changed filter is a fresh list — restart paging from the first page.
+  useEffect(() => {
+    setLimit(PAGE_STEP);
+  }, [categoryId, paidBy, startDate, endDate]);
+
   const { data, isLoading, isFetching } = useGetAllExpensesQuery(
-    { groupId: groupId!, limit },
+    { groupId: groupId!, limit, categoryId, paidBy, startDate, endDate },
     { skip: !groupId }
   );
   const { data: GroupDetails } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
   const [search, setSearch] = useState("");
   const { t } = useTranslation();
+
+  const clearFilter = () => setSearchParams({}, { replace: true });
 
   const expenses = data?.items ?? [];
   const totalCount = data?.total ?? 0;
@@ -77,6 +95,30 @@ export default function AllExpensesPage() {
           description={t("allExpenses.description")}
         />
 
+        {hasFilter && (
+          <div className="flex items-center justify-between gap-3 bg-violet-500/[0.08] border border-violet-400/20 rounded-xl px-3.5 py-2.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="shrink-0">
+                <path
+                  d="M1.5 2.5h11l-4.3 5v3.7l-2.4 1.3V7.5l-4.3-5Z"
+                  stroke="#c4b5fd"
+                  strokeWidth="1.3"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className="text-[12px] text-violet-100/80 truncate" translate="no">
+                {filterLabel ?? t("allExpenses.filterActive", "Filtered")}
+              </span>
+            </div>
+            <button
+              onClick={clearFilter}
+              className="text-[11px] font-semibold text-violet-300 hover:text-violet-200 active:text-violet-200 shrink-0 transition-colors"
+            >
+              {t("allExpenses.clearFilter", "Clear filter")}
+            </button>
+          </div>
+        )}
+
         {!isLoading && (
           <div className="grid grid-cols-2 gap-2">
             <StatCard label={t("allExpenses.totalSpent")} value={total} currency />
@@ -119,7 +161,19 @@ export default function AllExpensesPage() {
 
         {!isLoading && expenses?.length === 0 && (
           <div className="text-center py-16">
-            <p className="text-white/20 text-sm">{t("allExpenses.noExpensesYet")}</p>
+            <p className="text-white/20 text-sm">
+              {hasFilter
+                ? t("allExpenses.noFilterResults", "No expenses match this filter")
+                : t("allExpenses.noExpensesYet")}
+            </p>
+            {hasFilter && (
+              <button
+                onClick={clearFilter}
+                className="mt-2 text-violet-400 text-xs hover:text-violet-300 active:text-violet-300 transition-colors"
+              >
+                {t("allExpenses.clearFilter", "Clear filter")}
+              </button>
+            )}
           </div>
         )}
 

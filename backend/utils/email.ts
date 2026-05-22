@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 import { env } from './../config/env';
 import { logger } from './logger';
 
-const APP_NAME = 'Expense Tracker';
+const APP_NAME = 'Arkalyn - Kitty';
 
 // Email is optional infrastructure — if SMTP creds are absent the app still
 // runs; sends degrade to a logged warning so local dev can follow the flow.

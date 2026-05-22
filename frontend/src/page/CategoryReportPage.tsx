@@ -57,6 +57,16 @@ const formatPeriod = (iso: string, granularity: TrendGranularity, locale: string
     return new Intl.DateTimeFormat(loc, opts).format(new Date(iso));
 };
 
+// Inclusive end of a trend bucket. periodStart comes from MongoDB $dateTrunc (UTC),
+// so step a whole day/week/month forward in UTC, then back 1ms.
+const trendPeriodEnd = (iso: string, granularity: TrendGranularity): string => {
+    const d = new Date(iso);
+    if (granularity === 'day') d.setUTCDate(d.getUTCDate() + 1);
+    else if (granularity === 'week') d.setUTCDate(d.getUTCDate() + 7);
+    else d.setUTCMonth(d.getUTCMonth() + 1);
+    return new Date(d.getTime() - 1).toISOString();
+};
+
 const initials = (name: string) =>
     name
         .trim()
@@ -152,14 +162,10 @@ export default function CategoryReportPage() {
         ? Math.max(...trendData.points.map((p) => p.totalCents), 1)
         : 1;
 
-    const goToExpenses = (categoryId: string) => {
-        if (!categoryQ.data) return;
-        const params = new URLSearchParams({
-            categoryId,
-            start: categoryQ.data.range.start,
-            end: categoryQ.data.range.end,
-        });
-        navigate(`/groups/${groupId}/expenses?${params.toString()}`);
+    // Drill into the expense list: redirect to All Expenses with a server-side
+    // filter (category, member, or date range) plus a human label for the chip.
+    const goToExpenses = (params: Record<string, string>) => {
+        navigate(`/groups/${groupId}/expenses?${new URLSearchParams(params).toString()}`);
     };
 
     return (
@@ -316,7 +322,7 @@ export default function CategoryReportPage() {
                             {categoryQ.data.categories.map((row, i) => (
                                 <button
                                     key={row.categoryId}
-                                    onClick={() => goToExpenses(row.categoryId)}
+                                    onClick={() => goToExpenses({ categoryId: row.categoryId, label: row.name })}
                                     className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.05] active:border-white/[0.12] transition-colors text-left"
                                     style={{
                                         animation: 'fadeSlideIn 0.22s ease forwards',
@@ -367,9 +373,10 @@ export default function CategoryReportPage() {
                         {memberQ.data.members.map((m, i) => {
                             const color = MEMBER_COLORS[i % MEMBER_COLORS.length];
                             return (
-                                <div
+                                <button
                                     key={m.userId}
-                                    className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5"
+                                    onClick={() => goToExpenses({ paidBy: m.userId, label: m.name })}
+                                    className="w-full text-left bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.05] active:border-white/[0.12] transition-colors"
                                     style={{
                                         animation: 'fadeSlideIn 0.22s ease forwards',
                                         animationDelay: `${i * 40}ms`,
@@ -408,7 +415,7 @@ export default function CategoryReportPage() {
                                             style={{ width: `${Math.max(m.sharePct, 2)}%`, background: color }}
                                         />
                                     </div>
-                                </div>
+                                </button>
                             );
                         })}
                     </div>
@@ -445,9 +452,16 @@ export default function CategoryReportPage() {
 
                         <div className="space-y-2">
                             {[...trendData.points].reverse().map((p, i) => (
-                                <div
+                                <button
                                     key={p.periodStart}
-                                    className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 flex items-center justify-between"
+                                    onClick={() =>
+                                        goToExpenses({
+                                            startDate: p.periodStart,
+                                            endDate: trendPeriodEnd(p.periodStart, trendData.granularity),
+                                            label: formatPeriod(p.periodStart, trendData.granularity, locale),
+                                        })
+                                    }
+                                    className="w-full text-left bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 flex items-center justify-between hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.05] active:border-white/[0.12] transition-colors"
                                     style={{
                                         animation: 'fadeSlideIn 0.22s ease forwards',
                                         animationDelay: `${i * 40}ms`,
@@ -468,7 +482,7 @@ export default function CategoryReportPage() {
                                     >
                                         {formatCents(p.totalCents, locale)}
                                     </p>
-                                </div>
+                                </button>
                             ))}
                         </div>
                     </>

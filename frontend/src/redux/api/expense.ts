@@ -31,8 +31,26 @@ export const expense = api.injectEndpoints({
                 { type: "Expense", id: groupId }
             ],
         }),
-        getAllExpenses: builder.query<PaginatedData<GetExpenseReport>, { groupId: string; limit: number }>({
-            query: ({ groupId, limit }) => `/expense/allexpenses/${groupId}?limit=${limit}`,
+        getAllExpenses: builder.query<
+            PaginatedData<GetExpenseReport>,
+            {
+                groupId: string;
+                limit: number;
+                categoryId?: string;
+                paidBy?: string;
+                startDate?: string;
+                endDate?: string;
+            }
+        >({
+            query: ({ groupId, limit, categoryId, paidBy, startDate, endDate }) => {
+                const params = new URLSearchParams();
+                params.set("limit", String(limit));
+                if (categoryId) params.set("categoryId", categoryId);
+                if (paidBy) params.set("paidBy", paidBy);
+                if (startDate) params.set("startDate", startDate);
+                if (endDate) params.set("endDate", endDate);
+                return `/expense/allexpenses/${groupId}?${params.toString()}`;
+            },
             transformResponse: (res: { data: PaginatedData<GetExpenseReport> }) => res.data,
             providesTags: (_result, _error, arg) => [
                 { type: "Expense", id: arg.groupId }
