@@ -38,6 +38,7 @@ import {
     removeCreditBodySchema,
 } from '../validators/group.validator';
 import { closeGroupBodySchema } from '../validators/groupClose.validator';
+import { paginationQuerySchema } from '../validators/common';
 import { getGroupClosePreview, closeGroup } from '../controllers/groupClose.controller';
 
 const router = express.Router();
@@ -192,7 +193,7 @@ router.get(
 
 router.get(
     '/getTransaction/:groupId',
-    validate({ params: groupIdParamObject }),
+    validate({ params: groupIdParamObject, query: paginationQuerySchema }),
     verifyToken,
     loadGroup,
     getTransaction
@@ -208,7 +209,7 @@ router.get(
 
 router.get(
     '/allcredits/:groupId',
-    validate({ params: groupIdParamObject }),
+    validate({ params: groupIdParamObject, query: paginationQuerySchema }),
     verifyToken,
     loadGroup,
     getAllCredits

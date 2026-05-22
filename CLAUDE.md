@@ -71,13 +71,17 @@ backend/
 
 ## Environment Variables
 
+See `backend/.env.example` and `frontend/.env.example` for the full list with comments.
+
 **Backend `.env`:**
-- `PORT`, `MONGODB_URI`, `JWT_SECRET`, `FRONTEND_URL`
+- Required: `PORT`, `MONGO_URI`, `ACCESS_TOKEN_SECRET`, `REFRESH_TOKEN_SECRET`, `FRONTEND_URL`
+- Optional: `NODE_ENV`, `ACCESS_TOKEN_EXPIRES_IN`, `REFRESH_TOKEN_EXPIRES_IN`
 
 **Frontend `.env`:**
-- `VITE_API_URL=http://localhost:5000/api`
+- `VITE_API_URL` (e.g. `http://localhost:5000/api`)
 
 Never hardcode. Always `process.env` (backend) or `import.meta.env` (frontend).
+Required vars are validated on startup by `validateEnv()` in `config/env.ts`.
 
 ## What NOT to do
 - Don't bypass the Service layer — controllers must not call Mongoose models directly
@@ -158,3 +162,33 @@ Work through these one by one. Each item is self-contained so you can pick any o
 
 ### Rules
 - i am ask any question, The answer should be like why should we do this, what are the alternate options, how to implement this, etc.
+
+---
+
+## Product-Grade Push (1-Week Roadmap)
+
+Tracked plan to bring the app to product grade for a small live user base.
+Work top to bottom — **one item per prompt**. Mark `[x]` when done.
+
+### P0 — Launch-critical
+
+- [x] **1. Rotate secrets + `.env.example` + pin Node** — `backend/.env.example` and `frontend/.env.example` added; local dev token secrets rotated to 32-byte random hex; dead unused `JWT_SECRET` removed; `engines` field added to both `package.json`. ACTION REQUIRED by owner: rotate the MongoDB Atlas DB user/password (`todo:todo_10` is weak) and set strong secrets in the host dashboard before deploying.
+- [x] **2. `/health` endpoint** — `GET /health` in `backend/main.ts` returns `{ status, db, uptime, timestamp }`; `db` from `mongoose.connection.readyState`; 200 when connected, 503 when not. Placed before the rate limiter so probe traffic is never throttled.
+- [~] **3. Deploy backend + wire frontend** — CODE PREP DONE: `render.yaml` blueprint, `DEPLOYMENT.md` step-by-step, `.gitignore` fixed so `.env.example` commits, backend `build` script installs devDeps (`tsc` works under `NODE_ENV=production`), `FRONTEND_URL` trailing-slash normalized in `config/env.ts`. ACTION REQUIRED by owner: follow `DEPLOYMENT.md` — deploy backend on Render, frontend on Vercel, set env vars, confirm `/health` + CORS + cookies.
+
+### P1 — Essential product features
+
+- [x] **4. Password reset via email** — `backend/utils/email.ts` (Nodemailer + Gmail SMTP, degrades to a logged link if SMTP unset); `password_reset.model.ts` (SHA-256 token hash + 30-min TTL index); `requestPasswordResetService` / `resetPasswordService` (anti-enumeration, single-use token, revokes all sessions on reset); `POST /auth/forgot-password` + `POST /auth/reset-password` (rate-limited via `/auth/*`); frontend `ForgotPasswordPage` + `ResetPasswordPage` + "Forgot password?" login link. ACTION REQUIRED by owner: set `SMTP_USER` + `SMTP_PASS` (Gmail App Password) in `.env` / host to actually send mail.
+- [x] **5. Complete the report module** — `memberBreakdownService` (spend grouped by `paidBy`) and `spendTrendService` (`$dateTrunc` day/week/month buckets, granularity auto-picked by span) added to `report.service.ts`; `GET /group/:groupId/reports/member-breakdown` + `/spend-trend` routes; `CategoryReportPage` now has Category/By-member/Trend tabs (ranked member bars + trend bar chart), one query per active tab.
+- [x] **6. Pagination on list endpoints** — `getAllExpenses`, `getTransaction`, `getAllCredits` services take `page`/`limit`, return `{ items, total }` via `sendPaginated`; routes validate `paginationQuerySchema` (limit cap raised 100→200). Frontend uses a growing-`limit` query + "Load more" button on AllExpensesPage / AllCreditsPage / GroupReport. GroupReport's summary cards switched to `getBasicTransaction` so whole-group totals stay correct under pagination. NOTE: client-side search/filter still only covers loaded rows.
+- [ ] **7. User profile / account page** — `ProfilePage` (name, email, change-password, log-out-everywhere); route `/profile`; `POST /auth/change-password`.
+
+### P2 — Hardening & polish
+
+- [ ] **8. Core test suite** — `jest` + `ts-jest` + `mongodb-memory-server`; tests for expense balance deduction, the atomic `$gte` guard, settlement, and `removeCreditService`.
+- [ ] **9. CI pipeline** — `.github/workflows/ci.yml`: frontend lint, backend build, backend test.
+- [ ] **10. Error tracking** — Sentry free tier on backend (`main.ts`) and frontend (`main.tsx`); DSN via env var.
+- [ ] **11. RTK Query type cleanup** (stretch) — replace `<any, any>` endpoints with interfaces from `frontend/src/interface/`.
+
+### Deferred (post-launch)
+Email verification on signup; Swagger/OpenAPI; shared `shared/types/` package; soft-delete global Mongoose hook; narrowed RTK tag invalidation; react-hook-form migration.

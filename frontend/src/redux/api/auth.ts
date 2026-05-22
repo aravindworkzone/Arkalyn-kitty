@@ -27,8 +27,25 @@ export const auth = api.injectEndpoints({
         getUser: builder.query<any, void>({
             query: () => '/user/me',
             providesTags: ['Auth']
+        }),
+        forgotPassword: builder.mutation<{ success: boolean; message: string }, { email: string }>({
+            query: (body) => ({
+                url: '/auth/forgot-password',
+                method: 'POST',
+                body
+            })
+        }),
+        resetPassword: builder.mutation<{ success: boolean; message: string }, { token: string; password: string }>({
+            query: (body) => ({
+                url: '/auth/reset-password',
+                method: 'POST',
+                body
+            })
         })
     })
 });
 
-export const { useSignUpMutation, useSignInMutation, useSignOutMutation, useGetUserQuery } = auth;
+export const {
+    useSignUpMutation, useSignInMutation, useSignOutMutation, useGetUserQuery,
+    useForgotPasswordMutation, useResetPasswordMutation
+} = auth;

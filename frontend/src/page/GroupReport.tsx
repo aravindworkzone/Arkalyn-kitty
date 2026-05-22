@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
-import { useGetTransactionQuery, useGetEventQuery } from "../redux/api/group";
+import { useGetTransactionQuery, useGetBasicTransactionQuery, useGetEventQuery } from "../redux/api/group";
 import DetailModal from "../components/DetailModal";
 import { actionStyle, eventConfig } from "../helpers/constants";
 import { eventDescription } from "../helpers/formatters";
 import { Trans, useTranslation } from "react-i18next";
+
+const PAGE_STEP = 20;
+const MAX_LIMIT = 200;
 
 export default function ReportPage() {
   const { groupId } = useParams();
@@ -13,19 +16,30 @@ export default function ReportPage() {
   const { t } = useTranslation();
   const [tab, setTab]           = useState<"transactions" | "events">("transactions");
   const [txFilter, setTxFilter] = useState<"ALL" | "CREDIT" | "DEBIT" | "REFUND">("ALL");
+  const [limit, setLimit]       = useState(PAGE_STEP);
   const [selectedTx,    setSelectedTx]    = useState<any>(null);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
-  const { data: Transactions, isLoading: txLoading } = useGetTransactionQuery(groupId || "", { refetchOnMountOrArgChange: true });
+  const { data: txData, isLoading: txLoading, isFetching: txFetching } = useGetTransactionQuery(
+    { groupId: groupId || "", limit },
+    { refetchOnMountOrArgChange: true }
+  );
+  const { data: basic } = useGetBasicTransactionQuery(groupId || "", { skip: !groupId });
   const { data: Events, isLoading: evLoading } = useGetEventQuery(groupId || "", { refetchOnMountOrArgChange: true });
+
+  const Transactions = txData?.items ?? [];
+  const txTotal = txData?.total ?? 0;
+  const canLoadMore = Transactions.length < txTotal && limit < MAX_LIMIT;
 
   const filteredTx = txFilter === "ALL"
     ? Transactions
-    : Transactions?.filter((t: any) => t.action === txFilter);
+    : Transactions.filter((t: any) => t.action === txFilter);
 
-  const totalCredit = Transactions?.filter((t: any) => t.action === "CREDIT").reduce((s: number, t: any) => s + t.amount, 0) ?? 0;
-  const totalDB  = Transactions?.filter((t: any) => t.action === "DEBIT").reduce((s: number, t: any) => s + t.amount, 0) ?? 0;
-  const totalRefund = Transactions?.filter((t: any) => t.action === "REFUND").reduce((s: number, t: any) => s + t.amount, 0) ?? 0;
-  const totalDebit = Number(totalDB) != 0 ? Number(totalDB) - Number(totalRefund) : 0;
+  // Summary totals come from the whole-group aggregate, so they stay correct
+  // even though the transaction list below is paginated.
+  const totalCredit = basic?.CREDIT ?? 0;
+  const totalDB = basic?.DEBIT ?? 0;
+  const totalRefund = basic?.REFUND ?? 0;
+  const totalDebit = totalDB !== 0 ? totalDB - totalRefund : 0;
 
   const filterLabels: Record<string, string> = {
     ALL:    t("report.filterAll"),
@@ -203,6 +217,18 @@ export default function ReportPage() {
                 </div>
               )}
             </div>
+
+            {!txLoading && canLoadMore && (
+              <button
+                onClick={() => setLimit((l) => Math.min(l + PAGE_STEP, MAX_LIMIT))}
+                disabled={txFetching}
+                className="w-full py-2.5 rounded-xl border border-white/10 text-white/50 text-xs font-semibold hover:bg-white/[0.04] active:bg-white/[0.04] disabled:opacity-50 transition-colors"
+              >
+                {txFetching
+                  ? t("report.loading", "Loading…")
+                  : t("report.loadMore", "Load more")}
+              </button>
+            )}
           </div>
         )}
 

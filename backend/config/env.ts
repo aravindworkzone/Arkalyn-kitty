@@ -37,7 +37,13 @@ export const env = {
     REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET as string,
     ACCESS_TOKEN_EXPIRES_IN: process.env.ACCESS_TOKEN_EXPIRES_IN?.trim() || '15m',
     REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN?.trim() || '7d',
-    FRONTEND_URL: process.env.FRONTEND_URL as string,
+    // Trailing slashes silently break CORS — browsers send `Origin` without one.
+    // Empty string when unset; validateEnv() rejects that before the app serves.
+    FRONTEND_URL: (process.env.FRONTEND_URL ?? '').replace(/\/+$/, ''),
+    // SMTP (Gmail) for transactional email (password reset). Optional — the app
+    // boots without them; email simply degrades to a logged warning.
+    SMTP_USER: process.env.SMTP_USER ?? '',
+    SMTP_PASS: process.env.SMTP_PASS ?? '',
     isProduction: process.env.NODE_ENV === 'production',
     isDevelopment: process.env.NODE_ENV !== 'production',
 };

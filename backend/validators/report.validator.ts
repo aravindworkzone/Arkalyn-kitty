@@ -47,4 +47,9 @@ export const categoryBreakdownQuerySchema = z
         }
     });
 
+// The member-breakdown and spend-trend reports take the same date-range inputs
+// as the category breakdown — alias the schemas so intent reads clearly.
+export const reportRangeParamsSchema = categoryBreakdownParamsSchema;
+export const reportRangeQuerySchema = categoryBreakdownQuerySchema;
+
 export type CategoryBreakdownQueryDto = z.infer<typeof categoryBreakdownQuerySchema>;

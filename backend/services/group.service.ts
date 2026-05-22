@@ -810,10 +810,22 @@ export const getBasicTransactionService = async (groupId: mongoose.Types.ObjectI
     }
 };
 
-export const getTransactionService = async (groupId: mongoose.Types.ObjectId) => {
+export const getTransactionService = async (
+    groupId: mongoose.Types.ObjectId,
+    page: number,
+    limit: number
+) => {
     try {
-        const transactions = await GroupTransaction.find({ groupId, isDeleted: false }).populate("performedBy").populate("referenceId");
-        const transaction = transactions.map(t => {
+        const [docs, total] = await Promise.all([
+            GroupTransaction.find({ groupId, isDeleted: false })
+                .populate("performedBy")
+                .populate("referenceId")
+                .sort({ createdAt: -1 })
+                .skip((page - 1) * limit)
+                .limit(limit),
+            GroupTransaction.countDocuments({ groupId, isDeleted: false }),
+        ]);
+        const items = docs.map(t => {
             const createdAt = t.createdAt?.toLocaleString("en-GB", {
                 day: "2-digit",
                 month: "short",
@@ -824,23 +836,28 @@ export const getTransactionService = async (groupId: mongoose.Types.ObjectId) =>
             })
             return {...t.toObject(), createdAt}
         });
-        return transaction;
+        return { items, total };
     } catch (error :any) {
         throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }
 }
 
-export const getAllCreditsService = async (groupId: mongoose.Types.ObjectId) => {
+export const getAllCreditsService = async (
+    groupId: mongoose.Types.ObjectId,
+    page: number,
+    limit: number
+) => {
     if (!groupId) throw new AppError("Group ID is required", 400);
     try {
-        const credits = await GroupTransaction.find({
-            groupId,
-            action: "CREDIT",
-            isDeleted: false,
-        })
-            .populate("performedBy", "name email")
-            .sort({ createdAt: -1 });
-        return credits;
+        const [items, total] = await Promise.all([
+            GroupTransaction.find({ groupId, action: "CREDIT", isDeleted: false })
+                .populate("performedBy", "name email")
+                .sort({ createdAt: -1 })
+                .skip((page - 1) * limit)
+                .limit(limit),
+            GroupTransaction.countDocuments({ groupId, action: "CREDIT", isDeleted: false }),
+        ]);
+        return { items, total };
     } catch (error: any) {
         throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }

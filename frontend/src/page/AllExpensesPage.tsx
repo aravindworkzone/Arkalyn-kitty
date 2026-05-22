@@ -14,13 +14,24 @@ import {
 } from "../components/ui";
 import { useTranslation } from "react-i18next";
 
+const PAGE_STEP = 20;
+const MAX_LIMIT = 200;
+
 export default function AllExpensesPage() {
   const { groupId } = useParams();
-  const { data: expenses, isLoading } = useGetAllExpensesQuery(groupId!, { skip: !groupId });
+  const [limit, setLimit] = useState(PAGE_STEP);
+  const { data, isLoading, isFetching } = useGetAllExpensesQuery(
+    { groupId: groupId!, limit },
+    { skip: !groupId }
+  );
   const { data: GroupDetails } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
   const [search, setSearch] = useState("");
   const { t } = useTranslation();
+
+  const expenses = data?.items ?? [];
+  const totalCount = data?.total ?? 0;
+  const canLoadMore = expenses.length < totalCount && limit < MAX_LIMIT;
 
   const role = GroupDetails?.role as string | undefined;
 
@@ -69,7 +80,10 @@ export default function AllExpensesPage() {
         {!isLoading && (
           <div className="grid grid-cols-2 gap-2">
             <StatCard label={t("allExpenses.totalSpent")} value={total} currency />
-            <StatCard label={t("allExpenses.transactions")} value={filtered.length} />
+            <StatCard
+              label={t("allExpenses.transactions")}
+              value={search ? filtered.length : totalCount}
+            />
           </div>
         )}
 
@@ -177,6 +191,27 @@ export default function AllExpensesPage() {
             ))}
           </div>
         ))}
+
+        {!isLoading && canLoadMore && (
+          <div className="space-y-2">
+            <button
+              onClick={() => setLimit((l) => Math.min(l + PAGE_STEP, MAX_LIMIT))}
+              disabled={isFetching}
+              className="w-full py-2.5 rounded-xl border border-white/10 text-white/50 text-xs font-semibold hover:bg-white/[0.04] active:bg-white/[0.04] disabled:opacity-50 transition-colors"
+            >
+              {isFetching
+                ? t("allExpenses.loading", "Loading…")
+                : t("allExpenses.loadMore", "Load more")}
+            </button>
+            <p className="text-center text-[10px] text-white/25">
+              {t("allExpenses.showingCount", {
+                shown: expenses.length,
+                total: totalCount,
+                defaultValue: `Showing ${expenses.length} of ${totalCount}`,
+              })}
+            </p>
+          </div>
+        )}
       </main>
 
       <ExpenseDetailModal

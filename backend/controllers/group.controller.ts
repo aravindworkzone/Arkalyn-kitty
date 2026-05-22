@@ -20,8 +20,9 @@ import {
     toggleFavoriteService,
 } from '../services/group.service';
 import { asyncHandler } from '../utils/asyncHandler';
-import { sendSuccess, sendCreated } from '../utils/response';
+import { sendSuccess, sendCreated, sendPaginated } from '../utils/response';
 import { AppError } from '../helpers/AppError';
+import { paginationQuerySchema } from '../validators/common';
 import { emitToGroup, SOCKET_EVENTS } from '../sockets';
 
 export const createGroup = asyncHandler(async (req, res) => {
@@ -216,15 +217,17 @@ export const getBasicTransaction = asyncHandler(async (req, res) => {
 export const getTransaction = asyncHandler(async (req, res) => {
     if (!req.group?._id) throw new AppError('Group not found', 400);
 
-    const transactions = await getTransactionService(req.group._id);
-    sendSuccess(res, { transactions }, 'Transactions fetched');
+    const { page = 1, limit = 20 } = paginationQuerySchema.parse(req.query);
+    const { items, total } = await getTransactionService(req.group._id, page, limit);
+    sendPaginated(res, items, total, page, limit, 'Transactions fetched');
 });
 
 export const getAllCredits = asyncHandler(async (req, res) => {
     if (!req.group?._id) throw new AppError('Group not found', 400);
 
-    const credits = await getAllCreditsService(req.group._id);
-    sendSuccess(res, { credits }, 'Credits fetched');
+    const { page = 1, limit = 20 } = paginationQuerySchema.parse(req.query);
+    const { items, total } = await getAllCreditsService(req.group._id, page, limit);
+    sendPaginated(res, items, total, page, limit, 'Credits fetched');
 });
 
 export const removeCredit = asyncHandler(async (req, res) => {

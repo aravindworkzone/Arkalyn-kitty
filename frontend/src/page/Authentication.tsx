@@ -104,6 +104,17 @@ const Templete = ({inputs, link} : AuthFormProps) => {
                         </button>
                     </form>
 
+                    {link === "register" && (
+                        <p className="mt-4 text-center">
+                            <Link
+                                to="/forgot-password"
+                                className="text-xs text-white/40 font-medium hover:text-violet-300 active:text-violet-300 transition-colors"
+                            >
+                                {t("auth.forgotPassword", "Forgot password?")}
+                            </Link>
+                        </p>
+                    )}
+
                     <p className="mt-6 text-center text-xs text-white/35">
                         {linkText}{" "}
                         <Link to={`/${link}`} className="text-violet-400 font-medium hover:text-violet-300 active:text-violet-300 transition-colors">

@@ -1,6 +1,7 @@
 import {api} from "./base";
 import type { GroupMember } from "../../interface/member";
-import type { GroupTransaction, GroupEvent, GroupCredit } from "../../interface/transaction";
+import type { GroupTransaction, GroupEvent, GroupCredit, BasicTransactionTotals } from "../../interface/transaction";
+import type { PaginatedData } from "../../interface/api";
 
 export const group = api.injectEndpoints({
     endpoints: (builder) => ({
@@ -43,33 +44,34 @@ export const group = api.injectEndpoints({
                 { type: 'Group', id: groupId }
             ]
         }),
-        getBasicTransaction: builder.query<any, any>({
-            query: (credentials) => ({
-                url: `/group/getbasictransaction/${credentials}`,
-                method: 'GET'
-            }),
-            providesTags: (_result, _error, groupId) => [
-                { type: 'Group', id: groupId }
-            ]
-        }),
-        getTransaction: builder.query<any, any>({
-            query: (credentials) => ({
-                url: `/group/gettransaction/${credentials}`,
-                method: 'GET'
-            }),
-            transformResponse: (res: { data: {transactions: GroupTransaction[]} }) => res.data.transactions,
-            providesTags: (_result, _error, groupId) => [
-                { type: 'Group', id: groupId }
-            ]
-        }),
-        getAllCredits: builder.query<GroupCredit[], string>({
+        getBasicTransaction: builder.query<BasicTransactionTotals, string>({
             query: (groupId) => ({
-                url: `/group/allcredits/${groupId}`,
+                url: `/group/getbasictransaction/${groupId}`,
                 method: 'GET'
             }),
-            transformResponse: (res: { data: { credits: GroupCredit[] } }) => res.data.credits,
+            transformResponse: (res: { data: { transactions: BasicTransactionTotals } }) => res.data.transactions,
             providesTags: (_result, _error, groupId) => [
                 { type: 'Group', id: groupId }
+            ]
+        }),
+        getTransaction: builder.query<PaginatedData<GroupTransaction>, { groupId: string; limit: number }>({
+            query: ({ groupId, limit }) => ({
+                url: `/group/gettransaction/${groupId}?limit=${limit}`,
+                method: 'GET'
+            }),
+            transformResponse: (res: { data: PaginatedData<GroupTransaction> }) => res.data,
+            providesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId }
+            ]
+        }),
+        getAllCredits: builder.query<PaginatedData<GroupCredit>, { groupId: string; limit: number }>({
+            query: ({ groupId, limit }) => ({
+                url: `/group/allcredits/${groupId}?limit=${limit}`,
+                method: 'GET'
+            }),
+            transformResponse: (res: { data: PaginatedData<GroupCredit> }) => res.data,
+            providesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId }
             ]
         }),
         removeCredit: builder.mutation<any, { creditId: string; groupId: string; reason?: string }>({

@@ -2,6 +2,8 @@
 venv/
 .env
 .env.*
+# ...but example env files must be committed (placeholders only, no secrets)
+!.env.example
 
 # =========================
 # React / Vite / Node
