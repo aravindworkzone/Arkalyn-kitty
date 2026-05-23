@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   useGetGroupClosePreviewQuery,
@@ -80,6 +80,44 @@ export default function CloseGroupModal({ isOpen, groupId, onClose, onClosed }: 
     return () => window.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]);
 
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    const first = dialogRef.current?.querySelector<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    (first ?? dialogRef.current)?.focus?.();
+    return () => { previouslyFocusedRef.current?.focus?.(); };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const node = dialogRef.current;
+      if (!node) return;
+      const focusables = node.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0]!;
+      const last = focusables[focusables.length - 1]!;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", handleTab);
+    return () => window.removeEventListener("keydown", handleTab);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const balance = preview?.currentBalance ?? 0;
@@ -131,9 +169,16 @@ export default function CloseGroupModal({ isOpen, groupId, onClose, onClosed }: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-[2px]">
-      <div className="absolute inset-0" onClick={onClose} />
+      <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
 
-      <div className="relative w-full max-w-[560px] rounded-2xl border border-white/[0.08] bg-[#080c14] px-6 py-6 shadow-2xl animate-[fadeUp_0.18s_ease-out] max-h-[90vh] flex flex-col">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="relative w-full max-w-[560px] rounded-2xl border border-white/[0.08] bg-[#080c14] px-6 py-6 shadow-2xl animate-[fadeUp_0.18s_ease-out] max-h-[90vh] flex flex-col outline-none"
+      >
 
         <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-red-500/30 to-transparent rounded-full" />
 
@@ -147,7 +192,7 @@ export default function CloseGroupModal({ isOpen, groupId, onClose, onClosed }: 
             <p className="text-[10px] font-bold uppercase tracking-widest text-red-400/60">
               {t("deleteModal.destructiveAction")}
             </p>
-            <h2 className="text-[15px] font-semibold text-white/90 leading-tight">
+            <h2 id={titleId} className="text-[15px] font-semibold text-white/90 leading-tight">
               {t("closeGroup.title", "Close Group")}
             </h2>
           </div>

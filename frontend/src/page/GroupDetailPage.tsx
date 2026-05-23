@@ -275,6 +275,7 @@ export default function GroupDetailPage() {
               onClick: () => navigate(`/groups/${groupId}/expenses/new`),
               color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/20 hover:bg-cyan-500/20 hover:border-cyan-400/35",
               icon: <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />,
+              tourId: "create-expense",
               // An expense needs a category — hide the entry until one exists.
               show: catLoading || categories.length > 0,
             },
@@ -283,6 +284,7 @@ export default function GroupDetailPage() {
               onClick: () => navigate(`/groups/${groupId}/categories/new`),
               color: "text-violet-300 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20 hover:border-violet-400/35",
               icon: <path d="M2 4h4v4H2zM8 4h4v4H8zM2 10h4v4H2zM8 10h4v4H8z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />,
+              tourId: "create-category",
               show: isAdmin,
             },
             {
@@ -290,6 +292,7 @@ export default function GroupDetailPage() {
               onClick: () => navigate(`/groups/${groupId}/activity`),
               color: "text-slate-300 bg-slate-500/10 border-slate-500/20 hover:bg-slate-500/20 hover:border-slate-400/35",
               icon: <path d="M2 12V6l4-4h6l2 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />,
+              tourId: "view-report",
               show: true,
             },
             {
@@ -302,6 +305,7 @@ export default function GroupDetailPage() {
                   <path d="M7 1.5v5.5l4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
                 </>
               ),
+              tourId: "view-breakdown",
               show: true,
             },
             ...(role ? [{
@@ -309,6 +313,7 @@ export default function GroupDetailPage() {
               onClick: openSettings,
               color: "text-amber-300 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20 hover:border-amber-400/35",
               show: true,
+              tourId: "view-settings",
               icon: (
                 <>
                   <circle cx="7" cy="7" r="2" stroke="currentColor" strokeWidth="1.3" />
@@ -321,6 +326,7 @@ export default function GroupDetailPage() {
             <button
               key={btn.label}
               onClick={btn.onClick}
+              data-tour={btn.tourId}
               className={`flex flex-col items-center gap-2 py-3.5 rounded-xl border text-[11px] font-semibold transition-all duration-150 ${btn.color}`}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -505,8 +511,17 @@ export default function GroupDetailPage() {
                 <div
                   key={expense._id}
                   onClick={() => setSelectedExpense(expense)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedExpense(expense);
+                    }
+                  }}
+                  aria-label={t("groupDetail.openExpense", "Open expense: {{title}}", { title: expense.title })}
                   className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5
-                    flex items-center justify-between cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.12] transition-colors"
+                    flex items-center justify-between cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.12] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 transition-colors"
                   style={{
                     animation: "fadeSlideIn 0.25s ease forwards",
                     animationDelay: `${i * 50}ms`,
@@ -570,6 +585,7 @@ export default function GroupDetailPage() {
                 <p className="text-sm font-semibold text-white/70">{t("groupDetail.groupSettings")}</p>
                 <button
                   onClick={() => setSettingsOpen(false)}
+                  data-tour="settings-close"
                   className="w-7 h-7 flex items-center justify-center rounded-lg
                     bg-white/[0.04] text-white/40 hover:text-white/70 hover:bg-white/[0.08] active:text-white/70 active:bg-white/[0.08] transition-colors"
                 >
@@ -585,6 +601,7 @@ export default function GroupDetailPage() {
                     <button
                       key={tabItem.id}
                       onClick={() => switchTab(tabItem.id)}
+                      data-tour={`settings-${tabItem.id}`}
                       className={`px-3.5 pb-2 text-xs font-semibold whitespace-nowrap transition-colors border-b-2
                         ${tab === tabItem.id
                           ? tabItem.id === "danger"

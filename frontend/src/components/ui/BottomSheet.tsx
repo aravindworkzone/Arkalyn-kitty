@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useId, useRef } from "react";
 
 type Tone = "default" | "danger";
 
@@ -31,6 +31,10 @@ export default function BottomSheet({
   children,
   footer,
 }: BottomSheetProps) {
+  const titleId = useId();
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (isOpen) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "";
@@ -42,6 +46,48 @@ export default function BottomSheet({
     if (isOpen) window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]);
+
+  // Move focus into the sheet when it opens, and restore to the previously
+  // focused element on close. Keeps Tab order sensible for keyboard users.
+  useEffect(() => {
+    if (!isOpen) return;
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    const node = sheetRef.current;
+    if (node) {
+      const firstFocusable = node.querySelector<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      (firstFocusable ?? node).focus();
+    }
+    return () => {
+      previouslyFocusedRef.current?.focus?.();
+    };
+  }, [isOpen]);
+
+  // Trap Tab within the sheet so focus can't escape to the page behind.
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const node = sheetRef.current;
+      if (!node) return;
+      const focusables = node.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0]!;
+      const last = focusables[focusables.length - 1]!;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", handleTab);
+    return () => window.removeEventListener("keydown", handleTab);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -56,10 +102,15 @@ export default function BottomSheet({
       <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
 
       <div
+        ref={sheetRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        tabIndex={-1}
         className={`relative w-full ${maxWidth} sm:w-full bg-[#080c14] border border-white/[0.08]
           rounded-t-2xl sm:rounded-2xl shadow-2xl
           max-h-[92vh] sm:max-h-[85vh] flex flex-col
-          pb-safe`}
+          pb-safe outline-none`}
         style={{
           animation:
             "slideUpSheet 0.22s cubic-bezier(0.32,0.72,0,1)",
@@ -75,7 +126,7 @@ export default function BottomSheet({
 
         {!hideHeader && title && (
           <div className="flex items-center justify-between px-5 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06] shrink-0">
-            <p className="text-sm font-semibold text-white/70 truncate pr-3">{title}</p>
+            <p id={titleId} className="text-sm font-semibold text-white/70 truncate pr-3">{title}</p>
             <button
               onClick={onClose}
               aria-label="Close"

@@ -84,6 +84,7 @@ export default function CategoryPage() {
         <button
           type="button"
           onClick={() => navigate(-1)}
+          data-tour="category-back"
           className="flex items-center gap-2 text-white/35 hover:text-white/60 active:text-white/60 text-xs font-medium transition-colors mb-6"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -129,7 +130,7 @@ export default function CategoryPage() {
                 {t("createCategory.nameLabel")}
               </label>
               <div className="flex items-start gap-2">
-                <div className="flex-1">
+                <div className="flex-1" data-tour="category-name-field">
                   <FieldInput
                     className={s.input}
                     type="text"
@@ -148,6 +149,7 @@ export default function CategoryPage() {
                   type="button"
                   onClick={doAdd}
                   disabled={isCreating}
+                  data-tour="create-category-submit"
                   className="shrink-0 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold border
                     bg-violet-500/10 border-violet-500/25 text-violet-300
                     hover:bg-violet-500/20 hover:border-violet-400/40

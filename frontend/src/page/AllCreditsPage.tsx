@@ -146,7 +146,16 @@ export default function AllCreditsPage() {
               <div
                 key={credit._id}
                 onClick={() => setSelectedCredit(credit)}
-                className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.07] active:border-white/[0.12] transition-colors"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedCredit(credit);
+                  }
+                }}
+                aria-label={t("allCredits.openCredit", "Open credit details")}
+                className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.07] active:border-white/[0.12] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 transition-colors"
                 style={{
                   animation: "fadeSlideIn 0.22s ease forwards",
                   animationDelay: `${(gi * 3 + i) * 40}ms`,

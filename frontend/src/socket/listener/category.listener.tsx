@@ -20,10 +20,15 @@ export default function CategoryListener() {
 
         socket.on(SOCKET_EVENTS.CATEGORY_CREATED, handleFetch);
         socket.on(SOCKET_EVENTS.CATEGORY_DELETED, handleFetch);
+        // expenseCount on each category goes stale when expenses change.
+        socket.on(SOCKET_EVENTS.EXPENSE_CREATED, handleFetch);
+        socket.on(SOCKET_EVENTS.EXPENSE_DELETED, handleFetch);
 
         return () => {
             socket.off(SOCKET_EVENTS.CATEGORY_CREATED, handleFetch);
             socket.off(SOCKET_EVENTS.CATEGORY_DELETED, handleFetch);
+            socket.off(SOCKET_EVENTS.EXPENSE_CREATED, handleFetch);
+            socket.off(SOCKET_EVENTS.EXPENSE_DELETED, handleFetch);
         };
     }, [groupId, dispatch]);
 

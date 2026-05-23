@@ -176,7 +176,9 @@ export default function CategoryReportPage() {
             <Header />
 
             <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-5">
-                <BackButton />
+                <div data-tour="breakdown-back" className="inline-block">
+                    <BackButton />
+                </div>
 
                 <PageHeader
                     color="indigo"
@@ -195,7 +197,7 @@ export default function CategoryReportPage() {
                     the view switch and the preset range stay reachable while
                     scrolling. */}
                 <div className="sticky top-14 lg:top-16 z-20 -mx-4 px-4 py-2 bg-[#080c14]/95 backdrop-blur-md space-y-3">
-                <div className="flex gap-1.5 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1">
+                <div className="flex gap-1.5 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1" data-tour="breakdown-page">
                     {VIEWS.map((v) => (
                         <button
                             key={v}

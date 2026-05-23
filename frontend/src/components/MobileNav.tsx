@@ -6,6 +6,7 @@ import { useGetCategoriesQuery } from "../redux/api/category";
 import { socket } from "../socket/socket";
 import { BottomSheet } from "./ui";
 import LanguageToggle from "./LanguageToggle";
+import { useTour } from "../tour/useTour";
 
 interface User {
   name?: string;
@@ -27,6 +28,14 @@ export default function MobileNav({ user }: Props) {
   const { groupId } = useParams<{ groupId: string }>();
   const [signOut] = useSignOutMutation();
   const [profileOpen, setProfileOpen] = useState(false);
+  const { start: startTour, reset: resetTour } = useTour();
+
+  const handleTakeTour = () => {
+    setProfileOpen(false);
+    resetTour();
+    startTour();
+    navigate("/groups");
+  };
 
   const onGroupsList = location.pathname === "/groups";
   const inGroup = !!groupId;
@@ -137,6 +146,21 @@ export default function MobileNav({ user }: Props) {
             <p className="text-sm text-white/70">{t("nav.language", "Language")}</p>
             <LanguageToggle />
           </div>
+
+          <button
+            type="button"
+            onClick={handleTakeTour}
+            className="w-full min-h-touch flex items-center justify-center gap-2 rounded-xl
+              bg-cyan-500/10 border border-cyan-500/20 text-cyan-200 text-sm font-semibold
+              hover:bg-cyan-500/15 active:bg-cyan-500/20 transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="7" r="5.8" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M5 5.2c.2-1 1-1.6 2-1.6 1.1 0 2 .8 2 1.9 0 1-.7 1.5-1.5 1.9-.5.3-.7.6-.7 1.1M7 10v.1"
+                stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+            {t("nav.takeTour", "Take a Tour")}
+          </button>
 
           <button
             type="button"

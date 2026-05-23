@@ -50,6 +50,13 @@ export default function NotificationPanel() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   const notifications = data?.items ?? [];
 
   const messageFor = (n: NotificationItem): string => {
@@ -106,6 +113,9 @@ export default function NotificationPanel() {
     <div ref={panelRef} className="relative">
       <button
         onClick={() => setOpen((p) => !p)}
+        aria-label={t("notifications.toggle", "Notifications")}
+        aria-expanded={open}
+        aria-haspopup="dialog"
         className="relative w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.07]
           flex items-center justify-center hover:bg-white/[0.08] hover:border-white/[0.12]
           active:bg-white/[0.08] active:border-white/[0.12] active:scale-[0.95]
@@ -164,7 +174,16 @@ export default function NotificationPanel() {
                   <div
                     key={n._id}
                     onClick={() => !n.read && markRead(n._id)}
-                    className={`px-4 py-3 border-b border-white/[0.04] cursor-default transition-colors
+                    role={!n.read ? "button" : undefined}
+                    tabIndex={!n.read ? 0 : undefined}
+                    onKeyDown={(e) => {
+                      if (!n.read && (e.key === "Enter" || e.key === " ")) {
+                        e.preventDefault();
+                        markRead(n._id);
+                      }
+                    }}
+                    aria-label={!n.read ? t("notifications.markRead", "Mark notification as read") : undefined}
+                    className={`px-4 py-3 border-b border-white/[0.04] cursor-default transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40
                       ${n.read ? "" : "bg-violet-500/[0.06]"}`}
                   >
                     <div className="flex items-start gap-2.5">

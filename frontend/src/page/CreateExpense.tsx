@@ -85,7 +85,7 @@ export default function CreateExpensePage() {
 
         {/* ── 01 Basic details ── */}
         <FormSection step="01" title={t("createExpense.basicDetails")} contentClass="px-5 py-4 space-y-3">
-          <div>
+          <div data-tour="expense-title-field">
             <label className={fieldLabel}>{t("createExpense.titleLabel")}</label>
             <FieldInput
               className={inputCls}
@@ -104,7 +104,7 @@ export default function CreateExpensePage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div data-tour="expense-amount-field">
               <label className={fieldLabel}>{t("createExpense.amount")}</label>
               <AmountInput
                 size="lg"
@@ -134,7 +134,7 @@ export default function CreateExpensePage() {
 
         {/* ── 02 Category + Payment ── */}
         <FormSection step="02" title={t("createExpense.categoryPayment")} contentClass="px-5 py-4 space-y-4">
-          <div>
+          <div data-tour="expense-category">
             <label className={fieldLabel}>{t("createExpense.category")}</label>
             <div className="flex flex-wrap gap-2">
               {catLoading
@@ -185,7 +185,7 @@ export default function CreateExpensePage() {
             {fieldErrors.category && <div className="mt-2"><ErrorMessage error={fieldErrors.category} /></div>}
           </div>
 
-          <div>
+          <div data-tour="expense-payment">
             <label className={fieldLabel}>{t("createExpense.paymentType")}</label>
             <div className="grid grid-cols-4 gap-2">
               {pmLoading
@@ -213,7 +213,7 @@ export default function CreateExpensePage() {
 
         {/* ── 03 Paid by ── */}
         <FormSection step="03" title={t("createExpense.paidBy")}>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-tour="expense-paid-by">
             {membersLoading
               ? [...Array(3)].map((_, i) => (
                   <div key={i} className="h-9 rounded-xl bg-white/[0.05] animate-pulse" style={{ width: `${88 + i * 20}px`, animationDelay: `${i * 80}ms` }} />
@@ -247,7 +247,7 @@ export default function CreateExpensePage() {
 
         {/* ── 04 Split between ── */}
         <FormSection step="04" title={t("createExpense.splitBetween")} contentClass="px-5 py-4 space-y-3">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-tour="expense-split">
             {membersLoading
               ? [...Array(3)].map((_, i) => (
                   <div key={i} className="h-9 rounded-xl bg-white/[0.05] animate-pulse" style={{ width: `${88 + i * 20}px`, animationDelay: `${i * 80}ms` }} />
@@ -281,7 +281,7 @@ export default function CreateExpensePage() {
           </div>
 
           {splits.length > 0 && (
-            <div className="space-y-2 pt-1">
+            <div className="space-y-2 pt-1" data-tour="expense-split-amounts">
               {splits.map((split) => (
                 <div
                   key={split.userId}
@@ -345,6 +345,7 @@ export default function CreateExpensePage() {
           isLoading={isCreating}
           submitLabel={t("createExpense.save")}
           loadingLabel={t("createExpense.saving")}
+          submitDataTour="create-expense-submit"
         />
       </form>
     </div>

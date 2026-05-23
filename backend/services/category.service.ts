@@ -85,7 +85,10 @@ export const deleteCategoryService = async (data: {
 };
 
 export const getCategoryDetailsService = async (groupId: mongoose.Types.ObjectId) => {
-    const categories = await Category.find({ groupId, isDeleted: false }).select('_id name color').lean();
+    const categories = await Category.find({ groupId, isDeleted: false })
+        .select('_id name color')
+        .sort({ createdAt: -1 })
+        .lean();
 
     const counts = await Expense.aggregate([
         {

@@ -68,6 +68,7 @@ export default function ReportPage() {
 
         <button
           onClick={() => navigate(-1)}
+          data-tour="activity-back"
           className="flex items-center gap-2 text-white/35 hover:text-white/60 active:text-white/60 text-xs font-medium transition-colors mb-4"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -101,7 +102,7 @@ export default function ReportPage() {
           <p className="text-white/35 text-sm mt-1.5">{t("report.description")}</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2" data-tour="activity-page">
           {[
             { label: t("report.totalIn"),  value: totalCredit, color: "#34d399" },
             { label: t("report.totalOut"), value: totalDebit,  color: "#f87171" },
@@ -180,7 +181,16 @@ export default function ReportPage() {
                       <div
                         key={tx._id}
                         onClick={() => setSelectedTx(tx)}
-                        className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-white/[0.04] transition-colors"
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setSelectedTx(tx);
+                          }
+                        }}
+                        aria-label={t("report.openTransaction", "Open transaction details")}
+                        className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-white/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40 transition-colors"
                         style={{ animation: "fadeSlideIn 0.2s ease forwards", animationDelay: `${i * 40}ms`, opacity: 0 }}
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -263,7 +273,16 @@ export default function ReportPage() {
                       <div
                         key={event._id}
                         onClick={() => setSelectedEvent(event)}
-                        className="flex items-start gap-4 px-5 py-4 cursor-pointer hover:bg-white/[0.04] transition-colors relative"
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setSelectedEvent(event);
+                          }
+                        }}
+                        aria-label={t("report.openEvent", "Open event details")}
+                        className="flex items-start gap-4 px-5 py-4 cursor-pointer hover:bg-white/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40 transition-colors relative"
                         style={{ animation: "fadeSlideIn 0.2s ease forwards", animationDelay: `${i * 40}ms`, opacity: 0 }}
                       >
                         <div

@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { Login, Registration } from './page/Authentication'
 import ForgotPasswordPage from './page/ForgotPasswordPage'
@@ -15,12 +16,21 @@ import CategoryReportPage from './page/CategoryReportPage'
 import ProtectedRouter from './components/ProtectedRouter'
 import ErrorBoundary from './components/ErrorBoundary'
 import NotFoundPage from './page/NotFoundPage'
+import ShortcutHelp from './components/ShortcutHelp'
 import UseSocket from './hooks/socket'
+import useGlobalShortcuts from './hooks/useGlobalShortcuts'
+import TourProvider from './tour/TourProvider'
 
 function App() {
+  const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
+  const openHelp = useCallback(() => setShortcutHelpOpen(true), [])
+  useGlobalShortcuts(openHelp)
+
   return (
     <ErrorBoundary>
       <UseSocket />
+      <ShortcutHelp isOpen={shortcutHelpOpen} onClose={() => setShortcutHelpOpen(false)} />
+      <TourProvider>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
@@ -42,6 +52,7 @@ function App() {
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      </TourProvider>
     </ErrorBoundary>
   )
 }

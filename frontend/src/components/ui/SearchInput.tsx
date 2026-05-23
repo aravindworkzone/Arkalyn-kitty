@@ -26,6 +26,8 @@ export default function SearchInput({ value, onChange, placeholder = "Search…"
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        data-shortcut="search"
+        aria-label={placeholder}
         className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
           text-base sm:text-[13px] text-white/80 placeholder:text-white/25
           outline-none focus:border-violet-500/40 focus:bg-white/[0.06] transition-all duration-200"
