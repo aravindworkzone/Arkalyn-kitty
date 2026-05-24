@@ -131,10 +131,14 @@ export const group = api.injectEndpoints({
                 'Group'
             ]
         }),
-        leaveGroup: builder.mutation<any, string>({
-            query: (groupId) => ({ url: '/group/leave', method: 'POST', body: { groupId } }),
-            invalidatesTags: (_result, _error, groupId) => [
-                { type: 'Group', id: groupId },
+        leaveGroup: builder.mutation<any, { groupId: string; mode?: 'settlement' | 'forfeit' }>({
+            query: ({ groupId, mode }) => ({
+                url: '/group/leave',
+                method: 'POST',
+                body: mode ? { groupId, mode } : { groupId },
+            }),
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId },
                 'Group'
             ]
         }),
@@ -147,6 +151,12 @@ export const group = api.injectEndpoints({
         }),
         rejectLeave: builder.mutation<any, { groupId: string; member: string }>({
             query: (body) => ({ url: '/group/leave/reject', method: 'POST', body }),
+            invalidatesTags: (_result, _error, arg) => [
+                { type: 'Group', id: arg.groupId }
+            ]
+        }),
+        cancelOwnLeave: builder.mutation<any, { groupId: string }>({
+            query: (body) => ({ url: '/group/leave/cancel', method: 'POST', body }),
             invalidatesTags: (_result, _error, arg) => [
                 { type: 'Group', id: arg.groupId }
             ]
@@ -203,7 +213,7 @@ export const {
     useGetAllCreditsQuery, useRemoveCreditMutation,
     useManageMemberMutation, useInviteMemberMutation, useManageAdminMutation, useAddContributionMutation,
     useSettlementMutation, useDeleteGroupMutation, useLeaveGroupMutation,
-    useApproveLeaveMutation, useRejectLeaveMutation,
+    useApproveLeaveMutation, useRejectLeaveMutation, useCancelOwnLeaveMutation,
     useGetGroupClosePreviewQuery, useCloseGroupMutation,
     useToggleFavoriteMutation
 } = group;

@@ -47,6 +47,7 @@ export const settlementBodySchema = z.object({
 
 export const leaveGroupBodySchema = z.object({
     groupId: groupIdParamSchema,
+    mode: z.enum(['settlement', 'forfeit']).optional(),
 });
 
 export const approveLeaveBodySchema = z.object({
@@ -58,6 +59,10 @@ export const approveLeaveBodySchema = z.object({
 export const rejectLeaveBodySchema = z.object({
     groupId: groupIdParamSchema,
     member: objectIdSchema,
+});
+
+export const cancelOwnLeaveBodySchema = z.object({
+    groupId: groupIdParamSchema,
 });
 
 export const toggleFavoriteBodySchema = z.object({

@@ -6,6 +6,7 @@ export interface GroupMember {
   settlement?: boolean;
   settlementAmount?: number;
   leaveRequestedAt?: string | null;
+  leftMode?: "SETTLED" | "FORFEIT" | null;
   userId: { _id: string; name: string; email: string };
 }
 

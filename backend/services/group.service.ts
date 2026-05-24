@@ -547,9 +547,14 @@ export const SettlementService = async (data: {
     }
 };
 
-export const leaveGroupService = async (data: { group: mongoose.Types.ObjectId, user: mongoose.Types.ObjectId }) => {
+export const leaveGroupService = async (data: {
+    group: mongoose.Types.ObjectId,
+    user: mongoose.Types.ObjectId,
+    mode?: "settlement" | "forfeit",
+}) => {
     const groupData = data.group;
     const userId = data.user;
+    const mode = data.mode ?? "settlement";
 
     const member = await GroupMember.findOne({ groupId: groupData, userId, isDeleted: false });
 
@@ -561,8 +566,44 @@ export const leaveGroupService = async (data: { group: mongoose.Types.ObjectId, 
         throw new AppError("Super admin cannot leave the group", 400);
     }
 
-    // An already-settled member can leave instantly. An unsettled member files a
-    // leave request that an admin/super admin must approve (settling them in the process).
+    // Forfeit path: instant exit, no balance change, no settlement record.
+    // The member's contribution stays in the group pool and they show up
+    // under "left contributors" with leftMode = "FORFEIT". A pending leave
+    // request is silently overridden since the member is leaving anyway.
+    if (mode === "forfeit") {
+        const session = await mongoose.startSession();
+        try {
+            session.startTransaction();
+
+            await GroupMember.findOneAndUpdate(
+                { groupId: groupData, userId, isDeleted: false },
+                { isDeleted: true, leaveRequestedAt: null, leftMode: "FORFEIT" },
+                { session }
+            );
+
+            const leaveEvent = new GroupEvent({
+                groupId: groupData,
+                performedBy: userId,
+                eventType: "MEMBER_REMOVED",
+                metadata: { userId, note: "Left without settlement — contribution forfeited" },
+                referenceId: userId,
+                referenceModel: "User",
+            });
+            await leaveEvent.save({ session });
+
+            await session.commitTransaction();
+            return { message: "Left group without settlement", left: true };
+        } catch (error: any) {
+            await session.abortTransaction();
+            if (error.name === "ValidationError") throw new AppError(error.message, 400);
+            throw new AppError(error.message || "Internal server error", error.statusCode || 500);
+        } finally {
+            await session.endSession();
+        }
+    }
+
+    // Settlement path (default): an already-settled member can leave instantly.
+    // An unsettled member files a leave request for admin approval.
     if (!member.settlement) {
         if (member.leaveRequestedAt) {
             throw new AppError("Your leave request is already pending approval", 400);
@@ -601,7 +642,7 @@ export const leaveGroupService = async (data: { group: mongoose.Types.ObjectId, 
 
         await GroupMember.findOneAndUpdate(
             { groupId: groupData, userId, isDeleted: false },
-            { isDeleted: true, leaveRequestedAt: null },
+            { isDeleted: true, leaveRequestedAt: null, leftMode: "SETTLED" },
             { returnDocument: "after", session }
         );
 
@@ -668,7 +709,7 @@ export const approveLeaveRequestService = async (data: {
 
         await GroupMember.findOneAndUpdate(
             { groupId: groupData, userId: memberId, isDeleted: false },
-            { $set: { settlement: true, isDeleted: true, leaveRequestedAt: null } },
+            { $set: { settlement: true, isDeleted: true, leaveRequestedAt: null, leftMode: "SETTLED" } },
             { session }
         );
 
@@ -761,6 +802,26 @@ export const rejectLeaveRequestService = async (data: {
     });
 
     return "Leave request rejected";
+};
+
+export const cancelOwnLeaveRequestService = async (data: {
+    group: mongoose.Types.ObjectId;
+    user: mongoose.Types.ObjectId;
+}) => {
+    const { group: groupData, user: userId } = data;
+
+    const member = await GroupMember.findOne({ groupId: groupData, userId, isDeleted: false });
+    if (!member) {
+        throw new AppError("You are not a member of this group", 400);
+    }
+    if (!member.leaveRequestedAt) {
+        throw new AppError("You have no pending leave request", 400);
+    }
+
+    member.leaveRequestedAt = null;
+    await member.save();
+
+    return "Leave request cancelled";
 };
 
 export const getGroupByIdService = async (groupId: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId) => {

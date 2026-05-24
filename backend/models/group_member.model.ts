@@ -9,6 +9,7 @@ export interface IGroupMember extends Document {
     settlement: boolean;
     settlementAmount: number;
     leaveRequestedAt: Date | null;
+    leftMode: "SETTLED" | "FORFEIT" | null;
     isDeleted: boolean;
     isFavorite: boolean;
     createdAt?: Date;
@@ -26,6 +27,10 @@ const groupMemberSchema = new Schema<IGroupMember>({
     // for showing "SETTLED · ₹X" — it never feeds balance arithmetic.
     settlementAmount: {type: Number, default: 0},
     leaveRequestedAt: {type: Date, default: null},
+    // Distinguishes how a soft-deleted member exited the group:
+    // SETTLED = approval-based path (settlement disbursed),
+    // FORFEIT = instant exit with contribution left in the pool.
+    leftMode: {type: String, enum: ["SETTLED", "FORFEIT", null], default: null},
     isDeleted: {type: Boolean, default: false},
     isFavorite: {type: Boolean, default: false}
 }, {timestamps: true, toJSON: { getters: true }, toObject: { getters: true }});

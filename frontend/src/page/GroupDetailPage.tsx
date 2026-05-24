@@ -12,6 +12,7 @@ import {
   useGetGroupByIdQuery,
   useGetLeftContributorsQuery,
 } from "../redux/api/group";
+import { useGetUserQuery } from "../redux/api/auth";
 import { useGroupDetailHandlers } from "../handlers/useGroupDetailHandlers";
 import { roleGrade, roleLabel } from "../helpers/constants";
 import type { SettingsTab } from "../interface/group";
@@ -54,6 +55,8 @@ export default function GroupDetailPage() {
   const [leaveGroupOpen,   setLeaveGroupOpen]   = useState(false);
   const [leaveGroupError,  setLeaveGroupError]  = useState("");
   const [leaveRequestSent, setLeaveRequestSent] = useState(false);
+  const [forfeitLeaveOpen,  setForfeitLeaveOpen]  = useState(false);
+  const [forfeitLeaveError, setForfeitLeaveError] = useState("");
   const [closeGroupOpen,   setCloseGroupOpen]   = useState(false);
   const [groupClosedBanner, setGroupClosedBanner] = useState(false);
 
@@ -69,16 +72,21 @@ export default function GroupDetailPage() {
     useGetLeftContributorsQuery(groupId!, { skip: !groupId });
   const { data: categories = [], isLoading: catLoading } =
     useGetCategoriesQuery(groupId!, { skip: !groupId });
+  const { data: meData } = useGetUserQuery();
+  const currentUserId = meData?.data?.user?._id;
 
   const {
     msg, setMsg,
     isVerifying, isInvitingMember, isChangingRole,
     isAddingContrib, isSettling, isDeletingGroup, isRemovingMember, isLeavingGroup,
-    isApprovingLeave, isRejectingLeave,
+    isApprovingLeave, isRejectingLeave, isCancellingOwnLeave,
     handleVerifyUser, handleInviteMember, handleChangeRole,
     handleAddContribution, handleSettlement, handleDeleteMember, handleDeleteGroup, handleLeaveGroup,
-    handleApproveLeave, handleRejectLeave,
+    handleApproveLeave, handleRejectLeave, handleCancelOwnLeave,
   } = useGroupDetailHandlers(groupId);
+
+  const myMember = GroupMembers?.find((m) => m.userId._id === currentUserId);
+  const hasPendingLeave = !!myMember?.leaveRequestedAt;
 
   const pendingLeaveCount = GroupMembers?.filter((m) => m.leaveRequestedAt).length ?? 0;
 
@@ -406,9 +414,18 @@ export default function GroupDetailPage() {
                       return (
                         <div key={m._id} className="space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-[11px] text-white/40 italic" translate="no">
+                            <span className="text-[11px] text-white/40 italic flex items-center gap-1.5" translate="no">
                               {m.userId.name}
-                              <span className="text-white/20 ml-1 not-italic">· {t("groupDetail.left", "left")}</span>
+                              <span className="text-white/20 not-italic">
+                                · {m.leftMode === "FORFEIT"
+                                    ? t("groupDetail.forfeited", "forfeited")
+                                    : t("groupDetail.left", "left")}
+                              </span>
+                              {m.leftMode === "FORFEIT" && (
+                                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md not-italic border border-amber-500/30 bg-amber-500/10 text-amber-300">
+                                  {t("groupDetail.forfeitBadge", "FORFEITED")}
+                                </span>
+                              )}
                             </span>
                             <span className="text-[11px] font-mono text-white/35" translate="no">
                               ₹{m.contribution.toLocaleString("en-IN")}
@@ -670,11 +687,15 @@ export default function GroupDetailPage() {
                     isSuperAdmin={isSuperAdmin}
                     onRequestDeleteGroup={() => { setSettingsOpen(false); setDeleteGroupOpen(true); }}
                     onRequestLeaveGroup={() => { setSettingsOpen(false); setLeaveGroupOpen(true); }}
+                    onRequestForfeitLeave={() => { setSettingsOpen(false); setForfeitLeaveOpen(true); }}
                     onRequestCloseGroup={
                       isSuperAdmin && GroupDetails?.status !== "CLOSED"
                         ? () => { setSettingsOpen(false); setCloseGroupOpen(true); }
                         : undefined
                     }
+                    hasPendingLeave={hasPendingLeave}
+                    onCancelOwnLeave={handleCancelOwnLeave}
+                    isCancellingOwnLeave={isCancellingOwnLeave}
                   />
                 )}
               </div>
@@ -738,6 +759,25 @@ export default function GroupDetailPage() {
           {t(
             "groupDetail.leaveGroupConfirm",
             "You will lose access to this group's expenses and activity. This cannot be undone by you."
+          )}
+        </p>
+      </DeleteConfirmModal>
+
+      {/* ── Leave Without Settlement (forfeit) modal ── */}
+      <DeleteConfirmModal
+        isOpen={forfeitLeaveOpen}
+        onClose={() => { setForfeitLeaveOpen(false); setForfeitLeaveError(""); }}
+        onConfirm={() => handleLeaveGroup(setForfeitLeaveError, "forfeit")}
+        label={t("groupDetail.leaveWithoutSettlement", "Leave without settlement")}
+        confirmText="FORFEIT"
+        isLoading={isLeavingGroup}
+        error={forfeitLeaveError}
+      >
+        <p className="text-sm text-white/50">
+          <span className="text-white/80 font-medium" translate="no">{GroupDetails?.name}</span> —{" "}
+          {t(
+            "groupDetail.leaveWithoutSettlementConfirm",
+            "Your contribution stays in the group pool and will not be refunded. You leave instantly without admin approval. This cannot be undone."
           )}
         </p>
       </DeleteConfirmModal>

@@ -9,6 +9,7 @@ import {
     leaveGroupService,
     approveLeaveRequestService,
     rejectLeaveRequestService,
+    cancelOwnLeaveRequestService,
     getGroupByIdService,
     getGroupMemberService,
     getLeftContributorsService,
@@ -136,9 +137,11 @@ export const leaveGroup = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
     if (!req.group?._id) throw new AppError('Group not found', 400);
 
+    const mode = req.body.mode === 'forfeit' ? 'forfeit' : 'settlement';
     const result = await leaveGroupService({
         group: req.group._id,
         user: req.user._id,
+        mode,
     });
 
     // A real exit broadcasts a membership change; a pending leave request
@@ -178,6 +181,20 @@ export const rejectLeaveRequest = asyncHandler(async (req, res) => {
         group: req.group._id,
         admin: req.user._id,
         member: req.body.member,
+    });
+
+    emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_LEAVE_REQUEST_UPDATED);
+
+    sendSuccess(res, null, result);
+});
+
+export const cancelOwnLeaveRequest = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const result = await cancelOwnLeaveRequestService({
+        group: req.group._id,
+        user: req.user._id,
     });
 
     emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_LEAVE_REQUEST_UPDATED);
