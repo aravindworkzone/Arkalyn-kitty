@@ -248,7 +248,7 @@ export default function AllExpensesPage() {
                   <p className="text-[15px] font-semibold font-mono text-[#f0eeff] leading-tight" translate="no">
                     ₹{expense.amount.toLocaleString("en-IN")}
                   </p>
-                  <p className="text-[10px] text-white/25 mt-0.5" translate="no">{timeLabel(expense.date)}</p>
+                  {/* <p className="text-[10px] text-white/25 mt-0.5" translate="no">{timeLabel(expense.date)}</p> */}
                 </div>
               </div>
             ))}
@@ -282,6 +282,7 @@ export default function AllExpensesPage() {
         onClose={() => setSelectedExpense(null)}
         role={role}
         groupId={groupId}
+        group={GroupDetails}
       />
     </div>
   );

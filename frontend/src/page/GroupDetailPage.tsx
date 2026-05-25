@@ -28,6 +28,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { joinGroup } from "../socket/emiter/group.emit";
 import { setGroupId } from "../redux/slice/group.slice";
+import { setTourGroupBalance } from "../store/tourStore";
 import { useDispatch } from "react-redux";
 
 export default function GroupDetailPage() {
@@ -74,6 +75,17 @@ export default function GroupDetailPage() {
     useGetCategoriesQuery(groupId!, { skip: !groupId });
   const { data: meData } = useGetUserQuery();
   const currentUserId = meData?.data?.user?._id;
+
+  // Feed the current group's balance into the tour engine so its `skipWhen`
+  // predicates can short-circuit the contribution detour when the wallet is
+  // already funded. Cleared on unmount so other routes don't see stale data.
+  useEffect(() => {
+    if (GroupDetails?.balance == null) return;
+    dispatch(setTourGroupBalance(GroupDetails.balance));
+    return () => {
+      dispatch(setTourGroupBalance(null));
+    };
+  }, [dispatch, GroupDetails?.balance]);
 
   const {
     msg, setMsg,
@@ -796,7 +808,7 @@ export default function GroupDetailPage() {
       )}
 
       {/* ── Expense detail modal ── */}
-      <ExpenseDetailModal expense={selectedExpense} onClose={() => setSelectedExpense(null)} role={role} groupId={groupId} />
+      <ExpenseDetailModal expense={selectedExpense} onClose={() => setSelectedExpense(null)} role={role} groupId={groupId} group={GroupDetails} />
 
       <style>{`
         @keyframes fadeSlideIn {

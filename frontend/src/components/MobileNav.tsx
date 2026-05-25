@@ -100,6 +100,13 @@ export default function MobileNav({ user }: Props) {
             disabled={!addAction}
             onClick={() => addAction && navigate(addAction.to)}
             highlight
+            // The desktop "Create Group" button is hidden on mobile, so the
+            // tour spotlight latches onto this FAB. For "create-expense" the
+            // in-page action grid in GroupDetailPage stays visible on mobile —
+            // we leave that one untagged so the spotlight uses the in-page
+            // button (which lives in normal flow and isn't covered by the
+            // bottom-nav's backdrop-blur stacking context).
+            dataTour={onGroupsList ? "create-group" : undefined}
             icon={
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.4" />
@@ -188,9 +195,10 @@ interface NavItemProps {
   icon: React.ReactNode;
   highlight?: boolean;
   disabled?: boolean;
+  dataTour?: string;
 }
 
-function NavItem({ label, active, onClick, icon, highlight, disabled }: NavItemProps) {
+function NavItem({ label, active, onClick, icon, highlight, disabled, dataTour }: NavItemProps) {
   const color = disabled
     ? "text-white/15"
     : active
@@ -202,6 +210,7 @@ function NavItem({ label, active, onClick, icon, highlight, disabled }: NavItemP
       type="button"
       onClick={onClick}
       disabled={disabled}
+      data-tour={dataTour}
       className={`flex flex-col items-center justify-center gap-0.5 min-h-touch transition-colors
         ${color} ${disabled ? "" : "active:bg-white/[0.04]"}`}
     >

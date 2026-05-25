@@ -224,6 +224,7 @@ export default function AllCreditsPage() {
         onClose={() => setSelectedCredit(null)}
         role={role}
         groupId={groupId}
+        group={GroupDetails}
       />
 
       <style>{`

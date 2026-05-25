@@ -11,6 +11,12 @@ export interface TourState {
   completed: boolean;
   /** Final modal is visible. */
   showCompletionModal: boolean;
+  /**
+   * Balance of the group currently in view, used by step `skipWhen` predicates
+   * (e.g. skipping the contribution detour when the wallet already has funds).
+   * Null when the user isn't on a group page.
+   */
+  groupBalance: number | null;
 }
 
 const readCompletedFlag = (): boolean => {
@@ -37,6 +43,7 @@ const initialState: TourState = {
   currentStep: 0,
   completed: readCompletedFlag(),
   showCompletionModal: false,
+  groupBalance: null,
 };
 
 const tourSlice = createSlice({
@@ -73,6 +80,9 @@ const tourSlice = createSlice({
       state.showCompletionModal = false;
       writeCompletedFlag(false);
     },
+    setTourGroupBalance(state, action: PayloadAction<number | null>) {
+      state.groupBalance = action.payload;
+    },
   },
 });
 
@@ -83,6 +93,7 @@ export const {
   finishTour,
   dismissTour,
   resetTour,
+  setTourGroupBalance,
 } = tourSlice.actions;
 
 export default tourSlice.reducer;

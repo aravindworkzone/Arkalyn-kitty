@@ -1,8 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 import TourOverlay from "./TourOverlay";
 import TourCompletionModal from "./TourCompletionModal";
 import { useTour, type UseTourResult } from "./useTour";
+import type { RootState } from "../redux/store";
+import { TOUR_STEPS } from "./tourSteps";
 
 const TourContext = createContext<UseTourResult | null>(null);
 
@@ -33,6 +36,20 @@ interface Props {
 export default function TourProvider({ children, autoStartForNewUsers = true }: Props) {
   const tour = useTour();
   const location = useLocation();
+  const groupBalance = useSelector((s: RootState) => s.tour.groupBalance);
+
+  // Skip steps whose `skipWhen` predicate is true (conditional branches like
+  // the contribution detour). Done as an effect so the engine itself stays
+  // simple — we just nudge the cursor forward whenever the current step
+  // shouldn't run under the present app state.
+  useEffect(() => {
+    if (!tour.active) return;
+    const step = TOUR_STEPS[tour.currentStepIndex];
+    if (!step?.skipWhen) return;
+    if (step.skipWhen({ groupBalance })) {
+      tour.advance();
+    }
+  }, [tour, tour.active, tour.currentStepIndex, groupBalance]);
 
   // First-login auto-trigger: only on routes that have at least one tour
   // target (i.e. inside the authenticated app, not on /login or /landing).

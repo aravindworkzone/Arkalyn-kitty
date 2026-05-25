@@ -51,7 +51,13 @@ export default function TourOverlay() {
   const manualAdvanceRef = useRef(manualAdvance);
   manualAdvanceRef.current = manualAdvance;
 
-  const noSpotlight = currentStep?.noSpotlight === true;
+  // `noSpotlight` is now a two-source decision: the step config can force it,
+  // or — when the target sits inside a stacking-context ancestor whose
+  // z-index can't be escaped (fixed nav, modal, backdrop-blur container) — we
+  // auto-fall-back to glow-only. The effective value lives in state so the
+  // overlay re-renders with the correct mode once a target attaches.
+  const [autoNoSpotlight, setAutoNoSpotlight] = useState(false);
+  const noSpotlight = currentStep?.noSpotlight === true || autoNoSpotlight;
 
   const handleTargetClick = useCallback(() => {
     // Input-field steps require the user to click "Next" — clicking the input
@@ -92,12 +98,41 @@ export default function TourOverlay() {
   const noSpotlightRef = useRef(noSpotlight);
   noSpotlightRef.current = noSpotlight;
 
+  const stepWantsNoSpotlight = currentStep?.noSpotlight === true;
+
+  // Walk up the DOM looking for an ancestor that creates a stacking context
+  // the target can't escape via z-index alone. If any is found, we have to
+  // use glow-only mode — the dim cutout would otherwise sit above the target.
+  const isClampedByAncestor = useCallback((el: HTMLElement): boolean => {
+    let cur: HTMLElement | null = el.parentElement;
+    while (cur && cur !== document.body) {
+      const cs = window.getComputedStyle(cur);
+      if (
+        cs.position === "fixed" ||
+        cs.position === "sticky" ||
+        (cs.backdropFilter && cs.backdropFilter !== "none") ||
+        ((cs as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter &&
+          (cs as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter !== "none") ||
+        (cs.filter && cs.filter !== "none") ||
+        (cs.transform && cs.transform !== "none") ||
+        cs.isolation === "isolate" ||
+        cs.willChange === "transform" ||
+        cs.willChange === "opacity"
+      ) {
+        return true;
+      }
+      cur = cur.parentElement;
+    }
+    return false;
+  }, []);
+
   const attachToTarget = useCallback(
     (el: HTMLElement | null) => {
       if (targetRef.current === el) return;
       detachTarget();
       if (!el) {
         setRect(null);
+        setAutoNoSpotlight(false);
         return;
       }
 
@@ -107,7 +142,14 @@ export default function TourOverlay() {
         boxShadow: el.style.boxShadow,
       };
 
-      if (noSpotlightRef.current) {
+      const clamped = isClampedByAncestor(el);
+      const useGlowOnly = stepWantsNoSpotlight || clamped;
+      // Update the rendered mode so the dim layer / glow ring sync up with
+      // whatever attachment we just did.
+      setAutoNoSpotlight(clamped && !stepWantsNoSpotlight);
+      noSpotlightRef.current = useGlowOnly;
+
+      if (useGlowOnly) {
         // No dim/cutout: highlight the target with a glow box-shadow applied
         // directly to the element, so it remains visible inside whatever
         // stacking context it lives in (e.g. a modal). Don't lift via z-index
@@ -127,7 +169,7 @@ export default function TourOverlay() {
       targetRef.current = el;
       requestAnimationFrame(measure);
     },
-    [detachTarget, handleTargetClick, measure]
+    [detachTarget, handleTargetClick, measure, isClampedByAncestor, stepWantsNoSpotlight]
   );
 
   useEffect(() => {
@@ -139,8 +181,29 @@ export default function TourOverlay() {
 
     const selector = `[data-tour="${currentStep.target}"]`;
 
+    // Multiple elements can share the same `data-tour` (e.g. the create-group
+    // target is on the desktop header button AND the mobile bottom-nav FAB —
+    // one is always hidden via Tailwind's `hidden`/`md:hidden`). Pick the
+    // first match that's actually laid out, otherwise the overlay attaches
+    // to a 0×0 hidden node and renders nothing.
+    const pickVisible = (): HTMLElement | null => {
+      const candidates = document.querySelectorAll<HTMLElement>(selector);
+      for (const node of candidates) {
+        if (!node.isConnected) continue;
+        // `offsetParent === null` catches `display: none` on the element or
+        // any ancestor. For elements with `position: fixed` we additionally
+        // check that the rect is non-empty.
+        if (node.offsetParent === null) {
+          const r = node.getBoundingClientRect();
+          if (r.width === 0 && r.height === 0) continue;
+        }
+        return node;
+      }
+      return null;
+    };
+
     const tryFind = () => {
-      const el = document.querySelector<HTMLElement>(selector);
+      const el = pickVisible();
       if (el && el !== targetRef.current) {
         attachToTarget(el);
       } else if (!el && targetRef.current) {

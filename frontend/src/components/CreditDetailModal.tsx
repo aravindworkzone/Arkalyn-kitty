@@ -1,6 +1,9 @@
+import { useRef } from "react";
 import DetailModal from "./DetailModal";
+import ShareCard from "./ShareCard";
 import type { GroupCredit } from "../interface/transaction";
 import { useCreditModalHandlers } from "../handlers/useCreditModalHandlers";
+import { useShareAsImage } from "../hooks/useShareAsImage";
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="flex items-start justify-between gap-6 py-2.5 border-b border-white/[0.05] last:border-0">
@@ -16,11 +19,13 @@ export default function CreditDetailModal({
   onClose,
   role,
   groupId,
+  group,
 }: {
   credit: GroupCredit | null;
   onClose: () => void;
   role?: string;
   groupId?: string;
+  group?: { name?: string; displayId?: string } | null;
 }) {
   const {
     showRemove, setShowRemove,
@@ -30,6 +35,15 @@ export default function CreditDetailModal({
     handleClose,
     handleRemove,
   } = useCreditModalHandlers(onClose);
+
+  const cardRef = useRef<HTMLDivElement>(null);
+  const {
+    shareImage,
+    downloadImage,
+    isSharing,
+    isDownloading,
+    error: shareError,
+  } = useShareAsImage(cardRef);
 
   // Removing a credit reverses a wallet deposit, so it is restricted to the super admin.
   const canRemove = role === "SUPER_ADMIN";
@@ -86,6 +100,42 @@ export default function CreditDetailModal({
           <span className="text-[13px] text-white/60">{timeLabel}</span>
         </Row>
       </div>
+
+      {/* share section — visible to everyone */}
+      <div className="mt-5 pt-4 border-t border-white/[0.06]">
+        <div className="flex gap-2">
+          <button
+            onClick={() =>
+              shareImage({
+                filename: `credit-${group?.displayId ?? "group"}-${credit._id}.png`,
+                shareTitle: `Credit · ₹${credit.amount.toLocaleString("en-IN")}`,
+                shareText: `${credit.description || "Contribution"} · ₹${credit.amount.toLocaleString("en-IN")}`,
+              })
+            }
+            disabled={isSharing || isDownloading}
+            className="flex-1 py-2 rounded-xl border border-white/10 bg-white/[0.04] text-white/70 text-[12px] font-semibold hover:bg-white/[0.08] active:bg-white/[0.08] disabled:opacity-50 transition-colors"
+          >
+            {isSharing ? "Preparing…" : "Share"}
+          </button>
+          <button
+            onClick={() =>
+              downloadImage({
+                filename: `credit-${group?.displayId ?? "group"}-${credit._id}.png`,
+              })
+            }
+            disabled={isSharing || isDownloading}
+            className="flex-1 py-2 rounded-xl border border-white/10 bg-white/[0.04] text-white/70 text-[12px] font-semibold hover:bg-white/[0.08] active:bg-white/[0.08] disabled:opacity-50 transition-colors"
+          >
+            {isDownloading ? "Downloading…" : "Download"}
+          </button>
+        </div>
+        {shareError && (
+          <p className="mt-2 text-[11px] text-red-400">{shareError}</p>
+        )}
+      </div>
+
+      {/* hidden off-screen card used as the image source */}
+      <ShareCard ref={cardRef} type="credit" credit={credit} group={group} />
 
       {/* remove section — super admin only */}
       {canRemove && (

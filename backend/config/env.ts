@@ -40,10 +40,12 @@ export const env = {
     // Trailing slashes silently break CORS — browsers send `Origin` without one.
     // Empty string when unset; validateEnv() rejects that before the app serves.
     FRONTEND_URL: (process.env.FRONTEND_URL ?? '').replace(/\/+$/, ''),
-    // SMTP (Gmail) for transactional email (password reset). Optional — the app
-    // boots without them; email simply degrades to a logged warning.
-    SMTP_USER: process.env.SMTP_USER ?? '',
-    SMTP_PASS: process.env.SMTP_PASS ?? '',
+    // Resend HTTP API for transactional email (password reset). Optional — the
+    // app boots without a key; email simply degrades to a logged warning.
+    // RESEND_FROM defaults to onboarding@resend.dev (no domain verification
+    // needed) — override once you've verified your own sending domain.
+    RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
+    RESEND_FROM: process.env.RESEND_FROM ?? '',
     isProduction: process.env.NODE_ENV === 'production',
     isDevelopment: process.env.NODE_ENV !== 'production',
 };

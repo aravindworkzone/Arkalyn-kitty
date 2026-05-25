@@ -60,42 +60,48 @@ export default function SettingsContribution({ members, isAddingContrib, handleA
         </p>
       )}
 
-      <AmountInput
-        size="md"
-        value={myContrib}
-        onChange={setMyContrib}
-        error={fieldErrors.myContrib}
-        onClearError={() => clearFieldError("myContrib")}
-        placeholder={t("groupDetail.amount")}
-        inputClassName={INPUT_CLASS}
-      />
+      <div data-tour="contrib-amount-field">
+        <AmountInput
+          size="md"
+          value={myContrib}
+          onChange={setMyContrib}
+          error={fieldErrors.myContrib}
+          onClearError={() => clearFieldError("myContrib")}
+          placeholder={t("groupDetail.amount")}
+          inputClassName={INPUT_CLASS}
+        />
+      </div>
 
-      <FieldInput
-        type="text"
-        inputMode="text"
-        value={myContribDesc}
-        onChange={(e) => setMyContribDesc(e.target.value)}
-        error={descErrors.myContribDesc}
-        onClearError={() => clearDescError("myContribDesc")}
-        placeholder={t("groupDetail.description")}
-        className={INPUT_CLASS}
-      />
+      <div data-tour="contrib-desc-field">
+        <FieldInput
+          type="text"
+          inputMode="text"
+          value={myContribDesc}
+          onChange={(e) => setMyContribDesc(e.target.value)}
+          error={descErrors.myContribDesc}
+          onClearError={() => clearDescError("myContribDesc")}
+          placeholder={t("groupDetail.description")}
+          className={INPUT_CLASS}
+        />
+      </div>
 
-      <ActionButton
-        tone="violet"
-        loading={isAddingContrib}
-        loadingLabel={t("groupDetail.addingContrib")}
-        disabled={!myContrib || Number(myContrib) <= 0 || targetSettled}
-        onClick={() =>
-          handleAddContribution(
-            myContrib, contribMemberId,
-            setMyContrib, setContribMemberId, setFieldError,
-            myContribDesc, setMyContribDesc, setDescError,
-          )
-        }
-      >
-        {t("groupDetail.addContribution")}
-      </ActionButton>
+      <div data-tour="contrib-submit">
+        <ActionButton
+          tone="violet"
+          loading={isAddingContrib}
+          loadingLabel={t("groupDetail.addingContrib")}
+          disabled={!myContrib || Number(myContrib) <= 0 || targetSettled}
+          onClick={() =>
+            handleAddContribution(
+              myContrib, contribMemberId,
+              setMyContrib, setContribMemberId, setFieldError,
+              myContribDesc, setMyContribDesc, setDescError,
+            )
+          }
+        >
+          {t("groupDetail.addContribution")}
+        </ActionButton>
+      </div>
     </div>
   );
 }

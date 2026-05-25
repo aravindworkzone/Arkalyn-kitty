@@ -1,19 +1,18 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { env } from './../config/env';
 import { logger } from './logger';
 
 const APP_NAME = 'Arkalyn - Kitty';
 
-// Email is optional infrastructure — if SMTP creds are absent the app still
-// runs; sends degrade to a logged warning so local dev can follow the flow.
-const isConfigured = Boolean(env.SMTP_USER && env.SMTP_PASS);
+// Resend's free tier sends from `onboarding@resend.dev` until the user verifies
+// a domain — keep that as the default so dev/staging works out of the box.
+const DEFAULT_FROM = `${APP_NAME} <onboarding@resend.dev>`;
 
-const transporter = isConfigured
-    ? nodemailer.createTransport({
-          service: 'gmail',
-          auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-      })
-    : null;
+// Email is optional infrastructure — if the API key is absent the app still
+// runs; sends degrade to a logged warning so local dev can follow the flow.
+const isConfigured = Boolean(env.RESEND_API_KEY);
+
+const resend = isConfigured ? new Resend(env.RESEND_API_KEY) : null;
 
 interface MailOptions {
     to: string;
@@ -23,22 +22,32 @@ interface MailOptions {
 }
 
 export const sendEmail = async ({ to, subject, html, text }: MailOptions): Promise<void> => {
-    if (!transporter) {
+    if (!resend) {
         logger.warn(
             { to, subject },
-            'SMTP not configured (SMTP_USER / SMTP_PASS) — email not sent. Body below for local testing:'
+            'RESEND_API_KEY not configured — email not sent. Body below for local testing:'
         );
         logger.warn(text);
         return;
     }
 
-    await transporter.sendMail({
-        from: `"${APP_NAME}" <${env.SMTP_USER}>`,
+    const from = env.RESEND_FROM || DEFAULT_FROM;
+
+    const { error } = await resend.emails.send({
+        from,
         to,
         subject,
-        text,
         html,
+        text,
     });
+
+    if (error) {
+        // Surface the provider's error so the caller can decide whether to retry
+        // or 500. The auth flow swallows email failures to avoid leaking which
+        // addresses exist, so this is mostly for ops observability.
+        logger.error({ err: error, to, subject }, 'Resend send failed');
+        throw new Error(error.message ?? 'Failed to send email');
+    }
 };
 
 export const sendPasswordResetEmail = async (to: string, resetUrl: string): Promise<void> => {

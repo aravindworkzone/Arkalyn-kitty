@@ -14,6 +14,16 @@
  *     input; the tooltip shows a "Next" button so the user can continue
  *     after typing.
  */
+/**
+ * Context the tour engine passes into `skipWhen` predicates so they can
+ * make conditional routing decisions (e.g. only show the "add a contribution"
+ * branch when the wallet is empty).
+ */
+export interface TourSkipContext {
+  /** Current group's balance in rupees, or null when not on a group page. */
+  groupBalance: number | null;
+}
+
 export interface TourStep {
   /** Stable identifier (also useful for tests / analytics). */
   id: string;
@@ -40,6 +50,13 @@ export interface TourStep {
    * still pass through normally.
    */
   noSpotlight?: boolean;
+  /**
+   * Predicate the tour engine evaluates when this step becomes current. When
+   * it returns true the step is silently skipped (the engine auto-advances).
+   * Used for conditional branches like the "add a contribution" detour that
+   * only runs when the wallet is empty.
+   */
+  skipWhen?: (ctx: TourSkipContext) => boolean;
 }
 
 export const TOUR_STEPS: readonly TourStep[] = [
@@ -50,6 +67,10 @@ export const TOUR_STEPS: readonly TourStep[] = [
     title: "Create a group",
     tip: "Start here. A group is the shared wallet that everyone contributes to.",
     ariaLabel: "Create a group",
+    // Spotlight mode is decided at attach time — desktop's in-page header
+    // button gets the full dim+cutout, the mobile bottom-nav FAB (which
+    // lives inside a backdrop-blur stacking context) falls back to a glow
+    // outline. See `attachToTarget` in TourOverlay.
   },
   {
     id: "group-name-field",
@@ -82,6 +103,67 @@ export const TOUR_STEPS: readonly TourStep[] = [
     title: "Open your group",
     tip: "Tap the group you just created to step inside and start setting it up.",
     ariaLabel: "Open group",
+  },
+
+  // ── Contribution detour (only when the wallet is empty) ──────────
+  // The whole branch is gated on `groupBalance === 0`. Once the user adds
+  // funds (or if the group already had a balance) every step short-circuits
+  // and the tour jumps straight to "create-category".
+  {
+    id: "contrib-open-settings",
+    target: "view-settings",
+    title: "Fund the wallet first",
+    tip: "Your wallet is empty. Open Settings to add a contribution before logging any expense.",
+    ariaLabel: "Open settings to add contribution",
+    skipWhen: ({ groupBalance }) => (groupBalance ?? 0) > 0,
+  },
+  {
+    id: "contrib-tab",
+    target: "settings-contribution",
+    title: "Pick the Contribution tab",
+    tip: "Tap Contribution to open the deposit form, then click Next.",
+    ariaLabel: "Contribution tab",
+    manualAdvance: true,
+    noSpotlight: true,
+    skipWhen: ({ groupBalance }) => (groupBalance ?? 0) > 0,
+  },
+  {
+    id: "contrib-amount-field",
+    target: "contrib-amount-field",
+    title: "Enter the amount",
+    tip: "Type how much you're chipping in — this lands straight in the shared wallet.",
+    ariaLabel: "Contribution amount",
+    manualAdvance: true,
+    noSpotlight: true,
+    skipWhen: ({ groupBalance }) => (groupBalance ?? 0) > 0,
+  },
+  {
+    id: "contrib-desc-field",
+    target: "contrib-desc-field",
+    title: "Add a note (optional)",
+    tip: "Jot down what this contribution is for — e.g. \"UPI from Aravind\" — so it's easy to trace later.",
+    ariaLabel: "Contribution description",
+    manualAdvance: true,
+    noSpotlight: true,
+    skipWhen: ({ groupBalance }) => (groupBalance ?? 0) > 0,
+  },
+  {
+    id: "contrib-submit",
+    target: "contrib-submit",
+    title: "Save the contribution",
+    tip: "Click Add Contribution to credit the wallet.",
+    ariaLabel: "Add contribution",
+    noSpotlight: true,
+    skipWhen: ({ groupBalance }) => (groupBalance ?? 0) > 0,
+  },
+  {
+    id: "contrib-close-settings",
+    target: "settings-close",
+    title: "Back to the group",
+    tip: "Close Settings to return to the group dashboard.",
+    ariaLabel: "Close settings",
+    noSpotlight: true,
+    skipWhen: ({ groupBalance }) => (groupBalance ?? 0) > 0,
   },
 
   // ── Category creation ────────────────────────────────────────────
