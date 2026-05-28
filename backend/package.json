@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "nodemon --watch . --ext ts --exec ts-node ./main.ts",
     "build": "npm install --include=dev && tsc",
-    "start": "node main.ts"
+    "start": "ts-node main.ts"
   },
   "keywords": [],
   "author": "",
