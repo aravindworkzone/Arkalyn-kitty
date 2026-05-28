@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "nodemon --watch . --ext ts --exec ts-node ./main.ts",
-    "build": "npm install --include=dev && tsc",
+    "build": "tsc",
     "start": "node dist/main.js"
   },
   "keywords": [],
