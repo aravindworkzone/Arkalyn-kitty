@@ -9,6 +9,7 @@ import Notification from "../models/notification.model";
 import { createNotification } from "./notification.service";
 import { emitToGroup } from "../sockets";
 import { SOCKET_EVENTS } from "../sockets/events";
+import { toDBAmount } from "../helpers/Money";
 
 const markInviteNotificationsRead = async (
     recipient: mongoose.Types.ObjectId,
@@ -66,7 +67,7 @@ export const acceptInviteService = async (data: { inviteId: string; userId: mong
 
         await Group.findByIdAndUpdate(
             invite.groupId,
-            { $inc: { totalContribution: contribution, balance: contribution } },
+            { $inc: { totalContribution: toDBAmount(contribution), balance: toDBAmount(contribution) } },
             { session }
         );
 

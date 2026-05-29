@@ -49,13 +49,15 @@ export default function CreateExpensePage() {
   const role = groupDetails?.role as string | undefined;
   const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
 
-  const [title, setTitle]             = useState("");
-  const [amount, setAmount]           = useState("");
-  const [date, setDate]               = useState(() => new Date().toISOString().split("T")[0]);
-  const [categoryId, setCategoryId]   = useState("");
-  const [paymentType, setPaymentType] = useState("Cash");
-  const [paidBy, setPaidBy]           = useState("");
-  const [splits, setSplits]           = useState<SplitEntry[]>([]);
+  const [title, setTitle]               = useState("");
+  const [description, setDescription]   = useState("");
+  const [amount, setAmount]             = useState("");
+  const [date, setDate]                 = useState(() => new Date().toISOString().split("T")[0]);
+  const [categoryId, setCategoryId]     = useState("");
+  const [paymentType, setPaymentType]   = useState("Cash");
+  const [paidBy, setPaidBy]             = useState("");
+  const [splits, setSplits]             = useState<SplitEntry[]>([]);
+  const [splitEnabled, setSplitEnabled] = useState(false);
   const { fieldErrors, setFieldError, clearFieldError } = useFieldError<ExpenseField>();
   const [apiError, setApiError]         = useState("");
 
@@ -342,8 +344,56 @@ export default function CreateExpensePage() {
           {fieldErrors.paidBy && <div className="mt-2"><ErrorMessage error={fieldErrors.paidBy} /></div>}
         </FormSection>
 
-        {/* ── 04 Split between ── */}
-        <FormSection step="04" title={t("createExpense.splitBetween")} contentClass="px-5 py-4 space-y-3">
+        {/* ── 04 Who Spend ── */}
+        <FormSection
+          step="04"
+          title={t("createExpense.splitBetween")}
+          contentClass="px-5 py-4 space-y-3"
+          headerRight={
+            <div className="flex items-center gap-2">
+              {!membersLoading && groupMembers.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearFieldError("splits");
+                    if (allMembersInSplit) {
+                      setSplits([]);
+                    } else {
+                      setAllSplits(setSplits, groupMembers.map((m) => m.userId));
+                      setSplitEnabled(true);
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all duration-150 ${
+                    allMembersInSplit
+                      ? "bg-red-500/10 border-red-500/25 text-red-400 hover:bg-red-500/15 active:bg-red-500/15"
+                      : "bg-white/[0.03] border-white/[0.07] text-white/35 hover:border-cyan-500/30 hover:text-cyan-400"
+                  }`}
+                >
+                  {allMembersInSplit ? t("createExpense.clearAll") : t("createExpense.addAll")}
+                </button>
+              )}
+              {!splitEnabled && (
+                <span className="text-[9px] font-medium text-white/30 uppercase tracking-wide">
+                  {t("createExpense.optional")}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => handleToggleSplit(!splitEnabled)}
+                aria-label={splitEnabled ? "Disable split tracking" : "Enable split tracking"}
+                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 ${
+                  splitEnabled ? "bg-cyan-500/70" : "bg-white/10"
+                }`}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200 ${
+                    splitEnabled ? "translate-x-[18px]" : "translate-x-[3px]"
+                  }`}
+                />
+              </button>
+            </div>
+          }
+        >
           <div className="flex flex-wrap gap-2">
             {membersLoading
               ? [...Array(3)].map((_, i) => (

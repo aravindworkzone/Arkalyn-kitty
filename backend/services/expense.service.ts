@@ -7,6 +7,7 @@ import User from "../models/user.model";
 import Category from "../models/category.model";
 import GroupMembers from "../models/group_member.model";
 import { PAYMENT_TYPES, PaymentType } from "../models/expense.model";
+import { toDBAmount } from "../helpers/Money";
 
 interface ExpenseData {
     user: string;
@@ -116,10 +117,10 @@ export const createExpenseService = async (data: ExpenseData) => {
         const updated = await Group.findOneAndUpdate(
             {
                 _id: groupData._id,
-                balance: { $gte: amount }
+                balance: { $gte: toDBAmount(amount) }
             },
             {
-                $inc: { balance: -amount }
+                $inc: { balance: -toDBAmount(amount) }
             },
             { returnDocument: "after", session }
         );
@@ -166,8 +167,8 @@ export const deleteExpenseService = async (data: { expenseId: string, groupId: s
         const balanceUpdate = expense.amount;
 
         await Group.findByIdAndUpdate(
-            data.groupId, 
-            { $inc: { balance: balanceUpdate } },
+            data.groupId,
+            { $inc: { balance: toDBAmount(balanceUpdate) } },
             { session }
         );
 

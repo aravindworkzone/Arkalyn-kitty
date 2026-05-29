@@ -6,6 +6,7 @@ import GroupEvent from "../models/group_event.model";
 import GroupMember from "../models/group_member.model";
 import GroupInvite from "../models/group_invite.model";
 import { createNotification } from "./notification.service";
+import { toDBAmount } from "../helpers/Money";
 
 export const createGroupService = async (data: { name: string; invitees: string[]; contribution: number; superAdmin: string }) => {
     const name = data.name?.trim();
@@ -195,7 +196,7 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
 
             await Group.findOneAndUpdate(
                 { _id: groupData },
-                { $inc: { totalContribution: contribution, balance: contribution } },
+                { $inc: { totalContribution: toDBAmount(contribution ?? 0), balance: toDBAmount(contribution ?? 0) } },
                 { returnDocument: "after", session }
             )
 
@@ -427,13 +428,13 @@ export const addContributionService = async (data: {group: mongoose.Types.Object
 
         const AddContributionMember = await GroupMember.findOneAndUpdate(
             { groupId: groupData, userId: userId, isDeleted: false },
-            { $inc: { contribution: contribution } },
+            { $inc: { contribution: toDBAmount(contribution) } },
             { returnDocument: "after", session }
         );
 
         await Group.findOneAndUpdate(
             { _id: groupData },
-            { $inc: { balance: contribution, totalContribution: contribution } },
+            { $inc: { balance: toDBAmount(contribution), totalContribution: toDBAmount(contribution) } },
             { returnDocument: "after", session }
         );
 
@@ -515,8 +516,8 @@ export const SettlementService = async (data: {
         if (settlement > 0) {
 
             const debited = await Group.findOneAndUpdate(
-                { _id: group, balance: { $gte: settlement } },
-                { $inc: { balance: -settlement } },
+                { _id: group, balance: { $gte: toDBAmount(settlement) } },
+                { $inc: { balance: -toDBAmount(settlement) } },
                 { new: true, session }
             );
 
@@ -715,8 +716,8 @@ export const approveLeaveRequestService = async (data: {
 
         if (settlement > 0) {
             const debited = await Group.findOneAndUpdate(
-                { _id: groupData, balance: { $gte: settlement } },
-                { $inc: { balance: -settlement } },
+                { _id: groupData, balance: { $gte: toDBAmount(settlement) } },
+                { $inc: { balance: -toDBAmount(settlement) } },
                 { returnDocument: "after", session }
             );
             if (!debited) {
@@ -972,8 +973,8 @@ export const removeCreditService = async (data: {
         // out. The $gte guard means we never drive the balance negative — if
         // those funds were already spent on an expense, the credit is locked.
         const updatedGroup = await Group.findOneAndUpdate(
-            { _id: data.groupId, balance: { $gte: amount } },
-            { $inc: { balance: -amount, totalContribution: -amount } },
+            { _id: data.groupId, balance: { $gte: toDBAmount(amount) } },
+            { $inc: { balance: -toDBAmount(amount), totalContribution: -toDBAmount(amount) } },
             { returnDocument: "after", session }
         );
 
@@ -990,7 +991,7 @@ export const removeCreditService = async (data: {
         // who has since left still has their contribution corrected.
         await GroupMember.updateOne(
             { groupId: data.groupId, userId: credit.referenceId },
-            { $inc: { contribution: -amount } },
+            { $inc: { contribution: -toDBAmount(amount) } },
             { session }
         );
 
