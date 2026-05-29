@@ -7,6 +7,7 @@ import User from "../models/user.model";
 import Category from "../models/category.model";
 import GroupMembers from "../models/group_member.model";
 import { PAYMENT_TYPES, PaymentType } from "../models/expense.model";
+import { toDBAmount } from "../helpers/Money";
 
 interface ExpenseData {
     user: string;
@@ -16,6 +17,7 @@ interface ExpenseData {
     };
     category: string;
     title: string;
+    description?: string;
     amount: number;
     paymentType: PaymentType;
     paidBy: string;
@@ -82,7 +84,17 @@ export const createExpenseService = async (data: ExpenseData) => {
     const session = await mongoose.startSession();
     try {
         session.startTransaction();
-        const expense = {
+        const expense: {
+            groupId: string;
+            category: string;
+            title: string;
+            description?: string;
+            amount: number;
+            paidBy: string;
+            paymentType: PaymentType;
+            date: Date;
+            splitBetween: { userId: string; amount: number }[];
+        } = {
             groupId: groupData._id,
             category,
             title,
@@ -90,8 +102,9 @@ export const createExpenseService = async (data: ExpenseData) => {
             paidBy,
             paymentType,
             date,
-            splitBetween: [] as { userId: string; amount: number }[]
-        }
+            splitBetween: [],
+        };
+        if (data.description?.trim()) expense.description = data.description.trim();
 
         if (splitBetween.length > 0) {
             expense.splitBetween = splitBetween;
@@ -104,10 +117,10 @@ export const createExpenseService = async (data: ExpenseData) => {
         const updated = await Group.findOneAndUpdate(
             {
                 _id: groupData._id,
-                balance: { $gte: amount }
+                balance: { $gte: toDBAmount(amount) }
             },
             {
-                $inc: { balance: -amount }
+                $inc: { balance: -toDBAmount(amount) }
             },
             { returnDocument: "after", session }
         );
@@ -154,8 +167,8 @@ export const deleteExpenseService = async (data: { expenseId: string, groupId: s
         const balanceUpdate = expense.amount;
 
         await Group.findByIdAndUpdate(
-            data.groupId, 
-            { $inc: { balance: balanceUpdate } },
+            data.groupId,
+            { $inc: { balance: toDBAmount(balanceUpdate) } },
             { session }
         );
 

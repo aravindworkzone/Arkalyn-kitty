@@ -15,6 +15,7 @@ export const createExpenseBodySchema = z.object({
         .trim()
         .min(3, 'Title must be at least 3 characters')
         .max(100, 'Title must be at most 100 characters'),
+    description: z.string().trim().max(500, 'Description must be at most 500 characters').optional(),
     amount: z.number().positive('Amount must be positive'),
     paidBy: objectIdSchema,
     paymentType: z.enum(PAYMENT_TYPES),

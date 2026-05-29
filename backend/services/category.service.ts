@@ -104,10 +104,12 @@ export const getCategoryDetailsService = async (groupId: mongoose.Types.ObjectId
         counts.map((c) => [c._id.toString(), c.count])
     );
 
-    return categories.map((c) => ({
-        _id: c._id,
-        name: c.name,
-        color: c.color,
-        expenseCount: countMap.get(c._id.toString()) ?? 0,
-    }));
+    return categories
+        .map((c) => ({
+            _id: c._id,
+            name: c.name,
+            color: c.color,
+            expenseCount: countMap.get(c._id.toString()) ?? 0,
+        }))
+        .sort((a, b) => b.expenseCount - a.expenseCount);
 };

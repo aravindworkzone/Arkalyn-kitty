@@ -115,12 +115,30 @@ export const validateContribution = (value: string | number): ValidationResult =
 // ── Input sanitizers for onChange handlers (mobile-safe) ──────────
 
 // Returns a cleaned numeric string — use in onChange for amount fields.
-// Pass `max` to clamp the value to a context-specific ceiling (e.g. group balance).
+// Allows up to 2 decimal places. Pass `max` to clamp to a context-specific ceiling.
 export const sanitizeAmount = (raw: string, max: number = MAX_AMOUNT): string => {
-  let v = raw.replace(/\D/g, "");
-  if (Number(v) >= max) v = String(max);
-  if (v[0] === "0") v = v.slice(1);
-  if (Number(v) === 0) v = "";
+  // Strip everything except digits and decimal point
+  let v = raw.replace(/[^\d.]/g, "");
+
+  // Only one decimal point allowed — keep only the first
+  const firstDot = v.indexOf(".");
+  if (firstDot !== -1) {
+    v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, "");
+    // Limit to 2 decimal places
+    const afterDot = v.slice(firstDot + 1);
+    if (afterDot.length > 2) v = v.slice(0, firstDot + 3);
+  }
+
+  // Remove leading zeros, but keep "0.xx" form valid
+  if (v !== "0." && !v.startsWith("0.")) v = v.replace(/^0+/, "");
+
+  // Clamp to max
+  const num = parseFloat(v);
+  if (!isNaN(num) && num > max) v = String(max);
+
+  // Empty string for zero (no decimal started)
+  if (v === "0" || (!v.includes(".") && num === 0)) v = "";
+
   return v;
 };
 

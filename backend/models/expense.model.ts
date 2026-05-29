@@ -8,6 +8,7 @@ export interface IExpense extends Document {
     groupId: mongoose.Types.ObjectId;
     category: mongoose.Types.ObjectId;
     title: string;
+    description?: string;
     amount: number;
     splitBetween: {
         userId: mongoose.Types.ObjectId;
@@ -25,6 +26,7 @@ const expenseSchema = new Schema<IExpense>({
     groupId: {type: mongoose.Types.ObjectId, ref: "Group", required: true},
     category: {type: mongoose.Types.ObjectId, ref: "Category", required: true},
     title: {type: String, required: true, trim: true, minlength: 3, maxlength: 100},
+    description: {type: String, trim: true, maxlength: 500},
     amount: {type: Number, required: true, min: 1, set:toDBAmount, get:fromDBAmount},
     splitBetween: {
         type: [
@@ -47,10 +49,7 @@ expenseSchema.index({ paidBy: 1, isDeleted: 1 });
 expenseSchema.path("splitBetween").validate(function (value: any[]) {
     if (!value || value.length === 0) return true;
 
-    const totalSplit = value.reduce(
-        (sum, split) => sum + split.amount,
-        0
-    );
+    const totalSplit = value.reduce((sum, split) => sum + (split.amount || 0), 0);
 
     const userIds = value.map(v => v.userId?.toString());
     if (userIds.includes(undefined)) return false;
@@ -58,7 +57,7 @@ expenseSchema.path("splitBetween").validate(function (value: any[]) {
     const uniqueUserIds = new Set(userIds);
 
     return (
-        Math.abs(totalSplit - this.amount) === 0 &&
+        Math.abs(totalSplit - this.amount) < 0.01 &&
         userIds.length === uniqueUserIds.size
     );
 }, "Enter valid split amounts");
