@@ -27,6 +27,30 @@ export const updateSplitAmount = (
   );
 };
 
+export const setAllSplits = (
+  setSplits: React.Dispatch<React.SetStateAction<SplitEntry[]>>,
+  members: { _id: string; name: string }[]
+) => {
+  setSplits(members.map((m) => ({ userId: m._id, name: m.name, amount: 0 })));
+};
+
+export const splitEqually = (
+  setSplits: React.Dispatch<React.SetStateAction<SplitEntry[]>>,
+  totalAmount: number
+) => {
+  setSplits((prev) => {
+    const n = prev.length;
+    if (n === 0 || totalAmount <= 0) return prev;
+    const totalPaise = Math.round(totalAmount * 100);
+    const basePaise  = Math.floor(totalPaise / n);
+    const remainder  = totalPaise - basePaise * n;
+    return prev.map((s, i) => ({
+      ...s,
+      amount: parseFloat(((i === 0 ? basePaise + remainder : basePaise) / 100).toFixed(2)),
+    }));
+  });
+};
+
 export const useExpenseHandlers = (groupId: string | undefined) => {
   const navigate = useNavigate();
   const [createExpense, { isLoading: isCreating }] = useCreateExpenseMutation();
@@ -34,17 +58,19 @@ export const useExpenseHandlers = (groupId: string | undefined) => {
   const handleSubmit = async (
     e: React.FormEvent,
     {
-      title, totalAmount, maxAmount, categoryId, paidBy,
-      splits, splitValid, date, paymentType,
+      title, description, totalAmount, maxAmount, categoryId, paidBy,
+      splits, splitValid, splitEnabled, date, paymentType,
       setFieldError, setApiError,
     }: {
       title: string;
+      description?: string;
       totalAmount: number;
       maxAmount?: number;
       categoryId: string;
       paidBy: string;
       splits: SplitEntry[];
       splitValid: boolean;
+      splitEnabled: boolean;
       date: string;
       paymentType: string;
       setFieldError: SetFieldError<ExpenseField>;
@@ -63,10 +89,13 @@ export const useExpenseHandlers = (groupId: string | undefined) => {
     const dateV = validateDate(date);
     if (!dateV.valid) { setFieldError("date",   dateV.message);   valid = false; }
 
-    if (!categoryId)         { setFieldError("category", "Select a category");              valid = false; }
-    if (!paidBy)             { setFieldError("paidBy",   "Select who paid");                valid = false; }
-    if (splits.length === 0) { setFieldError("splits",   "Add at least one split");         valid = false; }
-    else if (!splitValid)    { setFieldError("splits",   "Split amounts must equal total");  valid = false; }
+    if (!categoryId) { setFieldError("category", "Select a category"); valid = false; }
+    if (!paidBy)     { setFieldError("paidBy",   "Select who paid");   valid = false; }
+
+    if (splitEnabled) {
+      if (splits.length === 0)  { setFieldError("splits", "Add at least one member");         valid = false; }
+      else if (!splitValid)     { setFieldError("splits", "Split amounts must equal total");   valid = false; }
+    }
 
     if (!valid) return;
 
@@ -74,6 +103,7 @@ export const useExpenseHandlers = (groupId: string | undefined) => {
       await createExpense({
         groupId,
         title: title.trim(),
+        description: description?.trim() || undefined,
         amount: totalAmount,
         date,
         category: categoryId,

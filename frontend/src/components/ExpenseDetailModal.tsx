@@ -49,6 +49,9 @@ export default function ExpenseDetailModal({
           ₹{expense.amount.toLocaleString("en-IN")}
         </p>
         <p className="text-sm font-medium text-white/55 mt-2 leading-snug">{expense.title}</p>
+        {expense.description && (
+          <p className="text-[12px] text-white/35 mt-2 leading-relaxed">{expense.description}</p>
+        )}
       </div>
 
       {/* detail rows */}

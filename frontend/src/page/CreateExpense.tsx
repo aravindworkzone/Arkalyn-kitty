@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
 import { useGetCategoriesQuery } from "../redux/api/category";
 import { useGetPaymentMethodQuery } from "../redux/api/expense";
 import { useGetGroupMembersQuery, useGetGroupByIdQuery } from "../redux/api/group";
+import { useGetUserQuery } from "../redux/api/auth";
 import type { SplitEntry } from "../interface/expense";
-import { useExpenseHandlers, toggleSplit, updateSplitAmount } from "../handlers/useExpenseHandlers";
+import {
+  useExpenseHandlers, toggleSplit, updateSplitAmount,
+  setAllSplits, splitEqually,
+} from "../handlers/useExpenseHandlers";
 import type { ExpenseField } from "../handlers/useExpenseHandlers";
 import {
   PageBackground,
@@ -31,6 +35,8 @@ export default function CreateExpensePage() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { data: meData } = useGetUserQuery();
+  const currentUserId = (meData as any)?.data?.user?._id as string | undefined;
   const { data: paymentTypes = [], isLoading: pmLoading } = useGetPaymentMethodQuery();
   const { data: categories = [], isLoading: catLoading } = useGetCategoriesQuery(groupId!, { skip: !groupId });
   const { data: groupMembers = [], isLoading: membersLoading } = useGetGroupMembersQuery(groupId!, { skip: !groupId });
@@ -38,20 +44,61 @@ export default function CreateExpensePage() {
   const groupBalance = Number(groupDetails?.balance) || 0;
   const { handleSubmit, isCreating } = useExpenseHandlers(groupId);
 
-  const [title, setTitle]             = useState("");
-  const [amount, setAmount]           = useState("");
-  const [date, setDate]               = useState(() => new Date().toISOString().split("T")[0]);
-  const [categoryId, setCategoryId]   = useState("");
-  const [paymentType, setPaymentType] = useState("Cash");
-  const [paidBy, setPaidBy]           = useState("");
-  const [splits, setSplits]           = useState<SplitEntry[]>([]);
+  const [title, setTitle]               = useState("");
+  const [description, setDescription]   = useState("");
+  const [amount, setAmount]             = useState("");
+  const [date, setDate]                 = useState(() => new Date().toISOString().split("T")[0]);
+  const [categoryId, setCategoryId]     = useState("");
+  const [paymentType, setPaymentType]   = useState("Cash");
+  const [paidBy, setPaidBy]             = useState("");
+  const [splits, setSplits]             = useState<SplitEntry[]>([]);
+  const [splitEnabled, setSplitEnabled] = useState(false);
   const { fieldErrors, setFieldError, clearFieldError } = useFieldError<ExpenseField>();
-  const [apiError, setApiError]       = useState("");
+  const [apiError, setApiError]         = useState("");
 
-  const totalAmount = Number(amount) || 0;
-  const splitTotal  = splits.reduce((s, e) => s + (e.amount || 0), 0);
-  const splitDiff   = totalAmount - splitTotal;
-  const splitValid  = Math.abs(splitDiff) < 0.01;
+  const totalAmount = parseFloat(parseFloat(amount || "0").toFixed(2)) || 0;
+  const splitTotal  = parseFloat(splits.reduce((s, e) => s + (e.amount || 0), 0).toFixed(2));
+  const splitDiff   = parseFloat((totalAmount - splitTotal).toFixed(2));
+  const splitValid  = splitDiff === 0;
+
+  // Quick date presets
+  const todayISO     = new Date().toISOString().split("T")[0];
+  const yesterdayISO = new Date(Date.now() - 86_400_000).toISOString().split("T")[0];
+
+  // Balance hint coloring
+  const amountIsNearLimit = totalAmount > 0 && groupBalance > 0 && totalAmount / groupBalance > 0.8;
+
+  // Categories sorted by most used
+  const sortedCategories = [...categories].sort((a, b) => b.expenseCount - a.expenseCount);
+
+  // "All members in split" flag for Add All / Clear All
+  const allMembersInSplit =
+    groupMembers.length > 0 && groupMembers.every((m) => splits.some((s) => s.userId === m._id));
+
+  // Auto-select first category (most used) when categories load
+  useEffect(() => {
+    if (!catLoading && categories.length > 0 && !categoryId) {
+      const sorted = [...categories].sort((a, b) => b.expenseCount - a.expenseCount);
+      setCategoryId(sorted[0]._id);
+    }
+  }, [catLoading, categories.length, categoryId]);
+
+  // Auto-select current user in Who Paid when members load
+  useEffect(() => {
+    if (paidBy || !currentUserId || groupMembers.length === 0) return;
+    const me = groupMembers.find((m) => m.userId._id === currentUserId);
+    if (me) setPaidBy(me.userId._id);
+  }, [paidBy, currentUserId, groupMembers.length]);
+
+  // Auto-turn off toggle when all members removed from splits
+  useEffect(() => {
+    if (splits.length === 0) setSplitEnabled(false);
+  }, [splits.length]);
+
+  const handleToggleSplit = (enabled: boolean) => {
+    setSplitEnabled(enabled);
+    if (!enabled) setSplits([]);
+  };
 
   return (
     <div className="min-h-screen bg-[#080c14] text-white">
@@ -60,7 +107,11 @@ export default function CreateExpensePage() {
 
       <form
         onSubmit={(e) =>
-          handleSubmit(e, { title, totalAmount, maxAmount: groupBalance, categoryId, paidBy, splits, splitValid, date, paymentType, setFieldError, setApiError })
+          handleSubmit(e, {
+            title, description, totalAmount, maxAmount: groupBalance,
+            categoryId, paidBy, splits, splitValid, splitEnabled,
+            date, paymentType, setFieldError, setApiError,
+          })
         }
         className="relative max-w-xl mx-auto px-4 pt-8 pb-18 space-y-3"
       >
@@ -98,7 +149,28 @@ export default function CreateExpensePage() {
             </div>
           </div>
 
+          <div>
+            <label className={fieldLabel}>
+              {t("createExpense.descriptionLabel")}
+              <span className="ml-2 text-[9px] font-normal text-white/25 normal-case tracking-normal">
+                {t("createExpense.optional")}
+              </span>
+            </label>
+            <textarea
+              className={`${inputCls} resize-none`}
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t("createExpense.descriptionPlaceholder")}
+              maxLength={500}
+            />
+            <div className="flex justify-end mt-1">
+              <span className="text-[10px] text-white/20" translate="no">{description.length}/500</span>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
+            {/* ── Amount with balance hint (Idea D) ── */}
             <div>
               <label className={fieldLabel}>{t("createExpense.amount")}</label>
               <AmountInput
@@ -110,7 +182,16 @@ export default function CreateExpensePage() {
                 onClearError={() => clearFieldError("amount")}
                 inputClassName={inputCls}
               />
+              {groupBalance > 0 && (
+                <p className={`mt-1 text-[10px] font-medium transition-colors ${
+                  amountIsNearLimit ? "text-amber-400/70" : "text-white/20"
+                }`}>
+                  {t("createExpense.groupBalance", { amount: groupBalance.toLocaleString("en-IN") })}
+                </p>
+              )}
             </div>
+
+            {/* ── Date with quick chips (Idea C) ── */}
             <div>
               <label className={fieldLabel}>{t("createExpense.date")}</label>
               <FieldInput
@@ -121,6 +202,25 @@ export default function CreateExpensePage() {
                 error={fieldErrors.date}
                 onClearError={() => clearFieldError("date")}
               />
+              <div className="flex gap-1.5 mt-1.5">
+                {[
+                  { label: t("createExpense.today"),     value: todayISO     },
+                  { label: t("createExpense.yesterday"), value: yesterdayISO },
+                ].map((preset) => (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    onClick={() => { clearFieldError("date"); setDate(preset.value); }}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all duration-150 ${
+                      date === preset.value
+                        ? "bg-cyan-500/15 border-cyan-500/35 text-cyan-300"
+                        : "bg-white/[0.03] border-white/[0.07] text-white/30 hover:border-white/20 hover:text-white/50"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </FormSection>
@@ -136,7 +236,7 @@ export default function CreateExpensePage() {
                   ))
                 : (
                   <>
-                    {categories.map((cat) => (
+                    {sortedCategories.map((cat) => (
                       <button
                         key={cat._id}
                         type="button"
@@ -183,7 +283,7 @@ export default function CreateExpensePage() {
                     <button
                       key={pt}
                       type="button"
-                      onClick={() => { setPaymentType(pt) }}
+                      onClick={() => setPaymentType(pt)}
                       className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-[10px] font-semibold transition-all duration-150 ${
                         paymentType === pt
                           ? "bg-cyan-500/15 border-cyan-500/35 text-cyan-300"
@@ -198,8 +298,8 @@ export default function CreateExpensePage() {
           </div>
         </FormSection>
 
-        {/* ── 03 Paid by ── */}
-        <FormSection step="03" title={t("createExpense.paidBy")}>
+        {/* ── 03 Who Paid ── */}
+        <FormSection step="03" title={t("createExpense.paidBy")} contentClass="px-5 py-4">
           <div className="flex flex-wrap gap-2">
             {membersLoading
               ? [...Array(3)].map((_, i) => (
@@ -232,8 +332,58 @@ export default function CreateExpensePage() {
           {fieldErrors.paidBy && <div className="mt-2"><ErrorMessage error={fieldErrors.paidBy} /></div>}
         </FormSection>
 
-        {/* ── 04 Split between ── */}
-        <FormSection step="04" title={t("createExpense.splitBetween")} contentClass="px-5 py-4 space-y-3">
+        {/* ── 04 Who Spend ── */}
+        <FormSection
+          step="04"
+          title={t("createExpense.splitBetween")}
+          contentClass="px-5 py-4 space-y-3"
+          headerRight={
+            <div className="flex items-center gap-2">
+              {/* Add All / Clear All (Idea B) */}
+              {!membersLoading && groupMembers.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearFieldError("splits");
+                    if (allMembersInSplit) {
+                      setSplits([]);
+                    } else {
+                      setAllSplits(setSplits, groupMembers.map((m) => m.userId));
+                      setSplitEnabled(true);
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all duration-150 ${
+                    allMembersInSplit
+                      ? "bg-red-500/10 border-red-500/25 text-red-400 hover:bg-red-500/15 active:bg-red-500/15"
+                      : "bg-white/[0.03] border-white/[0.07] text-white/35 hover:border-cyan-500/30 hover:text-cyan-400"
+                  }`}
+                >
+                  {allMembersInSplit ? t("createExpense.clearAll") : t("createExpense.addAll")}
+                </button>
+              )}
+              {/* Optional label + toggle */}
+              {!splitEnabled && (
+                <span className="text-[9px] font-medium text-white/30 uppercase tracking-wide">
+                  {t("createExpense.optional")}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => handleToggleSplit(!splitEnabled)}
+                aria-label={splitEnabled ? "Disable split tracking" : "Enable split tracking"}
+                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 ${
+                  splitEnabled ? "bg-cyan-500/70" : "bg-white/10"
+                }`}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200 ${
+                    splitEnabled ? "translate-x-[18px]" : "translate-x-[3px]"
+                  }`}
+                />
+              </button>
+            </div>
+          }
+        >
           <div className="flex flex-wrap gap-2">
             {membersLoading
               ? [...Array(3)].map((_, i) => (
@@ -245,7 +395,12 @@ export default function CreateExpensePage() {
                     <button
                       key={member._id}
                       type="button"
-                      onClick={() => { clearFieldError("splits"); toggleSplit(setSplits, member.userId!); }}
+                      onClick={() => {
+                        clearFieldError("splits");
+                        const isAdding = !splits.some((s) => s.userId === member._id);
+                        toggleSplit(setSplits, member.userId!);
+                        if (isAdding) setSplitEnabled(true);
+                      }}
                       className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[12px] font-semibold transition-all duration-150 ${
                         selected
                           ? "bg-cyan-500/15 border-cyan-500/35 text-cyan-200"
@@ -292,8 +447,22 @@ export default function CreateExpensePage() {
                 </div>
               ))}
 
+              {/* Split total row with "÷ Split Equally" (Idea A) */}
               <div className="flex items-center justify-between px-1 pt-1 pb-0.5">
-                <span className="text-[10px] uppercase tracking-widest text-white/25">{t("createExpense.splitTotal")}</span>
+                {totalAmount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => { clearFieldError("splits"); splitEqually(setSplits, totalAmount); }}
+                    className="flex items-center gap-1 text-[10px] font-semibold text-cyan-400/70 hover:text-cyan-300 active:text-cyan-300 transition-colors"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M1 5h8M1 2.5h8M1 7.5h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                    </svg>
+                    {t("createExpense.splitEqually")}
+                  </button>
+                ) : (
+                  <span className="text-[10px] uppercase tracking-widest text-white/25">{t("createExpense.splitTotal")}</span>
+                )}
                 <div className="flex items-center gap-2">
                   <span className={`text-[12px] font-mono font-semibold ${
                     splits.length === 0 ? "text-white/25" : splitValid ? "text-emerald-400" : "text-red-400"
@@ -314,8 +483,8 @@ export default function CreateExpensePage() {
                     ) : (
                       <span className="text-[10px] font-semibold text-red-400" translate="no">
                         {splitDiff > 0
-                          ? t("createExpense.left", { amount: splitDiff.toFixed(0) })
-                          : t("createExpense.over", { amount: Math.abs(splitDiff).toFixed(0) })}
+                          ? t("createExpense.left", { amount: splitDiff.toFixed(2) })
+                          : t("createExpense.over", { amount: Math.abs(splitDiff).toFixed(2) })}
                       </span>
                     )
                   )}

@@ -16,6 +16,7 @@ interface ExpenseData {
     };
     category: string;
     title: string;
+    description?: string;
     amount: number;
     paymentType: PaymentType;
     paidBy: string;
@@ -82,7 +83,17 @@ export const createExpenseService = async (data: ExpenseData) => {
     const session = await mongoose.startSession();
     try {
         session.startTransaction();
-        const expense = {
+        const expense: {
+            groupId: string;
+            category: string;
+            title: string;
+            description?: string;
+            amount: number;
+            paidBy: string;
+            paymentType: PaymentType;
+            date: Date;
+            splitBetween: { userId: string; amount: number }[];
+        } = {
             groupId: groupData._id,
             category,
             title,
@@ -90,8 +101,9 @@ export const createExpenseService = async (data: ExpenseData) => {
             paidBy,
             paymentType,
             date,
-            splitBetween: [] as { userId: string; amount: number }[]
-        }
+            splitBetween: [],
+        };
+        if (data.description?.trim()) expense.description = data.description.trim();
 
         if (splitBetween.length > 0) {
             expense.splitBetween = splitBetween;
