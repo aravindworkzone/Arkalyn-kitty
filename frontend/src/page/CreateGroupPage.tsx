@@ -121,7 +121,7 @@ export default function CreateGroupPage() {
                 {t("createGroup.step1")}
               </span>
             </div>
-            <div className="px-5 py-4">
+            <div className="px-5 py-4" data-tour="group-name-field">
               <FieldInput
                 className={s.input}
                 type="text"
@@ -157,7 +157,7 @@ export default function CreateGroupPage() {
               )}
             </div>
 
-            <div className="px-5 py-4 space-y-4">
+            <div className="px-5 py-4 space-y-4" data-tour="group-members-field">
               <div className="flex items-start gap-2">
                 <div className="flex-1 relative">
                   <FieldInput
@@ -314,6 +314,7 @@ export default function CreateGroupPage() {
           <button
             type="submit"
             disabled={isLoading || isVerifying}
+            data-tour="create-group-submit"
             className="flex-1 relative overflow-hidden rounded-xl px-6 py-3 text-sm font-semibold
               text-black bg-cyan-400 hover:bg-cyan-300 active:bg-cyan-300 active:scale-[0.97]
               disabled:opacity-40 disabled:cursor-not-allowed

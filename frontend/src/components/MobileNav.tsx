@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useSignOutMutation } from "../redux/api/auth";
+import { useGetCategoriesQuery } from "../redux/api/category";
 import { socket } from "../socket/socket";
 import { BottomSheet } from "./ui";
 import LanguageToggle from "./LanguageToggle";
+import { useTour } from "../tour/useTour";
 
 interface User {
   name?: string;
@@ -26,15 +28,32 @@ export default function MobileNav({ user }: Props) {
   const { groupId } = useParams<{ groupId: string }>();
   const [signOut] = useSignOutMutation();
   const [profileOpen, setProfileOpen] = useState(false);
+  const { start: startTour, reset: resetTour } = useTour();
+
+  const handleTakeTour = () => {
+    setProfileOpen(false);
+    resetTour();
+    startTour();
+    navigate("/groups");
+  };
 
   const onGroupsList = location.pathname === "/groups";
   const inGroup = !!groupId;
   const path = location.pathname;
 
+  // An expense needs a category — keep the "+ Expense" action disabled until
+  // the group has one. Shown optimistically while the list is still loading.
+  const { data: categories = [], isLoading: catLoading } = useGetCategoriesQuery(groupId, {
+    skip: !inGroup,
+  });
+  const canAddExpense = catLoading || categories.length > 0;
+
   // Contextual middle action: "+ Expense" inside a group, "+ Group" on the list,
   // disabled elsewhere so the nav stays predictable.
   const addAction = inGroup
-    ? { label: t("groupDetail.addExpense", "Add Expense"), to: `/groups/${groupId}/expenses/new` }
+    ? canAddExpense
+      ? { label: t("groupDetail.addExpense", "Add Expense"), to: `/groups/${groupId}/expenses/new` }
+      : null
     : onGroupsList
       ? { label: t("groups.newGroup", "New Group"), to: "/groups/new" }
       : null;
@@ -81,6 +100,13 @@ export default function MobileNav({ user }: Props) {
             disabled={!addAction}
             onClick={() => addAction && navigate(addAction.to)}
             highlight
+            // The desktop "Create Group" button is hidden on mobile, so the
+            // tour spotlight latches onto this FAB. For "create-expense" the
+            // in-page action grid in GroupDetailPage stays visible on mobile —
+            // we leave that one untagged so the spotlight uses the in-page
+            // button (which lives in normal flow and isn't covered by the
+            // bottom-nav's backdrop-blur stacking context).
+            dataTour={onGroupsList ? "create-group" : undefined}
             icon={
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.4" />
@@ -130,6 +156,21 @@ export default function MobileNav({ user }: Props) {
 
           <button
             type="button"
+            onClick={handleTakeTour}
+            className="w-full min-h-touch flex items-center justify-center gap-2 rounded-xl
+              bg-cyan-500/10 border border-cyan-500/20 text-cyan-200 text-sm font-semibold
+              hover:bg-cyan-500/15 active:bg-cyan-500/20 transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="7" r="5.8" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M5 5.2c.2-1 1-1.6 2-1.6 1.1 0 2 .8 2 1.9 0 1-.7 1.5-1.5 1.9-.5.3-.7.6-.7 1.1M7 10v.1"
+                stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+            {t("nav.takeTour", "Take a Tour")}
+          </button>
+
+          <button
+            type="button"
             className="w-full min-h-touch flex items-center justify-center gap-2 rounded-xl
               bg-red-500/10 border border-red-500/20 text-red-300 text-sm font-semibold
               hover:bg-red-500/15 active:bg-red-500/20 transition-colors"
@@ -154,9 +195,10 @@ interface NavItemProps {
   icon: React.ReactNode;
   highlight?: boolean;
   disabled?: boolean;
+  dataTour?: string;
 }
 
-function NavItem({ label, active, onClick, icon, highlight, disabled }: NavItemProps) {
+function NavItem({ label, active, onClick, icon, highlight, disabled, dataTour }: NavItemProps) {
   const color = disabled
     ? "text-white/15"
     : active
@@ -168,6 +210,7 @@ function NavItem({ label, active, onClick, icon, highlight, disabled }: NavItemP
       type="button"
       onClick={onClick}
       disabled={disabled}
+      data-tour={dataTour}
       className={`flex flex-col items-center justify-center gap-0.5 min-h-touch transition-colors
         ${color} ${disabled ? "" : "active:bg-white/[0.04]"}`}
     >

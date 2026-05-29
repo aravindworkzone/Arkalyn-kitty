@@ -11,7 +11,16 @@ const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingF
   return (
     <div
       onClick={onClick}
-      className={`bg-white/[0.03] border rounded-2xl p-5 cursor-pointer transition-all duration-200 group ${
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      aria-label={t("groupCard.openGroup", "Open group: {{name}}", { name: group.name })}
+      className={`bg-white/[0.03] border rounded-2xl p-5 cursor-pointer transition-all duration-200 group focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40 ${
         isClosed
           ? "border-amber-500/20 hover:bg-white/[0.05] hover:border-amber-500/30 active:bg-white/[0.05] active:border-amber-500/30"
           : "border-white/[0.07] hover:bg-white/[0.06] hover:border-white/[0.12] active:bg-white/[0.08] active:border-white/[0.12]"
@@ -111,7 +120,8 @@ const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingF
           </span>
         </div>
 
-        {!isClosed && (
+        {/* An expense needs a category — hide the action until one exists. */}
+        {!isClosed && group.categoryCount > 0 && (
           <button
             onClick={(e) => {
               e.stopPropagation();

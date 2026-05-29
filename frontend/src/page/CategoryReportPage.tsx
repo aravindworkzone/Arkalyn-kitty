@@ -12,8 +12,10 @@ import {
     BackButton,
     PageHeader,
     StatCard,
+    DATE_INPUT_EXTRA,
 } from '../components/ui';
 import type { ReportPreset, CategoryBreakdownRow, TrendGranularity } from '../interface/report';
+import { MIN_DATE, todayISODate, blockDateTyping } from '../helpers/validators';
 
 const PRESETS: ReportPreset[] = ['this_month', 'last_month', 'all_time', 'custom'];
 
@@ -55,6 +57,16 @@ const formatPeriod = (iso: string, granularity: TrendGranularity, locale: string
             ? { month: 'short', year: '2-digit' }
             : { day: '2-digit', month: 'short' };
     return new Intl.DateTimeFormat(loc, opts).format(new Date(iso));
+};
+
+// Inclusive end of a trend bucket. periodStart comes from MongoDB $dateTrunc (UTC),
+// so step a whole day/week/month forward in UTC, then back 1ms.
+const trendPeriodEnd = (iso: string, granularity: TrendGranularity): string => {
+    const d = new Date(iso);
+    if (granularity === 'day') d.setUTCDate(d.getUTCDate() + 1);
+    else if (granularity === 'week') d.setUTCDate(d.getUTCDate() + 7);
+    else d.setUTCMonth(d.getUTCMonth() + 1);
+    return new Date(d.getTime() - 1).toISOString();
 };
 
 const initials = (name: string) =>
@@ -152,14 +164,10 @@ export default function CategoryReportPage() {
         ? Math.max(...trendData.points.map((p) => p.totalCents), 1)
         : 1;
 
-    const goToExpenses = (categoryId: string) => {
-        if (!categoryQ.data) return;
-        const params = new URLSearchParams({
-            categoryId,
-            start: categoryQ.data.range.start,
-            end: categoryQ.data.range.end,
-        });
-        navigate(`/groups/${groupId}/expenses?${params.toString()}`);
+    // Drill into the expense list: redirect to All Expenses with a server-side
+    // filter (category, member, or date range) plus a human label for the chip.
+    const goToExpenses = (params: Record<string, string>) => {
+        navigate(`/groups/${groupId}/expenses?${new URLSearchParams(params).toString()}`);
     };
 
     return (
@@ -168,7 +176,9 @@ export default function CategoryReportPage() {
             <Header />
 
             <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-5">
-                <BackButton />
+                <div data-tour="breakdown-back" className="inline-block">
+                    <BackButton />
+                </div>
 
                 <PageHeader
                     color="indigo"
@@ -183,8 +193,11 @@ export default function CategoryReportPage() {
                     description={t('reports.description', 'See how your group spends — by category, by member, and over time.')}
                 />
 
-                {/* view tabs */}
-                <div className="flex gap-1.5 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1">
+                {/* view tabs + date range — sticks below the global header so
+                    the view switch and the preset range stay reachable while
+                    scrolling. */}
+                <div className="sticky top-14 lg:top-16 z-20 -mx-4 px-4 py-2 bg-[#080c14]/95 backdrop-blur-md space-y-3">
+                <div className="flex gap-1.5 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1" data-tour="breakdown-page">
                     {VIEWS.map((v) => (
                         <button
                             key={v}
@@ -226,8 +239,17 @@ export default function CategoryReportPage() {
                                 <input
                                     type="date"
                                     value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    className="mt-1 w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white/80"
+                                    min={MIN_DATE}
+                                    max={endDate || todayISODate()}
+                                    onKeyDown={blockDateTyping}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        setStartDate(v);
+                                        // Keep the range coherent: a "to" earlier
+                                        // than the new "from" is snapped forward.
+                                        if (endDate && v && endDate < v) setEndDate(v);
+                                    }}
+                                    className={`mt-1 w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white/80 ${DATE_INPUT_EXTRA}`}
                                 />
                             </label>
                             <label className="block">
@@ -237,12 +259,16 @@ export default function CategoryReportPage() {
                                 <input
                                     type="date"
                                     value={endDate}
+                                    min={startDate || MIN_DATE}
+                                    max={todayISODate()}
+                                    onKeyDown={blockDateTyping}
                                     onChange={(e) => setEndDate(e.target.value)}
-                                    className="mt-1 w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white/80"
+                                    className={`mt-1 w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white/80 ${DATE_INPUT_EXTRA}`}
                                 />
                             </label>
                         </div>
                     )}
+                </div>
                 </div>
 
                 {activeData && (
@@ -316,7 +342,7 @@ export default function CategoryReportPage() {
                             {categoryQ.data.categories.map((row, i) => (
                                 <button
                                     key={row.categoryId}
-                                    onClick={() => goToExpenses(row.categoryId)}
+                                    onClick={() => goToExpenses({ categoryId: row.categoryId, label: row.name })}
                                     className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.05] active:border-white/[0.12] transition-colors text-left"
                                     style={{
                                         animation: 'fadeSlideIn 0.22s ease forwards',
@@ -367,9 +393,10 @@ export default function CategoryReportPage() {
                         {memberQ.data.members.map((m, i) => {
                             const color = MEMBER_COLORS[i % MEMBER_COLORS.length];
                             return (
-                                <div
+                                <button
                                     key={m.userId}
-                                    className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5"
+                                    onClick={() => goToExpenses({ paidBy: m.userId, label: m.name })}
+                                    className="w-full text-left bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.05] active:border-white/[0.12] transition-colors"
                                     style={{
                                         animation: 'fadeSlideIn 0.22s ease forwards',
                                         animationDelay: `${i * 40}ms`,
@@ -408,7 +435,7 @@ export default function CategoryReportPage() {
                                             style={{ width: `${Math.max(m.sharePct, 2)}%`, background: color }}
                                         />
                                     </div>
-                                </div>
+                                </button>
                             );
                         })}
                     </div>
@@ -445,9 +472,16 @@ export default function CategoryReportPage() {
 
                         <div className="space-y-2">
                             {[...trendData.points].reverse().map((p, i) => (
-                                <div
+                                <button
                                     key={p.periodStart}
-                                    className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 flex items-center justify-between"
+                                    onClick={() =>
+                                        goToExpenses({
+                                            startDate: p.periodStart,
+                                            endDate: trendPeriodEnd(p.periodStart, trendData.granularity),
+                                            label: formatPeriod(p.periodStart, trendData.granularity, locale),
+                                        })
+                                    }
+                                    className="w-full text-left bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 flex items-center justify-between hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.05] active:border-white/[0.12] transition-colors"
                                     style={{
                                         animation: 'fadeSlideIn 0.22s ease forwards',
                                         animationDelay: `${i * 40}ms`,
@@ -468,7 +502,7 @@ export default function CategoryReportPage() {
                                     >
                                         {formatCents(p.totalCents, locale)}
                                     </p>
-                                </div>
+                                </button>
                             ))}
                         </div>
                     </>

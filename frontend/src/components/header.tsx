@@ -7,6 +7,7 @@ import NotificationPanel from "./NotificationPanel";
 import { Logo } from "./ui";
 import MobileNav from "./MobileNav";
 import { socket } from "../socket/socket";
+import { useTour } from "../tour/useTour";
 
 const Header = () => {
   const { user } = useOutletContext<{ user: any }>();
@@ -15,6 +16,14 @@ const Header = () => {
   const navigate = useNavigate();
   const [signOut] = useSignOutMutation();
   const { t } = useTranslation();
+  const { start: startTour, reset: resetTour } = useTour();
+
+  const handleTakeTour = () => {
+    setOpen(false);
+    resetTour();
+    startTour();
+    navigate("/groups");
+  };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -23,6 +32,13 @@ const Header = () => {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -41,6 +57,15 @@ const Header = () => {
 
   return (
     <>
+      {/* Skip link — only visible on keyboard focus, lets users jump past the
+          sticky header straight into the page's <main>. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60]
+          focus:px-3 focus:py-2 focus:rounded-lg focus:bg-violet-500 focus:text-white focus:text-sm focus:font-semibold focus:shadow-lg"
+      >
+        {t("nav.skipToContent", "Skip to main content")}
+      </a>
       <header className="sticky top-0 z-30 flex items-center justify-between px-3 sm:px-5 h-14 lg:h-16
         bg-[#080c14]/80 backdrop-blur-xl border-b border-white/[0.06] pt-safe">
 
@@ -64,6 +89,9 @@ const Header = () => {
           <div ref={dropdownRef} className="relative hidden md:block">
             <button
               onClick={() => setOpen((p) => !p)}
+              aria-label={t("nav.profileMenu", "Open profile menu")}
+              aria-expanded={open}
+              aria-haspopup="menu"
               className={`flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-lg border transition-all duration-150
                 ${open
                   ? "bg-white/[0.08] border-white/[0.14]"
@@ -122,6 +150,22 @@ const Header = () => {
                     {t("nav.profile")}
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={handleTakeTour}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg
+                      text-[12px] font-medium text-white/45 hover:text-cyan-200 hover:bg-cyan-500/[0.08]
+                      active:text-cyan-200 active:bg-cyan-500/[0.08] transition-all duration-100 group"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"
+                      className="text-white/25 group-hover:text-cyan-300/70 transition-colors">
+                      <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.2" />
+                      <path d="M4.5 4.8c.2-1 1-1.6 2-1.6 1.1 0 2 .8 2 1.9 0 1-.7 1.5-1.5 1.9-.5.3-.7.6-.7 1.1M6.5 9.6v.1"
+                        stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                    </svg>
+                    {t("nav.takeTour", "Take a Tour")}
+                  </button>
+
                   <div className="h-px bg-white/[0.06] mx-1" />
 
                   <button
@@ -143,6 +187,10 @@ const Header = () => {
           </div>
         </div>
       </header>
+
+      {/* Anchor that the skip link targets — keyboard focus lands here, then
+          Tab moves into the actual page content. */}
+      <span id="main-content" tabIndex={-1} className="sr-only" aria-hidden="true">{t("nav.mainContent", "Main content")}</span>
 
       <MobileNav user={user} />
     </>

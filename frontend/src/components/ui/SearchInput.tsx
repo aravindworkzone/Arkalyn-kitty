@@ -17,13 +17,17 @@ export default function SearchInput({ value, onChange, placeholder = "Search…"
         <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4" />
         <path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
       </svg>
+      {/* type="text" (not "search") — a search input renders a native clear
+          button that would double up with the custom X below. */}
       <input
-        type="search"
+        type="text"
         inputMode="search"
         autoComplete="off"
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        data-shortcut="search"
+        aria-label={placeholder}
         className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
           text-base sm:text-[13px] text-white/80 placeholder:text-white/25
           outline-none focus:border-violet-500/40 focus:bg-white/[0.06] transition-all duration-200"

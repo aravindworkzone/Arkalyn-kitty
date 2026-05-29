@@ -6,3 +6,13 @@ export const INPUT_CLASS_LG =
 
 export const FIELD_LABEL =
   "block text-[10px] font-semibold text-white/40 mb-2 uppercase tracking-widest";
+
+// Makes a native <input type="date"> blend with the dark UI: `color-scheme: dark`
+// gives the picker popup a dark theme and lightens the calendar icon; the rest
+// tints the icon and makes it feel interactive.
+export const DATE_INPUT_EXTRA =
+  "[color-scheme:dark] " +
+  "[&::-webkit-calendar-picker-indicator]:cursor-pointer " +
+  "[&::-webkit-calendar-picker-indicator]:opacity-50 " +
+  "[&::-webkit-calendar-picker-indicator]:transition-opacity " +
+  "[&::-webkit-calendar-picker-indicator]:hover:opacity-90";

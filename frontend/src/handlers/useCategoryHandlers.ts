@@ -6,7 +6,7 @@ import type { SetFieldError } from "../hooks/useFieldError";
 export type CategoryField = "name";
 
 export const useCategoryHandlers = (groupId: string | undefined) => {
-  const [createCategory]                             = useCreateCategoryMutation();
+  const [createCategory, { isLoading: isCreating }] = useCreateCategoryMutation();
   const [deleteCategory, { isLoading: isDeleting }] = useDeleteCategoryMutation();
 
   const handleAdd = async (
@@ -23,13 +23,18 @@ export const useCategoryHandlers = (groupId: string | undefined) => {
     const nameV = validateCategoryName(name);
     if (!nameV.valid) { setFieldError("name", nameV.message); return; }
 
-    if (categories.some((c) => c.name.toLowerCase() === name.trim().toLowerCase())) {
+    // Collapse internal whitespace so "test  name" and "test name" are
+    // treated as the same category — both for the duplicate check and the
+    // stored value.
+    const cleanName = name.trim().replace(/\s+/g, " ");
+
+    if (categories.some((c) => c.name.trim().replace(/\s+/g, " ").toLowerCase() === cleanName.toLowerCase())) {
       setFieldError("name", "Category already exists");
       return;
     }
 
     try {
-      await createCategory({ name: name.trim(), groupId, color }).unwrap();
+      await createCategory({ name: cleanName, groupId, color }).unwrap();
     } catch (error: any) {
       setApiError(error.data?.message || "Failed to create category");
       return;
@@ -37,7 +42,7 @@ export const useCategoryHandlers = (groupId: string | undefined) => {
 
     setCategories((prev) => [
       ...prev,
-      { _id: Date.now().toString(), name: name.trim(), color, expenseCount: 0 },
+      { _id: Date.now().toString(), name: cleanName, color, expenseCount: 0 },
     ]);
     setName("");
     setColor(defaultColor);
@@ -62,5 +67,5 @@ export const useCategoryHandlers = (groupId: string | undefined) => {
     }
   };
 
-  return { handleAdd, handleDelete, isDeleting };
+  return { handleAdd, handleDelete, isCreating, isDeleting };
 };

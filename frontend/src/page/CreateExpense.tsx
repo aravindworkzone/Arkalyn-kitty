@@ -20,8 +20,9 @@ import {
   FormActions,
   FieldInput,
   AmountInput,
+  DATE_INPUT_EXTRA,
 } from "../components/ui";
-import { sanitizeAmount } from "../helpers/validators";
+import { sanitizeAmount, MIN_DATE, todayISODate } from "../helpers/validators";
 import { useFieldError } from "../hooks/useFieldError";
 import { useTranslation } from "react-i18next";
 
@@ -44,15 +45,17 @@ export default function CreateExpensePage() {
   const groupBalance = Number(groupDetails?.balance) || 0;
   const { handleSubmit, isCreating } = useExpenseHandlers(groupId);
 
-  const [title, setTitle]               = useState("");
-  const [description, setDescription]   = useState("");
-  const [amount, setAmount]             = useState("");
-  const [date, setDate]                 = useState(() => new Date().toISOString().split("T")[0]);
-  const [categoryId, setCategoryId]     = useState("");
-  const [paymentType, setPaymentType]   = useState("Cash");
-  const [paidBy, setPaidBy]             = useState("");
-  const [splits, setSplits]             = useState<SplitEntry[]>([]);
-  const [splitEnabled, setSplitEnabled] = useState(false);
+  // Only admins/super-admins manage categories — members can't create them.
+  const role = groupDetails?.role as string | undefined;
+  const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
+
+  const [title, setTitle]             = useState("");
+  const [amount, setAmount]           = useState("");
+  const [date, setDate]               = useState(() => new Date().toISOString().split("T")[0]);
+  const [categoryId, setCategoryId]   = useState("");
+  const [paymentType, setPaymentType] = useState("Cash");
+  const [paidBy, setPaidBy]           = useState("");
+  const [splits, setSplits]           = useState<SplitEntry[]>([]);
   const { fieldErrors, setFieldError, clearFieldError } = useFieldError<ExpenseField>();
   const [apiError, setApiError]         = useState("");
 
@@ -131,7 +134,7 @@ export default function CreateExpensePage() {
 
         {/* ── 01 Basic details ── */}
         <FormSection step="01" title={t("createExpense.basicDetails")} contentClass="px-5 py-4 space-y-3">
-          <div>
+          <div data-tour="expense-title-field">
             <label className={fieldLabel}>{t("createExpense.titleLabel")}</label>
             <FieldInput
               className={inputCls}
@@ -170,7 +173,6 @@ export default function CreateExpensePage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {/* ── Amount with balance hint (Idea D) ── */}
             <div>
               <label className={fieldLabel}>{t("createExpense.amount")}</label>
               <AmountInput
@@ -195,12 +197,14 @@ export default function CreateExpensePage() {
             <div>
               <label className={fieldLabel}>{t("createExpense.date")}</label>
               <FieldInput
-                className={`${inputCls} text-white/70`}
+                className={`${inputCls} text-white/70 ${DATE_INPUT_EXTRA}`}
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 error={fieldErrors.date}
                 onClearError={() => clearFieldError("date")}
+                min={MIN_DATE}
+                max={todayISODate()}
               />
               <div className="flex gap-1.5 mt-1.5">
                 {[
@@ -227,7 +231,7 @@ export default function CreateExpensePage() {
 
         {/* ── 02 Category + Payment ── */}
         <FormSection step="02" title={t("createExpense.categoryPayment")} contentClass="px-5 py-4 space-y-4">
-          <div>
+          <div data-tour="expense-category">
             <label className={fieldLabel}>{t("createExpense.category")}</label>
             <div className="flex flex-wrap gap-2">
               {catLoading
@@ -255,16 +259,22 @@ export default function CreateExpensePage() {
                         <span translate="no">{cat.name}</span>
                       </button>
                     ))}
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/groups/${groupId}/categories/new`)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border border-dashed border-white/[0.12] text-white/30 hover:border-cyan-500/40 hover:text-cyan-400 active:border-cyan-500/40 active:text-cyan-400 transition-all duration-150"
-                    >
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                        <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      </svg>
-                      {categories.length === 0 ? t("createExpense.noCategoriesCreate") : t("createExpense.add")}
-                    </button>
+                    {isAdmin ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/groups/${groupId}/categories/new`)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border border-dashed border-white/[0.12] text-white/30 hover:border-cyan-500/40 hover:text-cyan-400 active:border-cyan-500/40 active:text-cyan-400 transition-all duration-150"
+                      >
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
+                        {categories.length === 0 ? t("createExpense.noCategoriesCreate") : t("createExpense.add")}
+                      </button>
+                    ) : categories.length === 0 ? (
+                      <span className="text-[12px] text-white/30 px-1 py-1.5">
+                        {t("createExpense.noCategoriesMember", "No categories yet — ask an admin to add one.")}
+                      </span>
+                    ) : null}
                   </>
                 )
               }
@@ -272,7 +282,7 @@ export default function CreateExpensePage() {
             {fieldErrors.category && <div className="mt-2"><ErrorMessage error={fieldErrors.category} /></div>}
           </div>
 
-          <div>
+          <div data-tour="expense-payment">
             <label className={fieldLabel}>{t("createExpense.paymentType")}</label>
             <div className="grid grid-cols-4 gap-2">
               {pmLoading
@@ -298,8 +308,8 @@ export default function CreateExpensePage() {
           </div>
         </FormSection>
 
-        {/* ── 03 Who Paid ── */}
-        <FormSection step="03" title={t("createExpense.paidBy")} contentClass="px-5 py-4">
+        {/* ── 03 Paid by ── */}
+        <FormSection step="03" title={t("createExpense.paidBy")}>
           <div className="flex flex-wrap gap-2">
             {membersLoading
               ? [...Array(3)].map((_, i) => (
@@ -332,58 +342,8 @@ export default function CreateExpensePage() {
           {fieldErrors.paidBy && <div className="mt-2"><ErrorMessage error={fieldErrors.paidBy} /></div>}
         </FormSection>
 
-        {/* ── 04 Who Spend ── */}
-        <FormSection
-          step="04"
-          title={t("createExpense.splitBetween")}
-          contentClass="px-5 py-4 space-y-3"
-          headerRight={
-            <div className="flex items-center gap-2">
-              {/* Add All / Clear All (Idea B) */}
-              {!membersLoading && groupMembers.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    clearFieldError("splits");
-                    if (allMembersInSplit) {
-                      setSplits([]);
-                    } else {
-                      setAllSplits(setSplits, groupMembers.map((m) => m.userId));
-                      setSplitEnabled(true);
-                    }
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all duration-150 ${
-                    allMembersInSplit
-                      ? "bg-red-500/10 border-red-500/25 text-red-400 hover:bg-red-500/15 active:bg-red-500/15"
-                      : "bg-white/[0.03] border-white/[0.07] text-white/35 hover:border-cyan-500/30 hover:text-cyan-400"
-                  }`}
-                >
-                  {allMembersInSplit ? t("createExpense.clearAll") : t("createExpense.addAll")}
-                </button>
-              )}
-              {/* Optional label + toggle */}
-              {!splitEnabled && (
-                <span className="text-[9px] font-medium text-white/30 uppercase tracking-wide">
-                  {t("createExpense.optional")}
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => handleToggleSplit(!splitEnabled)}
-                aria-label={splitEnabled ? "Disable split tracking" : "Enable split tracking"}
-                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 ${
-                  splitEnabled ? "bg-cyan-500/70" : "bg-white/10"
-                }`}
-              >
-                <span
-                  className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200 ${
-                    splitEnabled ? "translate-x-[18px]" : "translate-x-[3px]"
-                  }`}
-                />
-              </button>
-            </div>
-          }
-        >
+        {/* ── 04 Split between ── */}
+        <FormSection step="04" title={t("createExpense.splitBetween")} contentClass="px-5 py-4 space-y-3">
           <div className="flex flex-wrap gap-2">
             {membersLoading
               ? [...Array(3)].map((_, i) => (
@@ -423,7 +383,7 @@ export default function CreateExpensePage() {
           </div>
 
           {splits.length > 0 && (
-            <div className="space-y-2 pt-1">
+            <div className="space-y-2 pt-1" data-tour="expense-split-amounts">
               {splits.map((split) => (
                 <div
                   key={split.userId}
@@ -501,6 +461,7 @@ export default function CreateExpensePage() {
           isLoading={isCreating}
           submitLabel={t("createExpense.save")}
           loadingLabel={t("createExpense.saving")}
+          submitDataTour="create-expense-submit"
         />
       </form>
     </div>

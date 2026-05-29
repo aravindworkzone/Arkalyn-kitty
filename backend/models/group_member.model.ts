@@ -7,7 +7,9 @@ export interface IGroupMember extends Document {
     contribution: number;
     role: "SUPER_ADMIN" | "ADMIN" | "MEMBER";
     settlement: boolean;
+    settlementAmount: number;
     leaveRequestedAt: Date | null;
+    leftMode: "SETTLED" | "FORFEIT" | null;
     isDeleted: boolean;
     isFavorite: boolean;
     createdAt?: Date;
@@ -20,7 +22,15 @@ const groupMemberSchema = new Schema<IGroupMember>({
     contribution: {type: Number, default: 0, set:toDBAmount, get:fromDBAmount},
     role: {type: String, enum: ["SUPER_ADMIN", "ADMIN", "MEMBER"], default: "MEMBER"},
     settlement: {type: Boolean, default: false},
+    // Amount paid out when the member was settled. Stored in display units
+    // (no cents conversion) since it is a settlement-time snapshot used only
+    // for showing "SETTLED · ₹X" — it never feeds balance arithmetic.
+    settlementAmount: {type: Number, default: 0},
     leaveRequestedAt: {type: Date, default: null},
+    // Distinguishes how a soft-deleted member exited the group:
+    // SETTLED = approval-based path (settlement disbursed),
+    // FORFEIT = instant exit with contribution left in the pool.
+    leftMode: {type: String, enum: ["SETTLED", "FORFEIT", null], default: null},
     isDeleted: {type: Boolean, default: false},
     isFavorite: {type: Boolean, default: false}
 }, {timestamps: true, toJSON: { getters: true }, toObject: { getters: true }});

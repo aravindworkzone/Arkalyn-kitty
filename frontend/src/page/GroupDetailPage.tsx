@@ -12,6 +12,7 @@ import {
   useGetGroupByIdQuery,
   useGetLeftContributorsQuery,
 } from "../redux/api/group";
+import { useGetUserQuery } from "../redux/api/auth";
 import { useGroupDetailHandlers } from "../handlers/useGroupDetailHandlers";
 import { roleGrade, roleLabel } from "../helpers/constants";
 import type { SettingsTab } from "../interface/group";
@@ -27,6 +28,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { joinGroup } from "../socket/emiter/group.emit";
 import { setGroupId } from "../redux/slice/group.slice";
+import { setTourGroupBalance } from "../store/tourStore";
 import { useDispatch } from "react-redux";
 
 export default function GroupDetailPage() {
@@ -54,11 +56,12 @@ export default function GroupDetailPage() {
   const [leaveGroupOpen,   setLeaveGroupOpen]   = useState(false);
   const [leaveGroupError,  setLeaveGroupError]  = useState("");
   const [leaveRequestSent, setLeaveRequestSent] = useState(false);
+  const [forfeitLeaveOpen,  setForfeitLeaveOpen]  = useState(false);
+  const [forfeitLeaveError, setForfeitLeaveError] = useState("");
   const [closeGroupOpen,   setCloseGroupOpen]   = useState(false);
   const [groupClosedBanner, setGroupClosedBanner] = useState(false);
 
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
-  const [noCatAlert,      setNoCatAlert]      = useState(false);
 
   const { data: GroupDetails, isLoading: groupLoading } =
     useGetGroupByIdQuery(groupId!, { skip: !groupId });
@@ -68,18 +71,34 @@ export default function GroupDetailPage() {
     useGetGroupMembersQuery(groupId!, { skip: !groupId });
   const { data: LeftContributors } =
     useGetLeftContributorsQuery(groupId!, { skip: !groupId });
-  const { data: categories = [] } =
+  const { data: categories = [], isLoading: catLoading } =
     useGetCategoriesQuery(groupId!, { skip: !groupId });
+  const { data: meData } = useGetUserQuery();
+  const currentUserId = meData?.data?.user?._id;
+
+  // Feed the current group's balance into the tour engine so its `skipWhen`
+  // predicates can short-circuit the contribution detour when the wallet is
+  // already funded. Cleared on unmount so other routes don't see stale data.
+  useEffect(() => {
+    if (GroupDetails?.balance == null) return;
+    dispatch(setTourGroupBalance(GroupDetails.balance));
+    return () => {
+      dispatch(setTourGroupBalance(null));
+    };
+  }, [dispatch, GroupDetails?.balance]);
 
   const {
     msg, setMsg,
     isVerifying, isInvitingMember, isChangingRole,
     isAddingContrib, isSettling, isDeletingGroup, isRemovingMember, isLeavingGroup,
-    isApprovingLeave, isRejectingLeave,
+    isApprovingLeave, isRejectingLeave, isCancellingOwnLeave,
     handleVerifyUser, handleInviteMember, handleChangeRole,
     handleAddContribution, handleSettlement, handleDeleteMember, handleDeleteGroup, handleLeaveGroup,
-    handleApproveLeave, handleRejectLeave,
+    handleApproveLeave, handleRejectLeave, handleCancelOwnLeave,
   } = useGroupDetailHandlers(groupId);
+
+  const myMember = GroupMembers?.find((m) => m.userId._id === currentUserId);
+  const hasPendingLeave = !!myMember?.leaveRequestedAt;
 
   const pendingLeaveCount = GroupMembers?.filter((m) => m.leaveRequestedAt).length ?? 0;
 
@@ -229,36 +248,6 @@ export default function GroupDetailPage() {
           <MemberAvatars members={memberNames} />
         </div>
 
-        {/* ── No-category alert ── */}
-        {noCatAlert && (
-          <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/25">
-            <svg className="shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M7 1l6 11H1L7 1z" stroke="#fbbf24" strokeWidth="1.3" strokeLinejoin="round" />
-              <path d="M7 5.5v3M7 9.5h.01" stroke="#fbbf24" strokeWidth="1.3" strokeLinecap="round" />
-            </svg>
-            <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold text-amber-300 leading-tight">{t("groupDetail.noCatTitle")}</p>
-              <p className="text-[11px] text-amber-400/70 mt-0.5">{t("groupDetail.noCatDesc")}</p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => navigate(`/groups/${groupId}/categories/new`)}
-                className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 active:text-amber-200 transition-colors"
-              >
-                {t("groupDetail.create")}
-              </button>
-              <button
-                onClick={() => setNoCatAlert(false)}
-                className="text-amber-500/60 hover:text-amber-400 active:text-amber-400 transition-colors"
-              >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                  <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* ── Leave request sent banner ── */}
         {leaveRequestSent && (
           <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-green-500/10 border border-green-500/25">
@@ -303,19 +292,19 @@ export default function GroupDetailPage() {
           {[
             {
               label: t("groupDetail.addExpense"),
-              onClick: () => {
-                if (categories.length === 0) { setNoCatAlert(true); return; }
-                navigate(`/groups/${groupId}/expenses/new`);
-              },
+              onClick: () => navigate(`/groups/${groupId}/expenses/new`),
               color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/20 hover:bg-cyan-500/20 hover:border-cyan-400/35",
               icon: <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />,
-              show: true,
+              tourId: "create-expense",
+              // An expense needs a category — hide the entry until one exists.
+              show: catLoading || categories.length > 0,
             },
             {
               label: t("groupDetail.category"),
               onClick: () => navigate(`/groups/${groupId}/categories/new`),
               color: "text-violet-300 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20 hover:border-violet-400/35",
               icon: <path d="M2 4h4v4H2zM8 4h4v4H8zM2 10h4v4H2zM8 10h4v4H8z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />,
+              tourId: "create-category",
               show: isAdmin,
             },
             {
@@ -323,6 +312,7 @@ export default function GroupDetailPage() {
               onClick: () => navigate(`/groups/${groupId}/activity`),
               color: "text-slate-300 bg-slate-500/10 border-slate-500/20 hover:bg-slate-500/20 hover:border-slate-400/35",
               icon: <path d="M2 12V6l4-4h6l2 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />,
+              tourId: "view-report",
               show: true,
             },
             {
@@ -335,6 +325,7 @@ export default function GroupDetailPage() {
                   <path d="M7 1.5v5.5l4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
                 </>
               ),
+              tourId: "view-breakdown",
               show: true,
             },
             ...(role ? [{
@@ -342,6 +333,7 @@ export default function GroupDetailPage() {
               onClick: openSettings,
               color: "text-amber-300 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20 hover:border-amber-400/35",
               show: true,
+              tourId: "view-settings",
               icon: (
                 <>
                   <circle cx="7" cy="7" r="2" stroke="currentColor" strokeWidth="1.3" />
@@ -354,6 +346,7 @@ export default function GroupDetailPage() {
             <button
               key={btn.label}
               onClick={btn.onClick}
+              data-tour={btn.tourId}
               className={`flex flex-col items-center gap-2 py-3.5 rounded-xl border text-[11px] font-semibold transition-all duration-150 ${btn.color}`}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -433,9 +426,18 @@ export default function GroupDetailPage() {
                       return (
                         <div key={m._id} className="space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className="text-[11px] text-white/40 italic" translate="no">
+                            <span className="text-[11px] text-white/40 italic flex items-center gap-1.5" translate="no">
                               {m.userId.name}
-                              <span className="text-white/20 ml-1 not-italic">· {t("groupDetail.left", "left")}</span>
+                              <span className="text-white/20 not-italic">
+                                · {m.leftMode === "FORFEIT"
+                                    ? t("groupDetail.forfeited", "forfeited")
+                                    : t("groupDetail.left", "left")}
+                              </span>
+                              {m.leftMode === "FORFEIT" && (
+                                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md not-italic border border-amber-500/30 bg-amber-500/10 text-amber-300">
+                                  {t("groupDetail.forfeitBadge", "FORFEITED")}
+                                </span>
+                              )}
                             </span>
                             <span className="text-[11px] font-mono text-white/35" translate="no">
                               ₹{m.contribution.toLocaleString("en-IN")}
@@ -475,7 +477,9 @@ export default function GroupDetailPage() {
                           ₹{member.contribution.toLocaleString("en-IN")}
                         </p>
                         {member.settlement && (
-                          <p className="text-[9px] text-green-400/70 font-semibold">{t("groupDetail.settled")}</p>
+                          <p className="text-[9px] text-green-400/70 font-semibold" translate="no">
+                            {t("groupDetail.settled")} · ₹{(member.settlementAmount ?? 0).toLocaleString("en-IN")}
+                          </p>
                         )}
                       </div>
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleGrade[member.role]}`}>
@@ -536,8 +540,17 @@ export default function GroupDetailPage() {
                 <div
                   key={expense._id}
                   onClick={() => setSelectedExpense(expense)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedExpense(expense);
+                    }
+                  }}
+                  aria-label={t("groupDetail.openExpense", "Open expense: {{title}}", { title: expense.title })}
                   className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5
-                    flex items-center justify-between cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.12] transition-colors"
+                    flex items-center justify-between cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.12] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 transition-colors"
                   style={{
                     animation: "fadeSlideIn 0.25s ease forwards",
                     animationDelay: `${i * 50}ms`,
@@ -601,6 +614,7 @@ export default function GroupDetailPage() {
                 <p className="text-sm font-semibold text-white/70">{t("groupDetail.groupSettings")}</p>
                 <button
                   onClick={() => setSettingsOpen(false)}
+                  data-tour="settings-close"
                   className="w-7 h-7 flex items-center justify-center rounded-lg
                     bg-white/[0.04] text-white/40 hover:text-white/70 hover:bg-white/[0.08] active:text-white/70 active:bg-white/[0.08] transition-colors"
                 >
@@ -616,6 +630,7 @@ export default function GroupDetailPage() {
                     <button
                       key={tabItem.id}
                       onClick={() => switchTab(tabItem.id)}
+                      data-tour={`settings-${tabItem.id}`}
                       className={`px-3.5 pb-2 text-xs font-semibold whitespace-nowrap transition-colors border-b-2
                         ${tab === tabItem.id
                           ? tabItem.id === "danger"
@@ -631,7 +646,7 @@ export default function GroupDetailPage() {
                 <div className="pointer-events-none absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-[#0d1220] to-transparent sm:hidden" />
               </div>
 
-              <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1">
+              <div className="px-5 py-4 space-y-3 flex-1">
 
                 <StatusBanner status={msg ? (msg.ok ? "ok" : "err") : null} text={msg?.text ?? ""} />
 
@@ -671,6 +686,7 @@ export default function GroupDetailPage() {
                 {tab === "leaveRequests" && (
                   <SettingsLeaveRequests
                     members={GroupMembers}
+                    isSuperAdmin={isSuperAdmin}
                     isApprovingLeave={isApprovingLeave}
                     isRejectingLeave={isRejectingLeave}
                     handleApproveLeave={handleApproveLeave}
@@ -683,11 +699,15 @@ export default function GroupDetailPage() {
                     isSuperAdmin={isSuperAdmin}
                     onRequestDeleteGroup={() => { setSettingsOpen(false); setDeleteGroupOpen(true); }}
                     onRequestLeaveGroup={() => { setSettingsOpen(false); setLeaveGroupOpen(true); }}
+                    onRequestForfeitLeave={() => { setSettingsOpen(false); setForfeitLeaveOpen(true); }}
                     onRequestCloseGroup={
                       isSuperAdmin && GroupDetails?.status !== "CLOSED"
                         ? () => { setSettingsOpen(false); setCloseGroupOpen(true); }
                         : undefined
                     }
+                    hasPendingLeave={hasPendingLeave}
+                    onCancelOwnLeave={handleCancelOwnLeave}
+                    isCancellingOwnLeave={isCancellingOwnLeave}
                   />
                 )}
               </div>
@@ -755,6 +775,25 @@ export default function GroupDetailPage() {
         </p>
       </DeleteConfirmModal>
 
+      {/* ── Leave Without Settlement (forfeit) modal ── */}
+      <DeleteConfirmModal
+        isOpen={forfeitLeaveOpen}
+        onClose={() => { setForfeitLeaveOpen(false); setForfeitLeaveError(""); }}
+        onConfirm={() => handleLeaveGroup(setForfeitLeaveError, "forfeit")}
+        label={t("groupDetail.leaveWithoutSettlement", "Leave without settlement")}
+        confirmText="FORFEIT"
+        isLoading={isLeavingGroup}
+        error={forfeitLeaveError}
+      >
+        <p className="text-sm text-white/50">
+          <span className="text-white/80 font-medium" translate="no">{GroupDetails?.name}</span> —{" "}
+          {t(
+            "groupDetail.leaveWithoutSettlementConfirm",
+            "Your contribution stays in the group pool and will not be refunded. You leave instantly without admin approval. This cannot be undone."
+          )}
+        </p>
+      </DeleteConfirmModal>
+
       {/* ── Close Group modal ── */}
       {groupId && (
         <CloseGroupModal
@@ -769,7 +808,7 @@ export default function GroupDetailPage() {
       )}
 
       {/* ── Expense detail modal ── */}
-      <ExpenseDetailModal expense={selectedExpense} onClose={() => setSelectedExpense(null)} role={role} groupId={groupId} />
+      <ExpenseDetailModal expense={selectedExpense} onClose={() => setSelectedExpense(null)} role={role} groupId={groupId} group={GroupDetails} />
 
       <style>{`
         @keyframes fadeSlideIn {

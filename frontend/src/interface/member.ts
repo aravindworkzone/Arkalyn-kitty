@@ -4,7 +4,9 @@ export interface GroupMember {
   name: string;
   role: string;
   settlement?: boolean;
+  settlementAmount?: number;
   leaveRequestedAt?: string | null;
+  leftMode?: "SETTLED" | "FORFEIT" | null;
   userId: { _id: string; name: string; email: string };
 }
 

@@ -10,6 +10,7 @@ import {
   useLeaveGroupMutation,
   useApproveLeaveMutation,
   useRejectLeaveMutation,
+  useCancelOwnLeaveMutation,
 } from "../redux/api/group";
 import { useVerifyUserMutation } from "../redux/api/user";
 import { validateEmail, validateAmount, validateDescription } from "../helpers/validators";
@@ -40,6 +41,7 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
   const [removeMemberMut, { isLoading: isRemovingMember }] = useManageMemberMutation();
   const [approveLeaveMut, { isLoading: isApprovingLeave }] = useApproveLeaveMutation();
   const [rejectLeaveMut, { isLoading: isRejectingLeave }] = useRejectLeaveMutation();
+  const [cancelOwnLeaveMut, { isLoading: isCancellingOwnLeave }] = useCancelOwnLeaveMutation();
 
   const handleVerifyUser = async (
     searchEmail: string,
@@ -217,15 +219,17 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
     }
   };
 
-  // Returns "left" when the member was removed immediately (already settled),
-  // "requested" when a leave request was filed for admin approval, or "error".
+  // Returns "left" when the member was removed immediately (already settled or
+  // forfeit path), "requested" when a leave request was filed for admin
+  // approval, or "error". Forfeit always returns "left" — no approval involved.
   const handleLeaveGroup = async (
-    setLeaveGroupError: React.Dispatch<React.SetStateAction<string>>
+    setLeaveGroupError: React.Dispatch<React.SetStateAction<string>>,
+    mode: "settlement" | "forfeit" = "settlement"
   ): Promise<"left" | "requested" | "error"> => {
     if (!groupId) return "error";
     setLeaveGroupError("");
     try {
-      const res = await leaveGroupMut(groupId).unwrap() as any;
+      const res = await leaveGroupMut({ groupId, mode }).unwrap() as any;
       if (res?.data?.left) {
         navigate("/groups");
         return "left";
@@ -265,6 +269,16 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
     }
   };
 
+  const handleCancelOwnLeave = async () => {
+    if (!groupId) return;
+    try {
+      await cancelOwnLeaveMut({ groupId }).unwrap();
+      setMsg({ ok: true, text: "Leave request cancelled" });
+    } catch (e: any) {
+      setMsg({ ok: false, text: e?.data?.error || e?.data?.message || "Failed to cancel leave request" });
+    }
+  };
+
   const handleRejectLeave = async (memberId: string) => {
     if (!groupId) return;
     try {
@@ -279,9 +293,9 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
     msg, setMsg,
     isVerifying, isInvitingMember, isChangingRole,
     isAddingContrib, isSettling, isDeletingGroup, isRemovingMember, isLeavingGroup,
-    isApprovingLeave, isRejectingLeave,
+    isApprovingLeave, isRejectingLeave, isCancellingOwnLeave,
     handleVerifyUser, handleInviteMember, handleChangeRole,
     handleAddContribution, handleSettlement, handleDeleteMember, handleDeleteGroup, handleLeaveGroup,
-    handleApproveLeave, handleRejectLeave,
+    handleApproveLeave, handleRejectLeave, handleCancelOwnLeave,
   };
 };

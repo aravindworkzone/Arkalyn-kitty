@@ -24,6 +24,7 @@ const EmptyState = ({ onClick }: { onClick: () => void }) => {
 
       <button
         onClick={onClick}
+        data-tour="create-group"
         className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold
           text-violet-200 bg-violet-500/10 border border-violet-500/20
           hover:bg-violet-500/18 hover:border-violet-400/35

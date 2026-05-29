@@ -14,8 +14,8 @@ import {
     deleteExpenseParamsSchema,
     deleteExpenseBodySchema,
     groupIdOnlyParamsSchema,
+    allExpensesQuerySchema,
 } from '../validators/expense.validator';
-import { paginationQuerySchema } from '../validators/common';
 
 const router = express.Router();
 
@@ -58,7 +58,7 @@ router.get(
 
 router.get(
     '/allexpenses/:groupId',
-    validate({ params: groupIdOnlyParamsSchema, query: paginationQuerySchema }),
+    validate({ params: groupIdOnlyParamsSchema, query: allExpensesQuerySchema }),
     verifyToken,
     loadGroup,
     getAllExpenses

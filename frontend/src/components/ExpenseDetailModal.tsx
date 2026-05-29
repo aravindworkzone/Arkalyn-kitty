@@ -1,6 +1,9 @@
+import { useRef } from "react";
 import DetailModal from "./DetailModal";
+import ShareCard from "./ShareCard";
 import type { Expense } from "../interface/expense";
 import { useExpenseModalHandlers } from "../handlers/useExpenseModalHandlers";
+import { useShareAsImage } from "../hooks/useShareAsImage";
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="flex items-start justify-between gap-6 py-2.5 border-b border-white/[0.05] last:border-0">
@@ -16,11 +19,13 @@ export default function ExpenseDetailModal({
   onClose,
   role,
   groupId,
+  group,
 }: {
   expense: Expense | null;
   onClose: () => void;
   role?: string;
   groupId?: string;
+  group?: { name?: string; displayId?: string } | null;
 }) {
   const {
     showRefund, setShowRefund,
@@ -30,6 +35,15 @@ export default function ExpenseDetailModal({
     handleClose,
     handleRefund,
   } = useExpenseModalHandlers(onClose);
+
+  const cardRef = useRef<HTMLDivElement>(null);
+  const {
+    shareImage,
+    downloadImage,
+    isSharing,
+    isDownloading,
+    error: shareError,
+  } = useShareAsImage(cardRef);
 
   const canDelete = role === "SUPER_ADMIN" || role === "ADMIN";
 
@@ -99,6 +113,42 @@ export default function ExpenseDetailModal({
           )}
         </Row>
       </div>
+
+      {/* share section — visible to everyone */}
+      <div className="mt-5 pt-4 border-t border-white/[0.06]">
+        <div className="flex gap-2">
+          <button
+            onClick={() =>
+              shareImage({
+                filename: `expense-${group?.displayId ?? "group"}-${expense._id}.png`,
+                shareTitle: `Expense · ₹${expense.amount.toLocaleString("en-IN")}`,
+                shareText: `${expense.title} · ₹${expense.amount.toLocaleString("en-IN")}`,
+              })
+            }
+            disabled={isSharing || isDownloading}
+            className="flex-1 py-2 rounded-xl border border-white/10 bg-white/[0.04] text-white/70 text-[12px] font-semibold hover:bg-white/[0.08] active:bg-white/[0.08] disabled:opacity-50 transition-colors"
+          >
+            {isSharing ? "Preparing…" : "Share"}
+          </button>
+          <button
+            onClick={() =>
+              downloadImage({
+                filename: `expense-${group?.displayId ?? "group"}-${expense._id}.png`,
+              })
+            }
+            disabled={isSharing || isDownloading}
+            className="flex-1 py-2 rounded-xl border border-white/10 bg-white/[0.04] text-white/70 text-[12px] font-semibold hover:bg-white/[0.08] active:bg-white/[0.08] disabled:opacity-50 transition-colors"
+          >
+            {isDownloading ? "Downloading…" : "Download"}
+          </button>
+        </div>
+        {shareError && (
+          <p className="mt-2 text-[11px] text-red-400">{shareError}</p>
+        )}
+      </div>
+
+      {/* hidden off-screen card used as the image source */}
+      <ShareCard ref={cardRef} type="expense" expense={expense} group={group} />
 
       {/* delete / refund section — admin/super_admin only */}
       {canDelete && (

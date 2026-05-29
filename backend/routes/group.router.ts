@@ -10,6 +10,7 @@ import {
     leaveGroup,
     approveLeaveRequest,
     rejectLeaveRequest,
+    cancelOwnLeaveRequest,
     getGroupById,
     getGroupMember,
     getLeftContributors,
@@ -33,6 +34,7 @@ import {
     leaveGroupBodySchema,
     approveLeaveBodySchema,
     rejectLeaveBodySchema,
+    cancelOwnLeaveBodySchema,
     toggleFavoriteBodySchema,
     removeCreditParamsSchema,
     removeCreditBodySchema,
@@ -137,6 +139,16 @@ router.post(
     ensureGroupActive,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
     rejectLeaveRequest
+);
+
+router.post(
+    '/leave/cancel',
+    validate({ body: cancelOwnLeaveBodySchema }),
+    verifyToken,
+    loadGroup,
+    ensureGroupActive,
+    authorizeRole('ADMIN', 'MEMBER'),
+    cancelOwnLeaveRequest
 );
 
 router.get(

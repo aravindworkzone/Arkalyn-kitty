@@ -9,7 +9,7 @@ import {
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendCreated, sendPaginated } from '../utils/response';
 import { AppError } from '../helpers/AppError';
-import { paginationQuerySchema } from '../validators/common';
+import { allExpensesQuerySchema } from '../validators/expense.validator';
 import { emitToGroup, SOCKET_EVENTS } from "../sockets/index";
 
 export const createExpense = asyncHandler(async (req, res) => {
@@ -68,7 +68,13 @@ export const expenseReport = asyncHandler(async (req, res) => {
 export const getAllExpenses = asyncHandler(async (req, res) => {
     if (!req.group?._id) throw new AppError('Group not found', 400);
 
-    const { page = 1, limit = 20 } = paginationQuerySchema.parse(req.query);
-    const { items, total } = await getAllExpensesService(req.group._id, page, limit);
+    const { page = 1, limit = 20, categoryId, paidBy, startDate, endDate } =
+        allExpensesQuerySchema.parse(req.query);
+    const { items, total } = await getAllExpensesService(req.group._id, page, limit, {
+        categoryId,
+        paidBy,
+        startDate,
+        endDate,
+    });
     sendPaginated(res, items, total, page, limit, 'Expenses fetched');
 });

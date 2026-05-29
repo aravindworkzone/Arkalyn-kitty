@@ -61,6 +61,7 @@ const GroupPage = () => {
           </div>
           <button
             onClick={() => navigate("/groups/new")}
+            data-tour="create-group"
             className="hidden sm:inline-flex group items-center gap-2 px-4 py-2.5 rounded-xl text-[13px]
               font-semibold text-violet-200 bg-violet-500/10 border border-violet-500/20
               hover:bg-violet-500/20 hover:border-violet-400/40
@@ -112,7 +113,7 @@ const GroupPage = () => {
               <path d="M9.5 9.5L12 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
             <input
-              type="search"
+              type="text"
               inputMode="search"
               autoComplete="off"
               placeholder={t("groups.searchPlaceholder")}
@@ -160,6 +161,7 @@ const GroupPage = () => {
             {filtered.map((group: any, i: number) => (
               <div
                 key={group._id}
+                data-tour={i === 0 ? "open-group" : undefined}
                 style={{
                   animation: `fadeSlideIn 0.3s ease forwards`,
                   animationDelay: `${i * 50}ms`,

@@ -45,6 +45,19 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
             },
         },
         {
+            // Only live categories — an expense can't be created without one,
+            // so the card uses this count to gate its "Add Expense" action.
+            $lookup: {
+                from: 'categories',
+                let: { gid: '$group._id' },
+                pipeline: [
+                    { $match: { $expr: { $eq: ['$groupId', '$$gid'] }, isDeleted: { $ne: true } } },
+                    { $project: { _id: 1 } },
+                ],
+                as: 'category',
+            },
+        },
+        {
             $lookup: {
                 from: 'users',
                 localField: 'members.userId',
@@ -125,6 +138,7 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
                     ],
                 },
                 expenseCount: { $size: '$expense' },
+                categoryCount: { $size: '$category' },
                 createdAt: {
                     $dateToString: {
                         format: '%d %b %Y',
