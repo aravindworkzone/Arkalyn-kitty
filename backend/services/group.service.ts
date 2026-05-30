@@ -5,6 +5,7 @@ import GroupTransaction from "../models/group_transaction.model";
 import GroupEvent from "../models/group_event.model";
 import GroupMember from "../models/group_member.model";
 import GroupInvite from "../models/group_invite.model";
+import Category from "../models/category.model";
 import { createNotification } from "./notification.service";
 import { toDBAmount } from "../helpers/Money";
 
@@ -103,6 +104,143 @@ export const createGroupService = async (data: { name: string; invitees: string[
     }
 
     // Notifications are non-critical and not part of the group-creation transaction.
+    for (const invite of createdInvites) {
+        await createNotification({
+            recipient: invite.invitedUser,
+            actor: superAdmin,
+            group: group._id as mongoose.Types.ObjectId,
+            type: "GROUP_INVITE",
+            metadata: { inviteId: invite._id.toString(), groupName: name, groupDisplayId: group.displayId },
+        });
+    }
+
+    return group;
+};
+
+// Clone an existing group's structure into a brand-new group: copies the
+// categories (name + color) and re-invites the source group's active members as
+// fresh PENDING invites. Nothing financial is carried over — the new group starts
+// with a zero balance and no expenses/transactions/events from the source.
+export const cloneGroupService = async (data: { sourceGroupId: string; name: string; superAdmin: string }) => {
+    const name = data.name?.trim();
+    const superAdmin = data.superAdmin;
+    const sourceGroupId = data.sourceGroupId;
+
+    if (!superAdmin || !name || !sourceGroupId) {
+        throw new AppError("All fields are required", 400);
+    }
+
+    if (name.length < 3 || name.length > 100 || !/^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/.test(name)) {
+        throw new AppError("Name must be between 3 and 100 characters", 400);
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(superAdmin) || !mongoose.Types.ObjectId.isValid(sourceGroupId)) {
+        throw new AppError("Invalid ID format", 400);
+    }
+
+    const sourceGroup = await Group.findById(sourceGroupId);
+    if (!sourceGroup) {
+        throw new AppError("Source group not found", 404);
+    }
+
+    // Categories to copy (skip soft-deleted ones).
+    const sourceCategories = await Category.find({ groupId: sourceGroupId, isDeleted: false });
+
+    // Active members of the source become invitees — except the cloner, who joins
+    // directly as SUPER_ADMIN of the new group.
+    const sourceMembers = await GroupMember.find({ groupId: sourceGroupId, isDeleted: false });
+    const invitees = Array.from(new Set(sourceMembers.map((m) => m.userId.toString())))
+        .filter((id) => mongoose.Types.ObjectId.isValid(id) && id !== superAdmin.toString());
+
+    const session = await mongoose.startSession();
+    let group;
+    let createdInvites: { _id: mongoose.Types.ObjectId; invitedUser: mongoose.Types.ObjectId }[] = [];
+    try {
+        session.startTransaction();
+
+        const CloneGroup = new Group({
+            name,
+            totalContribution: 0,
+            balance: 0,
+            createdBy: superAdmin,
+        });
+        group = await CloneGroup.save({ session });
+
+        const creatorMember = new GroupMember({
+            groupId: group._id,
+            userId: superAdmin,
+            contribution: 0,
+            role: "SUPER_ADMIN",
+        });
+        await creatorMember.save({ session });
+
+        const CreateGroupEvent = new GroupEvent({
+            groupId: group._id,
+            performedBy: superAdmin,
+            eventType: "CREATE_GROUP",
+            referenceId: group._id,
+            referenceModel: "Group",
+            metadata: { name, totalContribution: 0, inviteeCount: invitees.length, note: `Cloned from "${sourceGroup.name}"` },
+        });
+        await CreateGroupEvent.save({ session });
+
+        const CreateGroupTransaction = new GroupTransaction({
+            groupId: group._id,
+            amount: 0,
+            action: "CREDIT",
+            description: `Group cloned from "${sourceGroup.name}"`,
+            referenceId: superAdmin,
+            referenceModel: "User",
+            metadata: [{ userId: superAdmin, contribution: 0 }],
+            performedBy: superAdmin,
+        });
+        await CreateGroupTransaction.save({ session });
+
+        // Copy each category and log a MANAGE_CATEGORY event per category.
+        for (const category of sourceCategories) {
+            const clonedCategory = new Category({
+                groupId: group._id,
+                name: category.name,
+                color: category.color,
+            });
+            await clonedCategory.save({ session });
+
+            const categoryEvent = new GroupEvent({
+                groupId: group._id,
+                performedBy: superAdmin,
+                eventType: "MANAGE_CATEGORY",
+                referenceId: clonedCategory._id,
+                referenceModel: "Category",
+                metadata: { userId: superAdmin, note: `Created category: ${category.name}` },
+            });
+            await categoryEvent.save({ session });
+        }
+
+        if (invitees.length > 0) {
+            const inviteDocs = invitees.map((userId) => ({
+                groupId: group!._id,
+                invitedUser: userId,
+                invitedBy: superAdmin,
+                status: "PENDING" as const,
+            }));
+            const inserted = await GroupInvite.insertMany(inviteDocs, { session });
+            createdInvites = inserted.map((inv) => ({
+                _id: inv._id as mongoose.Types.ObjectId,
+                invitedUser: inv.invitedUser,
+            }));
+        }
+
+        await session.commitTransaction();
+    } catch (error: any) {
+        await session.abortTransaction();
+        if (error.name === "ValidationError") throw new AppError(error.message, 400);
+        if (error.code === 11000) throw new AppError("Duplicate member detected", 409);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
+    } finally {
+        await session.endSession();
+    }
+
+    // Notifications are non-critical and not part of the clone transaction.
     for (const invite of createdInvites) {
         await createNotification({
             recipient: invite.invitedUser,

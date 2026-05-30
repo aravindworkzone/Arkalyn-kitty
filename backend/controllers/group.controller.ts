@@ -1,5 +1,6 @@
 import {
     createGroupService,
+    cloneGroupService,
     deleteGroupService,
     manageMemberService,
     inviteMemberService,
@@ -38,6 +39,20 @@ export const createGroup = asyncHandler(async (req, res) => {
 
     const group = await createGroupService(data);
     sendCreated(res, { group }, 'Group created');
+});
+
+export const cloneGroup = asyncHandler(async (req, res) => {
+    if (!req.user) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const data = {
+        sourceGroupId: req.group._id.toString(),
+        name: typeof req.body.name === 'string' ? req.body.name.trim() : '',
+        superAdmin: req.user._id.toString(),
+    };
+
+    const group = await cloneGroupService(data);
+    sendCreated(res, { group }, 'Group cloned');
 });
 
 export const deleteGroup = asyncHandler(async (req, res) => {
