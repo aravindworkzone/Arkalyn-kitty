@@ -13,6 +13,14 @@ export const group = api.injectEndpoints({
             }),
             invalidatesTags: ['Group']
         }),
+        CloneGroup : builder.mutation<any, { sourceGroupId: string; name: string }>({
+            query: ({ sourceGroupId, name }) => ({
+                url: `/group/${sourceGroupId}/clone`,
+                method: 'POST',
+                body: { name }
+            }),
+            invalidatesTags: ['Group']
+        }),
         getGroupById: builder.query<any, any>({
             query: (credentials) => ({
                 url: `/group/getgroupbyid/${credentials}`,
@@ -207,7 +215,7 @@ export const group = api.injectEndpoints({
 })
 
 export const {
-    useCreateGroupMutation, useGetGroupByIdQuery, useGetGroupMembersQuery,
+    useCreateGroupMutation, useCloneGroupMutation, useGetGroupByIdQuery, useGetGroupMembersQuery,
     useGetLeftContributorsQuery,
     useGetBasicTransactionQuery, useGetTransactionQuery, useGetEventQuery,
     useGetAllCreditsQuery, useRemoveCreditMutation,

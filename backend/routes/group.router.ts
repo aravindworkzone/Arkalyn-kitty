@@ -1,6 +1,7 @@
 import express from 'express';
 import {
     createGroup,
+    cloneGroup,
     deleteGroup,
     manageMember,
     inviteMember,
@@ -25,6 +26,7 @@ import { verifyToken, authorizeRole, loadGroup, ensureGroupActive } from '../mid
 import { validate } from '../middlewares/validate.middleware';
 import {
     createGroupBodySchema,
+    cloneGroupBodySchema,
     groupIdParamObject,
     manageMemberBodySchema,
     inviteMemberBodySchema,
@@ -50,6 +52,16 @@ router.post(
     validate({ body: createGroupBodySchema }),
     verifyToken,
     createGroup
+);
+
+router.post(
+    '/:groupId/clone',
+    validate({ params: groupIdParamObject, body: cloneGroupBodySchema }),
+    verifyToken,
+    loadGroup,
+    ensureGroupActive,
+    authorizeRole('SUPER_ADMIN'),
+    cloneGroup
 );
 
 router.delete(

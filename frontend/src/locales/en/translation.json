@@ -455,6 +455,19 @@
     "bannerDesc": "Refunds were issued and no further changes are allowed."
   },
 
+  "cloneGroup": {
+    "eyebrow": "Clone group",
+    "title": "Clone this group",
+    "settingsDesc": "Create a new group with the same categories and re-invite the current members. The balance starts empty — no expenses or contributions are copied.",
+    "description": "Categories and member invites will be copied. The new group starts with an empty balance — no expenses or contributions are carried over.",
+    "nameLabel": "New group name",
+    "namePlaceholder": "Enter a name for the clone",
+    "confirm": "Clone group",
+    "cloning": "Cloning…",
+    "cancel": "Cancel",
+    "error": "Could not clone the group. Please try again."
+  },
+
   "leaveRequests": {
     "description": "Approve a request to settle the member and remove them, or reject it to keep them in the group.",
     "contributed": "Contributed ₹{{amount}}",

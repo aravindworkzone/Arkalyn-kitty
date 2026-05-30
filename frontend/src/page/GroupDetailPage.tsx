@@ -4,6 +4,7 @@ import MemberAvatars from "../components/ListMember";
 import Header from "../components/header";
 import DeleteConfirmModal from "../components/deleteModel";
 import CloseGroupModal from "../components/CloseGroupModal";
+import CloneGroupModal from "../components/CloneGroupModal";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import { useGetExpenseReportQuery } from "../redux/api/expense";
 import { useGetCategoriesQuery } from "../redux/api/category";
@@ -16,7 +17,7 @@ import { useGetUserQuery } from "../redux/api/auth";
 import { useGroupDetailHandlers } from "../handlers/useGroupDetailHandlers";
 import { roleGrade, roleLabel } from "../helpers/constants";
 import type { SettingsTab } from "../interface/group";
-import { StatusBanner } from "../components/ui";
+import { StatusBanner, ActionButton } from "../components/ui";
 import {
   SettingsAddMember,
   SettingsChangeRole,
@@ -59,6 +60,7 @@ export default function GroupDetailPage() {
   const [forfeitLeaveOpen,  setForfeitLeaveOpen]  = useState(false);
   const [forfeitLeaveError, setForfeitLeaveError] = useState("");
   const [closeGroupOpen,   setCloseGroupOpen]   = useState(false);
+  const [cloneGroupOpen,   setCloneGroupOpen]   = useState(false);
   const [groupClosedBanner, setGroupClosedBanner] = useState(false);
 
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
@@ -695,20 +697,41 @@ export default function GroupDetailPage() {
                 )}
 
                 {tab === "danger" && (
-                  <SettingsDangerZone
-                    isSuperAdmin={isSuperAdmin}
-                    onRequestDeleteGroup={() => { setSettingsOpen(false); setDeleteGroupOpen(true); }}
-                    onRequestLeaveGroup={() => { setSettingsOpen(false); setLeaveGroupOpen(true); }}
-                    onRequestForfeitLeave={() => { setSettingsOpen(false); setForfeitLeaveOpen(true); }}
-                    onRequestCloseGroup={
-                      isSuperAdmin && GroupDetails?.status !== "CLOSED"
-                        ? () => { setSettingsOpen(false); setCloseGroupOpen(true); }
-                        : undefined
-                    }
-                    hasPendingLeave={hasPendingLeave}
-                    onCancelOwnLeave={handleCancelOwnLeave}
-                    isCancellingOwnLeave={isCancellingOwnLeave}
-                  />
+                  <div className="space-y-3">
+                    {isSuperAdmin && GroupDetails?.status !== "CLOSED" && (
+                      <div className="bg-violet-500/[0.06] border border-violet-500/15 rounded-xl px-4 py-4">
+                        <p className="text-xs font-semibold text-violet-300 mb-1">
+                          {t("cloneGroup.title", "Clone this group")}
+                        </p>
+                        <p className="text-[11px] text-white/30 mb-3">
+                          {t(
+                            "cloneGroup.settingsDesc",
+                            "Create a new group with the same categories and re-invite the current members. The balance starts empty — no expenses or contributions are copied."
+                          )}
+                        </p>
+                        <ActionButton
+                          tone="violet"
+                          onClick={() => { setSettingsOpen(false); setCloneGroupOpen(true); }}
+                        >
+                          {t("cloneGroup.confirm", "Clone group")}
+                        </ActionButton>
+                      </div>
+                    )}
+                    <SettingsDangerZone
+                      isSuperAdmin={isSuperAdmin}
+                      onRequestDeleteGroup={() => { setSettingsOpen(false); setDeleteGroupOpen(true); }}
+                      onRequestLeaveGroup={() => { setSettingsOpen(false); setLeaveGroupOpen(true); }}
+                      onRequestForfeitLeave={() => { setSettingsOpen(false); setForfeitLeaveOpen(true); }}
+                      onRequestCloseGroup={
+                        isSuperAdmin && GroupDetails?.status !== "CLOSED"
+                          ? () => { setSettingsOpen(false); setCloseGroupOpen(true); }
+                          : undefined
+                      }
+                      hasPendingLeave={hasPendingLeave}
+                      onCancelOwnLeave={handleCancelOwnLeave}
+                      isCancellingOwnLeave={isCancellingOwnLeave}
+                    />
+                  </div>
                 )}
               </div>
             </div>
@@ -804,6 +827,16 @@ export default function GroupDetailPage() {
             setCloseGroupOpen(false);
             setGroupClosedBanner(true);
           }}
+        />
+      )}
+
+      {/* ── Clone Group modal ── */}
+      {groupId && (
+        <CloneGroupModal
+          isOpen={cloneGroupOpen}
+          sourceGroupId={groupId}
+          sourceName={GroupDetails?.name ?? ""}
+          onClose={() => setCloneGroupOpen(false)}
         />
       )}
 

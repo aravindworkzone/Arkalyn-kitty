@@ -110,28 +110,36 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
                         },
                     },
                 },
+                // Percentage of the pool still remaining (balance ÷ contribution),
+                // clamped to 0–100 so a negative or over-refunded balance can't
+                // produce an out-of-range bar.
                 barLength: {
                     $cond: [
                         { $gt: ['$group.totalContribution', 0] },
                         {
-                            $round: [
+                            $max: [
+                                0,
                                 {
-                                    $multiply: [
+                                    $min: [
+                                        100,
                                         {
-                                            $subtract: [
-                                                1,
+                                            $round: [
                                                 {
-                                                    $divide: [
-                                                        '$group.balance',
-                                                        '$group.totalContribution',
+                                                    $multiply: [
+                                                        {
+                                                            $divide: [
+                                                                '$group.balance',
+                                                                '$group.totalContribution',
+                                                            ],
+                                                        },
+                                                        100,
                                                     ],
                                                 },
+                                                0,
                                             ],
                                         },
-                                        100,
                                     ],
                                 },
-                                0,
                             ],
                         },
                         0,

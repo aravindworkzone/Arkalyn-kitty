@@ -5,8 +5,9 @@ import GroupTransaction from "../models/group_transaction.model";
 import GroupEvent from "../models/group_event.model";
 import GroupMember from "../models/group_member.model";
 import GroupInvite from "../models/group_invite.model";
+import Category from "../models/category.model";
 import { createNotification } from "./notification.service";
-import { toDBAmount } from "../helpers/Money";
+import { creditGroupBalance, debitGroupBalance, reverseGroupCredit, adjustMemberContribution } from "../helpers/balanceOps";
 
 export const createGroupService = async (data: { name: string; invitees: string[]; contribution: number; superAdmin: string }) => {
     const name = data.name?.trim();
@@ -116,6 +117,143 @@ export const createGroupService = async (data: { name: string; invitees: string[
     return group;
 };
 
+// Clone an existing group's structure into a brand-new group: copies the
+// categories (name + color) and re-invites the source group's active members as
+// fresh PENDING invites. Nothing financial is carried over — the new group starts
+// with a zero balance and no expenses/transactions/events from the source.
+export const cloneGroupService = async (data: { sourceGroupId: string; name: string; superAdmin: string }) => {
+    const name = data.name?.trim();
+    const superAdmin = data.superAdmin;
+    const sourceGroupId = data.sourceGroupId;
+
+    if (!superAdmin || !name || !sourceGroupId) {
+        throw new AppError("All fields are required", 400);
+    }
+
+    if (name.length < 3 || name.length > 100 || !/^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/.test(name)) {
+        throw new AppError("Name must be between 3 and 100 characters", 400);
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(superAdmin) || !mongoose.Types.ObjectId.isValid(sourceGroupId)) {
+        throw new AppError("Invalid ID format", 400);
+    }
+
+    const sourceGroup = await Group.findById(sourceGroupId);
+    if (!sourceGroup) {
+        throw new AppError("Source group not found", 404);
+    }
+
+    // Categories to copy (skip soft-deleted ones).
+    const sourceCategories = await Category.find({ groupId: sourceGroupId, isDeleted: false });
+
+    // Active members of the source become invitees — except the cloner, who joins
+    // directly as SUPER_ADMIN of the new group.
+    const sourceMembers = await GroupMember.find({ groupId: sourceGroupId, isDeleted: false });
+    const invitees = Array.from(new Set(sourceMembers.map((m) => m.userId.toString())))
+        .filter((id) => mongoose.Types.ObjectId.isValid(id) && id !== superAdmin.toString());
+
+    const session = await mongoose.startSession();
+    let group;
+    let createdInvites: { _id: mongoose.Types.ObjectId; invitedUser: mongoose.Types.ObjectId }[] = [];
+    try {
+        session.startTransaction();
+
+        const CloneGroup = new Group({
+            name,
+            totalContribution: 0,
+            balance: 0,
+            createdBy: superAdmin,
+        });
+        group = await CloneGroup.save({ session });
+
+        const creatorMember = new GroupMember({
+            groupId: group._id,
+            userId: superAdmin,
+            contribution: 0,
+            role: "SUPER_ADMIN",
+        });
+        await creatorMember.save({ session });
+
+        const CreateGroupEvent = new GroupEvent({
+            groupId: group._id,
+            performedBy: superAdmin,
+            eventType: "CREATE_GROUP",
+            referenceId: group._id,
+            referenceModel: "Group",
+            metadata: { name, totalContribution: 0, inviteeCount: invitees.length, note: `Cloned from "${sourceGroup.name}"` },
+        });
+        await CreateGroupEvent.save({ session });
+
+        const CreateGroupTransaction = new GroupTransaction({
+            groupId: group._id,
+            amount: 0,
+            action: "CREDIT",
+            description: `Group cloned from "${sourceGroup.name}"`,
+            referenceId: superAdmin,
+            referenceModel: "User",
+            metadata: [{ userId: superAdmin, contribution: 0 }],
+            performedBy: superAdmin,
+        });
+        await CreateGroupTransaction.save({ session });
+
+        // Copy each category and log a MANAGE_CATEGORY event per category.
+        for (const category of sourceCategories) {
+            const clonedCategory = new Category({
+                groupId: group._id,
+                name: category.name,
+                color: category.color,
+            });
+            await clonedCategory.save({ session });
+
+            const categoryEvent = new GroupEvent({
+                groupId: group._id,
+                performedBy: superAdmin,
+                eventType: "MANAGE_CATEGORY",
+                referenceId: clonedCategory._id,
+                referenceModel: "Category",
+                metadata: { userId: superAdmin, note: `Created category: ${category.name}` },
+            });
+            await categoryEvent.save({ session });
+        }
+
+        if (invitees.length > 0) {
+            const inviteDocs = invitees.map((userId) => ({
+                groupId: group!._id,
+                invitedUser: userId,
+                invitedBy: superAdmin,
+                status: "PENDING" as const,
+            }));
+            const inserted = await GroupInvite.insertMany(inviteDocs, { session });
+            createdInvites = inserted.map((inv) => ({
+                _id: inv._id as mongoose.Types.ObjectId,
+                invitedUser: inv.invitedUser,
+            }));
+        }
+
+        await session.commitTransaction();
+    } catch (error: any) {
+        await session.abortTransaction();
+        if (error.name === "ValidationError") throw new AppError(error.message, 400);
+        if (error.code === 11000) throw new AppError("Duplicate member detected", 409);
+        throw new AppError(error.message || "Internal server error", error.statusCode || 500);
+    } finally {
+        await session.endSession();
+    }
+
+    // Notifications are non-critical and not part of the clone transaction.
+    for (const invite of createdInvites) {
+        await createNotification({
+            recipient: invite.invitedUser,
+            actor: superAdmin,
+            group: group._id as mongoose.Types.ObjectId,
+            type: "GROUP_INVITE",
+            metadata: { inviteId: invite._id.toString(), groupName: name, groupDisplayId: group.displayId },
+        });
+    }
+
+    return group;
+};
+
 export const deleteGroupService = async (groupId: string) => {
     try {
 
@@ -194,11 +332,7 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
             });
             const groupMembers = await addMember.save({ session });
 
-            await Group.findOneAndUpdate(
-                { _id: groupData },
-                { $inc: { totalContribution: toDBAmount(contribution ?? 0), balance: toDBAmount(contribution ?? 0) } },
-                { returnDocument: "after", session }
-            )
+            await creditGroupBalance(groupData, contribution ?? 0, { session });
 
             const groupEventCreate = new GroupEvent({
                 groupId: groupData,
@@ -426,17 +560,9 @@ export const addContributionService = async (data: {group: mongoose.Types.Object
     try {
         session.startTransaction();
 
-        const AddContributionMember = await GroupMember.findOneAndUpdate(
-            { groupId: groupData, userId: userId, isDeleted: false },
-            { $inc: { contribution: toDBAmount(contribution) } },
-            { returnDocument: "after", session }
-        );
+        const AddContributionMember = await adjustMemberContribution(groupData, userId, contribution, { session });
 
-        await Group.findOneAndUpdate(
-            { _id: groupData },
-            { $inc: { balance: toDBAmount(contribution), totalContribution: toDBAmount(contribution) } },
-            { returnDocument: "after", session }
-        );
+        await creditGroupBalance(groupData, contribution, { session });
 
         const AddContributionLog = new GroupTransaction({
             groupId: groupData,
@@ -515,11 +641,7 @@ export const SettlementService = async (data: {
 
         if (settlement > 0) {
 
-            const debited = await Group.findOneAndUpdate(
-                { _id: group, balance: { $gte: toDBAmount(settlement) } },
-                { $inc: { balance: -toDBAmount(settlement) } },
-                { new: true, session }
-            );
+            const debited = await debitGroupBalance(group, settlement, { session });
 
             if (!debited)
                 throw new AppError("Insufficient balance for settlement", 400);
@@ -715,11 +837,7 @@ export const approveLeaveRequestService = async (data: {
         );
 
         if (settlement > 0) {
-            const debited = await Group.findOneAndUpdate(
-                { _id: groupData, balance: { $gte: toDBAmount(settlement) } },
-                { $inc: { balance: -toDBAmount(settlement) } },
-                { returnDocument: "after", session }
-            );
+            const debited = await debitGroupBalance(groupData, settlement, { session });
             if (!debited) {
                 throw new AppError("Insufficient balance for settlement", 400);
             }
@@ -840,8 +958,10 @@ export const getGroupByIdService = async (groupId: mongoose.Types.ObjectId, user
     if (!currentUser) {
         throw new AppError("Created user not found", 404);
     }
+    // Percentage of the pool still remaining (balance ÷ contribution), clamped
+    // to 0–100 so a negative or over-refunded balance stays in range.
     const barLength = group.totalContribution > 0
-        ? Math.round((1 - group.balance / group.totalContribution) * 100)
+        ? Math.max(0, Math.min(100, Math.round((group.balance / group.totalContribution) * 100)))
         : 0;
     const groupData = {...group.toObject(),role: currentUser.role, barLength};
     return groupData;
@@ -972,11 +1092,7 @@ export const removeCreditService = async (data: {
         // A credit added money to the wallet, so removing it pulls money back
         // out. The $gte guard means we never drive the balance negative — if
         // those funds were already spent on an expense, the credit is locked.
-        const updatedGroup = await Group.findOneAndUpdate(
-            { _id: data.groupId, balance: { $gte: toDBAmount(amount) } },
-            { $inc: { balance: -toDBAmount(amount), totalContribution: -toDBAmount(amount) } },
-            { returnDocument: "after", session }
-        );
+        const updatedGroup = await reverseGroupCredit(data.groupId, amount, { session });
 
         if (!updatedGroup) {
             throw new AppError(
@@ -987,13 +1103,9 @@ export const removeCreditService = async (data: {
 
         // Roll back the contributor's running contribution total. referenceId
         // is the contributing user for every credit source (group creation,
-        // member-add, addContribution). Not filtered by isDeleted so a member
-        // who has since left still has their contribution corrected.
-        await GroupMember.updateOne(
-            { groupId: data.groupId, userId: credit.referenceId },
-            { $inc: { contribution: -toDBAmount(amount) } },
-            { session }
-        );
+        // member-add, addContribution). includeLeft so a member who has since
+        // left still has their contribution corrected.
+        await adjustMemberContribution(data.groupId, credit.referenceId, -amount, { session, includeLeft: true });
 
         await GroupTransaction.updateOne(
             { _id: credit._id },
