@@ -84,7 +84,7 @@ const GroupPage = () => {
               { label: t("groups.totalGroups"), value: groups.length },
               {
                 label: t("groups.youManage"),
-                value: groups.filter((g: any) => g.role[0] !== "MEMBER").length,
+                value: groups.filter((g: any) => g.role !== "MEMBER").length,
               },
             ].map((stat) => (
               <div

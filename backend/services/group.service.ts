@@ -7,7 +7,7 @@ import GroupMember from "../models/group_member.model";
 import GroupInvite from "../models/group_invite.model";
 import Category from "../models/category.model";
 import { createNotification } from "./notification.service";
-import { toDBAmount } from "../helpers/Money";
+import { creditGroupBalance, debitGroupBalance, reverseGroupCredit, adjustMemberContribution } from "../helpers/balanceOps";
 
 export const createGroupService = async (data: { name: string; invitees: string[]; contribution: number; superAdmin: string }) => {
     const name = data.name?.trim();
@@ -332,11 +332,7 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
             });
             const groupMembers = await addMember.save({ session });
 
-            await Group.findOneAndUpdate(
-                { _id: groupData },
-                { $inc: { totalContribution: toDBAmount(contribution ?? 0), balance: toDBAmount(contribution ?? 0) } },
-                { returnDocument: "after", session }
-            )
+            await creditGroupBalance(groupData, contribution ?? 0, { session });
 
             const groupEventCreate = new GroupEvent({
                 groupId: groupData,
@@ -564,17 +560,9 @@ export const addContributionService = async (data: {group: mongoose.Types.Object
     try {
         session.startTransaction();
 
-        const AddContributionMember = await GroupMember.findOneAndUpdate(
-            { groupId: groupData, userId: userId, isDeleted: false },
-            { $inc: { contribution: toDBAmount(contribution) } },
-            { returnDocument: "after", session }
-        );
+        const AddContributionMember = await adjustMemberContribution(groupData, userId, contribution, { session });
 
-        await Group.findOneAndUpdate(
-            { _id: groupData },
-            { $inc: { balance: toDBAmount(contribution), totalContribution: toDBAmount(contribution) } },
-            { returnDocument: "after", session }
-        );
+        await creditGroupBalance(groupData, contribution, { session });
 
         const AddContributionLog = new GroupTransaction({
             groupId: groupData,
@@ -653,11 +641,7 @@ export const SettlementService = async (data: {
 
         if (settlement > 0) {
 
-            const debited = await Group.findOneAndUpdate(
-                { _id: group, balance: { $gte: toDBAmount(settlement) } },
-                { $inc: { balance: -toDBAmount(settlement) } },
-                { new: true, session }
-            );
+            const debited = await debitGroupBalance(group, settlement, { session });
 
             if (!debited)
                 throw new AppError("Insufficient balance for settlement", 400);
@@ -853,11 +837,7 @@ export const approveLeaveRequestService = async (data: {
         );
 
         if (settlement > 0) {
-            const debited = await Group.findOneAndUpdate(
-                { _id: groupData, balance: { $gte: toDBAmount(settlement) } },
-                { $inc: { balance: -toDBAmount(settlement) } },
-                { returnDocument: "after", session }
-            );
+            const debited = await debitGroupBalance(groupData, settlement, { session });
             if (!debited) {
                 throw new AppError("Insufficient balance for settlement", 400);
             }
@@ -978,8 +958,10 @@ export const getGroupByIdService = async (groupId: mongoose.Types.ObjectId, user
     if (!currentUser) {
         throw new AppError("Created user not found", 404);
     }
+    // Percentage of the pool still remaining (balance ÷ contribution), clamped
+    // to 0–100 so a negative or over-refunded balance stays in range.
     const barLength = group.totalContribution > 0
-        ? Math.round((1 - group.balance / group.totalContribution) * 100)
+        ? Math.max(0, Math.min(100, Math.round((group.balance / group.totalContribution) * 100)))
         : 0;
     const groupData = {...group.toObject(),role: currentUser.role, barLength};
     return groupData;
@@ -1110,11 +1092,7 @@ export const removeCreditService = async (data: {
         // A credit added money to the wallet, so removing it pulls money back
         // out. The $gte guard means we never drive the balance negative — if
         // those funds were already spent on an expense, the credit is locked.
-        const updatedGroup = await Group.findOneAndUpdate(
-            { _id: data.groupId, balance: { $gte: toDBAmount(amount) } },
-            { $inc: { balance: -toDBAmount(amount), totalContribution: -toDBAmount(amount) } },
-            { returnDocument: "after", session }
-        );
+        const updatedGroup = await reverseGroupCredit(data.groupId, amount, { session });
 
         if (!updatedGroup) {
             throw new AppError(
@@ -1125,13 +1103,9 @@ export const removeCreditService = async (data: {
 
         // Roll back the contributor's running contribution total. referenceId
         // is the contributing user for every credit source (group creation,
-        // member-add, addContribution). Not filtered by isDeleted so a member
-        // who has since left still has their contribution corrected.
-        await GroupMember.updateOne(
-            { groupId: data.groupId, userId: credit.referenceId },
-            { $inc: { contribution: -toDBAmount(amount) } },
-            { session }
-        );
+        // member-add, addContribution). includeLeft so a member who has since
+        // left still has their contribution corrected.
+        await adjustMemberContribution(data.groupId, credit.referenceId, -amount, { session, includeLeft: true });
 
         await GroupTransaction.updateOne(
             { _id: credit._id },

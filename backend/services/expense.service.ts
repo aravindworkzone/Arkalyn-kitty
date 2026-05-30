@@ -7,7 +7,7 @@ import User from "../models/user.model";
 import Category from "../models/category.model";
 import GroupMembers from "../models/group_member.model";
 import { PAYMENT_TYPES, PaymentType } from "../models/expense.model";
-import { toDBAmount } from "../helpers/Money";
+import { debitGroupBalance, refundGroupBalance } from "../helpers/balanceOps";
 
 interface ExpenseData {
     user: string;
@@ -114,16 +114,7 @@ export const createExpenseService = async (data: ExpenseData) => {
 
         await expenseSave.save({ session });
 
-        const updated = await Group.findOneAndUpdate(
-            {
-                _id: groupData._id,
-                balance: { $gte: toDBAmount(amount) }
-            },
-            {
-                $inc: { balance: -toDBAmount(amount) }
-            },
-            { returnDocument: "after", session }
-        );
+        const updated = await debitGroupBalance(groupData._id, amount, { session });
 
         if (!updated) throw new AppError("Insufficient group balance", 400);
 
@@ -164,13 +155,10 @@ export const deleteExpenseService = async (data: { expenseId: string, groupId: s
         const payBy = await User.findById(expense.paidBy).session(session);
         if (!payBy) throw new AppError('User not found', 404);
 
+        // expense.amount getter returns rupees.
         const balanceUpdate = expense.amount;
 
-        await Group.findByIdAndUpdate(
-            data.groupId,
-            { $inc: { balance: toDBAmount(balanceUpdate) } },
-            { session }
-        );
+        await refundGroupBalance(data.groupId, balanceUpdate, { session });
 
         await GroupTransaction.create([{
             groupId: data.groupId,
