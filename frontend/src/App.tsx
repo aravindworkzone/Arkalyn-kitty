@@ -13,6 +13,9 @@ import Report from './page/GroupReport'
 import AllExpensesPage from './page/AllExpensesPage'
 import AllCreditsPage from './page/AllCreditsPage'
 import CategoryReportPage from './page/CategoryReportPage'
+import PricingPage from './page/PricingPage'
+import AdminDashboard from './page/admin/AdminDashboard'
+import AdminRoute from './components/AdminRoute'
 import ProtectedRouter from './components/ProtectedRouter'
 import ErrorBoundary from './components/ErrorBoundary'
 import NotFoundPage from './page/NotFoundPage'
@@ -48,6 +51,11 @@ function App() {
           <Route path="/groups/:groupId/activity" element={<Report />} />
           <Route path="/groups/:groupId/credits" element={<AllCreditsPage />} />
           <Route path="/groups/:groupId/reports/categories" element={<CategoryReportPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+
+          <Route element={<AdminRoute />}>
+            <Route path="/admin" element={<AdminDashboard />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

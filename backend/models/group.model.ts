@@ -1,6 +1,12 @@
 import mongoose, { Document, Schema } from "mongoose";
 import Counter from "./counter.model";
 import { toDBAmount, fromDBAmount } from "../helpers/Money";
+import { PLAN_TIERS, type Plan } from "../config/constants";
+
+export interface IGroupPlanSnapshot {
+    tier: Plan;
+    snapshotAt: Date;
+}
 
 export interface IGroup extends Document {
     displayId: string;
@@ -9,10 +15,18 @@ export interface IGroup extends Document {
     balance: number;
     totalContribution: number;
     status: "ACTIVE" | "INACTIVE" | "CLOSED";
+    // Frozen at close: the owner's plan tier at the moment the group was closed.
+    // Immutable thereafter — protects refund calc / audit from later plan changes.
+    planSnapshot?: IGroupPlanSnapshot | null;
     createdBy: mongoose.Types.ObjectId;
     createdAt?: Date;
     updatedAt?: Date;
 }
+
+const planSnapshotSchema = new Schema<IGroupPlanSnapshot>({
+    tier: { type: String, enum: PLAN_TIERS },
+    snapshotAt: { type: Date, default: Date.now },
+}, { _id: false });
 
 const groupSchema = new Schema<IGroup>({
     displayId: {type: String, unique: true, sparse: true},
@@ -21,6 +35,7 @@ const groupSchema = new Schema<IGroup>({
     balance: {type: Number, default: 0, set:toDBAmount, get:fromDBAmount},
     totalContribution: {type: Number, default: 0, set:toDBAmount, get:fromDBAmount},
     status: {type: String, enum: ["ACTIVE", "INACTIVE", "CLOSED"], default: "ACTIVE"},
+    planSnapshot: { type: planSnapshotSchema, default: null },
     createdBy: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true}
 }, {timestamps: true, toJSON: { getters: true }, toObject: { getters: true }});
 

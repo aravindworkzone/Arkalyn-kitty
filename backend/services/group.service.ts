@@ -8,6 +8,7 @@ import GroupInvite from "../models/group_invite.model";
 import Category from "../models/category.model";
 import { createNotification } from "./notification.service";
 import { creditGroupBalance, debitGroupBalance, reverseGroupCredit, adjustMemberContribution } from "../helpers/balanceOps";
+import { getUserPlan, getGroupOwnerPlan, assertWithinLimit, assertFeature, retentionFloor, countActiveOwnedGroups } from "../helpers/planLimits";
 
 export const createGroupService = async (data: { name: string; invitees: string[]; contribution: number; superAdmin: string }) => {
     const name = data.name?.trim();
@@ -29,6 +30,16 @@ export const createGroupService = async (data: { name: string; invitees: string[
     if (typeof contribution !== "number" || contribution < 0) {
         throw new AppError("Contribution cannot be negative", 400);
     }
+
+    // Subscription gate: cap the number of ACTIVE groups a user can own on their
+    // tier. Closed groups are frozen and don't count.
+    const ownerPlan = await getUserPlan(superAdmin);
+    const ownedGroups = await countActiveOwnedGroups(superAdmin);
+    assertWithinLimit(
+        ownedGroups,
+        ownerPlan.limits.maxGroups,
+        `Your ${ownerPlan.config.name} plan allows up to ${ownerPlan.limits.maxGroups} active groups. Upgrade to create more.`
+    );
 
     // Only the creator joins on creation. Everyone else gets a pending invite —
     // their contribution is collected when they accept.
@@ -137,6 +148,17 @@ export const cloneGroupService = async (data: { sourceGroupId: string; name: str
     if (!mongoose.Types.ObjectId.isValid(superAdmin) || !mongoose.Types.ObjectId.isValid(sourceGroupId)) {
         throw new AppError("Invalid ID format", 400);
     }
+
+    // Subscription gates: cloning is a Pro+ feature and still counts toward the
+    // owner's group limit.
+    const ownerPlan = await getUserPlan(superAdmin);
+    assertFeature(ownerPlan, "cloneGroup", `Cloning a group requires a Pro or Premium plan.`);
+    const ownedGroups = await countActiveOwnedGroups(superAdmin);
+    assertWithinLimit(
+        ownedGroups,
+        ownerPlan.limits.maxGroups,
+        `Your ${ownerPlan.config.name} plan allows up to ${ownerPlan.limits.maxGroups} active groups. Upgrade to create more.`
+    );
 
     const sourceGroup = await Group.findById(sourceGroupId);
     if (!sourceGroup) {
@@ -319,6 +341,17 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
         throw new AppError("Cannot remove the super admin", 400);
     }
 
+    // Subscription gate: cap active members per group on the owner's tier.
+    if (action === "add") {
+        const ownerPlan = await getGroupOwnerPlan(groupData);
+        const memberCount = await GroupMember.countDocuments({ groupId: groupData, isDeleted: false });
+        assertWithinLimit(
+            memberCount,
+            ownerPlan.limits.maxMembersPerGroup,
+            `This group has reached its ${ownerPlan.config.name}-plan member limit (${ownerPlan.limits.maxMembersPerGroup}). The group owner can upgrade to add more.`
+        );
+    }
+
     const session = await mongoose.startSession();
     try {
         session.startTransaction();
@@ -412,6 +445,16 @@ export const inviteMemberService = async (data: {
 
     const existingMember = await GroupMember.findOne({ groupId, userId: invitedUser, isDeleted: false });
     if (existingMember) throw new AppError("User is already a member of this group", 400);
+
+    // Subscription gate: don't let admins invite past the owner's member limit
+    // (the hard cap is re-checked on acceptance).
+    const ownerPlan = await getGroupOwnerPlan(groupId);
+    const memberCount = await GroupMember.countDocuments({ groupId, isDeleted: false });
+    assertWithinLimit(
+        memberCount,
+        ownerPlan.limits.maxMembersPerGroup,
+        `This group has reached its ${ownerPlan.config.name}-plan member limit (${ownerPlan.limits.maxMembersPerGroup}). The group owner can upgrade to invite more.`
+    );
 
     const pendingInvite = await GroupInvite.findOne({ groupId, invitedUser, status: "PENDING" });
     if (pendingInvite) throw new AppError("This user already has a pending invite", 400);
@@ -1013,14 +1056,18 @@ export const getTransactionService = async (
     limit: number
 ) => {
     try {
+        // Subscription gate: limit how far back the transaction log is visible.
+        const ownerPlan = await getGroupOwnerPlan(groupId);
+        const floor = retentionFloor(ownerPlan, "transaction");
+        const filter = { groupId, isDeleted: false, ...(floor ? { createdAt: { $gte: floor } } : {}) };
         const [docs, total] = await Promise.all([
-            GroupTransaction.find({ groupId, isDeleted: false })
+            GroupTransaction.find(filter)
                 .populate("performedBy")
                 .populate("referenceId")
                 .sort({ createdAt: -1 })
                 .skip((page - 1) * limit)
                 .limit(limit),
-            GroupTransaction.countDocuments({ groupId, isDeleted: false }),
+            GroupTransaction.countDocuments(filter),
         ]);
         const items = docs.map(t => {
             const createdAt = t.createdAt?.toLocaleString("en-GB", {
@@ -1046,13 +1093,18 @@ export const getAllCreditsService = async (
 ) => {
     if (!groupId) throw new AppError("Group ID is required", 400);
     try {
+        // Credits are CREDIT-action transactions, so they share the transaction
+        // log's retention window.
+        const ownerPlan = await getGroupOwnerPlan(groupId);
+        const floor = retentionFloor(ownerPlan, "transaction");
+        const filter = { groupId, action: "CREDIT", isDeleted: false, ...(floor ? { createdAt: { $gte: floor } } : {}) };
         const [items, total] = await Promise.all([
-            GroupTransaction.find({ groupId, action: "CREDIT", isDeleted: false })
+            GroupTransaction.find(filter)
                 .populate("performedBy", "name email")
                 .sort({ createdAt: -1 })
                 .skip((page - 1) * limit)
                 .limit(limit),
-            GroupTransaction.countDocuments({ groupId, action: "CREDIT", isDeleted: false }),
+            GroupTransaction.countDocuments(filter),
         ]);
         return { items, total };
     } catch (error: any) {
@@ -1140,7 +1192,11 @@ export const removeCreditService = async (data: {
 
 export const getEventService = async (groupId: mongoose.Types.ObjectId) => {
     try {
-        const transactions = await GroupEvent.find({ groupId, isDeleted: false }).populate("performedBy").populate("referenceId");
+        // Subscription gate: limit how far back the event log is visible.
+        const ownerPlan = await getGroupOwnerPlan(groupId);
+        const floor = retentionFloor(ownerPlan, "event");
+        const eventFilter = { groupId, isDeleted: false, ...(floor ? { createdAt: { $gte: floor } } : {}) };
+        const transactions = await GroupEvent.find(eventFilter).populate("performedBy").populate("referenceId");
         const transaction = transactions.map(t => {
             const createdAt = t.createdAt?.toLocaleString("en-GB", {
                 day: "2-digit",

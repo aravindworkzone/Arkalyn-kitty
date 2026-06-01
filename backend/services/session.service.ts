@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import Session from '../models/session.model';
+import User from '../models/user.model';
 import { AppError } from '../helpers/AppError';
 import { parseDurationMs } from '../helpers/duration';
 import { env } from '../config/env';
@@ -96,7 +97,6 @@ export const issueTokensForUser = async (
 
 export const rotateSession = async (
     rawRefreshToken: string,
-    role: string,
     deviceInfo: string
 ): Promise<IssuedTokens> => {
     let payload: RefreshTokenPayload;
@@ -124,9 +124,17 @@ export const rotateSession = async (
         throw new AppError('Session not found or already revoked', 401);
     }
 
+    // Resolve the live role/status — a suspended/deleted account can't refresh,
+    // and the new token carries the account's current role.
+    const user = await User.findById(userId).select('role status');
+    if (!user || user.status !== 'ACTIVE') {
+        await Session.deleteMany({ userId });
+        throw new AppError('Account is not active', 401);
+    }
+
     await Session.deleteOne({ _id: matched._id });
 
-    return issueTokensForUser(userId, role, deviceInfo);
+    return issueTokensForUser(userId, user.role, deviceInfo);
 };
 
 export const revokeSession = async (rawRefreshToken: string): Promise<void> => {

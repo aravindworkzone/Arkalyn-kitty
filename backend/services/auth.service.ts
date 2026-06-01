@@ -11,8 +11,6 @@ import { sendPasswordResetEmail } from '../utils/email';
 import type { SignUpDto, SignInDto } from '../types/dto';
 import { issueTokensForUser, rotateSession, revokeSession, IssuedTokens } from './session.service';
 
-const DEFAULT_ROLE = 'user';
-
 export const SignUpService = async (data: SignUpDto) => {
     const hashedPassword = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
 
@@ -43,9 +41,12 @@ export const LoginService = async (
     const match = await bcrypt.compare(data.password, user.password);
     if (!match) throw new AppError('Invalid credentials', 401);
 
+    if (user.status === 'SUSPENDED') throw new AppError('Your account has been suspended. Contact support.', 403);
+    if (user.status === 'DELETED') throw new AppError('Invalid credentials', 401);
+
     const tokens = await issueTokensForUser(
         user._id as import('mongoose').Types.ObjectId,
-        DEFAULT_ROLE,
+        user.role,
         deviceInfo
     );
 
@@ -63,7 +64,7 @@ export const RefreshService = async (
     rawRefreshToken: string,
     deviceInfo: string
 ): Promise<IssuedTokens> => {
-    return rotateSession(rawRefreshToken, DEFAULT_ROLE, deviceInfo);
+    return rotateSession(rawRefreshToken, deviceInfo);
 };
 
 export const LogoutService = async (rawRefreshToken: string | undefined): Promise<void> => {

@@ -21,8 +21,14 @@ export const SOCKET_EVENTS = {
 
     NOTIFICATION_NEW: 'notification:new',
 
+    // Owner-dashboard + account lifecycle.
+    FORCE_LOGOUT: 'auth:force-logout',
+    SYSTEM_HEALTH: 'admin:system-health',
+
     ERROR: 'error',
 } as const;
+
+export const ADMIN_ROOM = 'admins';
 
 export type SocketEvent = typeof SOCKET_EVENTS[keyof typeof SOCKET_EVENTS];
 
@@ -60,6 +66,7 @@ export interface InterServerEvents {
 export interface SocketData {
     userId: string;
     email: string;
+    role: string;
 }
 
 export const groupRoom = (groupId: string): string => `group:${groupId}`;

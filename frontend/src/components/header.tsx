@@ -8,9 +8,11 @@ import { Logo } from "./ui";
 import MobileNav from "./MobileNav";
 import { socket } from "../socket/socket";
 import { useTour } from "../tour/useTour";
+import { usePlan } from "../hooks/usePlan";
 
 const Header = () => {
   const { user } = useOutletContext<{ user: any }>();
+  const { tier } = usePlan();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -70,7 +72,7 @@ const Header = () => {
         bg-[#080c14]/80 backdrop-blur-xl border-b border-white/[0.06] pt-safe">
 
         {/* Brand */}
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0" onClick={() => navigate("/groups")} style={{ cursor: "pointer" }}>
           <Logo variant="mini" className="h-8 w-8 rounded-lg lg:h-12 lg:w-12 shrink-0" />
           <Logo variant="word" className="h-10 w-24 rounded-lg lg:h-12 lg:w-26 shrink-0" />
         </div>
@@ -148,6 +150,26 @@ const Header = () => {
                         stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
                     </svg>
                     {t("nav.profile")}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setOpen(false); navigate("/pricing"); }}
+                    className="w-full flex items-center justify-between gap-2.5 px-2.5 py-2 rounded-lg
+                      text-[12px] font-medium text-white/45 hover:text-violet-200 hover:bg-violet-500/[0.08]
+                      active:text-violet-200 active:bg-violet-500/[0.08] transition-all duration-100 group"
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"
+                        className="text-white/25 group-hover:text-violet-300/70 transition-colors">
+                        <path d="M1.5 4.5h10M3 1.5h7a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0110 11.5H3A1.5 1.5 0 011.5 10V3A1.5 1.5 0 013 1.5z"
+                          stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      {t("nav.plans", "Plans & Billing")}
+                    </span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                      tier === "FREE" ? "bg-white/[0.06] text-white/40" : "bg-violet-500/15 text-violet-300"
+                    }`} translate="no">{tier}</span>
                   </button>
 
                   <button

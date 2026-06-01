@@ -10,6 +10,7 @@ import { createNotification } from "./notification.service";
 import { emitToGroup } from "../sockets";
 import { SOCKET_EVENTS } from "../sockets/events";
 import { creditGroupBalance } from "../helpers/balanceOps";
+import { getGroupOwnerPlan, assertWithinLimit } from "../helpers/planLimits";
 
 const markInviteNotificationsRead = async (
     recipient: mongoose.Types.ObjectId,
@@ -48,6 +49,16 @@ export const acceptInviteService = async (data: { inviteId: string; userId: mong
 
     const existingMember = await GroupMember.findOne({ groupId: invite.groupId, userId, isDeleted: false });
     if (existingMember) throw new AppError("You are already a member of this group", 400);
+
+    // Subscription gate (hard cap): the group can't grow past the owner's
+    // member limit even if an older invite is still pending.
+    const ownerPlan = await getGroupOwnerPlan(invite.groupId);
+    const memberCount = await GroupMember.countDocuments({ groupId: invite.groupId, isDeleted: false });
+    assertWithinLimit(
+        memberCount,
+        ownerPlan.limits.maxMembersPerGroup,
+        `This group is full (${ownerPlan.limits.maxMembersPerGroup}-member limit on the ${ownerPlan.config.name} plan). Ask the group owner to upgrade.`
+    );
 
     const session = await mongoose.startSession();
     try {
