@@ -5,6 +5,7 @@ import GroupMember from '../models/group_member.model';
 import Category from '../models/category.model';
 import Expense from '../models/expense.model';
 import GroupEvent from '../models/group_event.model';
+import { getGroupOwnerPlan } from '../helpers/planLimits';
 
 const CLOSURE_CATEGORY_NAME = 'Group Closure';
 const CLOSURE_CATEGORY_COLOR = '#94a3b8';
@@ -212,9 +213,14 @@ export const executeGroupCloseService = async (data: {
             closingExpenseId = expenseDoc._id as mongoose.Types.ObjectId;
         }
 
+        // Freeze the owner's plan tier onto the group before it closes. The group
+        // is still open here, so this resolves the live owner plan; once CLOSED,
+        // this snapshot becomes the group's immutable plan record.
+        const ownerPlan = await getGroupOwnerPlan(groupId, session);
+
         const flipped = await Group.findOneAndUpdate(
             { _id: groupId, status: { $ne: 'CLOSED' } },
-            { $set: { status: 'CLOSED', balance: 0 } },
+            { $set: { status: 'CLOSED', balance: 0, planSnapshot: { tier: ownerPlan.tier, snapshotAt: new Date() } } },
             { session, new: true }
         );
         if (!flipped) {

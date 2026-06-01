@@ -46,6 +46,13 @@ export const env = {
     // needed) — override once you've verified your own sending domain.
     RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
     RESEND_FROM: process.env.RESEND_FROM ?? '',
+    // Razorpay (subscription billing). Optional — the app boots without keys;
+    // order creation degrades to a clean 503 and the rest of the app is
+    // unaffected. KEY_ID is the public identifier (also shipped to the browser
+    // as VITE_RAZORPAY_KEY_ID); KEY_SECRET and WEBHOOK_SECRET stay server-only.
+    RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID ?? '',
+    RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET ?? '',
+    RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET ?? '',
     isProduction: process.env.NODE_ENV === 'production',
     isDevelopment: process.env.NODE_ENV !== 'production',
 };

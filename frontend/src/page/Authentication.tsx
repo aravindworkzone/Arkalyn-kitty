@@ -144,7 +144,8 @@ const Authentication = () => {
     const { data } = useGetUserQuery();
     useEffect(() => {
         if (data?.data.user) {
-            window.location.href = "/groups";
+            // App owners land on the dashboard; everyone else on their groups.
+            window.location.href = data.data.user.role === "APP_OWNER" ? "/admin" : "/groups";
         }
     }, [data]);
 }

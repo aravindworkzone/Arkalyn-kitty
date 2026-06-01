@@ -16,6 +16,7 @@ import {
 } from '../components/ui';
 import type { ReportPreset, CategoryBreakdownRow, TrendGranularity } from '../interface/report';
 import { MIN_DATE, todayISODate, blockDateTyping } from '../helpers/validators';
+import { usePlan } from '../hooks/usePlan';
 
 const PRESETS: ReportPreset[] = ['this_month', 'last_month', 'all_time', 'custom'];
 
@@ -129,6 +130,9 @@ export default function CategoryReportPage() {
     const { t, i18n } = useTranslation();
     const locale = i18n.language;
 
+    const { features } = usePlan();
+    const canAdvancedRange = features.advancedReportRange;
+
     const [view, setView] = useState<ReportView>('category');
     const [preset, setPreset] = useState<ReportPreset>('this_month');
     const [startDate, setStartDate] = useState('');
@@ -216,19 +220,31 @@ export default function CategoryReportPage() {
                 {/* date range selector */}
                 <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-3 space-y-3">
                     <div className="flex flex-wrap gap-2">
-                        {PRESETS.map((p) => (
+                        {PRESETS.map((p) => {
+                            const locked = !canAdvancedRange && (p === 'all_time' || p === 'custom');
+                            return (
                             <button
                                 key={p}
-                                onClick={() => setPreset(p)}
-                                className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors ${
-                                    preset === p
+                                onClick={() => (locked ? navigate('/pricing') : setPreset(p))}
+                                title={locked ? t('reports.upgradeRange', 'All-time & custom ranges need Pro') : undefined}
+                                className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors inline-flex items-center gap-1 ${
+                                    locked
+                                        ? 'bg-white/[0.02] border-white/[0.06] text-white/30 hover:text-violet-300'
+                                        : preset === p
                                         ? 'bg-indigo-500/15 border-indigo-400/35 text-indigo-200'
                                         : 'bg-white/[0.03] border-white/[0.08] text-white/40 hover:text-white/60 active:text-white/60'
                                 }`}
                             >
                                 {t(`categoryReport.preset.${p}`)}
+                                {locked && (
+                                    <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                                        <rect x="2" y="4.5" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="1" />
+                                        <path d="M3.5 4.5V3.2a1.5 1.5 0 013 0v1.3" stroke="currentColor" strokeWidth="1" />
+                                    </svg>
+                                )}
                             </button>
-                        ))}
+                            );
+                        })}
                     </div>
                     {preset === 'custom' && (
                         <div className="grid grid-cols-2 gap-2">

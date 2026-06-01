@@ -27,6 +27,10 @@ import ReportRouter from './routes/report.router';
 import UserRouter from './routes/user.router';
 import NotificationRouter from './routes/notification.router';
 import InviteRouter from './routes/invite.router';
+import SubscriptionRouter from './routes/subscription.router';
+import { Webhook as SubscriptionWebhook } from './controllers/subscription.controller';
+import AdminRouter from './routes/admin.router';
+import { verifyToken, requireAppOwner } from './middlewares/auth.middleware';
 
 // Mongoose connection.readyState codes → human-readable labels.
 const DB_READY_STATES: Record<number, string> = {
@@ -60,6 +64,15 @@ app.get('/health', (_req: Request, res: Response) => {
 
 app.use(globalRateLimiter);
 
+// Razorpay webhook must see the RAW body to verify the HMAC signature, so it is
+// mounted with express.raw() BEFORE the global JSON parser below. Only this one
+// route gets the unparsed buffer; every other route still receives parsed JSON.
+app.post(
+    '/api/subscription/webhook',
+    express.raw({ type: 'application/json' }),
+    SubscriptionWebhook
+);
+
 app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
 app.use(cookieParser());
@@ -83,6 +96,8 @@ app.use('/api/groupreport', ReportRouter);
 app.use('/api/user', UserRouter);
 app.use('/api/notifications', NotificationRouter);
 app.use('/api/invite', InviteRouter);
+app.use('/api/subscription', SubscriptionRouter);
+app.use('/api/admin', verifyToken, requireAppOwner, AdminRouter);
 
 app.get('/', (_req: Request, res: Response) => {
     res.send('Hello World!');

@@ -2,12 +2,16 @@ import MemberAvatars from "./ListMember";
 import { roleGrade, roleLabel } from "../helpers/constants";
 import type { GroupCardProps } from "../interface/group";
 import { useTranslation } from "react-i18next";
+import { usePlan } from "../hooks/usePlan";
 
 
 const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingFavorite }: GroupCardProps) => {
   const { t } = useTranslation();
+  const { tier } = usePlan();
   const isClosed = group.status === "CLOSED";
   const isFavorite = !!group.isFavorite;
+  // Badge the user's own groups with their paid tier.
+  const showPlanBadge = group.role === "SUPER_ADMIN" && tier !== "FREE";
   return (
     <div
       onClick={onClick}
@@ -69,6 +73,11 @@ const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingF
             >
               {roleLabel(group.role)}
             </span>
+            {showPlanBadge && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border border-violet-500/30 bg-violet-500/10 text-violet-300" translate="no">
+                {tier}
+              </span>
+            )}
             {isClosed && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border border-amber-500/25 bg-amber-500/[0.08] text-amber-300">
                 <svg width="8" height="8" viewBox="0 0 8 8" fill="none">

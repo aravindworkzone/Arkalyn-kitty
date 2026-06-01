@@ -1,36 +1,66 @@
 import mongoose from 'mongoose';
-import { Request, Response, NextFunction } from 'express';
+import type { CookieOptions, Response } from 'express';
 import Group from '../models/group.model';
 import Member from '../models/group_member.model';
-import { IUser } from '../models/user.model';
+import User, { IUser } from '../models/user.model';
 import { AppError } from '../helpers/AppError';
-import { ACCESS_TOKEN_COOKIE } from '../config/constants';
+import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '../config/constants';
 import { verifyAccessToken } from '../services/session.service';
 import { asyncHandler } from '../utils/asyncHandler';
+import { env } from '../config/env';
 
-const verifyToken = (req: Request, _res: Response, next: NextFunction): void => {
+const clearAuthCookies = (res: Response): void => {
+    const opts: CookieOptions = {
+        httpOnly: true,
+        secure: env.isProduction,
+        sameSite: env.isProduction ? 'none' : 'lax',
+        path: '/',
+    };
+    res.clearCookie(ACCESS_TOKEN_COOKIE, opts);
+    res.clearCookie(REFRESH_TOKEN_COOKIE, opts);
+};
+
+const verifyToken = asyncHandler(async (req, res, next) => {
     const token = req.cookies[ACCESS_TOKEN_COOKIE];
     if (!token) {
         // No access token — the client should hit /auth/refresh to mint one
         // from its refresh-token cookie. Don't touch cookies here.
-        next(new AppError('Unauthorized', 401));
-        return;
+        throw new AppError('Unauthorized', 401);
     }
 
+    let payload;
     try {
-        const payload = verifyAccessToken(token);
-        req.user = {
-            _id: new mongoose.Types.ObjectId(payload.userId),
-            role: payload.role,
-        } as unknown as IUser;
-        next();
-    } catch (error) {
+        payload = verifyAccessToken(token);
+    } catch {
         // Expired/invalid access token. Leave the refresh-token cookie intact
-        // so /auth/refresh can still issue a new pair; cookie cleanup is the
-        // job of the refresh/logout controllers.
-        next(new AppError('Invalid or expired access token', 401));
+        // so /auth/refresh can still issue a new pair.
+        throw new AppError('Invalid or expired access token', 401);
     }
-};
+
+    // Enforce account status on every request. A suspended/deleted account is
+    // turned away and its cookies cleared "on next request" — this is how a
+    // suspension takes effect against an already-issued (still-valid) JWT.
+    const user = await User.findById(payload.userId).select('role status');
+    if (!user || user.status !== 'ACTIVE') {
+        clearAuthCookies(res);
+        throw new AppError(user?.status === 'SUSPENDED' ? 'Your account has been suspended' : 'Unauthorized', 401);
+    }
+
+    req.user = {
+        _id: new mongoose.Types.ObjectId(payload.userId),
+        role: user.role,
+    } as unknown as IUser;
+    next();
+});
+
+// Gate for the owner dashboard. Any non-APP_OWNER hitting an admin route gets 403.
+const requireAppOwner = asyncHandler(async (req, _res, next) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if ((req.user as unknown as { role?: string }).role !== 'APP_OWNER') {
+        throw new AppError('Forbidden', 403);
+    }
+    next();
+});
 
 const loadGroup = asyncHandler(async (req, _res, next) => {
     const rawId = req.body?.groupId ?? req.params?.groupId;
@@ -73,4 +103,4 @@ const ensureGroupActive = asyncHandler(async (req, _res, next) => {
     next();
 });
 
-export { verifyToken, loadGroup, authorizeRole, ensureGroupActive };
+export { verifyToken, loadGroup, authorizeRole, ensureGroupActive, requireAppOwner };

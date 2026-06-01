@@ -1,6 +1,7 @@
 import express from 'express';
 import { categoryBreakdown, memberBreakdown, spendTrend } from '../controllers/report.controller';
 import { verifyToken, loadGroup, authorizeRole } from '../middlewares/auth.middleware';
+import { requireAdvancedReportRange } from '../middlewares/plan.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import {
     categoryBreakdownParamsSchema,
@@ -20,6 +21,7 @@ router.get(
     verifyToken,
     loadGroup,
     authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
+    requireAdvancedReportRange,
     categoryBreakdown
 );
 
@@ -32,6 +34,7 @@ router.get(
     verifyToken,
     loadGroup,
     authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
+    requireAdvancedReportRange,
     memberBreakdown
 );
 
@@ -44,6 +47,7 @@ router.get(
     verifyToken,
     loadGroup,
     authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
+    requireAdvancedReportRange,
     spendTrend
 );
 

@@ -312,7 +312,7 @@ export default function CreateExpensePage() {
 
         {/* ── 03 Paid by ── */}
         <FormSection step="03" title={t("createExpense.paidBy")}>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-tour="expense-paid-by">
             {membersLoading
               ? [...Array(3)].map((_, i) => (
                   <div key={i} className="h-9 rounded-xl bg-white/[0.05] animate-pulse" style={{ width: `${88 + i * 20}px`, animationDelay: `${i * 80}ms` }} />
@@ -394,7 +394,7 @@ export default function CreateExpensePage() {
             </div>
           }
         >
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-tour="expense-split">
             {membersLoading
               ? [...Array(3)].map((_, i) => (
                   <div key={i} className="h-9 rounded-xl bg-white/[0.05] animate-pulse" style={{ width: `${88 + i * 20}px`, animationDelay: `${i * 80}ms` }} />

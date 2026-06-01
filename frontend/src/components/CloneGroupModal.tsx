@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useCloneGroupMutation } from "../redux/api/group";
 import { sanitizeGroupName, validateGroupName } from "../helpers/validators";
+import { usePlan } from "../hooks/usePlan";
 
 // Clone a group's structure (categories + member invites) into a fresh group.
 // The only thing the user edits is the new group's name — everything else is
@@ -20,6 +21,8 @@ export default function CloneGroupModal({
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { features } = usePlan();
+  const canClone = features.cloneGroup;
   const [cloneGroup, { isLoading }] = useCloneGroupMutation();
 
   const [name, setName] = useState("");
@@ -80,6 +83,44 @@ export default function CloneGroupModal({
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  // Cloning is a Pro+ feature. Free users see an upgrade prompt instead of the
+  // form (the backend enforces this too).
+  if (!canClone) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-[2px]">
+        <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
+        <div className="relative w-full max-w-[420px] rounded-2xl border border-white/[0.08] bg-[#080c14] px-6 py-6 shadow-2xl text-center">
+          <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10 border border-violet-500/20">
+            <svg className="h-4 w-4 text-violet-300" viewBox="0 0 16 16" fill="none">
+              <rect x="3" y="6.5" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M5.5 6.5V4.5a2.5 2.5 0 015 0v2" stroke="currentColor" strokeWidth="1.3" />
+            </svg>
+          </div>
+          <h2 className="text-[15px] font-semibold text-white/90">
+            {t("cloneGroup.upgradeTitle", "Cloning is a Pro feature")}
+          </h2>
+          <p className="mt-2 text-[12px] leading-relaxed text-white/40">
+            {t("cloneGroup.upgradeBody", "Upgrade to Pro or Premium to clone a group's categories and members into a fresh group.")}
+          </p>
+          <div className="mt-5 flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-white/50 transition hover:bg-white/[0.06] hover:text-white/70"
+            >
+              {t("cloneGroup.cancel", "Cancel")}
+            </button>
+            <button
+              onClick={() => { onClose(); navigate("/pricing"); }}
+              className="flex-1 rounded-xl py-2.5 text-sm font-semibold bg-violet-500/80 border border-violet-500/50 text-white hover:bg-violet-500/90 active:bg-violet-500 transition"
+            >
+              {t("cloneGroup.viewPlans", "View plans")}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async () => {
     const check = validateGroupName(name);

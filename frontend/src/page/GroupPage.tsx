@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGetUserGroupsQuery } from "../redux/api/user";
+import { useGetUserQuery } from "../redux/api/auth";
 import { useToggleFavoriteMutation } from "../redux/api/group";
 import Header from "../components/header";
 import EmptyState from "../components/EmptyList";
@@ -14,6 +15,8 @@ import { clearGroupId } from "../redux/slice/group.slice";
 const GroupPage = () => {
   const navigate = useNavigate();
   const { data, isLoading } = useGetUserGroupsQuery();
+  const { data: me } = useGetUserQuery();
+  const isOwner = me?.data?.user?.role === "APP_OWNER";
   const groups = data?.data?.groups || [];
   const [search, setSearch] = useState("");
   const { t } = useTranslation();
@@ -59,6 +62,23 @@ const GroupPage = () => {
               {t("groups.yourGroups")}
             </h1>
           </div>
+          <div className="flex items-center gap-2">
+          {isOwner && (
+            <button
+              onClick={() => navigate("/admin")}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px]
+                font-semibold text-amber-200 bg-amber-500/10 border border-amber-500/25
+                hover:bg-amber-500/20 hover:border-amber-400/40
+                active:bg-amber-500/20 active:border-amber-400/40
+                transition-all duration-200 shadow-lg shadow-amber-900/10"
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <path d="M2 4.5h10M3.5 1.5h7a1.5 1.5 0 011.5 1.5v8a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 012 11V3a1.5 1.5 0 011.5-1.5z"
+                  stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Admin Dashboard
+            </button>
+          )}
           <button
             onClick={() => navigate("/groups/new")}
             data-tour="create-group"
@@ -76,6 +96,7 @@ const GroupPage = () => {
             </span>
             {t("groups.newGroup")}
           </button>
+          </div>
         </div>
 
         {!isLoading && groups.length > 0 && (

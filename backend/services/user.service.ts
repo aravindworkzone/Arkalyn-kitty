@@ -2,11 +2,26 @@ import mongoose from 'mongoose';
 import GroupMember from '../models/group_member.model';
 import User from '../models/user.model';
 import { AppError } from '../helpers/AppError';
+import { getEffectivePlan, toPlanView } from '../helpers/planLimits';
 
 export const getUserByIdService = async (userId: mongoose.Types.ObjectId) => {
-    const user = await User.findById(userId).select('_id name email');
+    const user = await User.findById(userId).select('_id name email role status plan planExpiresAt');
     if (!user) throw new AppError('User not found', 404);
-    return user;
+
+    // Attach the effective subscription (tier/status/limits/features) so the
+    // frontend can gate UI from the single /user/me call.
+    const subscription = toPlanView(getEffectivePlan({ plan: user.plan, planExpiresAt: user.planExpiresAt }));
+
+    return {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        plan: user.plan,
+        planExpiresAt: user.planExpiresAt,
+        subscription,
+    };
 };
 
 export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {

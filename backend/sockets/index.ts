@@ -17,9 +17,12 @@ import { env } from '../config/env';
 import { ACCESS_TOKEN_COOKIE } from '../config/constants';
 import { verifyAccessToken } from '../services/session.service';
 import { logger } from '../utils/logger';
-import { groupRoom, SOCKET_EVENTS } from './events';
+import { getSystemHealthSnapshot } from '../utils/health';
+import { groupRoom, SOCKET_EVENTS, ADMIN_ROOM } from './events';
 import { registerGroupHandlers, type AppIO } from './group.socket';
 import { registerExpenseHandlers } from './expense.socket';
+
+const HEALTH_INTERVAL_MS = 5000;
 
 let io: AppIO | null = null;
 
@@ -47,6 +50,7 @@ export const initSocketServer = (httpServer: HttpServer): AppIO => {
 
             socket.data.userId = String(payload.userId);
             socket.data.email = '';
+            socket.data.role = String(payload.role ?? 'USER');
             next();
         } catch (err) {
             logger.warn({ err }, 'socket auth failed');
@@ -61,6 +65,12 @@ export const initSocketServer = (httpServer: HttpServer): AppIO => {
         // emit user-targeted events (e.g. notifications) without tracking sids.
         if (socket.data.userId) {
             void socket.join(socket.data.userId);
+        }
+
+        // App owners also join the admins room — the System Health broadcast and
+        // any owner-wide events fan out there.
+        if (socket.data.role === 'APP_OWNER') {
+            void socket.join(ADMIN_ROOM);
         }
 
         // socket.onAny((event, ...args) => {
@@ -78,6 +88,21 @@ export const initSocketServer = (httpServer: HttpServer): AppIO => {
             logger.debug({ userId: socket.data.userId, sid: socket.id, reason }, 'socket disconnected');
         });
     });
+
+    // Stream live System Health to the dashboard. Only does work (incl. the DB
+    // ping) while at least one owner is watching.
+    setInterval(() => {
+        const current = io;
+        if (!current) return;
+        const admins = current.sockets.adapter.rooms.get(ADMIN_ROOM);
+        if (!admins || admins.size === 0) return;
+        void getSystemHealthSnapshot({ ping: true }).then((snapshot) => {
+            (current.to(ADMIN_ROOM).emit as (e: string, p?: unknown) => void)(
+                SOCKET_EVENTS.SYSTEM_HEALTH,
+                snapshot
+            );
+        });
+    }, HEALTH_INTERVAL_MS).unref();
 
     return io;
 };
