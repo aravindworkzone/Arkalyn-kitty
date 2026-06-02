@@ -2,6 +2,7 @@ import { useCreateCategoryMutation, useDeleteCategoryMutation } from "../redux/a
 import type { Category } from "../interface/category";
 import { validateCategoryName } from "../helpers/validators";
 import type { SetFieldError } from "../hooks/useFieldError";
+import { getApiErrorMessage } from "../hooks/useApiError";
 
 export type CategoryField = "name";
 
@@ -33,10 +34,12 @@ export const useCategoryHandlers = (groupId: string | undefined) => {
       return;
     }
 
+    if (!groupId) { setApiError("No group selected"); return; }
+
     try {
       await createCategory({ name: cleanName, groupId, color }).unwrap();
-    } catch (error: any) {
-      setApiError(error.data?.message || "Failed to create category");
+    } catch (error: unknown) {
+      setApiError(getApiErrorMessage(error, "Failed to create category"));
       return;
     }
 
@@ -56,14 +59,15 @@ export const useCategoryHandlers = (groupId: string | undefined) => {
     setSelectedCategory:  React.Dispatch<React.SetStateAction<Category | null>>
   ) => {
     if (!selectedCategory) return;
+    if (!groupId) { setApiError("No group selected"); return; }
 
     try {
       await deleteCategory({ id: selectedCategory._id, groupId }).unwrap();
       setCategories((prev) => prev.filter((c) => c._id !== selectedCategory._id));
       setCategoryModalOpen(false);
       setSelectedCategory(null);
-    } catch (error: any) {
-      setApiError(error.data?.message || "Failed to delete category");
+    } catch (error: unknown) {
+      setApiError(getApiErrorMessage(error, "Failed to delete category"));
     }
   };
 

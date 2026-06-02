@@ -6,6 +6,7 @@ import {
     LogoutService,
     requestPasswordResetService,
     resetPasswordService,
+    changePasswordService,
 } from '../services/auth.service';
 import { AppError } from '../helpers/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -92,4 +93,17 @@ export const ForgotPassword = asyncHandler(async (req, res) => {
 export const ResetPassword = asyncHandler(async (req, res) => {
     await resetPasswordService(req.body.token, req.body.password);
     sendSuccess(res, null, 'Password reset successfully. You can now sign in.');
+});
+
+export const ChangePassword = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    const { tokens } = await changePasswordService(
+        req.user._id,
+        req.body.currentPassword,
+        req.body.newPassword,
+        getDeviceInfo(req)
+    );
+    // Re-issue cookies for the current device — the old session was just revoked.
+    setAuthCookies(res, tokens);
+    sendSuccess(res, null, 'Password changed successfully');
 });

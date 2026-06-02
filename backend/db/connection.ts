@@ -8,7 +8,15 @@ const sleep = (ms: number): Promise<void> =>
 
 const connectWithRetry = async (attempt = 1): Promise<void> => {
     try {
-        await mongoose.connect(env.MONGO_URI);
+        await mongoose.connect(env.MONGO_URI, {
+            // Explicit pool/timeout tuning for sustained multi-user load. The
+            // driver multiplexes all concurrent queries over this pool; the
+            // default (100) is fine but stated here so it's a deliberate knob.
+            maxPoolSize: 50,
+            minPoolSize: 5,
+            serverSelectionTimeoutMS: 10000,
+            socketTimeoutMS: 45000,
+        });
         logger.info({ attempt }, 'Connected to MongoDB');
     } catch (error) {
         logger.error({ err: error, attempt }, 'MongoDB connection failed');

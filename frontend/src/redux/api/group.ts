@@ -1,11 +1,26 @@
 import {api} from "./base";
 import type { GroupMember } from "../../interface/member";
 import type { GroupTransaction, GroupEvent, GroupCredit, BasicTransactionTotals } from "../../interface/transaction";
-import type { PaginatedData } from "../../interface/api";
+import type { PaginatedData, ApiSuccess } from "../../interface/api";
+import type { Group } from "../../interface/group";
+
+// Refund preview returned by GET /group/:id/close-preview.
+export interface GroupClosePreview {
+    groupId: string;
+    status: string;
+    currentBalance: number;
+    totalContribution: number;
+    members: {
+        userId: string;
+        name: string;
+        contribution: number;
+        proportionalRefund: number;
+    }[];
+}
 
 export const group = api.injectEndpoints({
     endpoints: (builder) => ({
-        CreateGroup : builder.mutation<any, { name: string; contribution: number; invitees: string[] }>({
+        CreateGroup : builder.mutation<ApiSuccess<{ group: Group }>, { name: string; contribution: number; invitees: string[] }>({
             query: (credentials) => ({
                 url: '/group/create',
                 method: 'POST',
@@ -13,7 +28,7 @@ export const group = api.injectEndpoints({
             }),
             invalidatesTags: ['Group']
         }),
-        CloneGroup : builder.mutation<any, { sourceGroupId: string; name: string }>({
+        CloneGroup : builder.mutation<ApiSuccess<{ group: Group }>, { sourceGroupId: string; name: string }>({
             query: ({ sourceGroupId, name }) => ({
                 url: `/group/${sourceGroupId}/clone`,
                 method: 'POST',
@@ -21,12 +36,12 @@ export const group = api.injectEndpoints({
             }),
             invalidatesTags: ['Group']
         }),
-        getGroupById: builder.query<any, any>({
+        getGroupById: builder.query<Group, string>({
             query: (credentials) => ({
                 url: `/group/getgroupbyid/${credentials}`,
                 method: 'GET'
             }),
-            transformResponse: (res: { data: {group: any} }) => res.data.group,
+            transformResponse: (res: { data: {group: Group} }) => res.data.group,
             providesTags: (_result, _error, groupId) => [
                 { type: 'Group', id: groupId },
                 { type: 'Expense', id: groupId }
@@ -82,7 +97,7 @@ export const group = api.injectEndpoints({
                 { type: 'Group', id: arg.groupId }
             ]
         }),
-        removeCredit: builder.mutation<any, { creditId: string; groupId: string; reason?: string }>({
+        removeCredit: builder.mutation<ApiSuccess<null>, { creditId: string; groupId: string; reason?: string }>({
             query: ({ creditId, groupId, reason }) => ({
                 url: `/group/credit/${creditId}`,
                 method: 'DELETE',
@@ -92,7 +107,7 @@ export const group = api.injectEndpoints({
                 { type: 'Group', id: arg.groupId }
             ]
         }),
-        getEvent: builder.query<any, any>({
+        getEvent: builder.query<GroupEvent[], string>({
             query: (credentials) => ({
                 url: `/group/getevent/${credentials}`,
                 method: 'GET'
@@ -102,44 +117,44 @@ export const group = api.injectEndpoints({
                 { type: 'Group', id: groupId }
             ]
         }),
-        manageMember: builder.mutation<any, { groupId: string; action: string; Member: string; contribution?: number }>({
+        manageMember: builder.mutation<ApiSuccess<null>, { groupId: string; action: string; Member: string; contribution?: number }>({
             query: (body) => ({ url: '/group/managemember', method: 'POST', body }),
             invalidatesTags: (_result, _error, arg) => [
                 { type: 'Group', id: arg.groupId }
             ]
         }),
-        inviteMember: builder.mutation<any, { groupId: string; invitedUser: string }>({
+        inviteMember: builder.mutation<ApiSuccess<null>, { groupId: string; invitedUser: string }>({
             query: (body) => ({ url: '/group/invitemember', method: 'POST', body }),
             invalidatesTags: (_result, _error, arg) => [
                 { type: 'Group', id: arg.groupId }
             ]
         }),
-        manageAdmin: builder.mutation<any, { groupId: string; action: string; member: string }>({
+        manageAdmin: builder.mutation<ApiSuccess<null>, { groupId: string; action: string; member: string }>({
             query: (body) => ({ url: '/group/manageadmin', method: 'POST', body }),
             invalidatesTags: (_result, _error, arg) => [
                 { type: 'Group', id: arg.groupId }
             ]
         }),
-        addContribution: builder.mutation<any, { groupId: string; contribution: number; userId?: string; description?: string }>({
+        addContribution: builder.mutation<ApiSuccess<null>, { groupId: string; contribution: number; userId?: string; description?: string }>({
             query: (body) => ({ url: '/group/addcontribution', method: 'POST', body }),
             invalidatesTags: (_result, _error, arg) => [
                 { type: 'Group', id: arg.groupId }
             ]
         }),
-        settlement: builder.mutation<any, { groupId: string; settlement: number; member: string }>({
+        settlement: builder.mutation<ApiSuccess<null>, { groupId: string; settlement: number; member: string }>({
             query: (body) => ({ url: '/group/settlement', method: 'POST', body }),
             invalidatesTags: (_result, _error, arg) => [
                 { type: 'Group', id: arg.groupId }
             ]
         }),
-        deleteGroup: builder.mutation<any, string>({
+        deleteGroup: builder.mutation<ApiSuccess<null>, string>({
             query: (groupId) => ({ url: `/group/delete/${groupId}`, method: 'DELETE' }),
             invalidatesTags: (_result, _error, groupId) => [
                 { type: 'Group', id: groupId },
                 'Group'
             ]
         }),
-        leaveGroup: builder.mutation<any, { groupId: string; mode?: 'settlement' | 'forfeit' }>({
+        leaveGroup: builder.mutation<ApiSuccess<null>, { groupId: string; mode?: 'settlement' | 'forfeit' }>({
             query: ({ groupId, mode }) => ({
                 url: '/group/leave',
                 method: 'POST',
@@ -150,47 +165,36 @@ export const group = api.injectEndpoints({
                 'Group'
             ]
         }),
-        approveLeave: builder.mutation<any, { groupId: string; member: string; settlement: number }>({
+        approveLeave: builder.mutation<ApiSuccess<null>, { groupId: string; member: string; settlement: number }>({
             query: (body) => ({ url: '/group/leave/approve', method: 'POST', body }),
             invalidatesTags: (_result, _error, arg) => [
                 { type: 'Group', id: arg.groupId },
                 'Group'
             ]
         }),
-        rejectLeave: builder.mutation<any, { groupId: string; member: string }>({
+        rejectLeave: builder.mutation<ApiSuccess<null>, { groupId: string; member: string }>({
             query: (body) => ({ url: '/group/leave/reject', method: 'POST', body }),
             invalidatesTags: (_result, _error, arg) => [
                 { type: 'Group', id: arg.groupId }
             ]
         }),
-        cancelOwnLeave: builder.mutation<any, { groupId: string }>({
+        cancelOwnLeave: builder.mutation<ApiSuccess<null>, { groupId: string }>({
             query: (body) => ({ url: '/group/leave/cancel', method: 'POST', body }),
             invalidatesTags: (_result, _error, arg) => [
                 { type: 'Group', id: arg.groupId }
             ]
         }),
-        getGroupClosePreview: builder.query<{
-            groupId: string;
-            status: string;
-            currentBalance: number;
-            totalContribution: number;
-            members: {
-                userId: string;
-                name: string;
-                contribution: number;
-                proportionalRefund: number;
-            }[];
-        }, string>({
+        getGroupClosePreview: builder.query<GroupClosePreview, string>({
             query: (groupId) => ({
                 url: `/group/${groupId}/close-preview`,
                 method: 'GET'
             }),
-            transformResponse: (res: { data: { preview: any } }) => res.data.preview,
+            transformResponse: (res: { data: { preview: GroupClosePreview } }) => res.data.preview,
             providesTags: (_result, _error, groupId) => [
                 { type: 'Group', id: groupId }
             ]
         }),
-        closeGroup: builder.mutation<any, {
+        closeGroup: builder.mutation<ApiSuccess<unknown>, {
             groupId: string;
             overrides?: { userId: string; refundAmount: number }[];
         }>({

@@ -27,6 +27,10 @@ export interface CategoryBreakdownArgs {
 // member-breakdown and spend-trend reports take the same range args.
 export type ReportRangeArgs = CategoryBreakdownArgs;
 
+// Member breakdown additionally picks the attribution mode.
+export type MemberBy = 'paid' | 'spent';
+export type MemberBreakdownArgs = ReportRangeArgs & { by?: MemberBy };
+
 export interface MemberBreakdownRow {
     userId: string;
     name: string;

@@ -9,20 +9,43 @@ import {
 import { StatusBadge, TierBadge } from './adminUi';
 import UserDetailModal from './UserDetailModal';
 import DeleteConfirmModal from '../deleteModel';
+import { getApiErrorMessage } from '../../hooks/useApiError';
+import type { UserStatus } from '../../interface/admin';
+import type { PlanTier } from '../../interface/subscription';
 
 const LIMIT = 20;
+const selectClass =
+    'bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white/80 outline-none focus:border-violet-500/40 [&>option]:bg-[#0d1320]';
 
 export default function UsersSection() {
     const [page, setPage] = useState(1);
     const [searchInput, setSearchInput] = useState('');
     const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState<UserStatus | ''>('');
+    const [planFilter, setPlanFilter] = useState<PlanTier | ''>('');
+    const [sort, setSort] = useState<'newest' | 'oldest'>('newest');
     const [selected, setSelected] = useState<string | null>(null);
 
-    const { data, isLoading, isFetching } = useGetAdminUsersQuery({ page, limit: LIMIT, search: search || undefined });
+    const { data, isLoading, isFetching } = useGetAdminUsersQuery({
+        page,
+        limit: LIMIT,
+        search: search || undefined,
+        status: statusFilter || undefined,
+        plan: planFilter || undefined,
+        sort,
+    });
     const [suspend] = useSuspendUserMutation();
     const [restore] = useRestoreUserMutation();
     const [deleteUser] = useDeleteAdminUserMutation();
     const [hardDeleteUser] = useHardDeleteAdminUserMutation();
+
+    // Tracks the row whose suspend/restore is in flight so just that button shows
+    // a pending state (the mutation hooks' isLoading is shared across all rows).
+    const [actingId, setActingId] = useState<string | null>(null);
+    const runRowAction = async (id: string, action: (id: string) => { unwrap: () => Promise<unknown> }) => {
+        setActingId(id);
+        try { await action(id).unwrap(); } finally { setActingId(null); }
+    };
 
     const [confirmTarget, setConfirmTarget] = useState<{ id: string; name: string; mode: 'soft' | 'hard' } | null>(null);
     const [deleting, setDeleting] = useState(false);
@@ -38,8 +61,8 @@ export default function UsersSection() {
             if (confirmTarget.mode === 'hard') await hardDeleteUser(confirmTarget.id).unwrap();
             else await deleteUser(confirmTarget.id).unwrap();
             closeConfirm();
-        } catch (e: any) {
-            setOpError(e?.data?.message || 'Operation failed. Try again.');
+        } catch (e) {
+            setOpError(getApiErrorMessage(e, 'Operation failed. Try again.'));
         } finally {
             setDeleting(false);
         }
@@ -50,23 +73,60 @@ export default function UsersSection() {
         setSearch(searchInput.trim());
     };
 
+    // Changing a filter resets to page 1 so the user never lands on an empty page.
+    const onFilterChange = <T,>(setter: (v: T) => void) => (v: T) => {
+        setPage(1);
+        setter(v);
+    };
+
     const total = data?.total ?? 0;
     const totalPages = Math.max(1, Math.ceil(total / LIMIT));
     const items = data?.items ?? [];
 
     return (
         <div className="space-y-4">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
                 <input
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && submitSearch()}
                     placeholder="Search by name or email…"
-                    className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 outline-none focus:border-violet-500/40"
+                    className="flex-1 min-w-[180px] bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 outline-none focus:border-violet-500/40"
                 />
                 <button onClick={submitSearch} className="rounded-xl px-4 py-2.5 text-sm font-semibold bg-violet-500/80 border border-violet-500/50 text-white hover:bg-violet-500">
                     Search
                 </button>
+                <select
+                    value={statusFilter}
+                    onChange={(e) => onFilterChange(setStatusFilter)(e.target.value as UserStatus | '')}
+                    className={selectClass}
+                    aria-label="Filter by status"
+                >
+                    <option value="">All statuses</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="SUSPENDED">Suspended</option>
+                    <option value="DELETED">Deleted</option>
+                </select>
+                <select
+                    value={planFilter}
+                    onChange={(e) => onFilterChange(setPlanFilter)(e.target.value as PlanTier | '')}
+                    className={selectClass}
+                    aria-label="Filter by plan"
+                >
+                    <option value="">All plans</option>
+                    <option value="FREE">Free</option>
+                    <option value="PRO">Pro</option>
+                    <option value="PREMIUM">Premium</option>
+                </select>
+                <select
+                    value={sort}
+                    onChange={(e) => onFilterChange(setSort)(e.target.value as 'newest' | 'oldest')}
+                    className={selectClass}
+                    aria-label="Sort order"
+                >
+                    <option value="newest">Newest first</option>
+                    <option value="oldest">Oldest first</option>
+                </select>
             </div>
 
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] overflow-hidden">
@@ -91,10 +151,22 @@ export default function UsersSection() {
                             <div className="flex items-center gap-2 shrink-0">
                                 <button onClick={() => setSelected(u._id)} className="text-[11px] text-violet-300 hover:text-violet-200">Manage</button>
                                 {u.role !== 'APP_OWNER' && u.status === 'ACTIVE' && (
-                                    <button onClick={() => suspend(u._id)} className="text-[11px] text-amber-300/80 hover:text-amber-300">Suspend</button>
+                                    <button
+                                        onClick={() => runRowAction(u._id, suspend)}
+                                        disabled={actingId === u._id}
+                                        className="text-[11px] text-amber-300/80 hover:text-amber-300 disabled:opacity-40 transition-opacity"
+                                    >
+                                        {actingId === u._id ? 'Suspending…' : 'Suspend'}
+                                    </button>
                                 )}
                                 {u.role !== 'APP_OWNER' && u.status === 'SUSPENDED' && (
-                                    <button onClick={() => restore(u._id)} className="text-[11px] text-emerald-300/80 hover:text-emerald-300">Restore</button>
+                                    <button
+                                        onClick={() => runRowAction(u._id, restore)}
+                                        disabled={actingId === u._id}
+                                        className="text-[11px] text-emerald-300/80 hover:text-emerald-300 disabled:opacity-40 transition-opacity"
+                                    >
+                                        {actingId === u._id ? 'Restoring…' : 'Restore'}
+                                    </button>
                                 )}
                                 {u.role !== 'APP_OWNER' && u.status !== 'DELETED' && (
                                     <button

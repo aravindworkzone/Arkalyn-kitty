@@ -38,6 +38,14 @@ export const resetPasswordBodySchema = z.object({
         .max(128, 'Password is too long'),
 });
 
+export const changePasswordBodySchema = z.object({
+    currentPassword: z.string({ message: 'Current password is required' }).min(1, 'Current password is required'),
+    newPassword: z
+        .string({ message: 'Password is required' })
+        .min(6, 'Password must be at least 6 characters')
+        .max(128, 'Password is too long'),
+});
+
 export type SignUpDto = z.infer<typeof signUpBodySchema>;
 export type SignInDto = z.infer<typeof signInBodySchema>;
 export type ForgotPasswordDto = z.infer<typeof forgotPasswordBodySchema>;

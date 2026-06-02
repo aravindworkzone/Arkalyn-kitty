@@ -175,7 +175,7 @@ export default function CreateExpensePage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div data-tour="expense-amount-field">
               <label className={fieldLabel}>{t("createExpense.amount")}</label>
               <AmountInput
                 size="lg"

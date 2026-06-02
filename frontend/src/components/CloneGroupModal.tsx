@@ -13,16 +13,25 @@ export default function CloneGroupModal({
   onClose,
   sourceGroupId,
   sourceName,
+  sourceStatus,
+  sourcePlanTier,
 }: {
   isOpen: boolean;
   onClose: () => void;
   sourceGroupId: string;
   sourceName: string;
+  // When the source is CLOSED, cloning is gated by its frozen plan (snapshot at
+  // close) rather than the viewer's live plan — mirrors the backend.
+  sourceStatus?: "ACTIVE" | "INACTIVE" | "CLOSED";
+  sourcePlanTier?: "FREE" | "PRO" | "PREMIUM";
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { features } = usePlan();
-  const canClone = features.cloneGroup;
+  const isClosedSource = sourceStatus === "CLOSED";
+  const canClone = isClosedSource
+    ? sourcePlanTier === "PRO" || sourcePlanTier === "PREMIUM"
+    : features.cloneGroup;
   const [cloneGroup, { isLoading }] = useCloneGroupMutation();
 
   const [name, setName] = useState("");
@@ -98,24 +107,30 @@ export default function CloneGroupModal({
             </svg>
           </div>
           <h2 className="text-[15px] font-semibold text-white/90">
-            {t("cloneGroup.upgradeTitle", "Cloning is a Pro feature")}
+            {isClosedSource
+              ? t("cloneGroup.frozenTitle", "This closed group can't be cloned")
+              : t("cloneGroup.upgradeTitle", "Cloning is a Pro feature")}
           </h2>
           <p className="mt-2 text-[12px] leading-relaxed text-white/40">
-            {t("cloneGroup.upgradeBody", "Upgrade to Pro or Premium to clone a group's categories and members into a fresh group.")}
+            {isClosedSource
+              ? t("cloneGroup.frozenBody", "This group was on the Free plan when it closed. Its plan is frozen, so it can't be cloned even if you upgrade.")
+              : t("cloneGroup.upgradeBody", "Upgrade to Pro or Premium to clone a group's categories and members into a fresh group.")}
           </p>
           <div className="mt-5 flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-white/50 transition hover:bg-white/[0.06] hover:text-white/70"
+              className={`rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-white/50 transition hover:bg-white/[0.06] hover:text-white/70 ${isClosedSource ? "w-full" : "flex-1"}`}
             >
-              {t("cloneGroup.cancel", "Cancel")}
+              {isClosedSource ? t("cloneGroup.close", "Close") : t("cloneGroup.cancel", "Cancel")}
             </button>
-            <button
-              onClick={() => { onClose(); navigate("/pricing"); }}
-              className="flex-1 rounded-xl py-2.5 text-sm font-semibold bg-violet-500/80 border border-violet-500/50 text-white hover:bg-violet-500/90 active:bg-violet-500 transition"
-            >
-              {t("cloneGroup.viewPlans", "View plans")}
-            </button>
+            {!isClosedSource && (
+              <button
+                onClick={() => { onClose(); navigate("/pricing"); }}
+                className="flex-1 rounded-xl py-2.5 text-sm font-semibold bg-violet-500/80 border border-violet-500/50 text-white hover:bg-violet-500/90 active:bg-violet-500 transition"
+              >
+                {t("cloneGroup.viewPlans", "View plans")}
+              </button>
+            )}
           </div>
         </div>
       </div>

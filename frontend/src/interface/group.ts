@@ -1,3 +1,5 @@
+import type { PlanTier } from "./subscription";
+
 export interface IGroup {
   _id: string;
   displayId: string;
@@ -19,10 +21,15 @@ export interface Group {
   expenseCount: number;
   categoryCount: number;
   balance: number;
+  // Present on the single-group detail view; absent from the group-list cards.
+  totalContribution?: number;
   barLength: number;
   createdAt: string;
   role: "SUPER_ADMIN" | "ADMIN" | "MEMBER";
   status?: "ACTIVE" | "INACTIVE" | "CLOSED";
+  // Plan frozen at close — present only on CLOSED groups. Drives the frozen
+  // plan badge and the clone gate, independent of the owner's current tier.
+  planSnapshot?: { tier: PlanTier; snapshotAt?: string } | null;
   isFavorite?: boolean;
 }
 

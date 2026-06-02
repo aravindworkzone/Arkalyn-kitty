@@ -3,6 +3,7 @@ import type {
     CategoryBreakdown,
     CategoryBreakdownArgs,
     MemberBreakdown,
+    MemberBreakdownArgs,
     SpendTrend,
     ReportRangeArgs,
 } from '../../interface/report';
@@ -31,11 +32,16 @@ export const report = api.injectEndpoints({
                 { type: 'Group', id: arg.groupId },
             ],
         }),
-        getMemberBreakdown: builder.query<MemberBreakdown, ReportRangeArgs>({
-            query: (args) => ({
-                url: `/groupreport/${args.groupId}/reports/member-breakdown${rangeQuery(args)}`,
-                method: 'GET',
-            }),
+        getMemberBreakdown: builder.query<MemberBreakdown, MemberBreakdownArgs>({
+            query: (args) => {
+                const range = rangeQuery(args);
+                const sep = range ? '&' : '?';
+                const byParam = args.by ? `${sep}by=${args.by}` : '';
+                return {
+                    url: `/groupreport/${args.groupId}/reports/member-breakdown${range}${byParam}`,
+                    method: 'GET',
+                };
+            },
             transformResponse: (res: { data: MemberBreakdown }) => res.data,
             providesTags: (_result, _error, arg) => [
                 { type: 'Expense', id: arg.groupId },

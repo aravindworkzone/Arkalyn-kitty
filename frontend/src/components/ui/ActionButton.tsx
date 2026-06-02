@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import Spinner from "./Spinner";
 
 export type Tone = "cyan" | "amber" | "violet" | "green" | "red" | "neutral";
 
@@ -41,7 +42,14 @@ export default function ActionButton({
         className,
       ].filter(Boolean).join(" ")}
     >
-      {loading && loadingLabel ? loadingLabel : children}
+      {loading ? (
+        <span className="inline-flex items-center justify-center gap-2">
+          <Spinner size={15} />
+          {loadingLabel ?? children}
+        </span>
+      ) : (
+        children
+      )}
     </button>
   );
 }

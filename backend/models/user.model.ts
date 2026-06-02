@@ -35,4 +35,8 @@ const userSchema = new Schema<IUser>({
     planSource: {type: String, enum: PLAN_SOURCES, default: null}
 }, {timestamps: true});
 
+// Admin user list sorts by newest first over the whole collection; an index on
+// createdAt avoids an in-memory sort of every user on each dashboard page load.
+userSchema.index({ createdAt: -1 });
+
 export default mongoose.model<IUser>("User", userSchema);

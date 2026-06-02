@@ -99,27 +99,43 @@ const GroupPage = () => {
           </div>
         </div>
 
-        {!isLoading && groups.length > 0 && (
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            {[
-              { label: t("groups.totalGroups"), value: groups.length },
-              {
-                label: t("groups.youManage"),
-                value: groups.filter((g: any) => g.role !== "MEMBER").length,
-              },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className="rounded-xl bg-white/[0.03] border border-white/[0.07] px-4 py-3"
-              >
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">
-                  {stat.label}
-                </p>
-                <p className="text-xl font-semibold text-[#e8e3ff]" translate="no">{stat.value}</p>
-              </div>
-            ))}
-          </div>
-        )}
+        {!isLoading && groups.length > 0 && (() => {
+          // Closed groups are frozen — they're surfaced separately and never
+          // counted as something you actively manage.
+          const closedCount = groups.filter((g: any) => g.status === "CLOSED").length;
+          const activeCount = groups.length - closedCount;
+          const manageCount = groups.filter(
+            (g: any) => g.role !== "MEMBER" && g.status !== "CLOSED"
+          ).length;
+
+          // Only render a box when its category actually has groups.
+          const stats = [
+            { key: "active", label: t("groups.activeGroups", "Active Groups"), value: activeCount },
+            { key: "closed", label: t("groups.closedGroups", "Closed Groups"), value: closedCount },
+            { key: "manage", label: t("groups.youManage"), value: manageCount },
+          ].filter((s) => s.value > 0);
+
+          if (stats.length === 0) return null;
+
+          const gridCols =
+            stats.length === 1 ? "grid-cols-1" : stats.length === 2 ? "grid-cols-2" : "grid-cols-3";
+
+          return (
+            <div className={`grid ${gridCols} gap-3 mb-5`}>
+              {stats.map((stat) => (
+                <div
+                  key={stat.key}
+                  className="rounded-xl bg-white/[0.03] border border-white/[0.07] px-4 py-3"
+                >
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">
+                    {stat.label}
+                  </p>
+                  <p className="text-xl font-semibold text-[#e8e3ff]" translate="no">{stat.value}</p>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
 
         {!isLoading && groups.length > 0 && (
           <div className="relative mb-5">

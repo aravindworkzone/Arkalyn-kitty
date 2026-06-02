@@ -9,6 +9,7 @@ import {
 import {
     categoryBreakdownQuerySchema,
     reportRangeQuerySchema,
+    memberBreakdownQuerySchema,
 } from '../validators/report.validator';
 
 export const categoryBreakdown = asyncHandler(async (req, res) => {
@@ -32,7 +33,7 @@ export const memberBreakdown = asyncHandler(async (req, res) => {
     if (!req.group?._id) throw new AppError('Group not found', 400);
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
 
-    const query = reportRangeQuerySchema.parse(req.query);
+    const query = memberBreakdownQuerySchema.parse(req.query);
 
     const result = await memberBreakdownService({
         groupId: req.group._id,
@@ -40,6 +41,7 @@ export const memberBreakdown = asyncHandler(async (req, res) => {
         preset: query.preset,
         startDate: query.startDate,
         endDate: query.endDate,
+        by: query.by,
     });
 
     sendSuccess(res, result, 'Member breakdown');

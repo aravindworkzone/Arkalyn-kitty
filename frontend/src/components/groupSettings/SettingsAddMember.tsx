@@ -54,15 +54,19 @@ export default function SettingsAddMember({ isVerifying, isInvitingMember, handl
             value={searchEmail}
             onChange={(e) => { setSearchEmail(e.target.value); setFoundUser(null); setShowSuggestions(true); }}
             onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setShowSuggestions(false)}
+            // Delay the hide so a tap on a suggestion (which blurs the input
+            // first on touch devices) still registers before the list unmounts.
+            onBlur={() => { window.setTimeout(() => setShowSuggestions(false), 150); }}
             onKeyDown={(e) => e.key === "Enter" && handleVerifyUser(searchEmail, setFoundUser, setFieldError)}
             error={fieldErrors.searchEmail}
             onClearError={() => clearFieldError("searchEmail")}
             placeholder="member@email.com"
             className={INPUT_CLASS}
           />
-          {showSuggestions && suggestions && suggestions.length > 0 && (
-            <ul className="absolute z-100 left-0 right-0 top-[calc(100%+4px)] bg-[#0d1420] border border-white/[0.08] rounded-xl overflow-hidden shadow-xl shadow-black/40">
+          {/* Only surface results for an active search (≥2 chars) — never a stale
+              or unfiltered list. */}
+          {showSuggestions && debouncedEmail.length >= 2 && suggestions && suggestions.length > 0 && (
+            <ul className="absolute z-[100] left-0 right-0 top-[calc(100%+4px)] bg-[#0d1420] border border-white/[0.08] rounded-xl overflow-hidden shadow-xl shadow-black/40">
               {suggestions.map((s) => (
                 <li
                   key={s._id}

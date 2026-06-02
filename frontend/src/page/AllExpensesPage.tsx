@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import Header from "../components/header";
-import { useGetAllExpensesQuery } from "../redux/api/expense";
+import { useGetAllExpensesInfiniteQuery } from "../redux/api/expense";
 import { useGetGroupByIdQuery } from "../redux/api/group";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import { dateLabel, timeLabel } from "../helpers/formatters";
@@ -13,9 +13,22 @@ import {
   SearchInput,
 } from "../components/ui";
 import { useTranslation } from "react-i18next";
+import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 
-const PAGE_STEP = 20;
-const MAX_LIMIT = 200;
+function ExpenseRowSkeleton() {
+  return (
+    <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3 flex-1">
+        <div className="w-2 h-8 rounded-full bg-white/[0.06] animate-pulse shrink-0" />
+        <div className="space-y-1.5 flex-1">
+          <div className="h-3 bg-white/[0.06] rounded animate-pulse w-3/4" />
+          <div className="h-2.5 bg-white/[0.04] rounded animate-pulse w-1/3" />
+        </div>
+      </div>
+      <div className="h-4 w-16 bg-white/[0.05] rounded animate-pulse" />
+    </div>
+  );
+}
 
 export default function AllExpensesPage() {
   const { groupId } = useParams();
@@ -24,22 +37,19 @@ export default function AllExpensesPage() {
   // Filters arrive as URL params when the user drills in from a report card.
   const categoryId = searchParams.get("categoryId") ?? undefined;
   const paidBy = searchParams.get("paidBy") ?? undefined;
+  const spender = searchParams.get("spender") ?? undefined;
   const startDate = searchParams.get("startDate") ?? undefined;
   const endDate = searchParams.get("endDate") ?? undefined;
   const filterLabel = searchParams.get("label") ?? undefined;
-  const hasFilter = Boolean(categoryId || paidBy || startDate || endDate);
+  const hasFilter = Boolean(categoryId || paidBy || spender || startDate || endDate);
 
-  const [limit, setLimit] = useState(PAGE_STEP);
-
-  // A changed filter is a fresh list — restart paging from the first page.
-  useEffect(() => {
-    setLimit(PAGE_STEP);
-  }, [categoryId, paidBy, startDate, endDate]);
-
-  const { data, isLoading, isFetching } = useGetAllExpensesQuery(
-    { groupId: groupId!, limit, categoryId, paidBy, startDate, endDate },
-    { skip: !groupId }
-  );
+  // A changed filter changes the query arg, so RTK Query starts a fresh
+  // page set automatically — no manual reset needed.
+  const { data, isLoading, isFetching, hasNextPage, fetchNextPage } =
+    useGetAllExpensesInfiniteQuery(
+      { groupId: groupId!, categoryId, paidBy, spender, startDate, endDate },
+      { skip: !groupId }
+    );
   const { data: GroupDetails } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
   const [search, setSearch] = useState("");
@@ -47,9 +57,16 @@ export default function AllExpensesPage() {
 
   const clearFilter = () => setSearchParams({}, { replace: true });
 
-  const expenses = data?.items ?? [];
-  const totalCount = data?.total ?? 0;
-  const canLoadMore = expenses.length < totalCount && limit < MAX_LIMIT;
+  const expenses = data?.pages.flatMap((p) => p.items) ?? [];
+  const totalCount = data?.pages[0]?.total ?? 0;
+  const canLoadMore = hasNextPage;
+
+  // Auto-fetch the next page when the sentinel scrolls near the viewport.
+  // Disabled while a fetch is in flight so it can't fire twice for one page.
+  const sentinelRef = useInfiniteScroll<HTMLDivElement>({
+    onLoadMore: fetchNextPage,
+    enabled: Boolean(canLoadMore) && !isFetching,
+  });
 
   const role = GroupDetails?.role as string | undefined;
 
@@ -143,16 +160,7 @@ export default function AllExpensesPage() {
               <div key={g} className="space-y-2">
                 <div className="h-3 w-20 bg-white/[0.05] rounded animate-pulse" />
                 {[...Array(2)].map((_, i) => (
-                  <div key={i} className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="w-2 h-8 rounded-full bg-white/[0.06] animate-pulse shrink-0" />
-                      <div className="space-y-1.5 flex-1">
-                        <div className="h-3 bg-white/[0.06] rounded animate-pulse w-3/4" />
-                        <div className="h-2.5 bg-white/[0.04] rounded animate-pulse w-1/3" />
-                      </div>
-                    </div>
-                    <div className="h-4 w-16 bg-white/[0.05] rounded animate-pulse" />
-                  </div>
+                  <ExpenseRowSkeleton key={i} />
                 ))}
               </div>
             ))}
@@ -256,16 +264,17 @@ export default function AllExpensesPage() {
         ))}
 
         {!isLoading && canLoadMore && (
-          <div className="space-y-2">
-            <button
-              onClick={() => setLimit((l) => Math.min(l + PAGE_STEP, MAX_LIMIT))}
-              disabled={isFetching}
-              className="w-full py-2.5 rounded-xl border border-white/10 text-white/50 text-xs font-semibold hover:bg-white/[0.04] active:bg-white/[0.04] disabled:opacity-50 transition-colors"
-            >
-              {isFetching
-                ? t("allExpenses.loading", "Loading…")
-                : t("allExpenses.loadMore", "Load more")}
-            </button>
+          <div ref={sentinelRef} className="space-y-2">
+            {isFetching ? (
+              [...Array(2)].map((_, i) => <ExpenseRowSkeleton key={i} />)
+            ) : (
+              <button
+                onClick={() => fetchNextPage()}
+                className="w-full py-2.5 rounded-xl border border-white/10 text-white/50 text-xs font-semibold hover:bg-white/[0.04] active:bg-white/[0.04] transition-colors"
+              >
+                {t("allExpenses.loadMore", "Load more")}
+              </button>
+            )}
             <p className="text-center text-[10px] text-white/25">
               {t("allExpenses.showingCount", {
                 shown: expenses.length,

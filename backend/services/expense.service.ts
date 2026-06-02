@@ -217,6 +217,7 @@ export const expenseReportService = async (groupId: mongoose.Types.ObjectId) => 
 interface ExpenseListFilters {
     categoryId?: string;
     paidBy?: string;
+    spender?: string;
     startDate?: Date;
     endDate?: Date;
 }
@@ -233,6 +234,15 @@ export const getAllExpensesService = async (
         const query: Record<string, unknown> = { groupId, isDeleted: false };
         if (filters.categoryId) query.category = filters.categoryId;
         if (filters.paidBy) query.paidBy = filters.paidBy;
+        // "Spent by" — expenses the member shared in, plus unsplit expenses they
+        // paid for. Mirrors the member report's attribution so the drill-through
+        // matches the chart.
+        if (filters.spender) {
+            query.$or = [
+                { 'splitBetween.userId': filters.spender },
+                { paidBy: filters.spender, 'splitBetween.0': { $exists: false } },
+            ];
+        }
         if (filters.startDate || filters.endDate) {
             const dateRange: Record<string, Date> = {};
             if (filters.startDate) dateRange.$gte = filters.startDate;

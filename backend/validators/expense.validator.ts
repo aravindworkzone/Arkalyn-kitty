@@ -41,6 +41,9 @@ export const groupIdOnlyParamsSchema = z.object({
 export const allExpensesQuerySchema = paginationQuerySchema.extend({
     categoryId: objectIdSchema.optional(),
     paidBy: objectIdSchema.optional(),
+    // Filter to expenses a member spent on (in the split, or — for unsplit
+    // expenses — the payer). Mirrors the member report's attribution.
+    spender: objectIdSchema.optional(),
     startDate: z.coerce.date({ message: 'Invalid start date' }).optional(),
     endDate: z.coerce.date({ message: 'Invalid end date' }).optional(),
 });

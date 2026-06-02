@@ -601,16 +601,11 @@ export default function GroupDetailPage() {
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
             onClick={() => setSettingsOpen(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
             <div className="w-full sm:max-w-2xl pointer-events-auto bg-[#0d1220]
-              border border-white/[0.08] sm:border-b sm:rounded-2xl
-              rounded-t-2xl max-h-[92vh] sm:max-h-[85vh] flex flex-col
-              pb-safe
-              shadow-[0_-8px_40px_rgba(0,0,0,0.5)]">
-
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="w-9 h-1 rounded-full bg-white/10" />
-              </div>
+              border border-white/[0.08] rounded-2xl
+              max-h-[90vh] sm:max-h-[85vh] flex flex-col
+              shadow-[0_8px_40px_rgba(0,0,0,0.5)]">
 
               <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
                 <p className="text-sm font-semibold text-white/70">{t("groupDetail.groupSettings")}</p>
@@ -698,7 +693,10 @@ export default function GroupDetailPage() {
 
                 {tab === "danger" && (
                   <div className="space-y-3">
-                    {isSuperAdmin && GroupDetails?.status !== "CLOSED" && (
+                    {/* Cloning stays available on closed groups — it copies the
+                        frozen structure into a fresh active group. The modal gates
+                        allow/block on the group's frozen plan. */}
+                    {isSuperAdmin && (
                       <div className="bg-violet-500/[0.06] border border-violet-500/15 rounded-xl px-4 py-4">
                         <p className="text-xs font-semibold text-violet-300 mb-1">
                           {t("cloneGroup.title", "Clone this group")}
@@ -836,6 +834,8 @@ export default function GroupDetailPage() {
           isOpen={cloneGroupOpen}
           sourceGroupId={groupId}
           sourceName={GroupDetails?.name ?? ""}
+          sourceStatus={GroupDetails?.status}
+          sourcePlanTier={GroupDetails?.planSnapshot?.tier}
           onClose={() => setCloneGroupOpen(false)}
         />
       )}

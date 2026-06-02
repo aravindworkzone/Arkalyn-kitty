@@ -106,6 +106,31 @@ export const requestPasswordResetService = async (email: string): Promise<void> 
     }
 };
 
+// In-session password change. Verifies the current password, sets the new one,
+// revokes every existing session (so other devices are logged out), then mints a
+// fresh session for the current device so the user stays signed in here.
+export const changePasswordService = async (
+    userId: string | import('mongoose').Types.ObjectId,
+    currentPassword: string,
+    newPassword: string,
+    deviceInfo: string
+): Promise<{ tokens: IssuedTokens }> => {
+    const user = await User.findById(userId);
+    if (!user) throw new AppError('User not found', 404);
+
+    const match = await bcrypt.compare(currentPassword, user.password);
+    if (!match) throw new AppError('Current password is incorrect', 400);
+
+    user.password = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
+    await user.save();
+
+    const id = user._id as import('mongoose').Types.ObjectId;
+    await Session.deleteMany({ userId: id });
+    const tokens = await issueTokensForUser(id, user.role, deviceInfo);
+
+    return { tokens };
+};
+
 export const resetPasswordService = async (
     rawToken: string,
     newPassword: string
