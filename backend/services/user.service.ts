@@ -2,10 +2,11 @@ import mongoose from 'mongoose';
 import GroupMember from '../models/group_member.model';
 import User from '../models/user.model';
 import { AppError } from '../helpers/AppError';
-import { getEffectivePlan, toPlanView } from '../helpers/planLimits';
+import Session from '../models/session.model';
+import { getEffectivePlan, toPlanView, countActiveOwnedGroups } from '../helpers/planLimits';
 
 export const getUserByIdService = async (userId: mongoose.Types.ObjectId) => {
-    const user = await User.findById(userId).select('_id name email role status plan planExpiresAt');
+    const user = await User.findById(userId).select('_id name email role status plan planExpiresAt createdAt');
     if (!user) throw new AppError('User not found', 404);
 
     // Attach the effective subscription (tier/status/limits/features) so the
@@ -20,8 +21,36 @@ export const getUserByIdService = async (userId: mongoose.Types.ObjectId) => {
         status: user.status,
         plan: user.plan,
         planExpiresAt: user.planExpiresAt,
+        // Account creation date — powers the "Member since" line on the profile.
+        createdAt: user.createdAt,
         subscription,
     };
+};
+
+// Self-service account deletion. A SUPER_ADMIN of any still-open group is blocked
+// — those groups (and their pooled balances) would be orphaned — so the user must
+// close or hand them over first. Otherwise the account is marked DELETED (login is
+// already refused for that status), every session is revoked, and the user is
+// dropped from the groups they were a member of.
+export const deleteAccountService = async (
+    userId: mongoose.Types.ObjectId | string
+): Promise<void> => {
+    const user = await User.findById(userId);
+    if (!user || user.status === 'DELETED') throw new AppError('User not found', 404);
+
+    const ownedActiveGroups = await countActiveOwnedGroups(userId);
+    if (ownedActiveGroups > 0) {
+        throw new AppError(
+            'Close or hand over the groups you own before deleting your account.',
+            400
+        );
+    }
+
+    user.status = 'DELETED';
+    await user.save();
+
+    await Session.deleteMany({ userId: user._id });
+    await GroupMember.updateMany({ userId: user._id, isDeleted: false }, { $set: { isDeleted: true } });
 };
 
 export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
@@ -101,6 +130,9 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
                 displayId: '$group.displayId',
                 name: '$group.name',
                 status: '$group.status',
+                // Frozen plan captured at close — lets the card badge the group's
+                // historical tier even after the owner downgrades. null for open groups.
+                planSnapshot: '$group.planSnapshot',
                 isFavorite: { $ifNull: ['$isFavorite', false] },
                 balance: { $divide: ['$group.balance', 100] },
                 members: {

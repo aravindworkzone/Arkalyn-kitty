@@ -42,12 +42,6 @@ const Header = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/login", { replace: true });
-    socket.disconnect();
-  };
-
   const initials = user?.name
     ?.split(" ")
     .map((n: string) => n[0])
@@ -140,7 +134,10 @@ const Header = () => {
 
                 {/* Menu items */}
                 <div className="p-1.5 space-y-0.5">
-                  <button className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg
+                  <button
+                    type="button"
+                    onClick={() => { setOpen(false); navigate("/profile"); }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg
                     text-[12px] font-medium text-white/45 hover:text-white/80 hover:bg-white/[0.05]
                     active:text-white/80 active:bg-white/[0.05] transition-all duration-100 group">
                     <svg width="13" height="13" viewBox="0 0 13 13" fill="none"
@@ -187,22 +184,6 @@ const Header = () => {
                     </svg>
                     {t("nav.takeTour", "Take a Tour")}
                   </button>
-
-                  <div className="h-px bg-white/[0.06] mx-1" />
-
-                  <button
-                    onClick={handleSignOut}
-                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg
-                      text-[12px] font-medium text-white/45 hover:text-red-300 hover:bg-red-500/[0.08]
-                      active:text-red-300 active:bg-red-500/[0.08] transition-all duration-100 group"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"
-                      className="text-white/25 group-hover:text-red-400/70 transition-colors">
-                      <path d="M5 2H2.5A1.5 1.5 0 0 0 1 3.5v7A1.5 1.5 0 0 0 2.5 12H5M9 9.5l2.5-3L9 3M4.5 6.5h7"
-                        stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    {t("nav.signOut")}
-                  </button>
                 </div>
               </div>
             )}
@@ -214,7 +195,7 @@ const Header = () => {
           Tab moves into the actual page content. */}
       <span id="main-content" tabIndex={-1} className="sr-only" aria-hidden="true">{t("nav.mainContent", "Main content")}</span>
 
-      <MobileNav user={user} />
+      <MobileNav />
     </>
   );
 };

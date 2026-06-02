@@ -98,6 +98,7 @@ export const useExpenseHandlers = (groupId: string | undefined) => {
     }
 
     if (!valid) return;
+    if (!groupId) return;
 
     try {
       await createExpense({

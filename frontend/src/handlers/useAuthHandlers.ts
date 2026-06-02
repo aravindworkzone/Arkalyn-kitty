@@ -52,7 +52,9 @@ export const useAuthHandlers = (link: string) => {
     if (!valid) return;
 
     try {
-      await Auth(data).unwrap();
+      // `data` is built from the form fields; both signUp (name/email/password)
+      // and signIn (email/password) accept this shape.
+      await Auth(data as { name: string; email: string; password: string }).unwrap();
       setApiError("");
       if(login){
         navigate("/login");

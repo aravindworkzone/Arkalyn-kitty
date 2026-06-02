@@ -6,6 +6,7 @@ import {
     Logout,
     ForgotPassword,
     ResetPassword,
+    ChangePassword,
 } from '../controllers/auth.controller';
 import { verifyToken } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
@@ -14,6 +15,7 @@ import {
     signInBodySchema,
     forgotPasswordBodySchema,
     resetPasswordBodySchema,
+    changePasswordBodySchema,
 } from '../validators/auth.validator';
 
 const router = express.Router();
@@ -24,5 +26,6 @@ router.post('/refresh', Refresh);
 router.post('/logout', verifyToken, Logout);
 router.post('/forgot-password', validate({ body: forgotPasswordBodySchema }), ForgotPassword);
 router.post('/reset-password', validate({ body: resetPasswordBodySchema }), ResetPassword);
+router.post('/change-password', verifyToken, validate({ body: changePasswordBodySchema }), ChangePassword);
 
 export default router;

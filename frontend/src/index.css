@@ -25,6 +25,11 @@
   to   { opacity: 1; }
 }
 
+@keyframes routeFade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 @layer utilities {
   .pb-safe   { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
   .pt-safe   { padding-top:    max(env(safe-area-inset-top),    0px); }
@@ -36,4 +41,7 @@
 
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { scrollbar-width: none; }
+
+  /* Subtle fade applied to routed content on every navigation. */
+  .route-fade { animation: routeFade 220ms ease-out both; }
 }

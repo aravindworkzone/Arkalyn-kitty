@@ -68,11 +68,12 @@ export const expenseReport = asyncHandler(async (req, res) => {
 export const getAllExpenses = asyncHandler(async (req, res) => {
     if (!req.group?._id) throw new AppError('Group not found', 400);
 
-    const { page = 1, limit = 20, categoryId, paidBy, startDate, endDate } =
+    const { page = 1, limit = 20, categoryId, paidBy, spender, startDate, endDate } =
         allExpensesQuerySchema.parse(req.query);
     const { items, total } = await getAllExpensesService(req.group._id, page, limit, {
         categoryId,
         paidBy,
+        spender,
         startDate,
         endDate,
     });

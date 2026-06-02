@@ -55,11 +55,13 @@ router.post(
 );
 
 router.post(
+    // Cloning is allowed on CLOSED groups too — it only reads the source's
+    // structure and creates a brand-new group, never mutating the closed one.
+    // (The clone service still gates the feature on the source's frozen plan.)
     '/:groupId/clone',
     validate({ params: groupIdParamObject, body: cloneGroupBodySchema }),
     verifyToken,
     loadGroup,
-    ensureGroupActive,
     authorizeRole('SUPER_ADMIN'),
     cloneGroup
 );

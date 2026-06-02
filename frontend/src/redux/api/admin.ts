@@ -3,6 +3,7 @@ import type { PaginatedData } from "../../interface/api";
 import type {
     AdminUserRow,
     AdminUserDetail,
+    UserStatus,
     PromoCode,
     PromoRedemption,
     Analytics,
@@ -10,13 +11,29 @@ import type {
 } from "../../interface/admin";
 import type { PlanTier, BillingCycle, PlanView } from "../../interface/subscription";
 
+export interface GetAdminUsersArgs {
+    page: number;
+    limit: number;
+    search?: string;
+    status?: UserStatus;
+    plan?: PlanTier;
+    sort?: 'newest' | 'oldest';
+}
+
 export const admin = api.injectEndpoints({
     endpoints: (builder) => ({
         // Users
-        getAdminUsers: builder.query<PaginatedData<AdminUserRow>, { page: number; limit: number; search?: string }>({
-            query: ({ page, limit, search }) => ({
+        getAdminUsers: builder.query<PaginatedData<AdminUserRow>, GetAdminUsersArgs>({
+            query: ({ page, limit, search, status, plan, sort }) => ({
                 url: '/admin/users',
-                params: { page, limit, ...(search ? { search } : {}) },
+                params: {
+                    page,
+                    limit,
+                    ...(search ? { search } : {}),
+                    ...(status ? { status } : {}),
+                    ...(plan ? { plan } : {}),
+                    ...(sort ? { sort } : {}),
+                },
             }),
             transformResponse: (res: { data: PaginatedData<AdminUserRow> }) => res.data,
             providesTags: ['Admin'],

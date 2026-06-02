@@ -149,21 +149,28 @@ export const cloneGroupService = async (data: { sourceGroupId: string; name: str
         throw new AppError("Invalid ID format", 400);
     }
 
-    // Subscription gates: cloning is a Pro+ feature and still counts toward the
-    // owner's group limit.
-    const ownerPlan = await getUserPlan(superAdmin);
-    assertFeature(ownerPlan, "cloneGroup", `Cloning a group requires a Pro or Premium plan.`);
-    const ownedGroups = await countActiveOwnedGroups(superAdmin);
-    assertWithinLimit(
-        ownedGroups,
-        ownerPlan.limits.maxGroups,
-        `Your ${ownerPlan.config.name} plan allows up to ${ownerPlan.limits.maxGroups} active groups. Upgrade to create more.`
-    );
-
     const sourceGroup = await Group.findById(sourceGroupId);
     if (!sourceGroup) {
         throw new AppError("Source group not found", 404);
     }
+
+    // Subscription gates. The clone FEATURE is governed by the source group's
+    // plan: for a CLOSED group that resolves to its frozen planSnapshot (so a
+    // group frozen at Pro/Premium stays cloneable even after the owner
+    // downgrades, while one frozen at Free stays blocked); for an open group it
+    // resolves the live owner plan. The group-count LIMIT, by contrast, applies
+    // to the cloner's own live plan — the clone becomes a new active group on
+    // their account.
+    const sourcePlan = await getGroupOwnerPlan(sourceGroupId);
+    assertFeature(sourcePlan, "cloneGroup", `Cloning a group requires a Pro or Premium plan.`);
+
+    const clonerPlan = await getUserPlan(superAdmin);
+    const ownedGroups = await countActiveOwnedGroups(superAdmin);
+    assertWithinLimit(
+        ownedGroups,
+        clonerPlan.limits.maxGroups,
+        `Your ${clonerPlan.config.name} plan allows up to ${clonerPlan.limits.maxGroups} active groups. Upgrade to create more.`
+    );
 
     // Categories to copy (skip soft-deleted ones).
     const sourceCategories = await Category.find({ groupId: sourceGroupId, isDeleted: false });

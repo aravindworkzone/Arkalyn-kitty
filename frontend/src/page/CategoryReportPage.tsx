@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Header from '../components/header';
@@ -14,11 +14,15 @@ import {
     StatCard,
     DATE_INPUT_EXTRA,
 } from '../components/ui';
-import type { ReportPreset, CategoryBreakdownRow, TrendGranularity } from '../interface/report';
+import type { ReportPreset, CategoryBreakdownRow, TrendGranularity, MemberBy } from '../interface/report';
 import { MIN_DATE, todayISODate, blockDateTyping } from '../helpers/validators';
 import { usePlan } from '../hooks/usePlan';
+import { useGetGroupByIdQuery } from '../redux/api/group';
 
 const PRESETS: ReportPreset[] = ['this_month', 'last_month', 'all_time', 'custom'];
+// A closed group is frozen in time, so relative ranges (this/last month) are
+// meaningless — only the absolute ranges remain.
+const CLOSED_PRESETS: ReportPreset[] = ['all_time', 'custom'];
 
 const VIEWS = ['category', 'member', 'trend'] as const;
 type ReportView = (typeof VIEWS)[number];
@@ -131,12 +135,28 @@ export default function CategoryReportPage() {
     const locale = i18n.language;
 
     const { features } = usePlan();
-    const canAdvancedRange = features.advancedReportRange;
+
+    const { data: group } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
+    const isClosed = group?.status === 'CLOSED';
+    // Closed groups are read-only history: the advanced ranges are always
+    // available regardless of the frozen tier (no dead-end), and the relative
+    // presets are dropped entirely.
+    const canAdvancedRange = isClosed || features.advancedReportRange;
+    const presets = isClosed ? CLOSED_PRESETS : PRESETS;
 
     const [view, setView] = useState<ReportView>('category');
+    // Member tab: attribute by who paid, or who the spend was for (split shares).
+    const [memberBy, setMemberBy] = useState<MemberBy>('spent');
     const [preset, setPreset] = useState<ReportPreset>('this_month');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+
+    // A closed group has no this/last-month view — default such groups to All time.
+    useEffect(() => {
+        if (isClosed && (preset === 'this_month' || preset === 'last_month')) {
+            setPreset('all_time');
+        }
+    }, [isClosed, preset]);
 
     const args = useMemo(
         () => ({
@@ -152,11 +172,13 @@ export default function CategoryReportPage() {
         [groupId, preset, startDate, endDate]
     );
 
+    const memberArgs = useMemo(() => ({ ...args, by: memberBy }), [args, memberBy]);
+
     const skip = !groupId || (preset === 'custom' && (!startDate || !endDate));
 
     // Only the active tab's query runs; switching tabs serves cached data.
     const categoryQ = useGetCategoryBreakdownQuery(args, { skip: skip || view !== 'category' });
-    const memberQ = useGetMemberBreakdownQuery(args, { skip: skip || view !== 'member' });
+    const memberQ = useGetMemberBreakdownQuery(memberArgs, { skip: skip || view !== 'member' });
     const trendQ = useGetSpendTrendQuery(args, { skip: skip || view !== 'trend' });
 
     const activeQ = view === 'category' ? categoryQ : view === 'member' ? memberQ : trendQ;
@@ -220,7 +242,7 @@ export default function CategoryReportPage() {
                 {/* date range selector */}
                 <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-3 space-y-3">
                     <div className="flex flex-wrap gap-2">
-                        {PRESETS.map((p) => {
+                        {presets.map((p) => {
                             const locked = !canAdvancedRange && (p === 'all_time' || p === 'custom');
                             return (
                             <button
@@ -403,6 +425,27 @@ export default function CategoryReportPage() {
                     </>
                 )}
 
+                {/* MEMBER view: paid vs spent toggle */}
+                {view === 'member' && (
+                    <div className="flex gap-1.5 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1">
+                        {(['spent', 'paid'] as MemberBy[]).map((mode) => (
+                            <button
+                                key={mode}
+                                onClick={() => setMemberBy(mode)}
+                                className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+                                    memberBy === mode
+                                        ? 'bg-indigo-500/15 text-indigo-200'
+                                        : 'text-white/40 hover:text-white/65 active:text-white/65'
+                                }`}
+                            >
+                                {mode === 'spent'
+                                    ? t('categoryReport.whoSpent', 'Who spent')
+                                    : t('categoryReport.whoPaid', 'Who paid')}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 {/* MEMBER view */}
                 {view === 'member' && memberQ.data && memberQ.data.totalSpendCents > 0 && (
                     <div className="space-y-2">
@@ -411,7 +454,13 @@ export default function CategoryReportPage() {
                             return (
                                 <button
                                     key={m.userId}
-                                    onClick={() => goToExpenses({ paidBy: m.userId, label: m.name })}
+                                    onClick={() =>
+                                        goToExpenses(
+                                            memberBy === 'paid'
+                                                ? { paidBy: m.userId, label: m.name }
+                                                : { spender: m.userId, label: m.name }
+                                        )
+                                    }
                                     className="w-full text-left bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.05] active:border-white/[0.12] transition-colors"
                                     style={{
                                         animation: 'fadeSlideIn 0.22s ease forwards',
@@ -433,7 +482,11 @@ export default function CategoryReportPage() {
                                                     {m.name}
                                                 </p>
                                                 <p className="text-[10px] text-white/30 mt-0.5">
-                                                    {t('categoryReport.expenseCount', { count: m.expenseCount })} ·{' '}
+                                                    {memberBy === 'paid' && (
+                                                        <>
+                                                            {t('categoryReport.expenseCount', { count: m.expenseCount })} ·{' '}
+                                                        </>
+                                                    )}
                                                     {m.sharePct.toFixed(1)}%
                                                 </p>
                                             </div>

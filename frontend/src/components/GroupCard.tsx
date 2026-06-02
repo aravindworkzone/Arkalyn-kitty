@@ -10,8 +10,11 @@ const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingF
   const { tier } = usePlan();
   const isClosed = group.status === "CLOSED";
   const isFavorite = !!group.isFavorite;
-  // Badge the user's own groups with their paid tier.
-  const showPlanBadge = group.role === "SUPER_ADMIN" && tier !== "FREE";
+  // Closed groups badge their FROZEN tier (captured at close, immutable) so the
+  // historical plan shows even after the owner downgrades. Open groups badge the
+  // viewer's own live paid tier on groups they own.
+  const badgeTier = isClosed ? group.planSnapshot?.tier : group.role === "SUPER_ADMIN" ? tier : undefined;
+  const showPlanBadge = !!badgeTier && badgeTier !== "FREE";
   return (
     <div
       onClick={onClick}
@@ -75,7 +78,7 @@ const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingF
             </span>
             {showPlanBadge && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border border-violet-500/30 bg-violet-500/10 text-violet-300" translate="no">
-                {tier}
+                {badgeTier}
               </span>
             )}
             {isClosed && (

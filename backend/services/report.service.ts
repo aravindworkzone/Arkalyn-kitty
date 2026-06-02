@@ -137,7 +137,8 @@ export const categoryBreakdownService = async (data: {
 };
 
 /* ------------------------------------------------------------------ *
- *  Per-member spend breakdown — who paid for how much.
+ *  Per-member spend breakdown — either who paid (payer) or who consumed
+ *  the spend (split shares, with unsplit items charged to the payer).
  * ------------------------------------------------------------------ */
 
 interface MemberRow {
@@ -168,27 +169,81 @@ export const memberBreakdownService = async (data: {
     preset?: ReportPreset;
     startDate?: string;
     endDate?: string;
+    /** 'paid' = grouped by payer; 'spent' = consumption (split shares + unsplit charged to payer). */
+    by?: 'paid' | 'spent';
 }): Promise<MemberBreakdownResult> => {
     const range = resolveRange(data.preset, data.startDate, data.endDate, data.groupCreatedAt);
+    const by = data.by ?? 'spent';
 
-    // Grouped by `paidBy`. Amounts sum the raw stored cents — aggregation does
-    // not run Mongoose getters, so `totalCents` is genuinely in cents.
-    const agg = await Expense.aggregate<MemberAggRow>([
-        {
-            $match: {
-                groupId: data.groupId,
-                isDeleted: false,
-                date: { $gte: range.start, $lte: range.end },
-            },
-        },
-        {
-            $group: {
-                _id: '$paidBy',
-                totalCents: { $sum: '$amount' },
-                expenseCount: { $sum: 1 },
-            },
-        },
-    ]);
+    const matchStage = {
+        groupId: data.groupId,
+        isDeleted: false,
+        date: { $gte: range.start, $lte: range.end },
+    };
+
+    // Two attribution modes. Amounts sum the raw stored cents — aggregation
+    // does not run Mongoose getters, so `totalCents` is genuinely in cents.
+    //   • paid  — group by `paidBy`, summing the full expense amount.
+    //   • spent — consumption. Split expenses are attributed to each split
+    //     member by their share; expenses logged WITHOUT a split are attributed
+    //     in full to whoever paid (an untracked item is treated as consumed by
+    //     its payer). This keeps the "spent" total equal to the "paid" total and
+    //     mirrors the expense-list drill-down filter (splitBetween.userId, or
+    //     paidBy on unsplit rows) so the chart and the drilled-in list reconcile.
+    const pipeline =
+        by === 'paid'
+            ? [
+                  { $match: matchStage },
+                  {
+                      $group: {
+                          _id: '$paidBy',
+                          totalCents: { $sum: '$amount' },
+                          expenseCount: { $sum: 1 },
+                      },
+                  },
+              ]
+            : [
+                  { $match: matchStage },
+                  {
+                      // Split rows → per-share; unsplit rows → full amount to payer.
+                      $facet: {
+                          split: [
+                              { $match: { 'splitBetween.0': { $exists: true } } },
+                              { $unwind: '$splitBetween' },
+                              {
+                                  $group: {
+                                      _id: '$splitBetween.userId',
+                                      totalCents: { $sum: '$splitBetween.amount' },
+                                      expenseCount: { $sum: 1 },
+                                  },
+                              },
+                          ],
+                          unsplit: [
+                              { $match: { 'splitBetween.0': { $exists: false } } },
+                              {
+                                  $group: {
+                                      _id: '$paidBy',
+                                      totalCents: { $sum: '$amount' },
+                                      expenseCount: { $sum: 1 },
+                                  },
+                              },
+                          ],
+                      },
+                  },
+                  // Merge the two facets and re-group so a member who both shared
+                  // in splits and paid for unsplit items lands in one row.
+                  { $project: { merged: { $concatArrays: ['$split', '$unsplit'] } } },
+                  { $unwind: '$merged' },
+                  {
+                      $group: {
+                          _id: '$merged._id',
+                          totalCents: { $sum: '$merged.totalCents' },
+                          expenseCount: { $sum: '$merged.expenseCount' },
+                      },
+                  },
+              ];
+
+    const agg = await Expense.aggregate<MemberAggRow>(pipeline);
 
     const baseRange = {
         start: range.start.toISOString(),
@@ -200,6 +255,12 @@ export const memberBreakdownService = async (data: {
         return { range: baseRange, totalSpendCents: 0, expenseCount: 0, members: [] };
     }
 
+    // Distinct expenses contributing to this view. Both modes now cover every
+    // expense in range (spent attributes unsplit rows to the payer), so a plain
+    // count is correct — summing per-member `agg` counts would double-count an
+    // expense shared across members.
+    const totalExpenseCount = await Expense.countDocuments(matchStage);
+
     const users = await User
         .find({ _id: { $in: agg.map((r) => r._id) } })
         .select('_id name email')
@@ -207,7 +268,7 @@ export const memberBreakdownService = async (data: {
     const userMap = new Map(users.map((u) => [String(u._id), u]));
 
     const totalSpendCents = agg.reduce((s, r) => s + r.totalCents, 0);
-    const expenseCount = agg.reduce((s, r) => s + r.expenseCount, 0);
+    const expenseCount = totalExpenseCount;
 
     const members: MemberRow[] = agg
         .map((r) => {

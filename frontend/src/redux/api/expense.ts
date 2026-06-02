@@ -1,10 +1,22 @@
 import {api} from './base';
-import type { GetExpenseReport } from "../../interface/expense";
-import type { PaginatedData } from "../../interface/api";
+import type { GetExpenseReport, Expense } from "../../interface/expense";
+import type { PaginatedData, ApiSuccess } from "../../interface/api";
+
+export interface CreateExpenseRequest {
+    groupId: string;
+    category: string;
+    title: string;
+    description?: string;
+    amount: number;
+    paidBy: string;
+    paymentType: string;
+    date: string;
+    splitBetween?: { userId: string; amount: number }[];
+}
 
 export const expense = api.injectEndpoints({
     endpoints: (builder) => ({
-        createExpense: builder.mutation<any, any>({
+        createExpense: builder.mutation<ApiSuccess<{ expense: Expense }>, CreateExpenseRequest>({
             query: (credentials) => ({
                 url: '/expense/create',
                 method: 'POST',
@@ -14,7 +26,7 @@ export const expense = api.injectEndpoints({
                 { type: "Expense", id: arg.groupId }
             ]
         }),
-        getExpenses: builder.query<any, any>({
+        getExpenses: builder.query<unknown, string>({
             query: () => '/expense/getexpenses',
             providesTags: (_result, _error, groupId) => [
                 { type: "Expense", id: groupId }
@@ -24,29 +36,40 @@ export const expense = api.injectEndpoints({
             query: () => '/expense/paymentmethods',
             transformResponse: (res: { data: {paymentMethods: string[]} }) => res.data.paymentMethods,
         }),
-        getExpenseReport: builder.query<GetExpenseReport[], any>({
+        getExpenseReport: builder.query<GetExpenseReport[], string>({
             query: (credentials) => `/expense/expensereport/${credentials}`,
             transformResponse: (res: { data: {report: GetExpenseReport[]} }) => res.data.report,
             providesTags: (_result, _error, groupId) => [
                 { type: "Expense", id: groupId }
             ],
         }),
-        getAllExpenses: builder.query<
+        getAllExpenses: builder.infiniteQuery<
             PaginatedData<GetExpenseReport>,
             {
                 groupId: string;
-                limit: number;
                 categoryId?: string;
                 paidBy?: string;
+                spender?: string;
                 startDate?: string;
                 endDate?: string;
-            }
+            },
+            number
         >({
-            query: ({ groupId, limit, categoryId, paidBy, startDate, endDate }) => {
+            infiniteQueryOptions: {
+                initialPageParam: 1,
+                getNextPageParam: (lastPage, _allPages, lastPageParam) => {
+                    const loaded = lastPageParam * lastPage.limit;
+                    return loaded < lastPage.total ? lastPageParam + 1 : undefined;
+                },
+            },
+            query: ({ queryArg, pageParam }) => {
+                const { groupId, categoryId, paidBy, spender, startDate, endDate } = queryArg;
                 const params = new URLSearchParams();
-                params.set("limit", String(limit));
+                params.set("page", String(pageParam));
+                params.set("limit", "20");
                 if (categoryId) params.set("categoryId", categoryId);
                 if (paidBy) params.set("paidBy", paidBy);
+                if (spender) params.set("spender", spender);
                 if (startDate) params.set("startDate", startDate);
                 if (endDate) params.set("endDate", endDate);
                 return `/expense/allexpenses/${groupId}?${params.toString()}`;
@@ -56,7 +79,7 @@ export const expense = api.injectEndpoints({
                 { type: "Expense", id: arg.groupId }
             ],
         }),
-        deleteExpense: builder.mutation<any, { expenseId: string; groupId: string; reason?: string }>({
+        deleteExpense: builder.mutation<ApiSuccess<unknown>, { expenseId: string; groupId: string; reason?: string }>({
             query: ({ expenseId, groupId, reason }) => ({
                 url: `/expense/delete/${expenseId}`,
                 method: 'DELETE',
@@ -70,4 +93,4 @@ export const expense = api.injectEndpoints({
     })
 });
 
-export const { useCreateExpenseMutation, useGetExpensesQuery, useGetPaymentMethodQuery, useGetExpenseReportQuery, useGetAllExpensesQuery, useDeleteExpenseMutation } = expense;
+export const { useCreateExpenseMutation, useGetExpensesQuery, useGetPaymentMethodQuery, useGetExpenseReportQuery, useGetAllExpensesInfiniteQuery, useDeleteExpenseMutation } = expense;

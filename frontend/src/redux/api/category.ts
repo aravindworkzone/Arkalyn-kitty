@@ -1,9 +1,13 @@
 import {api} from "./base";
-import type { Category, CategoryResponse } from "../../interface/category";
+import type { Category } from "../../interface/category";
+import type { ApiSuccess } from "../../interface/api";
+
+interface CreateCategoryRequest { groupId: string; name: string; color?: string }
+interface DeleteCategoryRequest { id: string; groupId: string }
 
 export const category = api.injectEndpoints({
     endpoints: (builder) => ({
-        createCategory: builder.mutation({
+        createCategory: builder.mutation<ApiSuccess<{ category: Category }>, CreateCategoryRequest>({
             query: (credentials) => ({
                 url: '/category/create',
                 method: 'POST',
@@ -13,7 +17,7 @@ export const category = api.injectEndpoints({
                 { type: "Category", id: arg.groupId }
             ]
         }),
-        deleteCategory: builder.mutation({
+        deleteCategory: builder.mutation<ApiSuccess<{ category: Category }>, DeleteCategoryRequest>({
             query: (credentials) => ({
                 url: `/category/delete/${credentials.id}/${credentials.groupId}`,
                 method: 'DELETE'
@@ -22,7 +26,7 @@ export const category = api.injectEndpoints({
                 { type: "Category", id: arg.groupId }
             ]
         }),
-        getCategories: builder.query<Category[], any>({
+        getCategories: builder.query<Category[], string>({
             query: (groupId) => ({
                 url: `/category/getCategoryDetails/${groupId}`,
                 method: 'GET'

@@ -288,12 +288,12 @@ export default function ReportPage() {
                         <div
                           className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border relative z-10"
                           style={{
-                            background: cfg.color + "18",
-                            borderColor: cfg.color + "40",
+                            background: cfg?.color + "18",
+                            borderColor: cfg?.color + "40",
                           }}
                         >
-                          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ color: cfg.color }}>
-                            {cfg.icon}
+                          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ color: cfg?.color }}>
+                            {cfg?.icon}
                           </svg>
                         </div>
 
@@ -304,7 +304,7 @@ export default function ReportPage() {
                           <div className="flex items-center gap-2 mt-1">
                             <span
                               className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md border"
-                              style={{ background: cfg.color + "15", borderColor: cfg.color + "35", color: cfg.color }}
+                              style={{ background: cfg?.color + "15", borderColor: cfg?.color + "35", color: cfg?.color }}
                             >
                               {t(`events.${event.eventType}`)}
                             </span>

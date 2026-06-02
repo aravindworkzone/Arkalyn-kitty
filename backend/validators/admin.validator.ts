@@ -4,6 +4,12 @@ export const listUsersQuerySchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),
     search: z.string().trim().max(120).optional(),
+    // Server-side filters so admins can slice a 10k-row table without paging
+    // blindly. `plan` filters on the stored tier (what the user purchased); the
+    // row still shows the computed effective tier alongside it.
+    status: z.enum(['ACTIVE', 'SUSPENDED', 'DELETED']).optional(),
+    plan: z.enum(['FREE', 'PRO', 'PREMIUM']).optional(),
+    sort: z.enum(['newest', 'oldest']).default('newest'),
 });
 
 export const userIdParamSchema = z.object({

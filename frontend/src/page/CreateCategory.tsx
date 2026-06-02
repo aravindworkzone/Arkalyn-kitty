@@ -27,7 +27,7 @@ export default function CategoryPage() {
   const { t } = useTranslation();
 
   const { handleAdd, handleDelete, isCreating, isDeleting } = useCategoryHandlers(groupId);
-  const { data, isLoading } = useGetCategoriesQuery(groupId);
+  const { data, isLoading } = useGetCategoriesQuery(groupId!);
 
   const [name, setName]   = useState("");
   const [color, setColor] = useState(colorOptions[0]);

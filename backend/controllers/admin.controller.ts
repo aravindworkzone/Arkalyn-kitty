@@ -19,8 +19,8 @@ import { listUsersQuerySchema, analyticsQuerySchema } from '../validators/admin.
 
 // ── Users ──
 export const ListUsers = asyncHandler(async (req, res) => {
-    const { page, limit, search } = listUsersQuerySchema.parse(req.query);
-    const { items, total } = await listUsersService(page, limit, search);
+    const { page, limit, search, status, plan, sort } = listUsersQuerySchema.parse(req.query);
+    const { items, total } = await listUsersService(page, limit, { search, status, plan, sort });
     sendPaginated(res, items, total, page, limit, 'Users fetched');
 });
 
@@ -45,7 +45,7 @@ export const DeleteUser = asyncHandler(async (req, res) => {
 });
 
 export const HardDeleteUser = asyncHandler(async (req, res) => {
-    const result = await hardDeleteUserService(String(req.params.userId));
+    const result = await hardDeleteUserService(String(req.params.userId), String(req.user!._id));
     sendSuccess(res, result, 'User permanently deleted');
 });
 
