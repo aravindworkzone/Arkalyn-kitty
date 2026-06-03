@@ -45,7 +45,7 @@ export const createSubscriptionOrderService = async (
 
     const order = await createRazorpayOrder({
         amountPaise,
-        receipt: `sub_${userId.toString()}_${Date.now()}`,
+        receipt: `sub_${userId.toString().slice(-10)}_${Date.now().toString(36)}`,
         notes: { userId: userId.toString(), plan, cycle },
     });
 

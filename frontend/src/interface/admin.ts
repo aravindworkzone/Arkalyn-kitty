@@ -14,12 +14,14 @@ export interface AdminUserRow {
     effectiveTier: PlanTier;
     planSource: PlanSource;
     createdAt: string;
+    lastLoginAt: string | null;
 }
 
 export interface AdminUserDetail {
     user: AdminUserRow & {
         planExpiresAt: string | null;
         planCycle: BillingCycle | null;
+        lastLoginAt: string | null;
         subscription: PlanView;
     };
     groups: Array<{ _id: string; displayId: string; name: string; status: string; role: string; lastActionAt: string | null }>;
@@ -52,7 +54,8 @@ export interface Analytics {
     suspendedUsers: number;
     activeGroups: number;
     planBreakdown: Record<PlanTier, number>;
-    revenue: { mrr: number; arr: number; currency: string };
+    payingUsers: number;
+    revenue: { mrr: number; totalRevenue: number; currency: string };
     signups: Array<{ period: string; count: number }>;
     granularity: 'day' | 'week' | 'month';
 }

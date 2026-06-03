@@ -27,7 +27,7 @@ export default function AnalyticsSection() {
                 <StatCard label="Total users" value={data.totalUsers} sub={`${data.suspendedUsers} suspended`} />
                 <StatCard label="Active groups" value={data.activeGroups} />
                 <StatCard label="MRR" value={fmtINR(data.revenue.mrr)} sub="monthly recurring" />
-                <StatCard label="ARR" value={fmtINR(data.revenue.arr)} sub="annual" />
+                <StatCard label="Total Revenue" value={fmtINR(data.revenue.totalRevenue)} sub="all payments" />
             </div>
 
             <Panel title="Plan breakdown">

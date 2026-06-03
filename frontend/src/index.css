@@ -1,5 +1,16 @@
 @import 'tailwindcss';
 
+/* Global guard against horizontal overflow on small screens. Scoped to <body>
+   ONLY (never <html>): while the root element's overflow stays `visible`, the
+   body's overflow propagates to the viewport — that prevents sideways scroll
+   AND keeps a modal's `body { overflow: hidden }` working as a real scroll lock.
+   Putting overflow on <html> would make <html> the propagating root and
+   silently disable that lock. `clip` (not `hidden`) avoids creating a scroll
+   container, so the sticky header keeps working. */
+body {
+  overflow-x: clip;
+}
+
 @keyframes fadeSlideIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -25,9 +36,13 @@
   to   { opacity: 1; }
 }
 
+/* Opacity-only — intentionally NO transform. A lingering transform (the old
+   translateY, held by `animation-fill-mode: both`) turns .route-fade into the
+   containing block for `position: fixed`, which makes every modal inside it
+   center against the page instead of the viewport. Keep this transform-free. */
 @keyframes routeFade {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @layer utilities {

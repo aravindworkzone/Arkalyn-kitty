@@ -11,11 +11,13 @@ export default function TourCompletionModal() {
 
   useEffect(() => {
     if (!showCompletionModal) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") dismiss();
-    };
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") dismiss(); };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
   }, [showCompletionModal, dismiss]);
 
   if (!showCompletionModal) return null;
@@ -25,7 +27,7 @@ export default function TourCompletionModal() {
       role="dialog"
       aria-modal="true"
       aria-labelledby="tour-complete-title"
-      className="fixed inset-0 z-[10050] flex items-center justify-center px-4"
+      className="fixed inset-0 z-[10050] flex justify-center overflow-y-auto p-4"
       style={{ animation: "tour-fade-in 220ms ease-out forwards" }}
     >
       {/* Backdrop */}
@@ -38,7 +40,7 @@ export default function TourCompletionModal() {
 
       {/* Card */}
       <div
-        className="relative w-full max-w-md rounded-2xl bg-[#0d1220] border border-white/[0.08]
+        className="relative my-auto w-full max-w-md rounded-2xl bg-[#0d1220] border border-white/[0.08]
           shadow-[0_24px_80px_rgba(0,0,0,0.55)] overflow-hidden"
         style={{ animation: "tour-pop-in 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards" }}
       >

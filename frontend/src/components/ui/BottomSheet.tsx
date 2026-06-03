@@ -6,21 +6,13 @@ interface BottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
-  /** Visual accent at the top edge. Use "danger" for destructive flows. */
   tone?: Tone;
-  /** Maximum width on tablet/desktop. Defaults to ~460px. */
   maxWidth?: string;
-  /** Hide the default header (consumer renders its own). */
   hideHeader?: boolean;
   children: React.ReactNode;
-  /** Optional sticky footer (e.g. action buttons) — stays pinned at bottom on mobile. */
   footer?: React.ReactNode;
 }
 
-/**
- * Responsive sheet/modal. On mobile (<sm) it slides up from the bottom and
- * occupies full width; on >=sm it centers as a normal modal.
- */
 export default function BottomSheet({
   isOpen,
   onClose,
@@ -35,6 +27,7 @@ export default function BottomSheet({
   const sheetRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
+  // Freeze background scroll while open.
   useEffect(() => {
     if (isOpen) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "";
@@ -47,8 +40,6 @@ export default function BottomSheet({
     return () => window.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]);
 
-  // Move focus into the sheet when it opens, and restore to the previously
-  // focused element on close. Keeps Tab order sensible for keyboard users.
   useEffect(() => {
     if (!isOpen) return;
     previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
@@ -59,12 +50,9 @@ export default function BottomSheet({
       );
       (firstFocusable ?? node).focus();
     }
-    return () => {
-      previouslyFocusedRef.current?.focus?.();
-    };
+    return () => { previouslyFocusedRef.current?.focus?.(); };
   }, [isOpen]);
 
-  // Trap Tab within the sheet so focus can't escape to the page behind.
   useEffect(() => {
     if (!isOpen) return;
     const handleTab = (e: KeyboardEvent) => {
@@ -91,14 +79,13 @@ export default function BottomSheet({
 
   if (!isOpen) return null;
 
-  const accentClass =
-    tone === "danger"
-      ? "via-red-500/30"
-      : "via-white/15";
+  const accentClass = tone === "danger" ? "via-red-500/30" : "via-white/15";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/75 sm:backdrop-blur-[2px]"
-         style={{ animation: "fadeInBackdrop 0.18s ease-out" }}>
+    <div
+      className="fixed inset-0 z-50 flex justify-center overflow-y-auto p-4 bg-black/75 backdrop-blur-[2px]"
+      style={{ animation: "fadeInBackdrop 0.18s ease-out" }}
+    >
       <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
 
       <div
@@ -107,31 +94,26 @@ export default function BottomSheet({
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         tabIndex={-1}
-        className={`relative w-full ${maxWidth} sm:w-full bg-[#080c14] border border-white/[0.08]
-          rounded-t-2xl sm:rounded-2xl shadow-2xl
-          max-h-[92vh] sm:max-h-[85vh] flex flex-col
-          pb-safe outline-none`}
-        style={{
-          animation:
-            "slideUpSheet 0.22s cubic-bezier(0.32,0.72,0,1)",
-        }}
+        className={`relative my-auto w-full ${maxWidth} bg-[#080c14] border border-white/[0.08]
+          rounded-2xl shadow-2xl max-h-[88dvh] flex flex-col outline-none
+          animate-[fadeUp_0.18s_ease-out]`}
       >
-        {/* drag handle (mobile only) */}
-        <div className="flex sm:hidden justify-center pt-2 pb-1 shrink-0">
-          <div className="w-10 h-1 rounded-full bg-white/15" />
-        </div>
-
         {/* top accent line */}
-        <div className={`absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent ${accentClass} to-transparent rounded-full pointer-events-none`} />
+        <div
+          className={`absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent ${accentClass} to-transparent rounded-full pointer-events-none`}
+        />
 
         {!hideHeader && title && (
-          <div className="flex items-center justify-between px-5 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06] shrink-0">
-            <p id={titleId} className="text-sm font-semibold text-white/70 truncate pr-3">{title}</p>
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] shrink-0">
+            <p id={titleId} className="text-sm font-semibold text-white/70 truncate pr-3">
+              {title}
+            </p>
             <button
               onClick={onClose}
               aria-label="Close"
-              className="min-h-touch min-w-touch sm:min-h-0 sm:min-w-0 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg
-                bg-white/[0.04] text-white/40 hover:text-white/70 hover:bg-white/[0.08] active:bg-white/[0.08] transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-lg
+                bg-white/[0.04] text-white/40 hover:text-white/70 hover:bg-white/[0.08]
+                active:bg-white/[0.08] transition-colors"
             >
               <svg width="12" height="12" viewBox="0 0 10 10" fill="none">
                 <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -140,12 +122,10 @@ export default function BottomSheet({
           </div>
         )}
 
-        <div className="overflow-y-auto px-5 sm:px-6 py-4 sm:py-5 flex-1">
-          {children}
-        </div>
+        <div className="overflow-y-auto px-5 py-4 flex-1">{children}</div>
 
         {footer && (
-          <div className="border-t border-white/[0.06] px-5 sm:px-6 py-3 sm:py-4 shrink-0 bg-[#080c14] rounded-b-2xl">
+          <div className="border-t border-white/[0.06] px-5 py-3 shrink-0 bg-[#080c14] rounded-b-2xl">
             {footer}
           </div>
         )}

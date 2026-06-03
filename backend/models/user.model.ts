@@ -19,6 +19,7 @@ export interface IUser extends Document {
     // Billing cycle + origin of the current plan — used for revenue (MRR/ARR).
     planCycle: BillingCycle | null;
     planSource: PlanSource | null;
+    lastLoginAt: Date | null;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -32,7 +33,8 @@ const userSchema = new Schema<IUser>({
     plan: {type: String, enum: PLAN_TIERS, default: 'FREE'},
     planExpiresAt: {type: Date, default: null},
     planCycle: {type: String, enum: BILLING_CYCLES, default: null},
-    planSource: {type: String, enum: PLAN_SOURCES, default: null}
+    planSource: {type: String, enum: PLAN_SOURCES, default: null},
+    lastLoginAt: {type: Date, default: null},
 }, {timestamps: true});
 
 // Admin user list sorts by newest first over the whole collection; an index on
