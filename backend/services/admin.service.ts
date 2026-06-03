@@ -51,7 +51,7 @@ export const listUsersService = async (
 
     const [docs, total] = await Promise.all([
         User.find(filter)
-            .select('_id name email role status plan planExpiresAt planSource createdAt')
+            .select('_id name email role status plan planExpiresAt planSource createdAt lastLoginAt')
             .sort({ createdAt: sortDir })
             .skip((page - 1) * limit)
             .limit(limit),
@@ -70,6 +70,7 @@ export const listUsersService = async (
             effectiveTier: eff.tier,
             planSource: u.planSource,
             createdAt: u.createdAt,
+            lastLoginAt: u.lastLoginAt ?? null,
         };
     });
 
@@ -79,7 +80,7 @@ export const listUsersService = async (
 export const getUserDetailService = async (userId: string) => {
     if (!mongoose.Types.ObjectId.isValid(userId)) throw new AppError('Invalid user ID', 400);
     const user = await User.findById(userId).select(
-        '_id name email role status plan planExpiresAt planCycle planSource createdAt'
+        '_id name email role status plan planExpiresAt planCycle planSource createdAt lastLoginAt'
     );
     if (!user) throw new AppError('User not found', 404);
 
@@ -126,6 +127,7 @@ export const getUserDetailService = async (userId: string) => {
             planCycle: user.planCycle,
             planSource: user.planSource,
             createdAt: user.createdAt,
+            lastLoginAt: (user as any).lastLoginAt ?? null,
             subscription,
         },
         groups: groupsWithAction,
@@ -415,7 +417,7 @@ export const getAnalyticsService = async (granularity: 'day' | 'week' | 'month')
     const now = new Date();
     const graceMs = GRACE_PERIOD_DAYS * DAY_MS;
 
-    const [planRows, activeGroups, signups] = await Promise.all([
+    const [planRows, activeGroups, signups, revenueAgg] = await Promise.all([
         User.aggregate<PlanBucketRow>([
             { $match: { status: { $ne: 'DELETED' } } },
             { $addFields: { _stored: { $ifNull: ['$plan', 'FREE'] } } },
@@ -471,12 +473,19 @@ export const getAnalyticsService = async (granularity: 'day' | 'week' | 'month')
             { $sort: { _id: 1 } },
             { $project: { _id: 0, period: '$_id', count: 1 } },
         ]),
+        // Sum all successful payment amounts. MongoDB aggregation bypasses Mongoose
+        // getters so `amount` is raw paise here — divide by 100 to get rupees.
+        SubscriptionPayment.aggregate<{ total: number }>([
+            { $match: { status: 'paid' } },
+            { $group: { _id: null, total: { $sum: '$amount' } } },
+        ]),
     ]);
 
     const planBreakdown: Record<Plan, number> = { FREE: 0, PRO: 0, PREMIUM: 0 };
     let totalUsers = 0;
     let suspended = 0;
     let mrr = 0;
+    let payingUsers = 0;
 
     for (const row of planRows) {
         const { plan, cycle, source, status, window } = row._id;
@@ -494,6 +503,12 @@ export const getAnalyticsService = async (granularity: 'day' | 'week' | 'month')
         if (effTier !== 'FREE' && window === 'active' && source === 'PAYMENT') {
             mrr += monthlyEquivalent(effTier, cycle) * c;
         }
+
+        // Paying users = those who subscribed via real payment (active or grace).
+        // Promo/admin-granted users are excluded — they did not pay.
+        if (effTier !== 'FREE' && (window === 'active' || window === 'grace') && source === 'PAYMENT') {
+            payingUsers += c;
+        }
     }
 
     return {
@@ -501,7 +516,8 @@ export const getAnalyticsService = async (granularity: 'day' | 'week' | 'month')
         suspendedUsers: suspended,
         activeGroups,
         planBreakdown,
-        revenue: { mrr, arr: mrr * 12, currency: 'INR' },
+        payingUsers,
+        revenue: { mrr, totalRevenue: Math.round((revenueAgg[0]?.total ?? 0) / 100), currency: 'INR' },
         signups,
         granularity,
     };

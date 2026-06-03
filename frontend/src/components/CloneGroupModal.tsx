@@ -97,9 +97,9 @@ export default function CloneGroupModal({
   // form (the backend enforces this too).
   if (!canClone) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-[2px]">
+      <div className="fixed inset-0 z-50 flex justify-center overflow-y-auto p-4 bg-black/75 backdrop-blur-[2px]">
         <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
-        <div className="relative w-full max-w-[420px] rounded-2xl border border-white/[0.08] bg-[#080c14] px-6 py-6 shadow-2xl text-center">
+        <div className="relative my-auto w-full max-w-[420px] rounded-2xl border border-white/[0.08] bg-[#080c14] px-6 py-6 shadow-2xl text-center">
           <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10 border border-violet-500/20">
             <svg className="h-4 w-4 text-violet-300" viewBox="0 0 16 16" fill="none">
               <rect x="3" y="6.5" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
@@ -156,7 +156,7 @@ export default function CloneGroupModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-50 flex justify-center overflow-y-auto p-4 bg-black/75 backdrop-blur-[2px]">
       <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
 
       <div
@@ -164,7 +164,7 @@ export default function CloneGroupModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative w-full max-w-[460px] rounded-2xl border border-white/[0.08] bg-[#080c14] px-6 py-6 shadow-2xl animate-[fadeUp_0.18s_ease-out]"
+        className="relative my-auto w-full max-w-[460px] rounded-2xl border border-white/[0.08] bg-[#080c14] px-6 py-6 shadow-2xl animate-[fadeUp_0.18s_ease-out]"
       >
         <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-violet-500/30 to-transparent rounded-full" />
 

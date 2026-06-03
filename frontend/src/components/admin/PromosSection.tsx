@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     useGetPromosQuery,
     useCreatePromoMutation,
@@ -10,10 +10,16 @@ import { Panel, TierBadge } from './adminUi';
 
 function RedemptionsModal({ promoId, code, onClose }: { promoId: string; code: string; onClose: () => void }) {
     const { data, isLoading } = useGetPromoRedemptionsQuery(promoId);
+
+    useEffect(() => {
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = ''; };
+    }, []);
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-50 flex justify-center overflow-y-auto p-4 bg-black/75 backdrop-blur-[2px]">
             <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
-            <div className="relative w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#0b0f17] p-5">
+            <div className="relative my-auto w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#0b0f17] p-5">
                 <h3 className="text-[14px] font-semibold text-white/85 mb-3">Redemptions · <span className="font-mono text-violet-300">{code}</span></h3>
                 {isLoading ? (
                     <p className="text-white/30 text-xs">Loading…</p>

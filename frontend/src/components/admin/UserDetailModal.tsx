@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGetAdminUserDetailQuery, useOverrideUserPlanMutation } from '../../redux/api/admin';
 import type { PlanTier, BillingCycle } from '../../interface/subscription';
 import { TierBadge, StatusBadge } from './adminUi';
@@ -11,6 +11,11 @@ export default function UserDetailModal({ userId, onClose }: { userId: string; o
     const [cycle, setCycle] = useState<BillingCycle>('monthly');
     const [expiresAt, setExpiresAt] = useState('');
     const [msg, setMsg] = useState<string | null>(null);
+
+    useEffect(() => {
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = ''; };
+    }, []);
 
     const inputCls = 'bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-violet-500/40';
 
@@ -29,9 +34,9 @@ export default function UserDetailModal({ userId, onClose }: { userId: string; o
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-50 flex justify-center overflow-y-auto p-4 bg-black/75 backdrop-blur-[2px]">
             <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
-            <div className="relative w-full max-w-lg rounded-2xl border border-white/[0.08] bg-[#0b0f17] p-5 max-h-[85vh] overflow-y-auto">
+            <div className="relative my-auto w-full max-w-lg rounded-2xl border border-white/[0.08] bg-[#0b0f17] p-5 max-h-[85vh] overflow-y-auto">
                 {isLoading || !data ? (
                     <p className="text-white/30 text-sm">Loading…</p>
                 ) : (
@@ -52,6 +57,14 @@ export default function UserDetailModal({ userId, onClose }: { userId: string; o
                             <p>Source: <span className="text-white/70">{data.user.planSource ?? '—'}</span></p>
                             <p>Status: <span className="text-white/70">{data.user.subscription.status}</span></p>
                             <p>Expires: <span className="text-white/70">{data.user.planExpiresAt ? new Date(data.user.planExpiresAt).toLocaleDateString('en-IN') : '—'}</span></p>
+                            <p className="col-span-2">Last login: <span className="text-white/70">
+                                {data.user.lastLoginAt
+                                    ? new Date(data.user.lastLoginAt).toLocaleString('en-IN', {
+                                          day: '2-digit', month: 'short', year: 'numeric',
+                                          hour: '2-digit', minute: '2-digit', hour12: true,
+                                      })
+                                    : '—'}
+                            </span></p>
                         </div>
 
                         <p className="text-[11px] uppercase tracking-widest text-white/30 mb-2">Groups ({data.groups.length})</p>

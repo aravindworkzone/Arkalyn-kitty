@@ -6,11 +6,11 @@ import { useExpenseModalHandlers } from "../handlers/useExpenseModalHandlers";
 import { useShareAsImage } from "../hooks/useShareAsImage";
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="flex items-start justify-between gap-6 py-2.5 border-b border-white/[0.05] last:border-0">
+  <div className="flex items-start justify-between gap-4 py-2.5 border-b border-white/[0.05] last:border-0">
     <span className="text-[10px] font-semibold uppercase tracking-widest text-white/30 shrink-0 pt-0.5">
       {label}
     </span>
-    <div className="text-right">{children}</div>
+    <div className="flex-1 text-right min-w-0">{children}</div>
   </div>
 );
 
@@ -80,9 +80,9 @@ export default function ExpenseDetailModal({
         </Row>
 
         <Row label="Paid by">
-          <div>
-            <p className="text-[13px] text-white/75 leading-tight">{expense.paidBy.name}</p>
-            <p className="text-[11px] text-white/30 mt-0.5">{expense.paidBy.email}</p>
+          <div className="min-w-0">
+            <p className="text-[13px] text-white/75 leading-tight break-words">{expense.paidBy.name}</p>
+            <p className="text-[11px] text-white/30 mt-0.5 break-all">{expense.paidBy.email}</p>
           </div>
         </Row>
 
@@ -100,8 +100,8 @@ export default function ExpenseDetailModal({
           {expense.splitBetween?.length > 0 ? (
             <div className="space-y-1.5 text-left">
               {expense.splitBetween.map((s) => (
-                <div key={s.userId._id} className="flex items-center justify-between gap-6 min-w-[160px]">
-                  <span className="text-[12px] text-white/60 truncate max-w-[100px]">{s.userId.name}</span>
+                <div key={s.userId._id} className="flex items-center justify-between gap-3">
+                  <span className="text-[12px] text-white/60 truncate">{s.userId.name}</span>
                   <span className="text-[12px] font-mono text-white/75 shrink-0">
                     ₹{s.amount.toLocaleString("en-IN")}
                   </span>

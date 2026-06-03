@@ -65,6 +65,13 @@ export default function GroupDetailPage() {
 
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
 
+  // Freeze background scroll while the settings modal is open.
+  useEffect(() => {
+    if (!settingsOpen) return;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, [settingsOpen]);
+
   const { data: GroupDetails, isLoading: groupLoading } =
     useGetGroupByIdQuery(groupId!, { skip: !groupId });
   const { data: TodayExpenses } =
@@ -601,10 +608,10 @@ export default function GroupDetailPage() {
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
             onClick={() => setSettingsOpen(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full sm:max-w-2xl pointer-events-auto bg-[#0d1220]
+          <div className="fixed inset-0 z-50 flex justify-center overflow-y-auto p-4 pointer-events-none">
+            <div className="my-auto w-full sm:max-w-2xl pointer-events-auto bg-[#0d1220]
               border border-white/[0.08] rounded-2xl
-              max-h-[90vh] sm:max-h-[85vh] flex flex-col
+              max-h-[88dvh] flex flex-col
               shadow-[0_8px_40px_rgba(0,0,0,0.5)]">
 
               <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">

@@ -92,6 +92,9 @@ export const issueTokensForUser = async (
         expiresAt,
     });
 
+    // Fire-and-forget — don't block token issuance on the write.
+    User.updateOne({ _id: userId }, { lastLoginAt: new Date() }).catch(() => {});
+
     return { accessToken, refreshToken, accessTokenMaxAgeMs, refreshTokenMaxAgeMs };
 };
 

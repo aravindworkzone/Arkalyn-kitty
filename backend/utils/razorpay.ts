@@ -20,12 +20,21 @@ interface CreateOrderInput {
 
 export const createRazorpayOrder = async ({ amountPaise, receipt, notes }: CreateOrderInput) => {
     if (!razorpay) throw new AppError('Payments not configured', 503);
-    return razorpay.orders.create({
-        amount: amountPaise,
-        currency: 'INR',
-        receipt,
-        notes,
-    });
+    try {
+        return await razorpay.orders.create({
+            amount: amountPaise,
+            currency: 'INR',
+            receipt,
+            notes,
+        });
+    } catch (err: any) {
+        // Razorpay SDK rejects with a plain object { statusCode, error: { description } },
+        // not an Error instance — convert it so the error middleware handles it properly.
+        const description: string = err?.error?.description ?? 'Payment gateway error';
+        const sdkStatus: number = err?.statusCode;
+        const httpStatus = sdkStatus >= 400 && sdkStatus < 500 ? 400 : 502;
+        throw new AppError(description, httpStatus);
+    }
 };
 
 // Constant-time hex comparison that tolerates length mismatches (timingSafeEqual
