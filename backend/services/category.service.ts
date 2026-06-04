@@ -58,6 +58,61 @@ export const createCategoryService = async (data: {
     }
 };
 
+export const updateCategoryService = async (data: {
+    categoryId: string;
+    groupId: mongoose.Types.ObjectId;
+    userId: mongoose.Types.ObjectId;
+    color?: string;
+    isSpecial?: boolean;
+}) => {
+    const { categoryId, groupId, userId, color, isSpecial } = data;
+
+    const session = await mongoose.startSession();
+    try {
+        session.startTransaction();
+
+        const category = await Category.findOne({ _id: categoryId, groupId, isDeleted: false }).session(session);
+        if (!category) throw new AppError('Category not found', 404);
+
+        const changes: string[] = [];
+        if (color !== undefined && color !== category.color) {
+            changes.push(`colour ${category.color} → ${color}`);
+            category.color = color;
+        }
+        if (isSpecial !== undefined && isSpecial !== Boolean(category.isSpecial)) {
+            changes.push(isSpecial ? "marked collective" : "unmarked collective");
+            category.isSpecial = isSpecial;
+        }
+
+        await category.save({ session });
+
+        const event = await GroupEvent.create(
+            [{
+                groupId,
+                performedBy: userId,
+                eventType: "MANAGE_CATEGORY",
+                metadata: {
+                    userId,
+                    note: changes.length
+                        ? `Updated category "${category.name}" (${changes.join(", ")})`
+                        : `Updated category "${category.name}"`,
+                },
+                referenceId: category._id,
+                referenceModel: "Category",
+            }],
+            { session }
+        );
+
+        await session.commitTransaction();
+        return { category, event };
+    } catch (error) {
+        await session.abortTransaction();
+        throw error;
+    } finally {
+        session.endSession();
+    }
+};
+
 export const deleteCategoryService = async (data: {
     categoryId: string;
     userId: mongoose.Types.ObjectId;
@@ -96,7 +151,7 @@ export const deleteCategoryService = async (data: {
 
 export const getCategoryDetailsService = async (groupId: mongoose.Types.ObjectId) => {
     const categories = await Category.find({ groupId, isDeleted: false })
-        .select('_id name color')
+        .select('_id name color isSpecial')
         .sort({ createdAt: -1 })
         .lean();
 
@@ -119,6 +174,7 @@ export const getCategoryDetailsService = async (groupId: mongoose.Types.ObjectId
             _id: c._id,
             name: c.name,
             color: c.color,
+            isSpecial: Boolean(c.isSpecial),
             expenseCount: countMap.get(c._id.toString()) ?? 0,
         }))
         .sort((a, b) => b.expenseCount - a.expenseCount);

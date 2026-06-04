@@ -3,9 +3,11 @@ export const SOCKET_EVENTS = {
     GROUP_LEAVE: 'group:leave',
 
     EXPENSE_CREATED: 'expense:created',
+    EXPENSE_UPDATED: 'expense:updated',
     EXPENSE_DELETED: 'expense:deleted',
 
     CATEGORY_CREATED: 'category:created',
+    CATEGORY_UPDATED: 'category:updated',
     CATEGORY_DELETED: 'category:deleted',
 
     GROUP_BALANCE_UPDATED: 'group:balance:updated',
@@ -38,8 +40,10 @@ export interface group{
 
 export interface ServerToClientEvents {
     [SOCKET_EVENTS.EXPENSE_CREATED]: (payload?: unknown) => void;
+    [SOCKET_EVENTS.EXPENSE_UPDATED]: (payload?: unknown) => void;
     [SOCKET_EVENTS.EXPENSE_DELETED]: (payload?: unknown) => void;
     [SOCKET_EVENTS.CATEGORY_CREATED]: (payload?: unknown) => void;
+    [SOCKET_EVENTS.CATEGORY_UPDATED]: (payload?: unknown) => void;
     [SOCKET_EVENTS.CATEGORY_DELETED]: (payload?: unknown) => void;
     [SOCKET_EVENTS.GROUP_BALANCE_UPDATED]: (payload?: unknown) => void;
     [SOCKET_EVENTS.GROUP_MEMBER_ADDED]: (payload?: unknown) => void;

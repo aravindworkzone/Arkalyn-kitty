@@ -1,4 +1,4 @@
-import { useCreateCategoryMutation, useDeleteCategoryMutation } from "../redux/api/category";
+import { useCreateCategoryMutation, useUpdateCategoryMutation, useDeleteCategoryMutation } from "../redux/api/category";
 import type { Category } from "../interface/category";
 import { validateCategoryName } from "../helpers/validators";
 import type { SetFieldError } from "../hooks/useFieldError";
@@ -8,6 +8,7 @@ export type CategoryField = "name";
 
 export const useCategoryHandlers = (groupId: string | undefined) => {
   const [createCategory, { isLoading: isCreating }] = useCreateCategoryMutation();
+  const [updateCategory, { isLoading: isUpdatingColor }] = useUpdateCategoryMutation();
   const [deleteCategory, { isLoading: isDeleting }] = useDeleteCategoryMutation();
 
   const handleAdd = async (
@@ -51,6 +52,41 @@ export const useCategoryHandlers = (groupId: string | undefined) => {
     setColor(defaultColor);
   };
 
+  const handleChangeColor = async (
+    category: Category,
+    color: string,
+    setApiError:   React.Dispatch<React.SetStateAction<string>>,
+    setCategories: React.Dispatch<React.SetStateAction<Category[]>>,
+    onDone:        () => void
+  ) => {
+    if (!groupId) { setApiError("No group selected"); return; }
+    // No-op when the colour is unchanged.
+    if (color === category.color) { onDone(); return; }
+
+    try {
+      await updateCategory({ id: category._id, groupId, color }).unwrap();
+      setCategories((prev) => prev.map((c) => (c._id === category._id ? { ...c, color } : c)));
+      onDone();
+    } catch (error: unknown) {
+      setApiError(getApiErrorMessage(error, "Failed to update colour"));
+    }
+  };
+
+  const handleToggleSpecial = async (
+    category: Category,
+    setApiError:   React.Dispatch<React.SetStateAction<string>>,
+    setCategories: React.Dispatch<React.SetStateAction<Category[]>>
+  ) => {
+    if (!groupId) { setApiError("No group selected"); return; }
+    const next = !category.isSpecial;
+    try {
+      await updateCategory({ id: category._id, groupId, isSpecial: next }).unwrap();
+      setCategories((prev) => prev.map((c) => (c._id === category._id ? { ...c, isSpecial: next } : c)));
+    } catch (error: unknown) {
+      setApiError(getApiErrorMessage(error, "Failed to update category"));
+    }
+  };
+
   const handleDelete = async (
     selectedCategory: Category | null,
     setApiError:          React.Dispatch<React.SetStateAction<string>>,
@@ -71,5 +107,5 @@ export const useCategoryHandlers = (groupId: string | undefined) => {
     }
   };
 
-  return { handleAdd, handleDelete, isCreating, isDeleting };
+  return { handleAdd, handleChangeColor, handleToggleSpecial, handleDelete, isCreating, isUpdatingColor, isDeleting };
 };

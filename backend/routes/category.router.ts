@@ -1,9 +1,11 @@
 import express from 'express';
-import { createCategory, deleteCategory, getCategoryDetails } from '../controllers/category.controller';
+import { createCategory, updateCategory, deleteCategory, getCategoryDetails } from '../controllers/category.controller';
 import { verifyToken, authorizeRole, loadGroup, ensureGroupActive } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import {
     createCategoryBodySchema,
+    updateCategoryParamsSchema,
+    updateCategoryBodySchema,
     deleteCategoryParamsSchema,
     getCategoryParamsSchema,
 } from '../validators/category.validator';
@@ -18,6 +20,16 @@ router.post(
     ensureGroupActive,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
     createCategory
+);
+
+router.patch(
+    '/update/:id',
+    validate({ params: updateCategoryParamsSchema, body: updateCategoryBodySchema }),
+    verifyToken,
+    loadGroup,
+    ensureGroupActive,
+    authorizeRole('SUPER_ADMIN', 'ADMIN'),
+    updateCategory
 );
 
 router.delete(

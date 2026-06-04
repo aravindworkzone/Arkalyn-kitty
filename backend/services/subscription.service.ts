@@ -36,6 +36,20 @@ export const createSubscriptionOrderService = async (
 ) => {
     if (plan === 'FREE') throw new AppError('The Free plan does not require payment', 400);
 
+    // Don't allow buying a strictly lower tier while a paid plan is still active
+    // (or in grace). Same-tier renewal and upgrades stay allowed; an expired plan
+    // resolves to FREE so anything is purchasable again. Mirrors the promo guard.
+    const buyer = await User.findById(userId).select('plan planExpiresAt');
+    if (buyer) {
+        const eff = getEffectivePlan({ plan: buyer.plan, planExpiresAt: buyer.planExpiresAt });
+        if ((eff.status === 'active' || eff.status === 'grace') && PLAN_RANK[eff.tier] > PLAN_RANK[plan]) {
+            throw new AppError(
+                `You're on the ${eff.tier} plan; downgrading to ${plan} isn't allowed while it's active.`,
+                400
+            );
+        }
+    }
+
     const config = PLANS[plan];
     const priceRupees = cycle === 'yearly' ? config.priceYearly : config.priceMonthly;
     if (!priceRupees || priceRupees <= 0) throw new AppError('Invalid plan price', 400);
@@ -73,8 +87,12 @@ export const createSubscriptionOrderService = async (
 // findOneAndUpdate is the lock: only the first caller (browser callback OR
 // webhook) flips the row and applies the entitlement; later callers no-op.
 const grantFromPayment = async (razorpayOrderId: string, razorpayPaymentId: string) => {
+    // Lock filter includes 'failed' so a capture webhook can still grant an
+    // attempt the browser optimistically marked failed (e.g. on dismiss) but
+    // Razorpay actually captured. A genuine payment.failed yields no capture
+    // event, so it stays failed.
     const payment = await SubscriptionPayment.findOneAndUpdate(
-        { razorpayOrderId, status: 'created' },
+        { razorpayOrderId, status: { $in: ['created', 'failed'] } },
         { status: 'paid', razorpayPaymentId },
         { new: true }
     );
@@ -145,6 +163,38 @@ export const handleSubscriptionWebhookService = async (
             }
         }
     }
+};
+
+// Marks a still-pending checkout attempt as failed (Razorpay payment.failed, or
+// the user dismissed the modal). Only flips created -> failed; never overwrites a
+// granted (paid) row, and ownership is enforced in the filter.
+export const markPaymentFailedService = async (
+    userId: mongoose.Types.ObjectId,
+    razorpayOrderId: string
+) => {
+    const updated = await SubscriptionPayment.findOneAndUpdate(
+        { razorpayOrderId, userId, status: 'created' },
+        { status: 'failed' },
+        { new: true }
+    );
+    return { updated: Boolean(updated) };
+};
+
+// The user's recent subscription payment attempts (newest first) for the profile
+// Transactions section. amount getter returns rupees.
+export const listSubscriptionPaymentsService = async (userId: mongoose.Types.ObjectId) => {
+    const rows = await SubscriptionPayment.find({ userId })
+        .sort({ createdAt: -1 })
+        .limit(50);
+    return rows.map((r) => ({
+        id: r._id.toString(),
+        plan: r.plan,
+        cycle: r.cycle,
+        amount: r.amount,
+        status: r.status,
+        razorpayPaymentId: r.razorpayPaymentId ?? null,
+        createdAt: r.createdAt,
+    }));
 };
 
 // Redeems a promo code: validates it, then grants the plan immediately with no

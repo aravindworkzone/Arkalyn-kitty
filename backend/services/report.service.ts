@@ -150,11 +150,23 @@ interface MemberRow {
     sharePct: number;
 }
 
+interface SpecialCategoryRow {
+    categoryId: string;
+    name: string;
+    color: string;
+    totalCents: number;
+    expenseCount: number;
+}
+
 export interface MemberBreakdownResult {
     range: { start: string; end: string; preset: ReportPreset };
     totalSpendCents: number;
     expenseCount: number;
     members: MemberRow[];
+    // "Collective" spend (special categories, e.g. a family EMI) — excluded from
+    // the per-member totals above and surfaced on its own.
+    specialCategories: SpecialCategoryRow[];
+    specialTotalCents: number;
 }
 
 interface MemberAggRow {
@@ -175,10 +187,19 @@ export const memberBreakdownService = async (data: {
     const range = resolveRange(data.preset, data.startDate, data.endDate, data.groupCreatedAt);
     const by = data.by ?? 'spent';
 
+    // Special / "collective" categories are kept out of per-member attribution
+    // and reported on their own (see the special bucket below).
+    const specialCats = await Category
+        .find({ groupId: data.groupId, isSpecial: true, isDeleted: false })
+        .select('_id name color')
+        .lean();
+    const specialIds = specialCats.map((c) => c._id);
+
     const matchStage = {
         groupId: data.groupId,
         isDeleted: false,
         date: { $gte: range.start, $lte: range.end },
+        ...(specialIds.length ? { category: { $nin: specialIds } } : {}),
     };
 
     // Two attribution modes. Amounts sum the raw stored cents — aggregation
@@ -251,8 +272,37 @@ export const memberBreakdownService = async (data: {
         preset: range.preset,
     };
 
+    // Collective bucket: total per special category (not attributed to members).
+    const specialAgg = specialIds.length
+        ? await Expense.aggregate<MemberAggRow>([
+              {
+                  $match: {
+                      groupId: data.groupId,
+                      isDeleted: false,
+                      date: { $gte: range.start, $lte: range.end },
+                      category: { $in: specialIds },
+                  },
+              },
+              { $group: { _id: '$category', totalCents: { $sum: '$amount' }, expenseCount: { $sum: 1 } } },
+          ])
+        : [];
+    const specialCatMap = new Map(specialCats.map((c) => [String(c._id), c]));
+    const specialCategories: SpecialCategoryRow[] = specialAgg
+        .map((r) => {
+            const c = specialCatMap.get(String(r._id));
+            return {
+                categoryId: String(r._id),
+                name: c?.name ?? 'Unknown',
+                color: c?.color ?? '#6366f1',
+                totalCents: r.totalCents,
+                expenseCount: r.expenseCount,
+            };
+        })
+        .sort((a, b) => b.totalCents - a.totalCents);
+    const specialTotalCents = specialCategories.reduce((s, r) => s + r.totalCents, 0);
+
     if (agg.length === 0) {
-        return { range: baseRange, totalSpendCents: 0, expenseCount: 0, members: [] };
+        return { range: baseRange, totalSpendCents: 0, expenseCount: 0, members: [], specialCategories, specialTotalCents };
     }
 
     // Distinct expenses contributing to this view. Both modes now cover every
@@ -284,7 +334,7 @@ export const memberBreakdownService = async (data: {
         })
         .sort((a, b) => b.totalCents - a.totalCents);
 
-    return { range: baseRange, totalSpendCents, expenseCount, members };
+    return { range: baseRange, totalSpendCents, expenseCount, members, specialCategories, specialTotalCents };
 };
 
 /* ------------------------------------------------------------------ *

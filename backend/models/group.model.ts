@@ -8,10 +8,14 @@ export interface IGroupPlanSnapshot {
     snapshotAt: Date;
 }
 
+export const GROUP_PURPOSES = ["FAMILY", "FRIENDS", "ROOMMATES", "TEAM", "OTHER"] as const;
+export type GroupPurpose = typeof GROUP_PURPOSES[number];
+
 export interface IGroup extends Document {
     displayId: string;
     name: string;
     groupType: "POOL" | "SPLIT";
+    purpose: GroupPurpose;
     balance: number;
     totalContribution: number;
     status: "ACTIVE" | "INACTIVE" | "CLOSED";
@@ -32,6 +36,7 @@ const groupSchema = new Schema<IGroup>({
     displayId: {type: String, unique: true, sparse: true},
     name: {type: String, required: true , trim: true, minlength: 3, maxlength: 100},
     groupType: {type: String, enum: ["POOL", "SPLIT"], default: "POOL"},
+    purpose: {type: String, enum: GROUP_PURPOSES, default: "OTHER"},
     balance: {type: Number, default: 0, set:toDBAmount, get:fromDBAmount},
     totalContribution: {type: Number, default: 0, set:toDBAmount, get:fromDBAmount},
     status: {type: String, enum: ["ACTIVE", "INACTIVE", "CLOSED"], default: "ACTIVE"},

@@ -7,6 +7,20 @@ export const createCategoryBodySchema = z.object({
     color: z.string().trim().max(20).optional(),
 });
 
+export const updateCategoryParamsSchema = z.object({
+    id: objectIdSchema,
+});
+
+export const updateCategoryBodySchema = z
+    .object({
+        groupId: groupIdParamSchema,
+        color: z.string().trim().min(1, 'Color is required').max(20, 'Color must be at most 20 characters').optional(),
+        isSpecial: z.boolean().optional(),
+    })
+    .refine((d) => d.color !== undefined || d.isSpecial !== undefined, {
+        message: 'Nothing to update',
+    });
+
 export const deleteCategoryParamsSchema = z.object({
     id: objectIdSchema,
     groupId: groupIdParamSchema,

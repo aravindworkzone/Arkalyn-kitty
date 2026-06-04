@@ -40,11 +40,22 @@ export interface MemberBreakdownRow {
     sharePct: number;
 }
 
+export interface SpecialCategoryRow {
+    categoryId: string;
+    name: string;
+    color: string;
+    totalCents: number;
+    expenseCount: number;
+}
+
 export interface MemberBreakdown {
     range: { start: string; end: string; preset: ReportPreset };
     totalSpendCents: number;
     expenseCount: number;
     members: MemberBreakdownRow[];
+    // "Collective" spend (special categories) excluded from per-member totals.
+    specialCategories: SpecialCategoryRow[];
+    specialTotalCents: number;
 }
 
 export type TrendGranularity = 'day' | 'week' | 'month';

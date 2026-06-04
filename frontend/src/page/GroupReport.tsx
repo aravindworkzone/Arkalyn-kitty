@@ -362,7 +362,13 @@ export default function ReportPage() {
       {selectedEvent && (() => {
         const cfg = eventConfig[selectedEvent.eventType] ?? { label: selectedEvent.eventType, color: "#94a3b8", icon: null };
         const meta = selectedEvent.metadata || {};
-        const metaEntries = Object.entries(meta).filter(([k]) => k !== "__v");
+        // `note` is already shown above and `changes` gets its own before→after
+        // section, so keep them out of the generic key/value list.
+        const metaEntries = Object.entries(meta).filter(([k]) => !["__v", "note", "changes"].includes(k));
+        const changes = (meta.changes && typeof meta.changes === "object" ? meta.changes : null) as
+          | Record<string, { from: unknown; to: unknown }>
+          | null;
+        const changeEntries = changes ? Object.entries(changes) : [];
         return (
           <DetailModal isOpen title={t("report.activityDetail")} onClose={() => setSelectedEvent(null)}>
             <div className="mb-5 pb-5 border-b border-white/[0.06]">
@@ -384,6 +390,23 @@ export default function ReportPage() {
                   <span className="text-[13px] text-white/60 text-right" translate="no">{value ?? "—"}</span>
                 </div>
               ))}
+              {changeEntries.length > 0 && (
+                <div className="pt-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-white/25 mb-2">{t("report.fieldChanges", "Changes")}</p>
+                  <div className="space-y-2">
+                    {changeEntries.map(([k, diff]) => (
+                      <div key={k} className="flex flex-col gap-1">
+                        <span className="text-[11px] text-white/30 capitalize">{k}</span>
+                        <div className="flex items-center gap-2 text-[11px] font-mono break-all" translate="no">
+                          <span className="text-red-400/70 line-through">{String(diff.from)}</span>
+                          <span className="text-white/25">→</span>
+                          <span className="text-emerald-400/80">{String(diff.to)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {metaEntries.length > 0 && (
                 <div className="pt-3">
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-white/25 mb-2">{t("report.fieldDetails")}</p>

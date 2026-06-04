@@ -8,6 +8,10 @@
 
 import type { PlanTier, PlanConfig } from '../interface/subscription';
 
+// Ordinal rank for comparing tiers (mirrors backend PLAN_RANK). Used to block
+// buying a strictly lower tier while a higher plan is active.
+export const PLAN_RANK: Record<PlanTier, number> = { FREE: 0, PRO: 1, PREMIUM: 2 };
+
 export const PUBLIC_PLANS: Record<PlanTier, PlanConfig> = {
     FREE: {
         name: 'Free',

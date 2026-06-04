@@ -96,10 +96,10 @@ backend/
 | Collection | Purpose / key fields |
 |---|---|
 | **User** | `name, email(unique), password(bcrypt), role(USER\|APP_OWNER), status(ACTIVE\|SUSPENDED\|DELETED), plan, planExpiresAt, planCycle, planSource` |
-| **Group** | `displayId(Grp-YY-NNN), name, groupType(POOL\|SPLIT), balance, totalContribution, status(ACTIVE\|INACTIVE\|CLOSED), planSnapshot, createdBy` |
+| **Group** | `displayId(Grp-YY-NNN), name, groupType(POOL\|SPLIT), purpose(FAMILY\|FRIENDS\|ROOMMATES\|TEAM\|OTHER), balance, totalContribution, status(ACTIVE\|INACTIVE\|CLOSED), planSnapshot, createdBy` |
 | **GroupMember** | `groupId, userId, contribution, role(SUPER_ADMIN\|ADMIN\|MEMBER), settlement, settlementAmount, leaveRequestedAt, leftMode(SETTLED\|FORFEIT), isDeleted, isFavorite` |
-| **Expense** | `groupId, category, title, description, amount, splitBetween[{userId,amount}], paidBy, paymentType, date, isDeleted` — **immutable** |
-| **Category** | `groupId, name, color, isDeleted` |
+| **Expense** | `groupId, category, title, description, amount, splitBetween[{userId,amount}], paidBy, paymentType, date, isDeleted` — **editable** (admin-or-payer; edits logged via `EXPENSE_EDITED`) |
+| **Category** | `groupId, name, color, isSpecial, isDeleted` — `isSpecial` = "collective" (excluded from per-member report) |
 | **GroupTransaction** | money **audit log**: `groupId, amount, action(CREDIT\|DEBIT\|REFUND), description, referenceId, referenceModel, performedBy, isDeleted` |
 | **GroupEvent** | admin **activity log**: `groupId, performedBy, eventType(MEMBER_ADDED\|MEMBER_REMOVED\|MANAGE_CATEGORY\|CHANGE_ROLE\|CREATE_GROUP\|GROUP_CLOSED\|CREDIT_REMOVED), referenceId, amount, metadata` |
 | **GroupInvite** | `groupId, invitedUser, invitedBy, status(PENDING\|ACCEPTED\|REJECTED), respondedAt` |
@@ -109,7 +109,7 @@ backend/
 | **Counter** | sequence generator for `Group.displayId` |
 | **PromoCode** | `code, plan, cycle, periodDays, maxRedemptions, redemptionCount, expiresAt, isActive` |
 | **PromoRedemption** | `promoCodeId, userId, plan, periodDays` — unique `{promoCodeId,userId}` |
-| **SubscriptionPayment** | `userId, plan, cycle, amount, periodDays, razorpayOrderId, razorpayPaymentId, status(created\|paid)` |
+| **SubscriptionPayment** | `userId, plan, cycle, amount, periodDays, razorpayOrderId, razorpayPaymentId, status(created\|paid\|failed)` |
 
 ### Two account-level roles vs three per-group roles
 - **Account role** (`User.role`): `USER` or `APP_OWNER` (the app admin/dashboard).
@@ -280,6 +280,7 @@ soft-delete the credit txn, write `GroupEvent: CREDIT_REMOVED`.
 |---|---|---|
 | Create group / accept invite / add contribution | **+balance, +totalContribution** | `CREDIT` txn (+ event) |
 | Create expense | **−balance** (atomic `$gte`) | `DEBIT` txn |
+| Edit expense | **±balance by amount delta** (atomic `$gte` when ↑) | `EXPENSE_EDITED` event (always) + `DEBIT`/`REFUND` txn (only if amount changed) |
 | Delete expense | **+balance** (refund) | `REFUND` txn |
 | Settlement / leave-approve | **−balance** (atomic) | `DEBIT` txn |
 | Remove credit | **−balance, −totalContribution** (atomic, can't overspend) | `CREDIT_REMOVED` event + soft-delete txn |
@@ -292,8 +293,19 @@ soft-delete the credit txn, write `GroupEvent: CREDIT_REMOVED`.
 ### Create  `POST /expense/create`
 Transaction: pre-check `balance ≥ amount` → save `Expense` (optional
 `splitBetween`) → **atomic `debitGroupBalance(amount)`** (the real guard; throws
-if `null`) → `GroupTransaction: DEBIT`. **Expenses are immutable** — there is no
-PATCH; to correct, **delete and recreate**.
+if `null`) → `GroupTransaction: DEBIT`.
+
+### Edit  `PATCH /expense/update/:id` (admins **or** the payer)
+In-place update inside one transaction; the expense keeps its `_id`/`createdAt`.
+Authorization is admin-or-payer (checked in `updateExpenseService`, not via
+`authorizeRole`). Only the **amount delta** hits the pool — `debitGroupBalance` when
+↑ (atomic `$gte` guard, throws if insufficient) or `refundGroupBalance` when ↓ — and
+a `GroupTransaction` (`DEBIT`/`REFUND`) is written **only when the amount changed**.
+Every edit always writes an **`EXPENSE_EDITED` `GroupEvent`** (the **edit log**) with
+`metadata.note` + a per-field before→after `metadata.changes` diff, surfaced in the
+Activity tab. The frontend reuses `CreateExpense.tsx` (route
+`/groups/:groupId/expenses/:expenseId/edit`); `GET /expense/one/:groupId/:id`
+prefills the form. Socket: `EXPENSE_UPDATED`.
 
 ### Delete  `DELETE /expense/delete/:id` (SA/ADMIN)
 Transaction: soft-delete (`isDeleted:true`) → `refundGroupBalance(amount)` →
@@ -302,7 +314,9 @@ Transaction: soft-delete (`isDeleted:true`) → `refundGroupBalance(amount)` →
 ### Listing & reads
 - `GET /expense/allexpenses/:groupId` — **paginated** (`page`,`limit`) with optional
   filters: `categoryId`, `paidBy`, `spender` (split member OR unsplit payer),
-  `startDate`/`endDate`.
+  `startDate`/`endDate`. The frontend AllExpenses page reads these from URL query
+  params (`?categoryId=…&label=…`), so report cards, member breakdowns, and the
+  category-list rows can **deep-link into a pre-filtered view**.
 - `GET /expense/expensereport/:groupId` — today's expenses (populated).
 - `GET /expense/getExpenseAddDetails/:groupId` — `{categories, payMethods, members}`.
 - Payment types: **Cash, Card, UPI, Net Banking**.
@@ -311,9 +325,18 @@ Transaction: soft-delete (`isDeleted:true`) → `refundGroupBalance(amount)` →
 
 ## 10. Category Workflow  `/api/category`
 - `POST /create` (SA/ADMIN) — gated by plan `maxCategoriesPerGroup`; `MANAGE_CATEGORY` event.
+- `PATCH /update/:id` (SA/ADMIN) — update a category's **colour** and/or **`isSpecial`** flag in place
+  (body: `color?` and/or `isSpecial?`); `MANAGE_CATEGORY` event + `CATEGORY_UPDATED` socket. Edited
+  inline per-row on the category page (colour picker + collective toggle).
 - `DELETE /delete/:id/:groupId` (SA/ADMIN) — **soft delete** (`isDeleted:true`).
+- **Purpose-seeded defaults**: when a group is created with a `purpose`, that purpose's default
+  categories (`config/purposeCategories.ts`) are seeded in-transaction (free, bypasses the limit).
+  FAMILY includes a special `Family` category (`isSpecial:true`).
 - `GET /getCategoryDetails/:groupId` — live categories. An expense **requires** a
   category, so the UI gates "Add Expense" until at least one exists.
+- On the category page (`/groups/:groupId/categories/new`), each existing-category
+  row is clickable and deep-links to its filtered expense list
+  (`/expenses?categoryId=<id>&label=<name>`); the delete button stays separate.
 
 ---
 
@@ -322,7 +345,11 @@ All built with MongoDB aggregation; amounts summed in **raw cents** (aggregation
 skips Mongoose getters).
 - **category-breakdown** — `$group` by category, totals + share %.
 - **member-breakdown** — `by=spent` (default; `$unwind splitBetween`, who
-  *consumed*) or `by=paid` (`$group` by `paidBy`, who *paid*).
+  *consumed*) or `by=paid` (`$group` by `paidBy`, who *paid*). **Special
+  (`isSpecial`) categories are excluded** from the per-member totals and returned
+  as a separate `specialCategories` "collective" bucket; the member drill-down
+  (`getAllExpensesService` via `spender`/`paidBy` without a `categoryId`) excludes
+  them too, so the chart and its drilled-in list reconcile.
 - **spend-trend** — `$dateTrunc` buckets; granularity auto-picked by span
   (≤31 d → day, ≤182 d → week, else month).
 
@@ -350,18 +377,28 @@ the `advancedReportRange` feature (Pro/Premium) → otherwise **402**
   frozen `planSnapshot`.
 
 ### Pay with Razorpay
-1. `POST /subscription/order` → creates a Razorpay order + a `created`
+1. `POST /subscription/order` → **blocks buying a strictly lower tier while a paid
+   plan is active/grace** (mirrors the promo guard via `PLAN_RANK`; same-tier
+   renewal and upgrades allowed) → creates a Razorpay order + a `created`
    `SubscriptionPayment` row; returns `{orderId, amount, keyId}`. (Degrades to
    **503 "Payments not configured"** if Razorpay keys are unset.)
 2. Browser completes payment → `POST /subscription/verify` → **HMAC signature
    verification** + order ownership check → grant.
 3. `POST /subscription/webhook` (raw body, `payment.captured`) is the
    **server-to-server source of truth** even if the browser callback is lost.
-4. **`grantFromPayment` is atomic + idempotent**: the `created → paid`
+4. **`grantFromPayment` is atomic + idempotent**: the `created|failed → paid`
    `findOneAndUpdate` is the lock — only the first caller (browser **or** webhook)
    applies the entitlement; renewing the same tier while active **extends** from
    the current expiry, otherwise starts now. `planSource=PAYMENT` (only these
-   count toward MRR).
+   count toward MRR). (`failed` is in the lock so a capture webhook can still grant
+   an attempt the browser optimistically marked failed on dismiss.)
+5. **Payment outcome (event-driven)**: the frontend records the result of each
+   attempt — success → `verify` (→ `paid`); Razorpay `payment.failed` **or** a
+   dismissed modal → `POST /subscription/payment-failed` (`created → failed` only,
+   never overwrites `paid`).
+6. **User payment history**: `GET /subscription/transactions` lists the user's
+   recent `SubscriptionPayment` rows (Pending/Success/Failed) — shown as a
+   collapsible "Subscription transactions" section on the profile page.
 
 ### Promo codes  `POST /subscription/redeem`
 Validates active/not-expired/under-cap → blocks downgrading an active higher
@@ -474,12 +511,12 @@ categories, and events still return all rows — a known small TODO.)
 | **Auth** `/api/auth` (rate-limited) | `POST /signup`, `/login`, `/refresh`, `/logout`, `/forgot-password`, `/reset-password`, `/change-password` |
 | **User** `/api/user` | `GET /me`, `DELETE /me`, `GET /usergroups`, `GET /search`, `POST /verifyuser` |
 | **Group** `/api/group` | `POST /create`, `/:id/clone`, `DELETE /delete/:id`, `POST /managemember`, `/invitemember`, `/manageadmin`, `/addcontribution`, `/settlement`, `/leave`, `/leave/approve`, `/leave/reject`, `/leave/cancel`, `/favorite`, `GET /:id/close-preview`, `POST /:id/close`, `GET /getgroupbyid/:id`, `/getgroupmembers/:id`, `/leftcontributors/:id`, `/getbasictransaction/:id`, `/getTransaction/:id`, `/getEvent/:id`, `/allcredits/:id`, `DELETE /credit/:creditId` |
-| **Category** `/api/category` | `POST /create`, `DELETE /delete/:id/:groupId`, `GET /getCategoryDetails/:groupId` |
-| **Expense** `/api/expense` | `POST /create`, `DELETE /delete/:id`, `GET /getExpenseAddDetails/:id`, `/paymentMethods`, `/expensereport/:id`, `/allexpenses/:id` |
+| **Category** `/api/category` | `POST /create`, `PATCH /update/:id` (colour), `DELETE /delete/:id/:groupId`, `GET /getCategoryDetails/:groupId` |
+| **Expense** `/api/expense` | `POST /create`, `PATCH /update/:id`, `GET /one/:groupId/:id`, `DELETE /delete/:id`, `GET /getExpenseAddDetails/:id`, `/paymentMethods`, `/expensereport/:id`, `/allexpenses/:id` |
 | **Reports** `/api/groupreport` | `GET /:id/reports/category-breakdown`, `/member-breakdown`, `/spend-trend` |
 | **Invite** `/api/invite` | `POST /accept`, `/reject` |
 | **Notifications** `/api/notifications` | `GET /`, `/unread-count`, `PATCH /read-all`, `/:id/read`, `DELETE /:id` |
-| **Subscription** `/api/subscription` | `GET /plans`, `POST /order`, `/verify`, `/redeem`, `/webhook` |
+| **Subscription** `/api/subscription` | `GET /plans`, `GET /transactions`, `POST /order`, `/verify`, `/payment-failed`, `/redeem`, `/webhook` |
 | **Admin** `/api/admin` (APP_OWNER) | `GET /users`, `/users/:id`, `POST /users/:id/suspend`, `/restore`, `DELETE /users/:id`, `/users/:id/hard`, `POST /users/:id/plan`, `POST /promos`, `GET /promos`, `POST /promos/:id/deactivate`, `GET /promos/:id/redemptions`, `/analytics`, `/health` |
 | **Health** | `GET /health` (flat JSON, before rate limiter) |
 

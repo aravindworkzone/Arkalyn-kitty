@@ -1,9 +1,11 @@
 import { useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import DetailModal from "./DetailModal";
 import ShareCard from "./ShareCard";
 import type { Expense } from "../interface/expense";
 import { useExpenseModalHandlers } from "../handlers/useExpenseModalHandlers";
 import { useShareAsImage } from "../hooks/useShareAsImage";
+import { useGetUserQuery } from "../redux/api/auth";
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="flex items-start justify-between gap-4 py-2.5 border-b border-white/[0.05] last:border-0">
@@ -36,6 +38,10 @@ export default function ExpenseDetailModal({
     handleRefund,
   } = useExpenseModalHandlers(onClose);
 
+  const navigate = useNavigate();
+  const { data: meData } = useGetUserQuery();
+  const currentUserId = (meData as any)?.data?.user?._id as string | undefined;
+
   const cardRef = useRef<HTMLDivElement>(null);
   const {
     shareImage,
@@ -45,7 +51,10 @@ export default function ExpenseDetailModal({
     error: shareError,
   } = useShareAsImage(cardRef);
 
-  const canDelete = role === "SUPER_ADMIN" || role === "ADMIN";
+  const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
+  const canDelete = isAdmin;
+  // Admins can edit any expense; the payer can edit their own.
+  const canEdit = isAdmin || (!!currentUserId && expense?.paidBy._id === currentUserId);
 
   if (!expense) return null;
 
@@ -149,6 +158,21 @@ export default function ExpenseDetailModal({
 
       {/* hidden off-screen card used as the image source */}
       <ShareCard ref={cardRef} type="expense" expense={expense} group={group} />
+
+      {/* edit section — admins or the expense's payer */}
+      {canEdit && groupId && (
+        <div className="mt-5 pt-4 border-t border-white/[0.06]">
+          <button
+            onClick={() => {
+              handleClose();
+              navigate(`/groups/${groupId}/expenses/${expense._id}/edit`);
+            }}
+            className="w-full py-2 rounded-xl border border-cyan-500/25 bg-cyan-500/[0.08] text-cyan-300 text-[12px] font-semibold hover:bg-cyan-500/[0.15] active:bg-cyan-500/[0.15] transition-colors"
+          >
+            Edit Expense
+          </button>
+        </div>
+      )}
 
       {/* delete / refund section — admin/super_admin only */}
       {canDelete && (

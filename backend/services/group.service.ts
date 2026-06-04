@@ -6,14 +6,19 @@ import GroupEvent from "../models/group_event.model";
 import GroupMember from "../models/group_member.model";
 import GroupInvite from "../models/group_invite.model";
 import Category from "../models/category.model";
+import { GROUP_PURPOSES, type GroupPurpose } from "../models/group.model";
+import { PURPOSE_DEFAULT_CATEGORIES } from "../config/purposeCategories";
 import { createNotification } from "./notification.service";
 import { creditGroupBalance, debitGroupBalance, reverseGroupCredit, adjustMemberContribution } from "../helpers/balanceOps";
 import { getUserPlan, getGroupOwnerPlan, assertWithinLimit, assertFeature, retentionFloor, countActiveOwnedGroups } from "../helpers/planLimits";
 
-export const createGroupService = async (data: { name: string; invitees: string[]; contribution: number; superAdmin: string }) => {
+export const createGroupService = async (data: { name: string; invitees: string[]; contribution: number; superAdmin: string; purpose?: string }) => {
     const name = data.name?.trim();
     const superAdmin = data.superAdmin;
     const contribution = data.contribution ?? 0;
+    const purpose: GroupPurpose = GROUP_PURPOSES.includes(data.purpose as GroupPurpose)
+        ? (data.purpose as GroupPurpose)
+        : "OTHER";
 
     if (!superAdmin || !name) {
         throw new AppError("All fields are required", 400);
@@ -54,11 +59,28 @@ export const createGroupService = async (data: { name: string; invitees: string[
 
         const CreatGroup = new Group({
             name,
+            purpose,
             totalContribution: contribution,
             balance: contribution,
             createdBy: superAdmin,
         });
         group = await CreatGroup.save({ session });
+
+        // Seed the purpose's default categories (free — bypasses the per-group
+        // category plan limit, same as cloning). Done in-transaction so a
+        // failure rolls back the whole group creation.
+        const defaults = PURPOSE_DEFAULT_CATEGORIES[purpose] ?? [];
+        if (defaults.length > 0) {
+            await Category.insertMany(
+                defaults.map((c) => ({
+                    groupId: group!._id,
+                    name: c.name,
+                    color: c.color,
+                    isSpecial: c.isSpecial ?? false,
+                })),
+                { session }
+            );
+        }
 
         const creatorMember = new GroupMember({
             groupId: group._id,

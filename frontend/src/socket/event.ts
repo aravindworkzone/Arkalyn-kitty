@@ -6,6 +6,7 @@ export const SOCKET_EVENTS = {
     EXPENSE_DELETED: "expense:deleted",
 
     CATEGORY_CREATED: "category:created",
+    CATEGORY_UPDATED: "category:updated",
     CATEGORY_DELETED: "category:deleted",
 
     GROUP_MEMBER_ADDED: "group:member:added",

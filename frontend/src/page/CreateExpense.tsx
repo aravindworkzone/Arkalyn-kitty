@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
 import { useGetCategoriesQuery } from "../redux/api/category";
-import { useGetPaymentMethodQuery } from "../redux/api/expense";
+import { useGetPaymentMethodQuery, useGetExpenseByIdQuery } from "../redux/api/expense";
 import { useGetGroupMembersQuery, useGetGroupByIdQuery } from "../redux/api/group";
 import { useGetUserQuery } from "../redux/api/auth";
 import type { SplitEntry } from "../interface/expense";
@@ -33,7 +33,8 @@ export const fieldLabel =
   "block text-[10px] font-semibold text-white/40 mb-2 uppercase tracking-widest";
 
 export default function CreateExpensePage() {
-  const { groupId } = useParams<{ groupId: string }>();
+  const { groupId, expenseId } = useParams<{ groupId: string; expenseId?: string }>();
+  const isEdit = !!expenseId;
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { data: meData } = useGetUserQuery();
@@ -42,8 +43,17 @@ export default function CreateExpensePage() {
   const { data: categories = [], isLoading: catLoading } = useGetCategoriesQuery(groupId!, { skip: !groupId });
   const { data: groupMembers = [], isLoading: membersLoading } = useGetGroupMembersQuery(groupId!, { skip: !groupId });
   const { data: groupDetails } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
+  const { data: editExpense } = useGetExpenseByIdQuery(
+    { groupId: groupId!, expenseId: expenseId! },
+    { skip: !isEdit || !groupId }
+  );
   const groupBalance = Number(groupDetails?.balance) || 0;
-  const { handleSubmit, isCreating } = useExpenseHandlers(groupId);
+  // When editing, the old amount was already debited from the pool, so the
+  // spendable cap is the current balance PLUS the original amount (editing
+  // refunds the old then re-debits the new — same as the backend's delta).
+  const editOldAmount = isEdit ? Number(editExpense?.amount) || 0 : 0;
+  const effectiveBalance = groupBalance + editOldAmount;
+  const { handleSubmit, isSubmitting } = useExpenseHandlers(groupId, expenseId);
 
   // Only admins/super-admins manage categories — members can't create them.
   const role = groupDetails?.role as string | undefined;
@@ -71,7 +81,7 @@ export default function CreateExpensePage() {
   const yesterdayISO = new Date(Date.now() - 86_400_000).toISOString().split("T")[0];
 
   // Balance hint coloring
-  const amountIsNearLimit = totalAmount > 0 && groupBalance > 0 && totalAmount / groupBalance > 0.8;
+  const amountIsNearLimit = totalAmount > 0 && effectiveBalance > 0 && totalAmount / effectiveBalance > 0.8;
 
   // Categories sorted by most used
   const sortedCategories = [...categories].sort((a, b) => b.expenseCount - a.expenseCount);
@@ -80,8 +90,30 @@ export default function CreateExpensePage() {
   const allMembersInSplit =
     groupMembers.length > 0 && groupMembers.every((m) => splits.some((s) => s.userId === m._id));
 
+  // Prefill all fields from the existing expense when editing (once).
+  const prefilledRef = useRef(false);
+  useEffect(() => {
+    if (!isEdit || prefilledRef.current || !editExpense) return;
+    prefilledRef.current = true;
+    setTitle(editExpense.title);
+    setDescription(editExpense.description ?? "");
+    setAmount(String(editExpense.amount));
+    setDate(new Date(editExpense.date).toISOString().split("T")[0]);
+    setCategoryId(editExpense.category._id);
+    setPaymentType(editExpense.paymentType);
+    setPaidBy(editExpense.paidBy._id);
+    const editSplits = editExpense.splitBetween.map((s) => ({
+      userId: s.userId._id,
+      name: s.userId.name,
+      amount: s.amount,
+    }));
+    setSplits(editSplits);
+    setSplitEnabled(editSplits.length > 0);
+  }, [isEdit, editExpense]);
+
   // Auto-select first category (most used) when categories load
   useEffect(() => {
+    if (isEdit) return;
     if (!catLoading && categories.length > 0 && !categoryId) {
       const sorted = [...categories].sort((a, b) => b.expenseCount - a.expenseCount);
       setCategoryId(sorted[0]._id);
@@ -90,6 +122,7 @@ export default function CreateExpensePage() {
 
   // Auto-select current user in Who Paid when members load
   useEffect(() => {
+    if (isEdit) return;
     if (paidBy || !currentUserId || groupMembers.length === 0) return;
     const me = groupMembers.find((m) => m.userId._id === currentUserId);
     if (me) setPaidBy(me.userId._id);
@@ -113,7 +146,7 @@ export default function CreateExpensePage() {
       <form
         onSubmit={(e) =>
           handleSubmit(e, {
-            title, description, totalAmount, maxAmount: groupBalance,
+            title, description, totalAmount, maxAmount: effectiveBalance,
             categoryId, paidBy, splits, splitValid, splitEnabled,
             date, paymentType, setFieldError, setApiError,
           })
@@ -129,9 +162,9 @@ export default function CreateExpensePage() {
               <path d="M7 1v12M1 7h12" stroke="#67e8f9" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           }
-          label={t("createExpense.label")}
-          title={t("createExpense.title")}
-          description={t("createExpense.description")}
+          label={isEdit ? t("editExpense.label", "Edit") : t("createExpense.label")}
+          title={isEdit ? t("editExpense.title", "Edit Expense") : t("createExpense.title")}
+          description={isEdit ? t("editExpense.description", "Update the details of this expense.") : t("createExpense.description")}
         />
 
         {/* ── 01 Basic details ── */}
@@ -181,16 +214,16 @@ export default function CreateExpensePage() {
                 size="lg"
                 value={amount}
                 onChange={setAmount}
-                max={groupBalance}
+                max={effectiveBalance}
                 error={fieldErrors.amount}
                 onClearError={() => clearFieldError("amount")}
                 inputClassName={inputCls}
               />
-              {groupBalance > 0 && (
+              {effectiveBalance > 0 && (
                 <p className={`mt-1 text-[10px] font-medium transition-colors ${
                   amountIsNearLimit ? "text-amber-400/70" : "text-white/20"
                 }`}>
-                  {t("createExpense.groupBalance", { amount: groupBalance.toLocaleString("en-IN") })}
+                  {t("createExpense.groupBalance", { amount: effectiveBalance.toLocaleString("en-IN") })}
                 </p>
               )}
             </div>
@@ -508,8 +541,8 @@ export default function CreateExpensePage() {
         <ErrorMessage error={apiError} />
 
         <FormActions
-          isLoading={isCreating}
-          submitLabel={t("createExpense.save")}
+          isLoading={isSubmitting}
+          submitLabel={isEdit ? t("editExpense.save", "Save changes") : t("createExpense.save")}
           loadingLabel={t("createExpense.saving")}
           submitDataTour="create-expense-submit"
         />
