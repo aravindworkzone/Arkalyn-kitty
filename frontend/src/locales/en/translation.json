@@ -1,19 +1,16 @@
 {
   "brand": "ArkalynKitty",
   "brandFull": "Arkalyn - Fin",
-
   "nav": {
     "profile": "Profile",
     "signOut": "Sign out"
   },
-
   "notFound": {
     "title": "Page not found",
     "description": "The page you're looking for doesn't exist or may have been moved.",
     "goBack": "Go back",
     "goHome": "Go home"
   },
-
   "landing": {
     "nav": {
       "why": "Why",
@@ -22,7 +19,8 @@
       "features": "Features",
       "faq": "FAQ",
       "login": "Log in",
-      "register": "Get started"
+      "register": "Get started",
+      "pricing": "Pricing"
     },
     "hero": {
       "eyebrow": "Group expenses, without the math",
@@ -30,7 +28,11 @@
       "sub": "Arkalyn-Kitty replaces circular IOUs with a shared wallet. Everyone chips in, every expense debits the wallet, and the receipts speak for themselves.",
       "ctaPrimary": "Create a group",
       "ctaSecondary": "See how it works",
-      "badges": ["Free to try", "No card required", "Built in India"],
+      "badges": [
+        "Free to try",
+        "No card required",
+        "Built in India"
+      ],
       "cardStatus": "ACTIVE",
       "cardPaidVia": "paid via wallet"
     },
@@ -185,9 +187,29 @@
           "detail": "The app uses Socket.io group rooms to push changes the moment they happen. When someone logs an expense or adds a member, every other member's screen updates instantly — no refresh needed."
         }
       ]
+    },
+    "pricing": {
+      "kicker": "Pricing",
+      "title": "Simple plans that grow with you",
+      "sub": "Start free, no card needed. Upgrade with a one-time payment only when your groups get bigger — never an auto-renewal surprise.",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "save": "SAVE 20%",
+      "perYear": "/year",
+      "perMonth": "/month",
+      "freeForever": "Free forever",
+      "popular": "Most popular",
+      "ctaFree": "Get started free",
+      "ctaUpgrade": "Choose {{plan}}",
+      "detailsLink": "Read the full plan details →",
+      "note": "Prices in ₹, taxes included · Secured by Razorpay"
+    },
+    "support": {
+      "tagline": "Questions or something not working? We are a message away.",
+      "askCta": "Ask a question",
+      "reportCta": "Report a problem"
     }
   },
-
   "auth": {
     "welcome": "Welcome back",
     "noAccount": "Don't have an account?",
@@ -207,7 +229,6 @@
     "showPassword": "Show password",
     "hidePassword": "Hide password"
   },
-
   "groups": {
     "dashboard": "Dashboard",
     "yourGroups": "Your Groups",
@@ -220,7 +241,6 @@
     "noMatch": "No groups match \"{{search}}\"",
     "clearSearch": "Clear search"
   },
-
   "groupCard": {
     "balance": "Balance",
     "poolRemaining": "Wallet remaining",
@@ -231,13 +251,11 @@
     "favorite": "Mark favorite",
     "unfavorite": "Remove favorite"
   },
-
   "empty": {
     "noGroupsYet": "No groups yet",
     "noGroupsDesc": "Create a shared wallet and start tracking expenses together",
     "createFirst": "Create your first group"
   },
-
   "createGroup": {
     "backToGroups": "Back to groups",
     "newGroup": "New Group",
@@ -256,7 +274,6 @@
     "creating": "Creating...",
     "createGroup": "Create group"
   },
-
   "notifications": {
     "title": "Notifications",
     "empty": "No notifications yet",
@@ -287,7 +304,6 @@
       "default": "You have a new notification"
     }
   },
-
   "createExpense": {
     "label": "New Expense",
     "title": "Record an expense",
@@ -319,7 +335,6 @@
     "save": "Save Expense",
     "saving": "Saving…"
   },
-
   "createCategory": {
     "back": "Back",
     "label": "Categories",
@@ -340,7 +355,6 @@
     "noExpenses": "No expenses",
     "hasActiveExpenses": "Has active expenses"
   },
-
   "allExpenses": {
     "label": "All Expenses",
     "title": "Expense History",
@@ -352,7 +366,6 @@
     "noResults": "No results for \"{{search}}\"",
     "clearSearch": "Clear search"
   },
-
   "report": {
     "back": "Back",
     "label": "Report",
@@ -379,7 +392,6 @@
     "fieldDetails": "Details",
     "categoryReport": "Category Report"
   },
-
   "groupDetail": {
     "backToGroups": "Back to groups",
     "balance": "Balance",
@@ -437,7 +449,6 @@
     "leaveRequestSentTitle": "Leave request sent",
     "leaveRequestSentDesc": "An admin will review and settle your request before you leave."
   },
-
   "closeGroup": {
     "title": "Close Group",
     "dangerDesc": "Refund the remaining balance to members and lock the group. No further changes can be made after closing.",
@@ -456,7 +467,6 @@
     "bannerTitle": "Group closed",
     "bannerDesc": "Refunds were issued and no further changes are allowed."
   },
-
   "cloneGroup": {
     "eyebrow": "Clone group",
     "title": "Clone this group",
@@ -469,7 +479,6 @@
     "cancel": "Cancel",
     "error": "Could not clone the group. Please try again."
   },
-
   "leaveRequests": {
     "description": "Approve a request to settle the member and remove them, or reject it to keep them in the group.",
     "contributed": "Contributed ₹{{amount}}",
@@ -479,7 +488,6 @@
     "rejecting": "Rejecting…",
     "empty": "No pending leave requests"
   },
-
   "deleteModal": {
     "destructiveAction": "Destructive action",
     "typeToConfirm": "Type {{confirmText}} to confirm",
@@ -488,13 +496,11 @@
     "deleting": "Deleting...",
     "cannotUndo": "This action cannot be undone"
   },
-
   "actions": {
     "CREDIT": "Credit",
     "DEBIT": "Debit",
     "REFUND": "Refund"
   },
-
   "events": {
     "CREATE_GROUP": "Group created",
     "MEMBER_ADDED": "Member added",
@@ -502,7 +508,6 @@
     "MANAGE_CATEGORY": "Category updated",
     "CHANGE_ROLE": "Role changed"
   },
-
   "categoryReport": {
     "label": "Report",
     "title": "Where did the money go?",

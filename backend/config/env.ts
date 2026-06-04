@@ -46,6 +46,12 @@ export const env = {
     // needed) — override once you've verified your own sending domain.
     RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
     RESEND_FROM: process.env.RESEND_FROM ?? '',
+    // Inbox that receives "Ask a question" / "Report a problem" submissions from
+    // the public contact form. Defaults to the app owner's address. NOTE: with the
+    // default onboarding@resend.dev sender, Resend only delivers to the Resend
+    // account owner's verified email — set CONTACT_EMAIL to that address (or verify
+    // a domain) for delivery to work outside local dev.
+    CONTACT_EMAIL: process.env.CONTACT_EMAIL ?? 'aravind.workzone@gmail.com',
     // Razorpay (subscription billing). Optional — the app boots without keys;
     // order creation degrades to a clean 503 and the rest of the app is
     // unaffected. KEY_ID is the public identifier (also shipped to the browser

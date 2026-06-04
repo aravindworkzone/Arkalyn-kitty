@@ -14,6 +14,7 @@ import AllExpensesPage from './page/AllExpensesPage'
 import AllCreditsPage from './page/AllCreditsPage'
 import CategoryReportPage from './page/CategoryReportPage'
 import PricingPage from './page/PricingPage'
+import SubscriptionPlansPage from './page/SubscriptionPlansPage'
 import ProfilePage from './page/ProfilePage'
 import AdminDashboard from './page/admin/AdminDashboard'
 import AdminRoute from './components/AdminRoute'
@@ -46,6 +47,7 @@ function App() {
         <Route path="/register" element={<Registration />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/plans" element={<SubscriptionPlansPage />} />
 
         <Route element={<ProtectedRouter />}>
           <Route path="/groups" element={<GroupPage />} />

@@ -45,3 +45,14 @@ export const globalRateLimiter = rateLimit({
         message: 'Too many requests. Please slow down.',
     },
 });
+
+export const contactRateLimiter = rateLimit({
+    windowMs: RATE_LIMIT.CONTACT_WINDOW_MS,
+    max: RATE_LIMIT.CONTACT_MAX_REQUESTS,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Too many messages sent. Please try again later.',
+    },
+});

@@ -21,6 +21,9 @@ export const RATE_LIMIT = {
     AUTH_MAX_ATTEMPTS: 15,
     GLOBAL_WINDOW_MS: 15 * 60 * 1000,
     GLOBAL_MAX_REQUESTS: 300,
+    // Contact form is public + sends email — keep it tight to deter spam/abuse.
+    CONTACT_WINDOW_MS: 60 * 60 * 1000,
+    CONTACT_MAX_REQUESTS: 5,
 } as const;
 
 export const DB_RETRY = {
