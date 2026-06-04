@@ -29,6 +29,7 @@ import NotificationRouter from './routes/notification.router';
 import InviteRouter from './routes/invite.router';
 import SubscriptionRouter from './routes/subscription.router';
 import { Webhook as SubscriptionWebhook } from './controllers/subscription.controller';
+import ContactRouter from './routes/contact.router';
 import AdminRouter from './routes/admin.router';
 import { verifyToken, requireAppOwner } from './middlewares/auth.middleware';
 
@@ -97,6 +98,7 @@ app.use('/api/user', UserRouter);
 app.use('/api/notifications', NotificationRouter);
 app.use('/api/invite', InviteRouter);
 app.use('/api/subscription', SubscriptionRouter);
+app.use('/api/contact', ContactRouter);
 app.use('/api/admin', verifyToken, requireAppOwner, AdminRouter);
 
 app.get('/', (_req: Request, res: Response) => {

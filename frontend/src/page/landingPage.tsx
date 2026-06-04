@@ -3,6 +3,10 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { SegmentedToggle, Logo } from "../components/ui";
 import DemoShowcase from "../components/landing/DemoShowcase";
+import { PUBLIC_PLANS, TIER_ORDER, planFeatureLines } from "../helpers/plans";
+import type { PlanTier } from "../interface/subscription";
+import ContactModal from "../components/ContactModal";
+import type { ContactKind } from "../interface/contact";
 
 type Mode = "summary" | "detailed";
 
@@ -51,6 +55,7 @@ function Nav() {
     [t("landing.nav.howItWorks"), "#how"],
     [t("landing.nav.whoFor"), "#who"],
     [t("landing.nav.features"), "#features"],
+    [t("landing.nav.pricing"), "#pricing"],
     [t("landing.nav.faq"), "#faq"],
   ];
 
@@ -398,6 +403,134 @@ function Features() {
   );
 }
 
+const PRICING_THEME: Record<PlanTier, { accent: string; chip: string }> = {
+  FREE: { accent: "text-stone-500", chip: "bg-stone-100 dark:bg-stone-800 text-stone-500" },
+  PRO: { accent: "text-violet-500", chip: "bg-violet-100 dark:bg-violet-950/40 text-violet-500" },
+  PREMIUM: { accent: "text-amber-500", chip: "bg-amber-100 dark:bg-amber-950/40 text-amber-500" },
+};
+
+function Pricing() {
+  const { t } = useTranslation();
+  const [cycle, setCycle] = useState<"monthly" | "yearly">("monthly");
+
+  return (
+    <section id="pricing" className="border-b border-stone-200 dark:border-stone-800">
+      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14">
+        <SectionHeader
+          kicker={t("landing.pricing.kicker")}
+          title={t("landing.pricing.title")}
+          sub={t("landing.pricing.sub")}
+        />
+
+        {/* Billing cycle toggle */}
+        <div className="mb-10 max-[767px]:mb-8">
+          <SegmentedToggle
+            variant="light"
+            ariaLabel={t("landing.pricing.kicker")}
+            value={cycle}
+            onChange={setCycle}
+            options={[
+              { value: "monthly", label: t("landing.pricing.monthly") },
+              { value: "yearly", label: `${t("landing.pricing.yearly")} · ${t("landing.pricing.save")}` },
+            ]}
+          />
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-5 items-start">
+          {TIER_ORDER.map((tier) => {
+            const cfg = PUBLIC_PLANS[tier];
+            const theme = PRICING_THEME[tier];
+            const isPopular = tier === "PRO";
+            const price = cycle === "yearly" ? cfg.priceYearly : cfg.priceMonthly;
+            const perMonth = cycle === "yearly" && price > 0 ? Math.round(price / 12) : null;
+
+            return (
+              <div
+                key={tier}
+                className={`relative rounded-2xl border bg-white dark:bg-stone-900 p-6 flex flex-col ${
+                  isPopular
+                    ? "border-violet-300 dark:border-violet-800 ring-1 ring-violet-200 dark:ring-violet-900/50 md:-translate-y-3"
+                    : "border-stone-200 dark:border-stone-800"
+                }`}
+              >
+                {isPopular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-violet-500 text-white text-[10px] font-bold uppercase tracking-wider shadow-md shadow-violet-500/30">
+                    {t("landing.pricing.popular")}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2.5 mb-4">
+                  <span className={`text-sm font-bold uppercase tracking-wide ${theme.accent}`} translate="no">
+                    {cfg.name}
+                  </span>
+                </div>
+
+                <div className="mb-1">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-4xl font-bold tracking-tight text-stone-950 dark:text-stone-50" translate="no">
+                      ₹{price}
+                    </span>
+                    {tier !== "FREE" && (
+                      <span className="text-sm text-stone-400">
+                        {cycle === "yearly" ? t("landing.pricing.perYear") : t("landing.pricing.perMonth")}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-stone-400 mt-1 h-4" translate="no">
+                    {tier === "FREE"
+                      ? t("landing.pricing.freeForever")
+                      : perMonth !== null
+                      ? `≈ ₹${perMonth}${t("landing.pricing.perMonth")}`
+                      : ""}
+                  </p>
+                </div>
+
+                <div className="my-5 h-px bg-stone-200 dark:bg-stone-800" />
+
+                <ul className="space-y-2.5 flex-1">
+                  {planFeatureLines(tier, cfg).map((line) => (
+                    <li
+                      key={line}
+                      className="flex items-start gap-2.5 text-[13px] text-stone-600 dark:text-stone-300 leading-snug"
+                    >
+                      <svg className="w-4 h-4 mt-0.5 shrink-0 text-emerald-500" viewBox="0 0 16 16" fill="none">
+                        <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.12" />
+                        <path d="M5 8.2l2 2 4-4.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  to="/register"
+                  className={`mt-6 w-full inline-flex items-center justify-center rounded-xl py-3 text-sm font-semibold transition-colors ${
+                    isPopular
+                      ? "bg-violet-500 hover:bg-violet-600 text-white shadow-md shadow-violet-500/20"
+                      : "bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-100"
+                  }`}
+                >
+                  {tier === "FREE" ? t("landing.pricing.ctaFree") : t("landing.pricing.ctaUpgrade", { plan: cfg.name })}
+                </Link>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-[12px] text-stone-400">{t("landing.pricing.note")}</p>
+          <Link
+            to="/plans"
+            className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors"
+          >
+            {t("landing.pricing.detailsLink")}
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function FAQ() {
   const { t } = useTranslation();
   const items = t("landing.faq.items", { returnObjects: true }) as Faq[];
@@ -449,7 +582,66 @@ function FinalCTA() {
   );
 }
 
+function Footer({ onContact }: { onContact: (kind: ContactKind) => void }) {
+  const { t } = useTranslation();
+
+  return (
+    <footer className="border-t border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950">
+      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-14 max-[767px]:py-10">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div>
+            <Logo variant="word" className="h-9 w-28 rounded-md mb-3" />
+            <p className="text-sm text-stone-500 dark:text-stone-400 max-w-xs leading-relaxed">
+              {t("landing.support.tagline")}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => onContact("question")}
+              className="inline-flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-medium bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-stone-400 dark:hover:border-stone-500 transition-colors"
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M6.2 6.3a1.8 1.8 0 113.1 1.2c-.5.5-1.1.8-1.1 1.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                <circle cx="8" cy="11.4" r="0.7" fill="currentColor" />
+              </svg>
+              {t("landing.support.askCta")}
+            </button>
+            <button
+              type="button"
+              onClick={() => onContact("report")}
+              className="inline-flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-medium bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-stone-400 dark:hover:border-stone-500 transition-colors"
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <path d="M8 2.5l6 11H2l6-11z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                <path d="M8 6.5v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                <circle cx="8" cy="11.4" r="0.7" fill="currentColor" />
+              </svg>
+              {t("landing.support.reportCta")}
+            </button>
+          </div>
+        </div>
+        <div className="mt-10 pt-6 border-t border-stone-200 dark:border-stone-800 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-400">
+          <span>© {new Date().getFullYear()} {t("brand")}</span>
+          <Link to="/plans" className="hover:text-stone-600 dark:hover:text-stone-200 transition-colors">
+            {t("landing.nav.pricing")}
+          </Link>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
 export default function LandingPage() {
+  const [contactOpen, setContactOpen] = useState(false);
+  const [contactKind, setContactKind] = useState<ContactKind>("question");
+
+  const openContact = (kind: ContactKind) => {
+    setContactKind(kind);
+    setContactOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950 text-stone-950 dark:text-stone-50 font-sans antialiased">
       <Nav />
@@ -458,8 +650,11 @@ export default function LandingPage() {
       <HowItWorks />
       <WhoFor />
       <Features />
+      <Pricing />
       <FAQ />
       <FinalCTA />
+      <Footer onContact={openContact} />
+      <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} initialKind={contactKind} />
     </div>
   );
 }

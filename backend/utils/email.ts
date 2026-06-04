@@ -19,12 +19,13 @@ interface MailOptions {
     subject: string;
     html: string;
     text: string;
+    replyTo?: string;
 }
 
-export const sendEmail = async ({ to, subject, html, text }: MailOptions): Promise<void> => {
+export const sendEmail = async ({ to, subject, html, text, replyTo }: MailOptions): Promise<void> => {
     if (!resend) {
         logger.warn(
-            { to, subject },
+            { to, subject, replyTo },
             'RESEND_API_KEY not configured — email not sent. Body below for local testing:'
         );
         logger.warn(text);
@@ -39,6 +40,7 @@ export const sendEmail = async ({ to, subject, html, text }: MailOptions): Promi
         subject,
         html,
         text,
+        ...(replyTo ? { replyTo } : {}),
     });
 
     if (error) {
@@ -86,4 +88,65 @@ export const sendPasswordResetEmail = async (to: string, resetUrl: string): Prom
     </div>`;
 
     await sendEmail({ to, subject, html, text });
+};
+
+export type ContactKind = 'question' | 'report';
+
+interface ContactPayload {
+    kind: ContactKind;
+    name: string;
+    email: string;
+    subject: string;
+    message: string;
+}
+
+const escapeHtml = (s: string): string =>
+    s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+// Sends a contact-form submission ("Ask a question" / "Report a problem") to the
+// app owner's inbox. `replyTo` is set to the submitter so the owner can reply
+// straight from their mail client.
+export const sendContactEmail = async (to: string, payload: ContactPayload): Promise<void> => {
+    const label = payload.kind === 'report' ? 'Problem report' : 'Question';
+    const subject = `[${label}] ${payload.subject}`;
+
+    const text = [
+        `New ${label.toLowerCase()} from the ${APP_NAME} app.`,
+        '',
+        `From: ${payload.name} <${payload.email}>`,
+        `Subject: ${payload.subject}`,
+        '',
+        payload.message,
+    ].join('\n');
+
+    const accent = payload.kind === 'report' ? '#dc2626' : '#7c3aed';
+    const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1a1a1a">
+      <p style="display:inline-block;margin:0 0 16px;padding:4px 12px;border-radius:999px;
+                background:${accent}1a;color:${accent};font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">
+        ${label}
+      </p>
+      <h2 style="margin:0 0 16px;font-size:18px">${escapeHtml(payload.subject)}</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin:0 0 16px">
+        <tr>
+          <td style="padding:6px 0;color:#666;width:70px">From</td>
+          <td style="padding:6px 0;font-weight:600">${escapeHtml(payload.name)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#666">Email</td>
+          <td style="padding:6px 0">
+            <a href="mailto:${escapeHtml(payload.email)}" style="color:${accent};text-decoration:none">${escapeHtml(payload.email)}</a>
+          </td>
+        </tr>
+      </table>
+      <div style="white-space:pre-wrap;line-height:1.6;background:#f6f6f7;border-radius:10px;padding:16px;font-size:14px">${escapeHtml(payload.message)}</div>
+      <p style="margin:20px 0 0;font-size:12px;color:#999">Reply directly to this email to respond to ${escapeHtml(payload.name)}.</p>
+    </div>`;
+
+    await sendEmail({ to, subject, html, text, replyTo: payload.email });
 };
