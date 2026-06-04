@@ -13,6 +13,10 @@ export const verifyPaymentBodySchema = z.object({
     razorpay_signature: z.string().trim().min(1, 'razorpay_signature is required'),
 });
 
+export const markPaymentFailedBodySchema = z.object({
+    razorpay_order_id: z.string().trim().min(1, 'razorpay_order_id is required'),
+});
+
 export const redeemPromoBodySchema = z.object({
     code: z
         .string({ message: 'Promo code is required' })

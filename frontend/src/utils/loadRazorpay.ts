@@ -11,6 +11,10 @@ export interface RazorpaySuccess {
     razorpay_signature: string;
 }
 
+export interface RazorpayFailure {
+    error?: { description?: string; reason?: string; metadata?: { order_id?: string; payment_id?: string } };
+}
+
 export interface RazorpayOptions {
     key: string;
     amount: number; // paise
@@ -27,6 +31,7 @@ export interface RazorpayOptions {
 
 interface RazorpayInstance {
     open: () => void;
+    on: (event: string, cb: (resp: RazorpayFailure) => void) => void;
 }
 
 declare global {
@@ -53,8 +58,13 @@ export const loadRazorpay = (): Promise<boolean> => {
     return loaderPromise;
 };
 
-export const openRazorpayCheckout = (options: RazorpayOptions): boolean => {
+export const openRazorpayCheckout = (
+    options: RazorpayOptions,
+    onFailed?: (resp: RazorpayFailure) => void,
+): boolean => {
     if (!window.Razorpay) return false;
-    new window.Razorpay(options).open();
+    const rzp = new window.Razorpay(options);
+    if (onFailed) rzp.on("payment.failed", onFailed);
+    rzp.open();
     return true;
 };

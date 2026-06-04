@@ -26,6 +26,25 @@ export const expense = api.injectEndpoints({
                 { type: "Expense", id: arg.groupId }
             ]
         }),
+        updateExpense: builder.mutation<ApiSuccess<{ expense: Expense }>, CreateExpenseRequest & { expenseId: string }>({
+            query: ({ expenseId, ...credentials }) => ({
+                url: `/expense/update/${expenseId}`,
+                method: 'PATCH',
+                body: credentials
+            }),
+            invalidatesTags: (_result, _error, arg) => [
+                { type: "Expense", id: arg.groupId },
+                { type: "Expense", id: arg.expenseId },
+                { type: "Group", id: arg.groupId }
+            ]
+        }),
+        getExpenseById: builder.query<Expense, { groupId: string; expenseId: string }>({
+            query: ({ groupId, expenseId }) => `/expense/one/${groupId}/${expenseId}`,
+            transformResponse: (res: { data: { expense: Expense } }) => res.data.expense,
+            providesTags: (_result, _error, arg) => [
+                { type: "Expense", id: arg.expenseId }
+            ],
+        }),
         getExpenses: builder.query<unknown, string>({
             query: () => '/expense/getexpenses',
             providesTags: (_result, _error, groupId) => [
@@ -93,4 +112,4 @@ export const expense = api.injectEndpoints({
     })
 });
 
-export const { useCreateExpenseMutation, useGetExpensesQuery, useGetPaymentMethodQuery, useGetExpenseReportQuery, useGetAllExpensesInfiniteQuery, useDeleteExpenseMutation } = expense;
+export const { useCreateExpenseMutation, useUpdateExpenseMutation, useGetExpenseByIdQuery, useGetExpensesQuery, useGetPaymentMethodQuery, useGetExpenseReportQuery, useGetAllExpensesInfiniteQuery, useDeleteExpenseMutation } = expense;

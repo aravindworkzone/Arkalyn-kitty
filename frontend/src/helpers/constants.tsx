@@ -35,4 +35,5 @@ export const eventConfig: Record<string, { label: string; icon: React.ReactNode;
   MANAGE_CATEGORY: { label: "Category updated", color: "#a78bfa", icon: <path d="M2 3h4v4H2zM8 3h4v4H8zM2 9h4v4H2zM8 9h4v4H8z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/> },
   CHANGE_ROLE:     { label: "Role changed",     color: "#fbbf24", icon: <path d="M2 6h10M7 2l4 4-4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/> },
   CREDIT_REMOVED:     { label: "Credit removed",     color: "#f87171", icon: <path d="M2 6h10M7 2l4 4-4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/> },
+  EXPENSE_EDITED:  { label: "Expense edited",    color: "#38bdf8", icon: <path d="M9 2.5l2.5 2.5M2 12l1-3.5L9.5 2A1.2 1.2 0 0111 3.5L4.5 10 1 11l1-3z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/> },
 };

@@ -5,6 +5,7 @@ import type {
     PlanView,
     PlanTier,
     BillingCycle,
+    SubscriptionTransaction,
 } from "../../interface/subscription";
 
 export const subscription = api.injectEndpoints({
@@ -26,8 +27,22 @@ export const subscription = api.injectEndpoints({
         >({
             query: (body) => ({ url: '/subscription/verify', method: 'POST', body }),
             transformResponse: (res: { data: { plan: PlanView } }) => res.data.plan,
-            // Refresh /user/me so gated UI updates immediately after upgrade.
-            invalidatesTags: ['Auth'],
+            // Refresh /user/me so gated UI updates immediately after upgrade, and
+            // the profile Transactions list so the row flips to Success.
+            invalidatesTags: ['Auth', 'Subscription'],
+        }),
+        markSubscriptionPaymentFailed: builder.mutation<
+            { updated: boolean },
+            { razorpay_order_id: string }
+        >({
+            query: (body) => ({ url: '/subscription/payment-failed', method: 'POST', body }),
+            transformResponse: (res: { data: { updated: boolean } }) => res.data,
+            invalidatesTags: ['Subscription'],
+        }),
+        getSubscriptionTransactions: builder.query<SubscriptionTransaction[], void>({
+            query: () => '/subscription/transactions',
+            transformResponse: (res: { data: { transactions: SubscriptionTransaction[] } }) => res.data.transactions,
+            providesTags: ['Subscription'],
         }),
         redeemPromoCode: builder.mutation<PlanView, { code: string }>({
             query: (body) => ({ url: '/subscription/redeem', method: 'POST', body }),
@@ -41,5 +56,7 @@ export const {
     useGetPlansQuery,
     useCreateSubscriptionOrderMutation,
     useVerifySubscriptionPaymentMutation,
+    useMarkSubscriptionPaymentFailedMutation,
+    useGetSubscriptionTransactionsQuery,
     useRedeemPromoCodeMutation,
 } = subscription;

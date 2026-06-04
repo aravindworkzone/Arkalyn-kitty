@@ -46,3 +46,16 @@ export interface CreateOrderResponse {
     plan: PlanTier;
     cycle: BillingCycle;
 }
+
+export type PaymentStatus = 'created' | 'paid' | 'failed';
+
+// One subscription checkout attempt, for the profile Transactions section.
+export interface SubscriptionTransaction {
+    id: string;
+    plan: PlanTier;
+    cycle: BillingCycle;
+    amount: number; // rupees
+    status: PaymentStatus;
+    razorpayPaymentId: string | null;
+    createdAt: string;
+}

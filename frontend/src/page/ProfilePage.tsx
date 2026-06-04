@@ -8,9 +8,10 @@ import {
   useChangePasswordMutation,
 } from "../redux/api/auth";
 import { useDeleteAccountMutation } from "../redux/api/user";
+import { useGetSubscriptionTransactionsQuery } from "../redux/api/subscription";
 import { api } from "../redux/api/base";
 import type { AppDispatch } from "../redux/store";
-import type { PlanTier } from "../interface/subscription";
+import type { PlanTier, PaymentStatus } from "../interface/subscription";
 import { socket } from "../socket/socket";
 import { useTour } from "../tour/useTour";
 import Header from "../components/header";
@@ -29,6 +30,13 @@ const DELETE_KEYWORD = "DELETE";
 
 const INPUT_CLASS =
   "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-violet-500 transition-colors";
+
+// Maps a payment status to a badge label + colour for the Transactions list.
+const TX_STATUS: Record<PaymentStatus, { label: string; cls: string }> = {
+  created: { label: "Pending", cls: "border-amber-500/30 bg-amber-500/10 text-amber-300" },
+  paid:    { label: "Success", cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" },
+  failed:  { label: "Failed",  cls: "border-red-500/30 bg-red-500/10 text-red-300" },
+};
 
 // A tappable settings row with a chevron that rotates open when expanded.
 function ChevronRow({
@@ -103,6 +111,10 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwError, setPwError] = useState("");
   const [pwSuccess, setPwSuccess] = useState("");
+
+  // ── Subscription transactions (lazy — only fetched when expanded) ──
+  const [txOpen, setTxOpen] = useState(false);
+  const { data: transactions, isLoading: txLoading } = useGetSubscriptionTransactionsQuery(undefined, { skip: !txOpen });
 
   // ── Account deletion ──
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -254,6 +266,55 @@ export default function ProfilePage() {
           >
             {planName}
           </button>
+        </section>
+
+        {/* Subscription transactions (collapsible) */}
+        <section className="space-y-3">
+          <ChevronRow
+            label={t("profile.transactions", "Subscription transactions")}
+            hint={t("profile.transactionsDesc", "Your payment history")}
+            expanded={txOpen}
+            onClick={() => setTxOpen((o) => !o)}
+          />
+          {txOpen && (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+              {txLoading ? (
+                <div className="space-y-2">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="h-14 rounded-xl bg-white/[0.04] animate-pulse" style={{ animationDelay: `${i * 90}ms` }} />
+                  ))}
+                </div>
+              ) : !transactions || transactions.length === 0 ? (
+                <p className="px-1 py-6 text-center text-xs text-white/30">
+                  {t("profile.noTransactions", "No payments yet")}
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {transactions.map((tx) => {
+                    const st = TX_STATUS[tx.status];
+                    return (
+                      <li
+                        key={tx.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3.5 py-2.5"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-medium text-white/85" translate="no">
+                            {tx.plan} · {tx.cycle}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-white/35" translate="no">
+                            ₹{tx.amount.toLocaleString("en-IN")} · {formatFullDate(tx.createdAt)}
+                          </p>
+                        </div>
+                        <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${st.cls}`}>
+                          {st.label}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
         </section>
 
         {/* 4. Password reset (inline form) + 5. Language switcher */}

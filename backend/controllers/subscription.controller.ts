@@ -2,6 +2,8 @@ import {
     getPlansService,
     createSubscriptionOrderService,
     verifySubscriptionPaymentService,
+    markPaymentFailedService,
+    listSubscriptionPaymentsService,
     handleSubscriptionWebhookService,
     redeemPromoCodeService,
 } from '../services/subscription.service';
@@ -24,6 +26,18 @@ export const VerifyPayment = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
     const plan = await verifySubscriptionPaymentService(req.user._id, req.body);
     sendSuccess(res, { plan }, 'Payment verified');
+});
+
+export const MarkPaymentFailed = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    const result = await markPaymentFailedService(req.user._id, req.body.razorpay_order_id);
+    sendSuccess(res, result, 'Payment marked failed');
+});
+
+export const GetTransactions = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    const transactions = await listSubscriptionPaymentsService(req.user._id);
+    sendSuccess(res, { transactions }, 'Transactions fetched');
 });
 
 export const RedeemPromo = asyncHandler(async (req, res) => {

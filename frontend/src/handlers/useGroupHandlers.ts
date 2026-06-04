@@ -62,7 +62,8 @@ export const useGroupHandlers = () => {
     members: CreateGroupMember[],
     currentUserId: string,
     setFieldError: SetFieldError<GroupField>,
-    setApiError:   React.Dispatch<React.SetStateAction<string>>
+    setApiError:   React.Dispatch<React.SetStateAction<string>>,
+    purpose: string = "OTHER"
   ) => {
     e.preventDefault();
 
@@ -76,7 +77,7 @@ export const useGroupHandlers = () => {
     const invitees = members.filter((m) => m._id !== currentUserId).map((m) => m._id);
 
     try {
-      await createGroup({ name: groupName.trim(), contribution, invitees }).unwrap();
+      await createGroup({ name: groupName.trim(), contribution, invitees, purpose }).unwrap();
       navigate("/groups");
     } catch (err: any) {
       setApiError(err?.data?.message || "Failed to create group");

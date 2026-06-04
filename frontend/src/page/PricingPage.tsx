@@ -7,9 +7,11 @@ import {
     useGetPlansQuery,
     useCreateSubscriptionOrderMutation,
     useVerifySubscriptionPaymentMutation,
+    useMarkSubscriptionPaymentFailedMutation,
     useRedeemPromoCodeMutation,
 } from '../redux/api/subscription';
 import { usePlan } from '../hooks/usePlan';
+import { PLAN_RANK } from '../helpers/plans';
 import { loadRazorpay, openRazorpayCheckout } from '../utils/loadRazorpay';
 import type { PlanTier, BillingCycle, PlanConfig } from '../interface/subscription';
 
@@ -83,6 +85,7 @@ export default function PricingPage() {
 
     const [createOrder] = useCreateSubscriptionOrderMutation();
     const [verifyPayment] = useVerifySubscriptionPaymentMutation();
+    const [markPaymentFailed] = useMarkSubscriptionPaymentFailedMutation();
     const [redeemPromo] = useRedeemPromoCodeMutation();
 
     const [cycle, setCycle] = useState<BillingCycle>('monthly');
@@ -124,31 +127,57 @@ export default function PricingPage() {
                 return;
             }
 
-            const opened = openRazorpayCheckout({
-                key: order.keyId,
-                amount: order.amount,
-                currency: order.currency,
-                name: 'Arkalyn — Kitty',
-                description: `${tier} plan (${cycle})`,
-                order_id: order.orderId,
-                prefill: { name: user?.name, email: user?.email },
-                theme: { color: '#7c3aed' },
-                handler: async (res) => {
-                    try {
-                        await verifyPayment({
-                            razorpay_order_id: res.razorpay_order_id,
-                            razorpay_payment_id: res.razorpay_payment_id,
-                            razorpay_signature: res.razorpay_signature,
-                        }).unwrap();
-                        setMsg({ ok: true, text: `You're now on ${tier}. Enjoy your new features!` });
-                    } catch {
-                        setMsg({ ok: false, text: 'Payment captured but verification failed. Refresh in a moment — it may already be active.' });
-                    } finally {
-                        setProcessing(null);
-                    }
+            // `settled` guards the dismiss path: once a success/failure fired we
+            // must not also record the attempt as an abandonment.
+            const settled = { current: false };
+            const orderId = order.orderId;
+
+            const opened = openRazorpayCheckout(
+                {
+                    key: order.keyId,
+                    amount: order.amount,
+                    currency: order.currency,
+                    name: 'Arkalyn — Kitty',
+                    description: `${tier} plan (${cycle})`,
+                    order_id: order.orderId,
+                    prefill: { name: user?.name, email: user?.email },
+                    theme: { color: '#7c3aed' },
+                    handler: async (res) => {
+                        settled.current = true;
+                        try {
+                            await verifyPayment({
+                                razorpay_order_id: res.razorpay_order_id,
+                                razorpay_payment_id: res.razorpay_payment_id,
+                                razorpay_signature: res.razorpay_signature,
+                            }).unwrap();
+                            setMsg({ ok: true, text: `You're now on ${tier}. Enjoy your new features!` });
+                        } catch {
+                            // Don't mark failed — Razorpay may have captured it; the
+                            // webhook is the source of truth.
+                            setMsg({ ok: false, text: 'Payment captured but verification failed. Refresh in a moment — it may already be active.' });
+                        } finally {
+                            setProcessing(null);
+                        }
+                    },
+                    modal: {
+                        ondismiss: () => {
+                            if (!settled.current) {
+                                settled.current = true;
+                                markPaymentFailed({ razorpay_order_id: orderId });
+                                setMsg({ ok: false, text: 'Payment cancelled. You can try again anytime.' });
+                            }
+                            setProcessing(null);
+                        },
+                    },
                 },
-                modal: { ondismiss: () => setProcessing(null) },
-            });
+                (resp) => {
+                    // Razorpay payment.failed — record it as a failed attempt.
+                    settled.current = true;
+                    markPaymentFailed({ razorpay_order_id: orderId });
+                    setMsg({ ok: false, text: resp?.error?.description || 'Payment failed. Please try again.' });
+                    setProcessing(null);
+                },
+            );
 
             if (!opened) {
                 setMsg({ ok: false, text: 'Could not open the payment window.' });
@@ -290,6 +319,9 @@ export default function PricingPage() {
                             const cfg = plansData[tier];
                             const theme = TIER_THEME[tier];
                             const isCurrent = tier === currentTier;
+                            // Block buying a strictly lower tier while a paid plan is
+                            // still active/grace (an expired plan resolves to FREE).
+                            const isDowngrade = status !== 'expired' && PLAN_RANK[tier] < PLAN_RANK[currentTier];
                             const isPopular = tier === 'PRO';
                             const price = cycle === 'yearly' ? cfg.priceYearly : cfg.priceMonthly;
                             const perMonth = cycle === 'yearly' && price > 0 ? Math.round(price / 12) : null;
@@ -361,20 +393,27 @@ export default function PricingPage() {
 
                                     {/* CTA */}
                                     <button
-                                        disabled={tier === 'FREE' || isCurrent || processing !== null}
+                                        disabled={tier === 'FREE' || isCurrent || isDowngrade || processing !== null}
                                         onClick={() => handleUpgrade(tier)}
                                         className={`mt-6 w-full rounded-xl py-3 text-sm font-semibold transition-all duration-150 disabled:cursor-not-allowed ${
-                                            tier === 'FREE' || isCurrent ? theme.cta : `${theme.cta} disabled:opacity-60`
+                                            tier === 'FREE' || isCurrent || isDowngrade ? theme.cta : `${theme.cta} disabled:opacity-60`
                                         }`}
                                     >
                                         {processing === tier
                                             ? 'Processing…'
                                             : isCurrent
                                             ? 'Your current plan'
+                                            : isDowngrade
+                                            ? 'Lower than your plan'
                                             : tier === 'FREE'
                                             ? 'Included'
                                             : `Upgrade to ${cfg.name}`}
                                     </button>
+                                    {isDowngrade && (
+                                        <p className="mt-2 text-[10.5px] text-white/30 text-center leading-snug">
+                                            You're on {currentTier}. Downgrades take effect after it expires.
+                                        </p>
+                                    )}
                                 </div>
                             );
                         })}

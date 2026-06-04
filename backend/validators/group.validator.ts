@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { objectIdSchema, groupIdParamSchema } from './common';
+import { GROUP_PURPOSES } from '../models/group.model';
 
 export const createGroupBodySchema = z.object({
     name: z
@@ -10,6 +11,7 @@ export const createGroupBodySchema = z.object({
         .regex(/^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/, 'Name may contain letters, numbers, and single spaces'),
     contribution: z.number().nonnegative('Contribution cannot be negative'),
     invitees: z.array(objectIdSchema).default([]),
+    purpose: z.enum(GROUP_PURPOSES).default('OTHER'),
 });
 
 export const cloneGroupBodySchema = z.object({

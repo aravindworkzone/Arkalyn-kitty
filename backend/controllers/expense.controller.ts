@@ -1,6 +1,8 @@
 import {
     createExpenseService,
+    updateExpenseService,
     deleteExpenseService,
+    getExpenseByIdService,
     getExpenseAddDetailsService,
     paymentMethodService,
     expenseReportService,
@@ -25,6 +27,34 @@ export const createExpense = asyncHandler(async (req, res) => {
     emitToGroup(req.group.displayId.toString(), SOCKET_EVENTS.EXPENSE_CREATED);
 
     sendCreated(res, { expense }, 'Expense created');
+});
+
+export const updateExpense = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+    if (!req.user?._id) throw new AppError('User not authenticated', 401);
+    const expenseId = typeof req.params.id === 'string' ? req.params.id : '';
+    if (!expenseId) throw new AppError('Expense ID required', 400);
+
+    const expense = await updateExpenseService({
+        ...req.body,
+        expenseId,
+        group: req.group,
+        user: req.user._id,
+    });
+
+    emitToGroup(req.group.displayId.toString(), SOCKET_EVENTS.EXPENSE_UPDATED);
+
+    sendSuccess(res, { expense }, 'Expense updated');
+});
+
+export const getExpenseById = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+    if (!req.user?._id) throw new AppError('User not authenticated', 401);
+    const expenseId = typeof req.params.id === 'string' ? req.params.id : '';
+    if (!expenseId) throw new AppError('Expense ID required', 400);
+
+    const expense = await getExpenseByIdService(req.group._id, expenseId);
+    sendSuccess(res, { expense }, 'Expense fetched');
 });
 
 export const deleteExpense = asyncHandler(async (req, res) => {

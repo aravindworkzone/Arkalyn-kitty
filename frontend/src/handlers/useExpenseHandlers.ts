@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useCreateExpenseMutation } from "../redux/api/expense";
+import { useCreateExpenseMutation, useUpdateExpenseMutation } from "../redux/api/expense";
 import type { SplitEntry } from "../interface/expense";
 import { validateTitle, validateAmount, validateDate } from "../helpers/validators";
 import type { SetFieldError } from "../hooks/useFieldError";
@@ -51,9 +51,11 @@ export const splitEqually = (
   });
 };
 
-export const useExpenseHandlers = (groupId: string | undefined) => {
+export const useExpenseHandlers = (groupId: string | undefined, expenseId?: string) => {
   const navigate = useNavigate();
   const [createExpense, { isLoading: isCreating }] = useCreateExpenseMutation();
+  const [updateExpense, { isLoading: isUpdating }] = useUpdateExpenseMutation();
+  const isEdit = !!expenseId;
 
   const handleSubmit = async (
     e: React.FormEvent,
@@ -100,23 +102,29 @@ export const useExpenseHandlers = (groupId: string | undefined) => {
     if (!valid) return;
     if (!groupId) return;
 
+    const payload = {
+      groupId,
+      title: title.trim(),
+      description: description?.trim() || undefined,
+      amount: totalAmount,
+      date,
+      category: categoryId,
+      paymentType,
+      paidBy,
+      splitBetween: splits.map((s) => ({ userId: s.userId, amount: s.amount })),
+    };
+
     try {
-      await createExpense({
-        groupId,
-        title: title.trim(),
-        description: description?.trim() || undefined,
-        amount: totalAmount,
-        date,
-        category: categoryId,
-        paymentType,
-        paidBy,
-        splitBetween: splits.map((s) => ({ userId: s.userId, amount: s.amount })),
-      }).unwrap();
+      if (isEdit) {
+        await updateExpense({ expenseId: expenseId!, ...payload }).unwrap();
+      } else {
+        await createExpense(payload).unwrap();
+      }
       navigate(`/groups/${groupId}`);
     } catch (error: any) {
-      setApiError(error.data?.message || "Failed to create expense");
+      setApiError(error.data?.message || (isEdit ? "Failed to update expense" : "Failed to create expense"));
     }
   };
 
-  return { handleSubmit, isCreating };
+  return { handleSubmit, isCreating, isUpdating, isSubmitting: isCreating || isUpdating };
 };

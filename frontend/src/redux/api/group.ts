@@ -20,7 +20,7 @@ export interface GroupClosePreview {
 
 export const group = api.injectEndpoints({
     endpoints: (builder) => ({
-        CreateGroup : builder.mutation<ApiSuccess<{ group: Group }>, { name: string; contribution: number; invitees: string[] }>({
+        CreateGroup : builder.mutation<ApiSuccess<{ group: Group }>, { name: string; contribution: number; invitees: string[]; purpose: string }>({
             query: (credentials) => ({
                 url: '/group/create',
                 method: 'POST',

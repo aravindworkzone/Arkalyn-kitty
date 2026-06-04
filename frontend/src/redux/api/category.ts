@@ -3,6 +3,7 @@ import type { Category } from "../../interface/category";
 import type { ApiSuccess } from "../../interface/api";
 
 interface CreateCategoryRequest { groupId: string; name: string; color?: string }
+interface UpdateCategoryRequest { id: string; groupId: string; color?: string; isSpecial?: boolean }
 interface DeleteCategoryRequest { id: string; groupId: string }
 
 export const category = api.injectEndpoints({
@@ -12,6 +13,16 @@ export const category = api.injectEndpoints({
                 url: '/category/create',
                 method: 'POST',
                 body: credentials
+            }),
+            invalidatesTags: (_result, _error, arg) => [
+                { type: "Category", id: arg.groupId }
+            ]
+        }),
+        updateCategory: builder.mutation<ApiSuccess<{ category: Category }>, UpdateCategoryRequest>({
+            query: ({ id, groupId, color, isSpecial }) => ({
+                url: `/category/update/${id}`,
+                method: 'PATCH',
+                body: { groupId, ...(color !== undefined ? { color } : {}), ...(isSpecial !== undefined ? { isSpecial } : {}) }
             }),
             invalidatesTags: (_result, _error, arg) => [
                 { type: "Category", id: arg.groupId }
@@ -39,4 +50,4 @@ export const category = api.injectEndpoints({
     })
 });
 
-export const { useCreateCategoryMutation, useDeleteCategoryMutation, useGetCategoriesQuery } = category;
+export const { useCreateCategoryMutation, useUpdateCategoryMutation, useDeleteCategoryMutation, useGetCategoriesQuery } = category;

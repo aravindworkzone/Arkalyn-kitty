@@ -356,7 +356,8 @@ export default function CategoryReportPage() {
                     </div>
                 )}
 
-                {activeData && activeData.totalSpendCents === 0 && (
+                {activeData && activeData.totalSpendCents === 0 &&
+                    !(view === 'member' && memberQ.data && memberQ.data.specialCategories.length > 0) && (
                     <div className="text-center py-16 space-y-2">
                         <p className="text-white/40 text-sm font-medium">{t('categoryReport.emptyTitle')}</p>
                         <p className="text-white/25 text-xs">{t('categoryReport.emptyHint')}</p>
@@ -507,6 +508,42 @@ export default function CategoryReportPage() {
                                 </button>
                             );
                         })}
+                    </div>
+                )}
+
+                {/* MEMBER view — collective / special categories (not attributed per member) */}
+                {view === 'member' && memberQ.data && memberQ.data.specialCategories.length > 0 && (
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between px-1 pt-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30">
+                                {t('categoryReport.collective', 'Shared / collective')}
+                            </p>
+                            <p className="text-[11px] font-mono text-white/40" translate="no">
+                                {formatCents(memberQ.data.specialTotalCents, locale)}
+                            </p>
+                        </div>
+                        {memberQ.data.specialCategories.map((c) => (
+                            <button
+                                key={c.categoryId}
+                                onClick={() => goToExpenses({ categoryId: c.categoryId, label: c.name })}
+                                className="w-full text-left bg-amber-500/[0.05] border border-amber-500/15 rounded-xl px-4 py-3 hover:bg-amber-500/[0.09] active:bg-amber-500/[0.09] transition-colors"
+                            >
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.color }} />
+                                        <div className="min-w-0">
+                                            <p className="text-[13px] font-medium text-white/80 truncate leading-tight" translate="no">{c.name}</p>
+                                            <p className="text-[10px] text-white/30 mt-0.5">
+                                                {t('categoryReport.collectiveHint', 'Collective — not split per member')}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <p className="text-[14px] font-semibold font-mono text-amber-200/90 shrink-0 ml-3" translate="no">
+                                        {formatCents(c.totalCents, locale)}
+                                    </p>
+                                </div>
+                            </button>
+                        ))}
                     </div>
                 )}
 

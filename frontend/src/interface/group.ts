@@ -1,10 +1,14 @@
 import type { PlanTier } from "./subscription";
 
+export const GROUP_PURPOSES = ["FAMILY", "FRIENDS", "ROOMMATES", "TEAM", "OTHER"] as const;
+export type GroupPurpose = typeof GROUP_PURPOSES[number];
+
 export interface IGroup {
   _id: string;
   displayId: string;
   name: string;
   groupType: "POOL" | "SPLIT";
+  purpose?: GroupPurpose;
   balance: number;
   totalContribution: number;
   status: "ACTIVE" | "INACTIVE";
@@ -21,6 +25,7 @@ export interface Group {
   expenseCount: number;
   categoryCount: number;
   balance: number;
+  purpose?: GroupPurpose;
   // Present on the single-group detail view; absent from the group-list cards.
   totalContribution?: number;
   barLength: number;

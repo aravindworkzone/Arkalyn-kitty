@@ -1,6 +1,8 @@
 import express from 'express';
 import {
     createExpense,
+    updateExpense,
+    getExpenseById,
     deleteExpense,
     getExpenseAddDetails,
     paymentMethods,
@@ -11,6 +13,9 @@ import { verifyToken, authorizeRole, loadGroup, ensureGroupActive } from '../mid
 import { validate } from '../middlewares/validate.middleware';
 import {
     createExpenseBodySchema,
+    updateExpenseParamsSchema,
+    updateExpenseBodySchema,
+    getOneExpenseParamsSchema,
     deleteExpenseParamsSchema,
     deleteExpenseBodySchema,
     groupIdOnlyParamsSchema,
@@ -26,6 +31,25 @@ router.post(
     loadGroup,
     ensureGroupActive,
     createExpense
+);
+
+// Edit is gated inside the service (admins OR the expense's payer) — not via
+// authorizeRole, which can't see who paid. Hence no role middleware here.
+router.patch(
+    '/update/:id',
+    validate({ params: updateExpenseParamsSchema, body: updateExpenseBodySchema }),
+    verifyToken,
+    loadGroup,
+    ensureGroupActive,
+    updateExpense
+);
+
+router.get(
+    '/one/:groupId/:id',
+    validate({ params: getOneExpenseParamsSchema }),
+    verifyToken,
+    loadGroup,
+    getExpenseById
 );
 
 router.delete(

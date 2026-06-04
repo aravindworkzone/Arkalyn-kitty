@@ -55,6 +55,7 @@ function App() {
           <Route path="/groups/:groupId" element={<GroupDetailPage />} />
           <Route path="/groups/:groupId/expenses" element={<AllExpensesPage />} />
           <Route path="/groups/:groupId/expenses/new" element={<CreateExpense />} />
+          <Route path="/groups/:groupId/expenses/:expenseId/edit" element={<CreateExpense />} />
           <Route path="/groups/:groupId/categories/new" element={<CreateCategory />} />
           <Route path="/groups/:groupId/activity" element={<Report />} />
           <Route path="/groups/:groupId/credits" element={<AllCreditsPage />} />

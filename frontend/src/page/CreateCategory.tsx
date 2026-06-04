@@ -26,7 +26,7 @@ export default function CategoryPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const { handleAdd, handleDelete, isCreating, isDeleting } = useCategoryHandlers(groupId);
+  const { handleAdd, handleChangeColor, handleToggleSpecial, handleDelete, isCreating, isUpdatingColor, isDeleting } = useCategoryHandlers(groupId);
   const { data, isLoading } = useGetCategoriesQuery(groupId!);
 
   const [name, setName]   = useState("");
@@ -41,6 +41,20 @@ export default function CategoryPage() {
 
   const customColorRef = useRef<HTMLInputElement>(null);
   const isCustomColor = !colorOptions.includes(color);
+
+  // Inline per-row colour editor (section 02).
+  const [editingColorId, setEditingColorId] = useState<string | null>(null);
+  const [editColor, setEditColor]           = useState<string>(colorOptions[0]);
+  const [colorError, setColorError]         = useState("");
+  const editColorRef = useRef<HTMLInputElement>(null);
+  const isEditCustomColor = !colorOptions.includes(editColor);
+
+  const openColorEditor = (cat: Category) => {
+    setEditingColorId(cat._id);
+    setEditColor(cat.color);
+    setColorError("");
+  };
+  const closeColorEditor = () => { setEditingColorId(null); setColorError(""); };
 
   useEffect(() => {
     if (data) setCategories(data);
@@ -281,25 +295,73 @@ export default function CategoryPage() {
               {categories?.map((cat) => (
                 <div
                   key={cat._id}
-                  className="flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors"
+                  className="px-5 py-3.5 hover:bg-white/[0.02] transition-colors"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/groups/${groupId}/expenses?categoryId=${cat._id}&label=${encodeURIComponent(cat.name)}`)}
+                    title={t("createCategory.viewExpenses", "View expenses in this category")}
+                    className="group/cat flex items-center gap-3 min-w-0 text-left flex-1 mr-2"
+                  >
                     <div
                       className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                       style={{ background: cat.color + "20", border: `1px solid ${cat.color}40` }}
                     >
                       <span className="w-2.5 h-2.5 rounded-full" style={{ background: cat.color }} />
                     </div>
-                    <div>
-                      <p className="text-[13px] font-medium text-white/80 leading-tight" translate="no">{cat.name}</p>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-medium text-white/80 leading-tight truncate group-hover/cat:text-white transition-colors flex items-center gap-1.5" translate="no">
+                        <span className="truncate">{cat.name}</span>
+                        {cat.isSpecial && (
+                          <span className="shrink-0 text-[8px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300">
+                            {t("createCategory.collective", "Collective")}
+                          </span>
+                        )}
+                      </p>
                       <p className="text-[10px] text-white/25 mt-0.5" translate="no">
                         {cat.expenseCount > 0
                           ? t("createCategory.expense", { count: cat.expenseCount })
                           : t("createCategory.noExpenses")}
                       </p>
                     </div>
-                  </div>
+                    <svg
+                      className="w-3 h-3 shrink-0 text-white/15 opacity-0 group-hover/cat:opacity-100 group-hover/cat:text-white/40 transition-all -translate-x-1 group-hover/cat:translate-x-0"
+                      viewBox="0 0 12 12" fill="none"
+                    >
+                      <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
 
+                  <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleSpecial(cat, setApiError, setCategories)}
+                    title={t("createCategory.toggleCollective", "Toggle collective (excluded from per-member report)")}
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150 ${
+                      cat.isSpecial
+                        ? "text-amber-300 bg-amber-500/15"
+                        : "text-white/25 hover:text-amber-300 hover:bg-amber-500/10"
+                    }`}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 14 14" fill={cat.isSpecial ? "currentColor" : "none"}>
+                      <path d="M7 1.5l1.6 3.3 3.6.5-2.6 2.5.6 3.6L7 9.7l-3.2 1.7.6-3.6L1.8 5.3l3.6-.5L7 1.5z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => (editingColorId === cat._id ? closeColorEditor() : openColorEditor(cat))}
+                    title={t("createCategory.changeColor", "Change colour")}
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150 ${
+                      editingColorId === cat._id
+                        ? "text-violet-300 bg-violet-500/15"
+                        : "text-white/25 hover:text-violet-300 hover:bg-violet-500/10"
+                    }`}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                      <path d="M9.5 2.5l2 2L5 11l-2.5.5L3 9l6.5-6.5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
                   <div className="relative group/del">
                     <button
                       type="button"
@@ -328,6 +390,94 @@ export default function CategoryPage() {
                       </div>
                     )}
                   </div>
+                  </div>
+                  </div>
+
+                  {editingColorId === cat._id && (
+                    <div className="mt-3 pt-3 border-t border-white/[0.05] space-y-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {colorOptions.map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setEditColor(c)}
+                            className="w-7 h-7 rounded-full transition-all duration-150 flex items-center justify-center"
+                            style={{
+                              background: c,
+                              boxShadow: editColor === c ? `0 0 0 2px #080c14, 0 0 0 3.5px ${c}` : "none",
+                              transform: editColor === c ? "scale(1.15)" : "scale(1)",
+                            }}
+                          >
+                            {editColor === c && (
+                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                <path d="M2 5l2.5 2.5 3.5-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </button>
+                        ))}
+
+                        {isEditCustomColor && (
+                          <button
+                            type="button"
+                            onClick={() => editColorRef.current?.click()}
+                            className="w-7 h-7 rounded-full transition-all duration-150 flex items-center justify-center"
+                            style={{ background: editColor, boxShadow: `0 0 0 2px #080c14, 0 0 0 3.5px ${editColor}`, transform: "scale(1.15)" }}
+                            title={t("createCategory.customColor")}
+                          >
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                              <path d="M2 5l2.5 2.5 3.5-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => editColorRef.current?.click()}
+                          className="w-7 h-7 rounded-full border border-dashed border-white/20 text-white/40 hover:text-white/70 hover:border-white/40 active:text-white/70 active:border-white/40 flex items-center justify-center transition-colors"
+                          title={t("createCategory.customColor")}
+                        >
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                            <path d="M5 1.5v7M1.5 5h7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                          </svg>
+                        </button>
+                        <input
+                          ref={editColorRef}
+                          type="color"
+                          value={editColor}
+                          onChange={(e) => setEditColor(e.target.value)}
+                          className="sr-only"
+                          aria-label={t("createCategory.customColor")}
+                        />
+                      </div>
+
+                      {colorError && <ErrorMessage error={colorError} />}
+
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={closeColorEditor}
+                          disabled={isUpdatingColor}
+                          className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-white/10 text-white/40 hover:bg-white/[0.04] active:bg-white/[0.04] disabled:opacity-50 transition-colors"
+                        >
+                          {t("createCategory.cancel", "Cancel")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleChangeColor(cat, editColor, setColorError, setCategories, closeColorEditor)}
+                          disabled={isUpdatingColor || editColor === cat.color}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border bg-violet-500/10 border-violet-500/25 text-violet-300 hover:bg-violet-500/20 active:bg-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {isUpdatingColor && (
+                            <svg className="animate-spin" width="11" height="11" viewBox="0 0 14 14" fill="none">
+                              <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.6" opacity="0.25" />
+                              <path d="M7 1.5A5.5 5.5 0 0 1 12.5 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                            </svg>
+                          )}
+                          {isUpdatingColor ? t("createCategory.saving", "Saving…") : t("createCategory.saveColor", "Save colour")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

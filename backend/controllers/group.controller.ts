@@ -34,6 +34,7 @@ export const createGroup = asyncHandler(async (req, res) => {
         name: typeof req.body.name === 'string' ? req.body.name.trim() : '',
         invitees: Array.isArray(req.body.invitees) ? req.body.invitees : [],
         contribution: typeof req.body.contribution === 'number' ? req.body.contribution : 0,
+        purpose: typeof req.body.purpose === 'string' ? req.body.purpose : 'OTHER',
         superAdmin: req.user._id.toString(),
     };
 

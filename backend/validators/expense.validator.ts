@@ -23,6 +23,14 @@ export const createExpenseBodySchema = z.object({
     splitBetween: z.array(splitBetweenItemSchema).optional(),
 });
 
+export const updateExpenseParamsSchema = z.object({
+    id: objectIdSchema,
+});
+
+// Editing accepts the same field shape as creating. The expense id comes from
+// the route param; `groupId` in the body is still required for `loadGroup`.
+export const updateExpenseBodySchema = createExpenseBodySchema;
+
 export const deleteExpenseParamsSchema = z.object({
     id: objectIdSchema,
 });
@@ -34,6 +42,11 @@ export const deleteExpenseBodySchema = z.object({
 
 export const groupIdOnlyParamsSchema = z.object({
     groupId: groupIdParamSchema,
+});
+
+export const getOneExpenseParamsSchema = z.object({
+    groupId: groupIdParamSchema,
+    id: objectIdSchema,
 });
 
 // Pagination + optional filters for the "all expenses" list. Lets the report page

@@ -263,6 +263,22 @@
     "description": "Name your group and invite members. You set your own contribution; invitees set theirs when they accept.",
     "step1": "Group name",
     "groupNamePlaceholder": "e.g. Goa Trip 2025",
+    "purposeStep": "Purpose",
+    "purposeNote": "We'll add a starter set of categories for this purpose. You can edit them anytime.",
+    "purpose": {
+      "FAMILY": "Family",
+      "FRIENDS": "Friends",
+      "ROOMMATES": "Roommates",
+      "TEAM": "Team",
+      "OTHER": "Other"
+    },
+    "purposeHint": {
+      "FAMILY": "Household & shared bills",
+      "FRIENDS": "Outings & trips",
+      "ROOMMATES": "Rent & utilities",
+      "TEAM": "Work & events",
+      "OTHER": "Start blank"
+    },
     "step2": "Members",
     "membersAdded": "{{count}} added",
     "emailPlaceholder": "member@email.com",
@@ -353,7 +369,14 @@
     "expense_one": "{{count}} expense",
     "expense_other": "{{count}} expenses",
     "noExpenses": "No expenses",
-    "hasActiveExpenses": "Has active expenses"
+    "hasActiveExpenses": "Has active expenses",
+    "viewExpenses": "View expenses in this category",
+    "changeColor": "Change colour",
+    "saveColor": "Save colour",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "collective": "Collective",
+    "toggleCollective": "Toggle collective (excluded from per-member report)"
   },
   "allExpenses": {
     "label": "All Expenses",
@@ -506,7 +529,8 @@
     "MEMBER_ADDED": "Member added",
     "MEMBER_REMOVED": "Member removed",
     "MANAGE_CATEGORY": "Category updated",
-    "CHANGE_ROLE": "Role changed"
+    "CHANGE_ROLE": "Role changed",
+    "EXPENSE_EDITED": "Expense edited"
   },
   "categoryReport": {
     "label": "Report",
@@ -529,6 +553,8 @@
     "deleted": "Deleted",
     "emptyTitle": "No expenses in this range",
     "emptyHint": "Widen the range or add an expense to see the breakdown.",
+    "collective": "Shared / collective",
+    "collectiveHint": "Collective — not split per member",
     "errorLoading": "Couldn't load the report. Try again."
   },
   "profile": {
@@ -537,6 +563,9 @@
     "subscription": "Subscription",
     "renewsOn": "Renews {{date}}",
     "noRenewal": "No renewal — free plan",
+    "transactions": "Subscription transactions",
+    "transactionsDesc": "Your payment history",
+    "noTransactions": "No payments yet",
     "changePassword": "Change password",
     "changePasswordDesc": "Update your account password",
     "currentPassword": "Current password",

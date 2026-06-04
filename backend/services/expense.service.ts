@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Expense from "../models/expense.model";
 import Group from "../models/group.model";
 import GroupTransaction from "../models/group_transaction.model";
+import GroupEvent from "../models/group_event.model";
 import { AppError } from "../helpers/AppError";
 import User from "../models/user.model";
 import Category from "../models/category.model";
@@ -180,6 +181,234 @@ export const deleteExpenseService = async (data: { expenseId: string, groupId: s
     }
 };
 
+interface ExpenseSnapshot {
+    title: string;
+    description: string;
+    amount: number;
+    paymentType: string;
+    date: Date;
+    category: string;
+    paidBy: string;
+    splitBetween: { userId: string; amount: number }[];
+}
+
+// Build a human-readable, field-level diff of only the fields that actually
+// changed. Resolves category/user ids to names so the edit log reads naturally.
+const buildExpenseDiff = async (
+    oldV: ExpenseSnapshot,
+    newV: ExpenseSnapshot,
+    session: mongoose.ClientSession,
+) => {
+    const changes: Record<string, { from: unknown; to: unknown }> = {};
+
+    if (oldV.title !== newV.title) changes.title = { from: oldV.title, to: newV.title };
+    if (oldV.description !== newV.description)
+        changes.description = { from: oldV.description || "—", to: newV.description || "—" };
+    if (oldV.amount !== newV.amount) changes.amount = { from: oldV.amount, to: newV.amount };
+    if (oldV.paymentType !== newV.paymentType)
+        changes.paymentType = { from: oldV.paymentType, to: newV.paymentType };
+
+    const oldDate = new Date(oldV.date).toISOString().slice(0, 10);
+    const newDate = new Date(newV.date).toISOString().slice(0, 10);
+    if (oldDate !== newDate) changes.date = { from: oldDate, to: newDate };
+
+    if (oldV.category !== newV.category) {
+        const [oldCat, newCat] = await Promise.all([
+            Category.findById(oldV.category).session(session),
+            Category.findById(newV.category).session(session),
+        ]);
+        changes.category = { from: oldCat?.name ?? oldV.category, to: newCat?.name ?? newV.category };
+    }
+
+    const idSet = new Set<string>();
+    if (oldV.paidBy !== newV.paidBy) { idSet.add(oldV.paidBy); idSet.add(newV.paidBy); }
+    const splitKey = (arr: { userId: string; amount: number }[]) =>
+        JSON.stringify(arr.map((s) => [s.userId, s.amount]).sort());
+    const splitsChanged = splitKey(oldV.splitBetween) !== splitKey(newV.splitBetween);
+    if (splitsChanged) [...oldV.splitBetween, ...newV.splitBetween].forEach((s) => idSet.add(s.userId));
+
+    let nameMap: Record<string, string> = {};
+    if (idSet.size > 0) {
+        const users = await User.find({ _id: { $in: [...idSet] } }, "name").session(session);
+        nameMap = Object.fromEntries(users.map((u) => [u._id.toString(), u.name]));
+    }
+    if (oldV.paidBy !== newV.paidBy)
+        changes.paidBy = { from: nameMap[oldV.paidBy] ?? oldV.paidBy, to: nameMap[newV.paidBy] ?? newV.paidBy };
+    if (splitsChanged) {
+        const fmt = (arr: { userId: string; amount: number }[]) =>
+            arr.length === 0 ? "No split" : arr.map((s) => `${nameMap[s.userId] ?? "?"}: ₹${s.amount}`).join(", ");
+        changes.splitBetween = { from: fmt(oldV.splitBetween), to: fmt(newV.splitBetween) };
+    }
+
+    return changes;
+};
+
+export const updateExpenseService = async (data: ExpenseData & { expenseId: string }) => {
+    const groupData = data.group;
+    const groupId = groupData._id;
+    const category = data.category.trim();
+    const title = data.title.trim();
+    const amount = data.amount;
+    const splitBetween = Array.isArray(data.splitBetween) ? data.splitBetween : [];
+    const paidBy = data.paidBy.trim();
+    const paymentType = data.paymentType;
+    const date = data.date ?? null;
+    const userId = data.user;
+    const expenseId = data.expenseId;
+
+    if (!mongoose.Types.ObjectId.isValid(expenseId)) {
+        throw new AppError("Invalid expense ID format", 400);
+    }
+
+    if (!groupId || !category || !title || !amount || !paidBy || !paymentType || !date) {
+        throw new AppError("All fields are required", 400);
+    }
+
+    const ids = [groupId, category, paidBy, ...splitBetween.map((s) => s.userId)];
+    if (!ids.every((id) => mongoose.Types.ObjectId.isValid(id))) {
+        throw new AppError("Invalid ID format", 400);
+    }
+
+    if (title.length < 3 || title.length > 100) {
+        throw new AppError("Title must be between 3 and 100 characters", 400);
+    }
+
+    if (amount <= 0) {
+        throw new AppError("Valid amount required", 400);
+    }
+
+    if (!PAYMENT_TYPES.includes(paymentType)) {
+        throw new AppError("Invalid payment type", 400);
+    }
+
+    const expenseDate = new Date(date);
+    if (isNaN(expenseDate.getTime())) {
+        throw new AppError("Invalid date format", 400);
+    }
+
+    const paidByUser = await User.findById(paidBy);
+    if (!paidByUser) {
+        throw new AppError("Paid by user not found", 400);
+    }
+
+    const session = await mongoose.startSession();
+    try {
+        session.startTransaction();
+
+        const expense = await Expense.findOne({ _id: expenseId, groupId, isDeleted: false }).session(session);
+        if (!expense) throw new AppError("Expense not found", 404);
+
+        // Authorize: admins (ADMIN/SUPER_ADMIN) or the expense's own payer.
+        const member = await GroupMembers.findOne({ groupId, userId, isDeleted: false }).session(session);
+        const isAdmin = member?.role === "ADMIN" || member?.role === "SUPER_ADMIN";
+        const isPayer = expense.paidBy.equals(userId);
+        if (!isAdmin && !isPayer) {
+            throw new AppError("You are not allowed to edit this expense", 403);
+        }
+
+        // Snapshot the old values (amount getter returns rupees) before mutating.
+        const oldAmount = expense.amount;
+        const oldValues: ExpenseSnapshot = {
+            title: expense.title,
+            description: expense.description ?? "",
+            amount: oldAmount,
+            paymentType: expense.paymentType,
+            date: expense.date,
+            category: expense.category.toString(),
+            paidBy: expense.paidBy.toString(),
+            splitBetween: expense.splitBetween.map((s) => ({ userId: s.userId.toString(), amount: s.amount })),
+        };
+
+        // Adjust the pool balance by the amount delta only.
+        const delta = parseFloat((amount - oldAmount).toFixed(2));
+        if (delta > 0) {
+            const updated = await debitGroupBalance(groupId, delta, { session });
+            if (!updated) throw new AppError("Amount cannot be greater than group balance", 400);
+        } else if (delta < 0) {
+            await refundGroupBalance(groupId, -delta, { session });
+        }
+
+        // Mutate + save the document so the model's split-sum/unique validator runs.
+        expense.title = title;
+        expense.description = data.description?.trim() || undefined;
+        expense.amount = amount;
+        expense.paidBy = new mongoose.Types.ObjectId(paidBy);
+        expense.category = new mongoose.Types.ObjectId(category);
+        expense.paymentType = paymentType;
+        expense.date = expenseDate;
+        expense.splitBetween =
+            splitBetween.length > 0
+                ? splitBetween.map((s) => ({ userId: new mongoose.Types.ObjectId(s.userId), amount: s.amount })) as typeof expense.splitBetween
+                : ([] as unknown as typeof expense.splitBetween);
+        await expense.save({ session });
+
+        // Audit the balance movement (only when the amount changed).
+        if (delta !== 0) {
+            await GroupTransaction.create([{
+                groupId,
+                amount: Math.abs(delta),
+                action: delta > 0 ? "DEBIT" : "REFUND",
+                description: `Edit: "${title}" amount ${delta > 0 ? "increased" : "decreased"} by ${Math.abs(delta)} by ${paidByUser.name}`,
+                referenceId: expense._id,
+                referenceModel: "Expense",
+                performedBy: userId,
+            }], { session });
+        }
+
+        // Edit log: an EXPENSE_EDITED event with a before→after diff.
+        const changes = await buildExpenseDiff(
+            oldValues,
+            {
+                title,
+                description: data.description?.trim() || "",
+                amount,
+                paymentType,
+                date: expenseDate,
+                category,
+                paidBy,
+                splitBetween: splitBetween.map((s) => ({ userId: s.userId, amount: s.amount })),
+            },
+            session,
+        );
+        const changedFields = Object.keys(changes);
+        const note =
+            changedFields.length > 0
+                ? `Edited "${title}" — changed ${changedFields.join(", ")}`
+                : `Edited "${title}"`;
+
+        await GroupEvent.create([{
+            groupId,
+            performedBy: userId,
+            eventType: "EXPENSE_EDITED",
+            referenceId: expense._id,
+            referenceModel: "Expense",
+            metadata: { note, changes },
+        }], { session });
+
+        await session.commitTransaction();
+        return expense;
+    } catch (error: any) {
+        await session.abortTransaction();
+        throw error instanceof AppError
+            ? error
+            : new AppError(error.message || "Internal server error", error.statusCode || 500);
+    } finally {
+        session.endSession();
+    }
+};
+
+export const getExpenseByIdService = async (groupId: mongoose.Types.ObjectId, expenseId: string) => {
+    if (!mongoose.Types.ObjectId.isValid(expenseId)) {
+        throw new AppError("Invalid expense ID format", 400);
+    }
+    const expense = await Expense.findOne({ _id: expenseId, groupId, isDeleted: false })
+        .populate("paidBy")
+        .populate("category")
+        .populate("splitBetween.userId", "name email");
+    if (!expense) throw new AppError("Expense not found", 404);
+    return expense;
+};
+
 export const getExpenseAddDetailsService = async (groupId: mongoose.Types.ObjectId, _userId: mongoose.Types.ObjectId) => {
     const [categories, payMethods, members] = await Promise.all([
         Category.find({ groupId, isDeleted: false }),
@@ -242,6 +471,16 @@ export const getAllExpensesService = async (
                 { 'splitBetween.userId': filters.spender },
                 { paidBy: filters.spender, 'splitBetween.0': { $exists: false } },
             ];
+        }
+        // Member drill-downs (by spender/payer) must reconcile with the member
+        // breakdown, which excludes special "collective" categories. When no
+        // explicit category is requested, drop special categories too.
+        if (!filters.categoryId && (filters.spender || filters.paidBy)) {
+            const specialIds = await Category
+                .find({ groupId, isSpecial: true, isDeleted: false })
+                .select('_id')
+                .lean();
+            if (specialIds.length) query.category = { $nin: specialIds.map((c) => c._id) };
         }
         if (filters.startDate || filters.endDate) {
             const dateRange: Record<string, Date> = {};
