@@ -4,6 +4,7 @@ import {
     verifySubscriptionPaymentService,
     markPaymentFailedService,
     listSubscriptionPaymentsService,
+    softDeleteSubscriptionPaymentService,
     handleSubscriptionWebhookService,
     redeemPromoCodeService,
 } from '../services/subscription.service';
@@ -38,6 +39,13 @@ export const GetTransactions = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
     const transactions = await listSubscriptionPaymentsService(req.user._id);
     sendSuccess(res, { transactions }, 'Transactions fetched');
+});
+
+export const DeleteTransaction = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.params.id || typeof req.params.id !== 'string') throw new AppError('Transaction ID is required', 400);
+    const result = await softDeleteSubscriptionPaymentService(req.user._id, req.params.id);
+    sendSuccess(res, result, 'Transaction removed');
 });
 
 export const RedeemPromo = asyncHandler(async (req, res) => {

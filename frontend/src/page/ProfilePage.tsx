@@ -8,7 +8,10 @@ import {
   useChangePasswordMutation,
 } from "../redux/api/auth";
 import { useDeleteAccountMutation } from "../redux/api/user";
-import { useGetSubscriptionTransactionsQuery } from "../redux/api/subscription";
+import {
+  useGetSubscriptionTransactionsQuery,
+  useDeleteSubscriptionTransactionMutation,
+} from "../redux/api/subscription";
 import { api } from "../redux/api/base";
 import type { AppDispatch } from "../redux/store";
 import type { PlanTier, PaymentStatus } from "../interface/subscription";
@@ -115,6 +118,19 @@ export default function ProfilePage() {
   // ── Subscription transactions (lazy — only fetched when expanded) ──
   const [txOpen, setTxOpen] = useState(false);
   const { data: transactions, isLoading: txLoading } = useGetSubscriptionTransactionsQuery(undefined, { skip: !txOpen });
+  // Soft-delete: which row is awaiting confirmation, plus the mutation itself.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteTransaction, { isLoading: deletingTx }] = useDeleteSubscriptionTransactionMutation();
+
+  const handleDeleteTransaction = async (id: string) => {
+    try {
+      await deleteTransaction({ id }).unwrap();
+    } catch {
+      // List stays as-is on failure; the Subscription tag wasn't invalidated.
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  };
 
   // ── Account deletion ──
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -292,6 +308,7 @@ export default function ProfilePage() {
                 <ul className="space-y-2">
                   {transactions.map((tx) => {
                     const st = TX_STATUS[tx.status];
+                    const confirming = confirmDeleteId === tx.id;
                     return (
                       <li
                         key={tx.id}
@@ -305,9 +322,54 @@ export default function ProfilePage() {
                             ₹{tx.amount.toLocaleString("en-IN")} · {formatFullDate(tx.createdAt)}
                           </p>
                         </div>
-                        <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${st.cls}`}>
-                          {st.label}
-                        </span>
+                        {confirming ? (
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTransaction(tx.id)}
+                              disabled={deletingTx}
+                              className="rounded-md border border-red-500/30 bg-red-500/15 px-2 py-1 text-[10px] font-semibold text-red-300 transition-colors hover:bg-red-500/25 active:bg-red-500/25 disabled:opacity-40"
+                            >
+                              {deletingTx
+                                ? t("profile.removing", "Removing…")
+                                : t("profile.txRemove", "Remove")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(null)}
+                              disabled={deletingTx}
+                              className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold text-white/50 transition-colors hover:bg-white/10 active:bg-white/10 disabled:opacity-40"
+                            >
+                              {t("profile.cancel", "Cancel")}
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold ${st.cls}`}>
+                              {st.label}
+                            </span>
+                            {
+                              tx.status !== "paid" && (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteId(tx.id)}
+                                  aria-label={t("profile.txRemoveAria", "Remove from history")}
+                                  className="rounded-md p-1 text-white/30 transition-colors hover:bg-white/10 hover:text-red-300 active:bg-white/10"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                    <path
+                                      d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m1 0v12a1 1 0 01-1 1H8a1 1 0 01-1-1V7"
+                                      stroke="currentColor"
+                                      strokeWidth="1.6"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </button>
+                              )
+                            }
+                          </div>
+                        )}
                       </li>
                     );
                   })}

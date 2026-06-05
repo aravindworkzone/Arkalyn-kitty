@@ -13,6 +13,7 @@ export interface ISubscriptionPayment extends Document {
     razorpayOrderId: string;
     razorpayPaymentId?: string;
     status: PaymentStatus;
+    isDeleted: boolean; // soft-delete: hidden from the user's Transactions list
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -31,6 +32,7 @@ const subscriptionPaymentSchema = new Schema<ISubscriptionPayment>(
         razorpayOrderId: { type: String, required: true, unique: true },
         razorpayPaymentId: { type: String },
         status: { type: String, enum: ['created', 'paid', 'failed'], default: 'created', index: true },
+        isDeleted: { type: Boolean, default: false, index: true },
     },
     { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } }
 );
