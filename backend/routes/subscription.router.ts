@@ -1,5 +1,5 @@
 import express from 'express';
-import { GetPlans, CreateOrder, VerifyPayment, MarkPaymentFailed, GetTransactions, RedeemPromo } from '../controllers/subscription.controller';
+import { GetPlans, CreateOrder, VerifyPayment, MarkPaymentFailed, GetTransactions, DeleteTransaction, RedeemPromo } from '../controllers/subscription.controller';
 import { verifyToken } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import {
@@ -7,12 +7,14 @@ import {
     verifyPaymentBodySchema,
     markPaymentFailedBodySchema,
     redeemPromoBodySchema,
+    transactionIdParamSchema,
 } from '../validators/subscription.validator';
 
 const router = express.Router();
 
 router.get('/plans', verifyToken, GetPlans);
 router.get('/transactions', verifyToken, GetTransactions);
+router.delete('/transactions/:id', verifyToken, validate({ params: transactionIdParamSchema }), DeleteTransaction);
 router.post('/order', verifyToken, validate({ body: createOrderBodySchema }), CreateOrder);
 router.post('/verify', verifyToken, validate({ body: verifyPaymentBodySchema }), VerifyPayment);
 router.post('/payment-failed', verifyToken, validate({ body: markPaymentFailedBodySchema }), MarkPaymentFailed);

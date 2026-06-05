@@ -183,7 +183,7 @@ export const markPaymentFailedService = async (
 // The user's recent subscription payment attempts (newest first) for the profile
 // Transactions section. amount getter returns rupees.
 export const listSubscriptionPaymentsService = async (userId: mongoose.Types.ObjectId) => {
-    const rows = await SubscriptionPayment.find({ userId })
+    const rows = await SubscriptionPayment.find({ userId, isDeleted: { $ne: true } })
         .sort({ createdAt: -1 })
         .limit(50);
     return rows.map((r) => ({
@@ -195,6 +195,24 @@ export const listSubscriptionPaymentsService = async (userId: mongoose.Types.Obj
         razorpayPaymentId: r.razorpayPaymentId ?? null,
         createdAt: r.createdAt,
     }));
+};
+
+// Soft-deletes one of the user's own subscription payment rows so it no longer
+// shows in the Transactions list. Ownership is enforced in the filter. The row
+// is kept in the DB (audit + the grant lock still works): a webhook capture can
+// still flip a hidden 'created'/'failed' attempt to 'paid' — soft-delete only
+// hides it from the user's history view.
+export const softDeleteSubscriptionPaymentService = async (
+    userId: mongoose.Types.ObjectId,
+    paymentId: string
+) => {
+    const updated = await SubscriptionPayment.findOneAndUpdate(
+        { _id: paymentId, userId, isDeleted: { $ne: true } },
+        { isDeleted: true },
+        { new: true }
+    );
+    if (!updated) throw new AppError('Transaction not found', 404);
+    return { deleted: true };
 };
 
 // Redeems a promo code: validates it, then grants the plan immediately with no

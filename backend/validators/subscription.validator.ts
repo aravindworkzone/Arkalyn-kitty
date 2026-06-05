@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BILLING_CYCLES } from '../config/constants';
+import { objectIdSchema } from './common';
 
 // FREE is intentionally excluded — the free tier is never purchased.
 export const createOrderBodySchema = z.object({
@@ -24,6 +25,10 @@ export const redeemPromoBodySchema = z.object({
         .min(1, 'Promo code is required')
         .max(60, 'Promo code is too long')
         .toUpperCase(),
+});
+
+export const transactionIdParamSchema = z.object({
+    id: objectIdSchema,
 });
 
 export type CreateOrderDto = z.infer<typeof createOrderBodySchema>;

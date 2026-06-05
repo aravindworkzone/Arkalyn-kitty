@@ -44,6 +44,11 @@ export const subscription = api.injectEndpoints({
             transformResponse: (res: { data: { transactions: SubscriptionTransaction[] } }) => res.data.transactions,
             providesTags: ['Subscription'],
         }),
+        deleteSubscriptionTransaction: builder.mutation<{ deleted: boolean }, { id: string }>({
+            query: ({ id }) => ({ url: `/subscription/transactions/${id}`, method: 'DELETE' }),
+            transformResponse: (res: { data: { deleted: boolean } }) => res.data,
+            invalidatesTags: ['Subscription'],
+        }),
         redeemPromoCode: builder.mutation<PlanView, { code: string }>({
             query: (body) => ({ url: '/subscription/redeem', method: 'POST', body }),
             transformResponse: (res: { data: { plan: PlanView } }) => res.data.plan,
@@ -58,5 +63,6 @@ export const {
     useVerifySubscriptionPaymentMutation,
     useMarkSubscriptionPaymentFailedMutation,
     useGetSubscriptionTransactionsQuery,
+    useDeleteSubscriptionTransactionMutation,
     useRedeemPromoCodeMutation,
 } = subscription;
