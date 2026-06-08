@@ -1,18 +1,18 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom"
-import { useGetUserQuery } from "../redux/api/auth"
 import { useEffect } from "react";
 import { socket } from "../socket/socket";
 import { Logo } from "./ui";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const ProtectedRouter = () => {
   const location = useLocation();
-  const { data, isLoading } = useGetUserQuery();
+  const { user, isLoading, isAuthenticated } = useCurrentUser();
 
   useEffect(() => {
-    if (data?.data.user) {
+    if (user) {
       socket.connect();
     }
-  }, [data]);
+  }, [user]);
 
   if (isLoading) return (
     <div className="min-h-screen bg-[#080c14] flex flex-col items-center justify-center gap-6">
@@ -24,11 +24,11 @@ const ProtectedRouter = () => {
     </div>
   );
 
-  if (!data?.success && !isLoading) {
+  if (!isAuthenticated && !isLoading) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  return <Outlet context={{ user: data?.data.user }} />;
+  return <Outlet context={{ user }} />;
 }
 
 export default ProtectedRouter;

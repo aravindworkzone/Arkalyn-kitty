@@ -9,14 +9,16 @@ import { useFieldError } from '../hooks/useFieldError';
 import { FieldInput, ErrorMessage, Logo } from '../components/ui';
 import { useTranslation } from 'react-i18next';
 import { useEffect } from 'react';
-import { useGetUserQuery } from '../redux/api/auth';
+import { useCurrentUser } from '../hooks/useCurrentUser';
 
 const Templete = ({inputs, link} : AuthFormProps) => {
     const { t } = useTranslation();
     const linkText = link === "register" ? t("auth.noAccount") : t("auth.haveAccount");
     const head = link !== "register" ? t("auth.signUpAccount") : t("auth.signInAccount");
     const signButtonText = link !== "register" ? t("auth.signUp") : t("auth.signIn");
+    const { isLoading } = useCurrentUser();
     const { handleSubmit, loading } = useAuthHandlers(link);
+    const combinedLoading = loading || isLoading;
     const { fieldErrors, setFieldError, clearFieldError } = useFieldError<AuthField>();
     const [apiError, setApiError] = useState('');
     const [shownPasswords, setShownPasswords] = useState<Record<string, boolean>>({});
@@ -89,10 +91,10 @@ const Templete = ({inputs, link} : AuthFormProps) => {
                         {apiError && <ErrorMessage error={apiError} />}
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={combinedLoading}
                             className="mt-1 w-full min-h-touch py-3 rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 text-white font-semibold text-sm tracking-tight disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:opacity-90 active:scale-[0.98] transition-all cursor-pointer"
                         >
-                            {loading ? (
+                            {combinedLoading ? (
                                 <span className="flex items-center justify-center gap-2">
                                     <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
@@ -141,11 +143,11 @@ export const Registration = () => {
 }
 
 const Authentication = () => {
-    const { data } = useGetUserQuery();
+    const { user, isAuthenticated } = useCurrentUser();
     useEffect(() => {
-        if (data?.data.user) {
+        if (isAuthenticated && user) {
             // App owners land on the dashboard; everyone else on their groups.
-            window.location.href = data.data.user.role === "APP_OWNER" ? "/admin" : "/groups";
+            window.location.href = user.role === "APP_OWNER" ? "/admin" : "/groups";
         }
-    }, [data]);
+    }, [user, isAuthenticated]);
 }

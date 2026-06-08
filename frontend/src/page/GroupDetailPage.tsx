@@ -13,7 +13,7 @@ import {
   useGetGroupByIdQuery,
   useGetLeftContributorsQuery,
 } from "../redux/api/group";
-import { useGetUserQuery } from "../redux/api/auth";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useGroupDetailHandlers } from "../handlers/useGroupDetailHandlers";
 import { roleGrade, roleLabel } from "../helpers/constants";
 import type { SettingsTab } from "../interface/group";
@@ -82,8 +82,7 @@ export default function GroupDetailPage() {
     useGetLeftContributorsQuery(groupId!, { skip: !groupId });
   const { data: categories = [], isLoading: catLoading } =
     useGetCategoriesQuery(groupId!, { skip: !groupId });
-  const { data: meData } = useGetUserQuery();
-  const currentUserId = meData?.data?.user?._id;
+  const { userId: currentUserId } = useCurrentUser();
 
   // Feed the current group's balance into the tour engine so its `skipWhen`
   // predicates can short-circuit the contribution detour when the wallet is

@@ -1,5 +1,5 @@
-import { useGetUserQuery } from "../redux/api/auth";
 import type { PlanView } from "../interface/subscription";
+import { useCurrentUser } from "./useCurrentUser";
 
 // Fallback used while /user/me is loading or for older payloads without a
 // subscription block — mirrors the backend FREE entitlements.
@@ -21,8 +21,8 @@ const FREE_VIEW: PlanView = {
 // Reads the current user's effective plan from the cached /user/me query so any
 // component can gate features without prop-drilling.
 export function usePlan() {
-    const { data, isLoading } = useGetUserQuery();
-    const subscription: PlanView = data?.data?.user?.subscription ?? FREE_VIEW;
+    const { user, isLoading } = useCurrentUser();
+    const subscription: PlanView = user?.subscription ?? FREE_VIEW;
 
     return {
         isLoading,

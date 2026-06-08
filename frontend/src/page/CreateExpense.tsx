@@ -4,7 +4,7 @@ import Header from "../components/header";
 import { useGetCategoriesQuery } from "../redux/api/category";
 import { useGetPaymentMethodQuery, useGetExpenseByIdQuery } from "../redux/api/expense";
 import { useGetGroupMembersQuery, useGetGroupByIdQuery } from "../redux/api/group";
-import { useGetUserQuery } from "../redux/api/auth";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import type { SplitEntry } from "../interface/expense";
 import {
   useExpenseHandlers, toggleSplit, updateSplitAmount,
@@ -37,8 +37,8 @@ export default function CreateExpensePage() {
   const isEdit = !!expenseId;
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { data: meData } = useGetUserQuery();
-  const currentUserId = (meData as any)?.data?.user?._id as string | undefined;
+  const { userId } = useCurrentUser();
+  const currentUserId = userId ?? undefined;
   const { data: paymentTypes = [], isLoading: pmLoading } = useGetPaymentMethodQuery();
   const { data: categories = [], isLoading: catLoading } = useGetCategoriesQuery(groupId!, { skip: !groupId });
   const { data: groupMembers = [], isLoading: membersLoading } = useGetGroupMembersQuery(groupId!, { skip: !groupId });

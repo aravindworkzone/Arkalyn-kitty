@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGetUserGroupsQuery } from "../redux/api/user";
-import { useGetUserQuery } from "../redux/api/auth";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useToggleFavoriteMutation } from "../redux/api/group";
 import Header from "../components/header";
 import EmptyState from "../components/EmptyList";
@@ -15,8 +15,7 @@ import { clearGroupId } from "../redux/slice/group.slice";
 const GroupPage = () => {
   const navigate = useNavigate();
   const { data, isLoading } = useGetUserGroupsQuery();
-  const { data: me } = useGetUserQuery();
-  const isOwner = me?.data?.user?.role === "APP_OWNER";
+  const { isAppOwner: isOwner } = useCurrentUser();
   const groups = data?.data?.groups || [];
   const [search, setSearch] = useState("");
   const { t } = useTranslation();
