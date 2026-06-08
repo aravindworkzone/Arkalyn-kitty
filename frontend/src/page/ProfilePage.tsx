@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
 import {
-  useGetUserQuery,
   useSignOutMutation,
   useChangePasswordMutation,
 } from "../redux/api/auth";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useDeleteAccountMutation } from "../redux/api/user";
 import {
   useGetSubscriptionTransactionsQuery,
@@ -98,10 +98,8 @@ export default function ProfilePage() {
   const dispatch = useDispatch<AppDispatch>();
   const { start: startTour, reset: resetTour } = useTour();
 
-  // Read the authenticated user straight from the RTK Query store cache — the
-  // app's single source of truth for the session (there is no user slice).
-  const { data } = useGetUserQuery();
-  const user: ProfileUser = data?.data?.user ?? {};
+  const { user: currentUser } = useCurrentUser();
+  const user: ProfileUser = currentUser ?? {};
 
   const [signOut, { isLoading: signingOut }] = useSignOutMutation();
   const [changePassword, { isLoading: changingPassword }] = useChangePasswordMutation();

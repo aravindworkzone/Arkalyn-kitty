@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/header';
 import { PageBackground } from '../components/ui';
-import { useGetUserQuery } from '../redux/api/auth';
+import { useCurrentUser } from '../hooks/useCurrentUser';
 import {
     useGetPlansQuery,
     useCreateSubscriptionOrderMutation,
@@ -80,7 +80,7 @@ const featureLines = (tier: PlanTier, cfg: PlanConfig): string[] => {
 export default function PricingPage() {
     const navigate = useNavigate();
     const { data: plansData, isLoading: plansLoading } = useGetPlansQuery();
-    const { data: userData } = useGetUserQuery();
+    const { user } = useCurrentUser();
     const { tier: currentTier, status, plan } = usePlan();
 
     const [createOrder] = useCreateSubscriptionOrderMutation();
@@ -110,8 +110,6 @@ export default function PricingPage() {
             setRedeeming(false);
         }
     };
-
-    const user = userData?.data?.user;
 
     const handleUpgrade = async (tier: PlanTier) => {
         if (tier === 'FREE') return;

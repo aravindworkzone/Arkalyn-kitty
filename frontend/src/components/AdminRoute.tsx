@@ -1,11 +1,11 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { useGetUserQuery } from "../redux/api/auth";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 // Gate for /admin/*. Requires an authenticated APP_OWNER; anyone else gets a 403
 // screen. Sits inside ProtectedRouter so auth is already guaranteed.
 const AdminRoute = () => {
     const location = useLocation();
-    const { data, isLoading } = useGetUserQuery();
+    const { user, isLoading, isAppOwner, isAuthenticated } = useCurrentUser();
 
     if (isLoading) {
         return (
@@ -15,11 +15,11 @@ const AdminRoute = () => {
         );
     }
 
-    if (!data?.success) {
+    if (!isAuthenticated) {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    if (data?.data?.user?.role !== "APP_OWNER") {
+    if (!isAppOwner) {
         return (
             <div className="min-h-screen bg-[#080c14] text-white flex flex-col items-center justify-center gap-3 px-6 text-center">
                 <p className="text-5xl font-bold text-white/80">403</p>
@@ -29,7 +29,7 @@ const AdminRoute = () => {
         );
     }
 
-    return <Outlet context={{ user: data?.data?.user }} />;
+    return <Outlet context={{ user }} />;
 };
 
 export default AdminRoute;
