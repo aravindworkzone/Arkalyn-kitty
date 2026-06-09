@@ -150,6 +150,16 @@ export default function CategoryReportPage() {
     const [preset, setPreset] = useState<ReportPreset>('this_month');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
+
+    const toggleHiddenCategory = (categoryId: string) => {
+        setHiddenCategories((prev) => {
+            const next = new Set(prev);
+            if (next.has(categoryId)) next.delete(categoryId);
+            else next.add(categoryId);
+            return next;
+        });
+    };
 
     // A closed group has no this/last-month view — default such groups to All time.
     useEffect(() => {
@@ -180,6 +190,15 @@ export default function CategoryReportPage() {
     const categoryQ = useGetCategoryBreakdownQuery(args, { skip: skip || view !== 'category' });
     const memberQ = useGetMemberBreakdownQuery(memberArgs, { skip: skip || view !== 'member' });
     const trendQ = useGetSpendTrendQuery(args, { skip: skip || view !== 'trend' });
+
+    const visibleRows = useMemo(
+        () => categoryQ.data?.categories.filter((row) => !hiddenCategories.has(row.categoryId)) ?? [],
+        [categoryQ.data, hiddenCategories]
+    );
+    const visibleTotalCents = useMemo(
+        () => visibleRows.reduce((s, r) => s + r.totalCents, 0),
+        [visibleRows]
+    );
 
     const activeQ = view === 'category' ? categoryQ : view === 'member' ? memberQ : trendQ;
     const activeData = activeQ.data;
@@ -368,13 +387,37 @@ export default function CategoryReportPage() {
                 {view === 'category' && categoryQ.data && categoryQ.data.totalSpendCents > 0 && (
                     <>
                         <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 flex flex-col items-center">
-                            <Donut rows={categoryQ.data.categories} totalCents={categoryQ.data.totalSpendCents} />
+                            <Donut rows={visibleRows} totalCents={visibleTotalCents || 1} />
                             <p className="text-[11px] uppercase tracking-widest text-white/30 mt-4">
                                 {t('categoryReport.totalSpent')}
                             </p>
                             <p className="text-2xl font-semibold font-mono text-[#f0eeff] mt-1" translate="no">
-                                {formatCents(categoryQ.data.totalSpendCents, locale)}
+                                {formatCents(visibleTotalCents, locale)}
                             </p>
+                            <div className="flex flex-wrap justify-center gap-1.5 mt-5 w-full">
+                                {categoryQ.data.categories.map((row) => {
+                                    const hidden = hiddenCategories.has(row.categoryId);
+                                    return (
+                                        <button
+                                            key={row.categoryId}
+                                            onClick={() => toggleHiddenCategory(row.categoryId)}
+                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-200 ${
+                                                hidden
+                                                    ? 'bg-white/[0.03] text-white/30'
+                                                    : 'bg-white/[0.07] text-white/70'
+                                            }`}
+                                        >
+                                            <span
+                                                className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                                                    hidden ? 'opacity-20' : 'opacity-100'
+                                                }`}
+                                                style={{ background: row.color }}
+                                            />
+                                            <span className={hidden ? 'line-through' : ''}>{row.name}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
 
                         <div className="space-y-2">
