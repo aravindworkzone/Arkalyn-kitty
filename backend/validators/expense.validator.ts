@@ -61,5 +61,13 @@ export const allExpensesQuerySchema = paginationQuerySchema.extend({
     endDate: z.coerce.date({ message: 'Invalid end date' }).optional(),
 });
 
+export const duplicateCheckQuerySchema = z.object({
+    amount: z.coerce.number().int().positive('Amount must be positive integer (paise)'),
+    date: z.coerce.date({ message: 'Invalid date' }),
+    category: objectIdSchema.optional(),
+    excludeExpenseId: objectIdSchema.optional(),
+});
+
 export type CreateExpenseDto = z.infer<typeof createExpenseBodySchema>;
 export type AllExpensesQuery = z.infer<typeof allExpensesQuerySchema>;
+export type DuplicateCheckQuery = z.infer<typeof duplicateCheckQuerySchema>;

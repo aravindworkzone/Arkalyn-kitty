@@ -7,6 +7,7 @@ import {
     paymentMethodService,
     expenseReportService,
     getAllExpensesService,
+    checkDuplicateExpenseService,
 } from '../services/expense.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendCreated, sendPaginated } from '../utils/response';
@@ -108,4 +109,24 @@ export const getAllExpenses = asyncHandler(async (req, res) => {
         endDate,
     });
     sendPaginated(res, items, total, page, limit, 'Expenses fetched');
+});
+
+export const checkDuplicateExpense = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const { amount, date, category, excludeExpenseId } = req.query as {
+        amount: string;
+        date: string;
+        category?: string;
+        excludeExpenseId?: string;
+    };
+
+    const result = await checkDuplicateExpenseService(
+        req.group._id,
+        Number(amount),
+        new Date(date),
+        category,
+        excludeExpenseId,
+    );
+    sendSuccess(res, result, 'Duplicate check complete');
 });

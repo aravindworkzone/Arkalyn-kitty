@@ -8,6 +8,7 @@ import {
     paymentMethods,
     expenseReport,
     getAllExpenses,
+    checkDuplicateExpense,
 } from '../controllers/expense.controller';
 import { verifyToken, authorizeRole, loadGroup, ensureGroupActive } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
@@ -20,6 +21,7 @@ import {
     deleteExpenseBodySchema,
     groupIdOnlyParamsSchema,
     allExpensesQuerySchema,
+    duplicateCheckQuerySchema,
 } from '../validators/expense.validator';
 
 const router = express.Router();
@@ -68,6 +70,15 @@ router.get(
     verifyToken,
     loadGroup,
     getExpenseAddDetails
+);
+
+router.get(
+    '/duplicate-check/:groupId',
+    validate({ params: groupIdOnlyParamsSchema, query: duplicateCheckQuerySchema }),
+    verifyToken,
+    loadGroup,
+    authorizeRole('MEMBER', 'ADMIN', 'SUPER_ADMIN'),
+    checkDuplicateExpense
 );
 
 router.get('/paymentMethods', verifyToken, paymentMethods);
