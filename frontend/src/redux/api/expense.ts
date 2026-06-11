@@ -14,6 +14,28 @@ export interface CreateExpenseRequest {
     splitBetween?: { userId: string; amount: number }[];
 }
 
+export interface DuplicateCheckParams {
+    groupId: string;
+    amount: number;
+    date: string;
+    category?: string;
+    excludeExpenseId?: string;
+}
+
+export interface DuplicateMatch {
+    _id: string;
+    title: string;
+    amount: number;
+    date: string;
+    category: { name: string };
+    createdBy: { name: string };
+}
+
+export interface DuplicateCheckResponse {
+    tier: 1 | 2 | null;
+    match: DuplicateMatch | null;
+}
+
 export const expense = api.injectEndpoints({
     endpoints: (builder) => ({
         createExpense: builder.mutation<ApiSuccess<{ expense: Expense }>, CreateExpenseRequest>({
@@ -109,7 +131,35 @@ export const expense = api.injectEndpoints({
                 { type: "Group", id: arg.groupId }
             ]
         }),
+        checkDuplicate: builder.query<DuplicateCheckResponse, DuplicateCheckParams>({
+            query: ({ groupId, amount, date, category, excludeExpenseId }) => {
+                const params = new URLSearchParams();
+                params.set('amount', String(amount));
+                params.set('date', date);
+                if (category) params.set('category', category);
+                if (excludeExpenseId) params.set('excludeExpenseId', excludeExpenseId);
+                return `/expense/duplicate-check/${groupId}?${params.toString()}`;
+            },
+            transformResponse: (res: { data: DuplicateCheckResponse }) => {
+                const { tier, match } = res.data;
+                if (!match) return { tier, match: null };
+                return {
+                    tier,
+                    match: { ...match, amount: match.amount / 100 },
+                };
+            },
+        }),
     })
 });
 
-export const { useCreateExpenseMutation, useUpdateExpenseMutation, useGetExpenseByIdQuery, useGetExpensesQuery, useGetPaymentMethodQuery, useGetExpenseReportQuery, useGetAllExpensesInfiniteQuery, useDeleteExpenseMutation } = expense;
+export const {
+    useCreateExpenseMutation,
+    useUpdateExpenseMutation,
+    useGetExpenseByIdQuery,
+    useGetExpensesQuery,
+    useGetPaymentMethodQuery,
+    useGetExpenseReportQuery,
+    useGetAllExpensesInfiniteQuery,
+    useDeleteExpenseMutation,
+    useLazyCheckDuplicateQuery,
+} = expense;

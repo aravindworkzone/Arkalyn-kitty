@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import Expense from "../models/expense.model";
+import Expense, { IExpense } from "../models/expense.model";
 import Group from "../models/group.model";
 import GroupTransaction from "../models/group_transaction.model";
 import GroupEvent from "../models/group_event.model";
@@ -504,3 +504,74 @@ export const getAllExpensesService = async (
         throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }
 }
+
+export interface DuplicateCheckResult {
+    tier: 1 | 2 | null;
+    match: {
+        _id: string;
+        title: string;
+        amount: number;
+        date: Date;
+        category: { name: string };
+        createdBy: { name: string };
+    } | null;
+}
+
+export const checkDuplicateExpenseService = async (
+    groupId: mongoose.Types.ObjectId,
+    amount: number,
+    date: Date,
+    categoryId?: string,
+    excludeExpenseId?: string
+): Promise<DuplicateCheckResult> => {
+    if (!mongoose.Types.ObjectId.isValid(groupId)) {
+        throw new AppError("Invalid group ID format", 400);
+    }
+
+    const startOfDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const endOfDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999));
+
+    const baseQuery: Record<string, unknown> = {
+        groupId,
+        isDeleted: false,
+        amount,
+        date: { $gte: startOfDay, $lt: endOfDay },
+    };
+    if (excludeExpenseId && mongoose.Types.ObjectId.isValid(excludeExpenseId)) {
+        baseQuery._id = { $ne: excludeExpenseId };
+    }
+
+    const runQuery = async (query: Record<string, unknown>) => {
+        type PopulatedExpense = Omit<IExpense, "category" | "paidBy"> & {
+            category: {
+                name: string;
+            };
+            paidBy: {
+                name: string;
+            };
+        };
+        const expense = await Expense.findOne(query)
+            .populate("category", "name")
+            .populate("paidBy", "name")
+            .lean<PopulatedExpense>();
+        if (!expense) return null;
+        return {
+            _id: expense._id.toString(),
+            title: expense.title,
+            amount: expense.amount,
+            date: expense.date,
+            category: { name: (expense.category as { name: string }).name },
+            createdBy: { name: (expense.paidBy as { name: string }).name },
+        };
+    };
+
+    if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
+        const tier2Match = await runQuery({ ...baseQuery, category: categoryId });
+        if (tier2Match) return { tier: 2, match: tier2Match };
+    }
+
+    const tier1Match = await runQuery(baseQuery);
+    if (tier1Match) return { tier: 1, match: tier1Match };
+
+    return { tier: null, match: null };
+};

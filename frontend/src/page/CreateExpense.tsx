@@ -1,8 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
 import { useGetCategoriesQuery } from "../redux/api/category";
-import { useGetPaymentMethodQuery, useGetExpenseByIdQuery } from "../redux/api/expense";
+import {
+  useGetPaymentMethodQuery,
+  useGetExpenseByIdQuery,
+  useLazyCheckDuplicateQuery,
+} from "../redux/api/expense";
+import type { DuplicateMatch } from "../redux/api/expense";
 import { useGetGroupMembersQuery, useGetGroupByIdQuery } from "../redux/api/group";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import type { SplitEntry } from "../interface/expense";
@@ -22,6 +27,8 @@ import {
   AmountInput,
   DATE_INPUT_EXTRA,
 } from "../components/ui";
+import DuplicateNoticeBar from "../components/ui/DuplicateNoticeBar";
+import DuplicateExpenseModal from "../components/ui/DuplicateExpenseModal";
 import { sanitizeAmount, MIN_DATE, todayISODate } from "../helpers/validators";
 import { useFieldError } from "../hooks/useFieldError";
 import { useTranslation } from "react-i18next";
@@ -71,7 +78,69 @@ export default function CreateExpensePage() {
   const { fieldErrors, setFieldError, clearFieldError } = useFieldError<ExpenseField>();
   const [apiError, setApiError]         = useState("");
 
+  const [trigger, { data: dupData }] = useLazyCheckDuplicateQuery();
+  const [dupTier, setDupTier] = useState<1 | 2 | null>(null);
+  const [dupMatch, setDupMatch] = useState<DuplicateMatch | null>(null);
+  const [dupModalOpen, setDupModalOpen] = useState(false);
+  const dupBypassRef = useRef(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Debounced duplicate check — fires 400ms after amount/date/category settle.
+  // Resets previous match on every field change (auto-dismiss).
   const totalAmount = parseFloat(parseFloat(amount || "0").toFixed(2)) || 0;
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    setDupTier(null);
+    setDupMatch(null);
+    setDupModalOpen(false);
+
+    if (!totalAmount || !date || !groupId) return;
+
+    debounceRef.current = setTimeout(() => {
+      trigger({
+        groupId,
+        amount: totalAmount,
+        date,
+        category: categoryId || undefined,
+        ...(isEdit && expenseId ? { excludeExpenseId: expenseId } : {}),
+      });
+    }, 400);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [totalAmount, date, categoryId, groupId, isEdit, expenseId, trigger]);
+
+  // Process API response — show notice bar (tier 1) or modal (tier 2).
+  // Only run when dupData changes (new API response). Do NOT include categoryId
+  // here — the debounce effect already clears dupTier/dupMatch on field change,
+  // and adding categoryId would re-run this effect with stale dupData, reopening
+  // a modal that should have been dismissed.
+  useEffect(() => {
+    if (!dupData) return;
+    setDupTier(dupData.tier);
+    setDupMatch(dupData.match);
+    if (dupData.tier === 2 && dupData.match && categoryId) {
+      setDupModalOpen(true);
+    }
+  }, [dupData]);
+
+  const handleDupConfirm = () => {
+    setDupModalOpen(false);
+    dupBypassRef.current = true;
+    setDupTier(null);
+    setDupMatch(null);
+  };
+
+  const handleDupCancel = () => {
+    setDupModalOpen(false);
+    setDupTier(null);
+    setDupMatch(null);
+    navigate(-1);
+  };
+
   const splitTotal  = parseFloat(splits.reduce((s, e) => s + (e.amount || 0), 0).toFixed(2));
   const splitDiff   = parseFloat((totalAmount - splitTotal).toFixed(2));
   const splitValid  = splitDiff === 0;
@@ -144,13 +213,20 @@ export default function CreateExpensePage() {
       <Header />
 
       <form
-        onSubmit={(e) =>
+        ref={formRef}
+        onSubmit={(e) => {
+          if (dupTier === 2 && dupMatch && !dupBypassRef.current) {
+            e.preventDefault();
+            setDupModalOpen(true);
+            return;
+          }
+          dupBypassRef.current = false;
           handleSubmit(e, {
             title, description, totalAmount, maxAmount: effectiveBalance,
             categoryId, paidBy, splits, splitValid, splitEnabled,
             date, paymentType, setFieldError, setApiError,
-          })
-        }
+          });
+        }}
         className="relative max-w-xl mx-auto px-4 pt-8 pb-18 space-y-3"
       >
         <BackButton />
@@ -263,6 +339,10 @@ export default function CreateExpensePage() {
             </div>
           </div>
         </FormSection>
+
+        {dupTier === 1 && dupMatch && (
+          <DuplicateNoticeBar match={dupMatch} />
+        )}
 
         {/* ── 02 Category + Payment ── */}
         <FormSection step="02" title={t("createExpense.categoryPayment")} contentClass="px-5 py-4 space-y-4">
@@ -547,6 +627,15 @@ export default function CreateExpensePage() {
           submitDataTour="create-expense-submit"
         />
       </form>
+
+      {dupMatch && (
+        <DuplicateExpenseModal
+          isOpen={dupModalOpen}
+          onClose={handleDupCancel}
+          onConfirm={handleDupConfirm}
+          match={dupMatch}
+        />
+      )}
     </div>
   );
 }
