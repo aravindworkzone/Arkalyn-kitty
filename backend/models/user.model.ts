@@ -20,6 +20,15 @@ export interface IUser extends Document {
     planCycle: BillingCycle | null;
     planSource: PlanSource | null;
     lastLoginAt: Date | null;
+    // Personal API key for read-only programmatic access (MCP server).
+    // `apiKey` is the bcrypt hash — never the plaintext, which is shown to the
+    // user exactly once at generation. `apiKeyPrefix` is the plaintext leading
+    // segment kept for display ("ak_live_XXXXXXXX…") AND as a fast lookup filter
+    // so apiKeyAuth can narrow candidates before the (non-deterministic) bcrypt
+    // compare. All three are null until a key is generated, cleared on revoke.
+    apiKey: string | null;
+    apiKeyPrefix: string | null;
+    apiKeyCreatedAt: Date | null;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -35,6 +44,12 @@ const userSchema = new Schema<IUser>({
     planCycle: {type: String, enum: BILLING_CYCLES, default: null},
     planSource: {type: String, enum: PLAN_SOURCES, default: null},
     lastLoginAt: {type: Date, default: null},
+    // select:false — the hash never ships in a normal query/response; apiKeyAuth
+    // opts in explicitly with .select('+apiKey'). The prefix index makes the
+    // per-request key lookup a single keyed read instead of a collection scan.
+    apiKey: {type: String, default: null, select: false},
+    apiKeyPrefix: {type: String, default: null, index: true},
+    apiKeyCreatedAt: {type: Date, default: null},
 }, {timestamps: true});
 
 // Admin user list sorts by newest first over the whole collection; an index on
