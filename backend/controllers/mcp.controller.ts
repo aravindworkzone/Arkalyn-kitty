@@ -17,6 +17,20 @@ export const McpBalance = asyncHandler(async (req, res) => {
     sendSuccess(res, data, 'Balances fetched');
 });
 
+// Parses a query param as a date, throwing 400 if present but unparseable so a
+// malformed filter fails loudly instead of being silently ignored.
+const parseDateParam = (value: unknown, name: string): Date | undefined => {
+    if (typeof value !== 'string' || !value.trim()) return undefined;
+    const d = new Date(value.trim());
+    if (Number.isNaN(d.getTime())) {
+        throw new AppError(`Invalid ${name} date — use ISO 8601 (e.g. 2026-01-31)`, 400);
+    }
+    return d;
+};
+
+const trimParam = (value: unknown): string | undefined =>
+    typeof value === 'string' && value.trim() ? value.trim() : undefined;
+
 export const McpExpenses = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
 
@@ -27,7 +41,14 @@ export const McpExpenses = asyncHandler(async (req, res) => {
         ? Math.min(Math.max(Math.trunc(raw), 1), PAGINATION.MAX_LIMIT)
         : 10;
 
-    const data = await mcpExpensesService(req.user._id, limit);
+    // Optional server-side filters: ?from / ?to (date range), ?group, ?category.
+    const data = await mcpExpensesService(req.user._id, {
+        limit,
+        from: parseDateParam(req.query.from, 'from'),
+        to: parseDateParam(req.query.to, 'to'),
+        group: trimParam(req.query.group),
+        category: trimParam(req.query.category),
+    });
     sendSuccess(res, data, 'Expenses fetched');
 });
 
