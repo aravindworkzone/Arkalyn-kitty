@@ -32,10 +32,30 @@ export const user = api.injectEndpoints({
                 method: 'DELETE'
             }),
             invalidatesTags: ['Auth']
+        }),
+        // Returns the plaintext key exactly once — the caller must show it now.
+        generateApiKey: builder.mutation<
+            ApiSuccess<{ apiKey: string; prefix: string; createdAt: string }>,
+            void
+        >({
+            query: () => ({
+                url: '/user/generate-api-key',
+                method: 'POST'
+            }),
+            // Refresh /me so the masked prefix appears once the modal is dismissed.
+            invalidatesTags: ['Auth']
+        }),
+        revokeApiKey: builder.mutation<ApiSuccess<null>, void>({
+            query: () => ({
+                url: '/user/revoke-api-key',
+                method: 'DELETE'
+            }),
+            invalidatesTags: ['Auth']
         })
     })
 });
 
 export const {
-    useGetUserGroupsQuery, useSearchUsersQuery, useVerifyUserMutation, useDeleteAccountMutation
+    useGetUserGroupsQuery, useSearchUsersQuery, useVerifyUserMutation, useDeleteAccountMutation,
+    useGenerateApiKeyMutation, useRevokeApiKeyMutation
 } = user;

@@ -21,4 +21,7 @@ export interface CurrentUser {
     planExpiresAt: string | null;
     createdAt?: string;
     subscription: PlanView;
+    // Masked personal API key (Developer section). null when no key exists.
+    // The plaintext is never part of /me — only returned once at generation.
+    apiKey: { prefix: string; createdAt: string | null } | null;
 }

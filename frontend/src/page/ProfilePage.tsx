@@ -7,7 +7,11 @@ import {
   useChangePasswordMutation,
 } from "../redux/api/auth";
 import { useCurrentUser } from "../hooks/useCurrentUser";
-import { useDeleteAccountMutation } from "../redux/api/user";
+import {
+  useDeleteAccountMutation,
+  useGenerateApiKeyMutation,
+  useRevokeApiKeyMutation,
+} from "../redux/api/user";
 import {
   useGetSubscriptionTransactionsQuery,
   useDeleteSubscriptionTransactionMutation,
@@ -26,6 +30,7 @@ type ProfileUser = {
   email?: string;
   createdAt?: string;
   subscription?: { tier: PlanTier; planExpiresAt: string | null };
+  apiKey?: { prefix: string; createdAt: string | null } | null;
 };
 
 // The literal a user must type to confirm irreversible account deletion.
@@ -104,6 +109,8 @@ export default function ProfilePage() {
   const [signOut, { isLoading: signingOut }] = useSignOutMutation();
   const [changePassword, { isLoading: changingPassword }] = useChangePasswordMutation();
   const [deleteAccount, { isLoading: deleting }] = useDeleteAccountMutation();
+  const [generateApiKey, { isLoading: generatingKey }] = useGenerateApiKeyMutation();
+  const [revokeApiKey, { isLoading: revokingKey }] = useRevokeApiKeyMutation();
 
   // ── Password form (plain useState, no form library) ──
   const [pwOpen, setPwOpen] = useState(false);
@@ -134,6 +141,54 @@ export default function ProfilePage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [deleteError, setDeleteError] = useState("");
+
+  // ── Developer / API key ──
+  const [devOpen, setDevOpen] = useState(false);
+  // Holds the plaintext key returned by generate — shown once, kept in memory
+  // only (never refetched). Cleared on close/revoke.
+  const [newKey, setNewKey] = useState<string | null>(null);
+  const [keyCopied, setKeyCopied] = useState(false);
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
+  const [devError, setDevError] = useState("");
+
+  const handleGenerateKey = async () => {
+    setDevError("");
+    try {
+      const res = await generateApiKey().unwrap();
+      setNewKey(res.data.apiKey);
+      setKeyCopied(false);
+    } catch (err: unknown) {
+      setDevError(
+        (err as { data?: { message?: string } })?.data?.message ??
+          t("profile.genericError", "Something went wrong. Please try again."),
+      );
+    }
+  };
+
+  const handleCopyKey = async () => {
+    if (!newKey) return;
+    try {
+      await navigator.clipboard.writeText(newKey);
+      setKeyCopied(true);
+    } catch {
+      // Clipboard blocked (insecure context / permissions) — leave the key
+      // visible so the user can select and copy it manually.
+    }
+  };
+
+  const handleRevokeKey = async () => {
+    setDevError("");
+    try {
+      await revokeApiKey().unwrap();
+      setNewKey(null);
+      setConfirmRevoke(false);
+    } catch (err: unknown) {
+      setDevError(
+        (err as { data?: { message?: string } })?.data?.message ??
+          t("profile.genericError", "Something went wrong. Please try again."),
+      );
+    }
+  };
 
   // ── Display-layer formatting only ──
   const dateLocale = i18n.language === "ta" ? "ta-IN" : "en-IN";
@@ -373,6 +428,124 @@ export default function ProfilePage() {
                   })}
                 </ul>
               )}
+            </div>
+          )}
+        </section>
+
+        {/* Developer — personal API key for the MCP server (read-only access) */}
+        <section className="space-y-3">
+          <ChevronRow
+            label={t("profile.developer", "Developer")}
+            hint={t("profile.developerDesc", "API key for read-only programmatic access")}
+            expanded={devOpen}
+            onClick={() => {
+              setDevOpen((o) => !o);
+              // Closing hides any freshly shown key and resets transient state.
+              setNewKey(null);
+              setConfirmRevoke(false);
+              setDevError("");
+            }}
+          />
+          {devOpen && (
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+              {newKey ? (
+                /* Just generated — one-time reveal with copy + warning. */
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-amber-300">
+                    {t(
+                      "profile.apiKeyWarning",
+                      "This key will not be shown again. Copy and store it now.",
+                    )}
+                  </p>
+                  <div className="flex items-stretch gap-2">
+                    <code
+                      className="min-w-0 flex-1 break-all rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-xs text-emerald-300"
+                      translate="no"
+                    >
+                      {newKey}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={handleCopyKey}
+                      className="shrink-0 rounded-xl border border-violet-500/40 bg-violet-500/15 px-3 text-xs font-semibold text-violet-200 transition-colors hover:bg-violet-500/25 active:bg-violet-500/25"
+                    >
+                      {keyCopied
+                        ? t("profile.copied", "Copied")
+                        : t("profile.copy", "Copy")}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNewKey(null)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/10 active:bg-white/10"
+                  >
+                    {t("profile.apiKeyDone", "Done")}
+                  </button>
+                </div>
+              ) : user.apiKey ? (
+                /* A key exists — show masked prefix + revoke. */
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3.5 py-2.5">
+                    <code className="min-w-0 truncate text-xs text-white/70" translate="no">
+                      {user.apiKey.prefix}…
+                    </code>
+                    <span className="shrink-0 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                      {t("profile.apiKeyActive", "Active")}
+                    </span>
+                  </div>
+                  {confirmRevoke ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRevokeKey}
+                        disabled={revokingKey}
+                        className="flex-1 rounded-xl border border-red-500/30 bg-red-500/15 py-2.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/25 active:bg-red-500/25 disabled:opacity-40"
+                      >
+                        {revokingKey
+                          ? t("profile.revoking", "Revoking…")
+                          : t("profile.apiKeyConfirmRevoke", "Confirm revoke")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmRevoke(false)}
+                        disabled={revokingKey}
+                        className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/10 active:bg-white/10 disabled:opacity-40"
+                      >
+                        {t("profile.cancel", "Cancel")}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRevoke(true)}
+                      className="w-full rounded-xl border border-red-500/20 bg-red-500/5 py-2.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/10 active:bg-red-500/10"
+                    >
+                      {t("profile.apiKeyRevoke", "Revoke API key")}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                /* No key yet — offer to generate one. */
+                <div className="space-y-3">
+                  <p className="text-xs leading-relaxed text-white/50">
+                    {t(
+                      "profile.apiKeyIntro",
+                      "Generate a key to connect Arkalyn Kitty to Claude (MCP). It grants read-only access to your own groups, expenses, members, and subscription.",
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleGenerateKey}
+                    disabled={generatingKey}
+                    className="w-full rounded-xl bg-violet-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-400 active:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {generatingKey
+                      ? t("profile.generating", "Generating…")
+                      : t("profile.apiKeyGenerate", "Generate API Key")}
+                  </button>
+                </div>
+              )}
+              {devError && <p className="text-xs text-red-400">{devError}</p>}
             </div>
           )}
         </section>

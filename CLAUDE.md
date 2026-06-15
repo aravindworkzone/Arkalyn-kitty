@@ -50,15 +50,18 @@ backend/
   config/          # env.ts (validateEnv, typed env), constants.ts (JWT, cookie, pagination, rate-limit values)
   controllers/     # Request parsing and response formatting only
   db/              # MongoDB connection (exponential backoff, max 5 retries)
-  helpers/         # Money.ts (cents conversion), AppError.ts (extends Error)
-  middlewares/     # auth.middleware.ts (verifyToken, loadGroup, authorizeRole), error.middleware.ts, validate.ts
+  helpers/         # Money.ts (cents conversion), AppError.ts (extends Error), apiKey.ts (key gen + prefix)
+  middlewares/     # auth.middleware.ts (verifyToken, loadGroup, authorizeRole), apiKeyAuth.middleware.ts (x-api-key), error.middleware.ts, validate.ts
   models/          # Mongoose schemas
-  routes/          # Express route definitions per feature
-  services/        # Business logic, validations, balance checks
+  routes/          # Express route definitions per feature (incl. mcp.router.ts — read-only, API-key auth)
+  services/        # Business logic, validations, balance checks (incl. mcp.service.ts — read-only, user-scoped)
   sockets/         # Socket.io setup (group rooms, typed events) — scaffold, not yet emitting
   types/           # TypeScript type extensions (e.g., req.group, req.user) + DTOs
   utils/           # response.ts (sendSuccess/sendPaginated/sendError), asyncHandler, logger (pino)
   validators/      # Zod schemas per feature (auth, group, expense, category)
+
+arkalyn-mcp/       # Standalone hosted MCP SSE server (separate npm project, deployed on Render)
+  src/index.ts     # SSE transport, 4 read-only tools, per-session API key → backend x-api-key
 ```
 
 ## Key Conventions
@@ -125,6 +128,21 @@ Required vars are validated on startup by `validateEnv()` in `config/env.ts`.
 - **Member breakdown `spent` attribution** (`memberBreakdownService`): "Who spent" attributes split expenses by each member's share AND unsplit expenses in full to their payer (split tracking is opt-in, so most rows are unsplit). This keeps the `spent` total equal to the `paid` total and matches the expense-list `spender` filter (`getAllExpensesService`: `splitBetween.userId` OR `paidBy` on unsplit rows) so the chart and its drill-down reconcile — keep the two in sync.
 - **Admin analytics** (`getAnalyticsService`) buckets + counts in MongoDB, then reuses `getEffectivePlan` / `monthlyEquivalent` for MRR — keep both in sync if pricing/expiry logic changes.
 - Admin routes are APP_OWNER-only (`verifyToken` + `requireAppOwner`); a normal USER gets 403.
+- **Per-user API keys + MCP** (`/api/mcp/*`, `arkalyn-mcp/`): a user generates one personal key
+  (`POST /api/user/generate-api-key`, JWT-cookie auth) of the form `ak_live_` + 32 url-safe random
+  chars. Only the **bcrypt hash** is stored (`User.apiKey`, `select:false`); the plaintext is returned
+  **once** and never recoverable. `User.apiKeyPrefix` keeps the first 16 chars (`ak_live_` + 8 random)
+  in plaintext — used both for the masked profile display and as an **indexed lookup filter**, since a
+  bcrypt hash can't be queried directly. `apiKeyAuth.middleware.ts` reads `x-api-key`, narrows by
+  prefix, then `bcrypt.compare`s each candidate; sets `req.user = { _id, role }` like `verifyToken`.
+  `DELETE /api/user/revoke-api-key` clears all three fields (idempotent). The `/api/mcp/*` surface is
+  **GET-only and read-only by design** (`mcp.service.ts` performs no writes) and **derives groups from
+  the caller's own memberships** — never a client-supplied `groupId`. Four endpoints: `balance`,
+  `expenses?limit=` (clamped 1–`MAX_LIMIT`, default 10), `members`, `subscription`. `GET /user/me` also
+  returns a masked `apiKey: { prefix, createdAt } | null` so the Profile → Developer section can show
+  Generate vs. masked-prefix+Revoke. The standalone `arkalyn-mcp` server passes the user's key as
+  `x-api-key` on every (GET-only) `callAPI`; its `POST /messages` route is the MCP SSE protocol channel,
+  not a data write.
 
 ## TODO — small, practical next steps
 Project verified working end-to-end on 2026-06-02 (core user journey + auth/report/validation probes all passed against current source). These are incremental polish items — pick any; none require architectural change.

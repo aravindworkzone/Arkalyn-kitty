@@ -5,6 +5,8 @@ import {
     searchUsersService,
     getUserByIdService,
     deleteAccountService,
+    generateApiKeyService,
+    revokeApiKeyService,
 } from '../services/user.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
@@ -54,4 +56,18 @@ export const DeleteAccount = asyncHandler(async (req, res) => {
     await deleteAccountService(req.user._id);
     clearAuthCookies(res);
     sendSuccess(res, null, 'Account deleted successfully');
+});
+
+export const GenerateApiKey = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    const result = await generateApiKeyService(req.user._id);
+    // The plaintext `apiKey` is returned exactly once — the client must surface
+    // it now; it can never be recovered from the server afterwards.
+    sendSuccess(res, result, 'API key generated. Copy it now — it will not be shown again.');
+});
+
+export const RevokeApiKey = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    await revokeApiKeyService(req.user._id);
+    sendSuccess(res, null, 'API key revoked');
 });

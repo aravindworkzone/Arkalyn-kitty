@@ -1,12 +1,17 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 import GroupMember from '../models/group_member.model';
 import User from '../models/user.model';
 import { AppError } from '../helpers/AppError';
 import Session from '../models/session.model';
 import { getEffectivePlan, toPlanView, countActiveOwnedGroups } from '../helpers/planLimits';
+import { BCRYPT_SALT_ROUNDS } from '../config/constants';
+import { generateApiKey, apiKeyPrefixOf } from '../helpers/apiKey';
 
 export const getUserByIdService = async (userId: mongoose.Types.ObjectId) => {
-    const user = await User.findById(userId).select('_id name email role status plan planExpiresAt createdAt');
+    const user = await User.findById(userId).select(
+        '_id name email role status plan planExpiresAt createdAt apiKeyPrefix apiKeyCreatedAt'
+    );
     if (!user) throw new AppError('User not found', 404);
 
     // Attach the effective subscription (tier/status/limits/features) so the
@@ -24,7 +29,40 @@ export const getUserByIdService = async (userId: mongoose.Types.ObjectId) => {
         // Account creation date — powers the "Member since" line on the profile.
         createdAt: user.createdAt,
         subscription,
+        // Masked API-key view for the profile "Developer" section. Never the
+        // plaintext (only returned once at generation) and never the hash.
+        apiKey: user.apiKeyPrefix
+            ? { prefix: user.apiKeyPrefix, createdAt: user.apiKeyCreatedAt }
+            : null,
     };
+};
+
+// Issues a fresh personal API key. Only the bcrypt hash + plaintext prefix are
+// stored; the full plaintext is returned ONCE here and never recoverable after.
+// Re-generating overwrites any existing key (so the previous one stops working).
+export const generateApiKeyService = async (
+    userId: mongoose.Types.ObjectId
+): Promise<{ apiKey: string; prefix: string; createdAt: Date }> => {
+    const user = await User.findById(userId);
+    if (!user) throw new AppError('User not found', 404);
+
+    const apiKey = generateApiKey();
+    const createdAt = new Date();
+
+    user.apiKey = await bcrypt.hash(apiKey, BCRYPT_SALT_ROUNDS);
+    user.apiKeyPrefix = apiKeyPrefixOf(apiKey);
+    user.apiKeyCreatedAt = createdAt;
+    await user.save();
+
+    return { apiKey, prefix: user.apiKeyPrefix, createdAt };
+};
+
+// Clears the user's API key. Idempotent — revoking when none exists is a no-op.
+export const revokeApiKeyService = async (userId: mongoose.Types.ObjectId): Promise<void> => {
+    await User.updateOne(
+        { _id: userId },
+        { $set: { apiKey: null, apiKeyPrefix: null, apiKeyCreatedAt: null } }
+    );
 };
 
 // Self-service account deletion. A SUPER_ADMIN of any still-open group is blocked
