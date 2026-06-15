@@ -36,6 +36,13 @@ type ProfileUser = {
 // The literal a user must type to confirm irreversible account deletion.
 const DELETE_KEYWORD = "DELETE";
 
+// Name + base URL the user pastes into Claude's "Add custom connector" dialog.
+// The base is overridable per-deploy; falls back to the hosted MCP server.
+const MCP_CONNECTOR_NAME = "Arkalyn Kitty";
+const MCP_CONNECTOR_BASE_URL =
+  (import.meta.env.VITE_MCP_URL as string | undefined)?.replace(/\/+$/, "") ??
+  "https://arkalyn-kitty-mcp.onrender.com/mcp";
+
 const INPUT_CLASS =
   "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-violet-500 transition-colors";
 
@@ -94,6 +101,42 @@ function ChevronRow({
         />
       </svg>
     </button>
+  );
+}
+
+// A labelled read-only value with its own copy button (manages its own
+// "Copied" feedback). Used for the connector Name + URL after key generation.
+function CopyField({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard blocked — the value stays selectable for manual copy.
+    }
+  };
+  return (
+    <div className="space-y-1">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-white/40">{label}</p>
+      <div className="flex items-stretch gap-2">
+        <code
+          className="min-w-0 flex-1 truncate rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-xs text-white/80"
+          translate="no"
+          title={value}
+        >
+          {value}
+        </code>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="shrink-0 rounded-xl border border-violet-500/40 bg-violet-500/15 px-3 text-xs font-semibold text-violet-200 transition-colors hover:bg-violet-500/25 active:bg-violet-500/25"
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -474,6 +517,25 @@ export default function ProfilePage() {
                         : t("profile.copy", "Copy")}
                     </button>
                   </div>
+
+                  {/* Ready-to-paste values for Claude's "Add custom connector". */}
+                  <div className="space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-[11px] leading-relaxed text-white/45">
+                      {t(
+                        "profile.mcpConnectorHelp",
+                        'In Claude → Add custom connector, paste these into "Name" and "Remote MCP server URL".',
+                      )}
+                    </p>
+                    <CopyField
+                      label={t("profile.mcpName", "Name")}
+                      value={MCP_CONNECTOR_NAME}
+                    />
+                    <CopyField
+                      label={t("profile.mcpUrl", "Remote MCP server URL")}
+                      value={`${MCP_CONNECTOR_BASE_URL}?apiKey=${newKey}`}
+                    />
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => setNewKey(null)}
