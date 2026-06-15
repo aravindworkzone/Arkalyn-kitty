@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import GroupMember from '../models/group_member.model';
 import Expense from '../models/expense.model';
+import Group from '../models/group.model';
+import Category from '../models/category.model';
 import User from '../models/user.model';
 import { AppError } from '../helpers/AppError';
 import { getEffectivePlan } from '../helpers/planLimits';
@@ -11,6 +13,18 @@ import { getEffectivePlan } from '../helpers/planLimits';
 
 const userGroupIds = (userId: mongoose.Types.ObjectId) =>
     GroupMember.distinct('groupId', { userId, isDeleted: false });
+
+// Escape user-supplied text before it goes into a RegExp so a filter value can't
+// inject regex metacharacters.
+const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+export interface McpExpenseFilters {
+    limit: number;
+    from?: Date;
+    to?: Date;
+    group?: string; // matches group name or displayId (case-insensitive substring)
+    category?: string; // matches category name (case-insensitive substring)
+}
 
 // Balance summary across every group the user belongs to.
 export const mcpBalanceService = async (userId: mongoose.Types.ObjectId) => {
@@ -36,15 +50,54 @@ export const mcpBalanceService = async (userId: mongoose.Types.ObjectId) => {
     return { currency: 'INR', totalBalance, groupCount: groups.length, groups };
 };
 
-// Most-recent expenses across all of the user's groups.
+// Most-recent expenses across all of the user's groups, optionally narrowed by
+// date range, group, and/or category so a client can target exactly what it
+// needs instead of paging through everything.
 export const mcpExpensesService = async (
     userId: mongoose.Types.ObjectId,
-    limit: number
+    { limit, from, to, group, category }: McpExpenseFilters
 ) => {
-    const groupIds = await userGroupIds(userId);
+    let groupIds = await userGroupIds(userId);
+
+    // Narrow to the group(s) matching the name or displayId. Resolving up front
+    // keeps the expense match scoped to the user's own groups.
+    if (group) {
+        const rx = new RegExp(escapeRegex(group), 'i');
+        groupIds = await Group.find({
+            _id: { $in: groupIds },
+            $or: [{ name: rx }, { displayId: rx }],
+        }).distinct('_id');
+    }
+
+    const match: Record<string, unknown> = {
+        groupId: { $in: groupIds },
+        isDeleted: false,
+    };
+
+    // Inclusive date range on the expense date.
+    if (from || to) {
+        match.date = {
+            ...(from ? { $gte: from } : {}),
+            ...(to ? { $lte: to } : {}),
+        };
+    }
+
+    // Resolve category name → ids within the (possibly narrowed) group set, so
+    // the filter rides the {groupId, category} index rather than a post-lookup
+    // scan. An empty match here naturally yields zero expenses.
+    if (category) {
+        const rx = new RegExp(escapeRegex(category), 'i');
+        match.category = {
+            $in: await Category.distinct('_id', {
+                groupId: { $in: groupIds },
+                name: rx,
+                isDeleted: false,
+            }),
+        };
+    }
 
     const expenses = await Expense.aggregate([
-        { $match: { groupId: { $in: groupIds }, isDeleted: false } },
+        { $match: match },
         { $sort: { date: -1, createdAt: -1 } },
         { $limit: limit },
         { $lookup: { from: 'groups', localField: 'groupId', foreignField: '_id', as: 'group' } },
@@ -66,7 +119,18 @@ export const mcpExpensesService = async (
         },
     ]);
 
-    return { currency: 'INR', count: expenses.length, expenses };
+    return {
+        currency: 'INR',
+        count: expenses.length,
+        // Echo what was actually applied so the caller can confirm the filter.
+        filters: {
+            from: from ?? null,
+            to: to ?? null,
+            group: group ?? null,
+            category: category ?? null,
+        },
+        expenses,
+    };
 };
 
 // Every member across all of the user's groups.

@@ -98,12 +98,36 @@ function buildServer(apiKey: string): McpServer {
 
     server.tool(
         "get_my_expenses",
-        "Returns your recent expenses",
-        { limit: z.number().int().positive().max(100).optional() },
-        async ({ limit }) => {
+        "Returns your recent expenses. Use the optional filters to narrow results " +
+            "by date range, group, or category instead of fetching everything — " +
+            "results are capped at 100 per call.",
+        {
+            limit: z.number().int().positive().max(100).optional(),
+            from: z
+                .string()
+                .describe("Only expenses on/after this date (ISO 8601, e.g. 2026-01-01)")
+                .optional(),
+            to: z
+                .string()
+                .describe("Only expenses on/before this date (ISO 8601, e.g. 2026-01-31)")
+                .optional(),
+            group: z
+                .string()
+                .describe("Filter by group name or group ID (case-insensitive)")
+                .optional(),
+            category: z
+                .string()
+                .describe("Filter by category name (case-insensitive)")
+                .optional(),
+        },
+        async ({ limit, from, to, group, category }) => {
             try {
-                const n = limit ?? 10;
-                return ok(await callAPI(`/api/mcp/expenses?limit=${n}`, apiKey));
+                const params = new URLSearchParams({ limit: String(limit ?? 10) });
+                if (from) params.set("from", from);
+                if (to) params.set("to", to);
+                if (group) params.set("group", group);
+                if (category) params.set("category", category);
+                return ok(await callAPI(`/api/mcp/expenses?${params}`, apiKey));
             } catch (err) {
                 return fail(err);
             }
