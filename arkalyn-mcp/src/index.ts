@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express, { type Request, type Response } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
 
@@ -137,7 +138,7 @@ function buildServer(apiKey: string): McpServer {
 }
 
 // ---------------------------------------------------------------------------
-// HTTP / SSE transport
+// HTTP transport
 // ---------------------------------------------------------------------------
 const app = express();
 
@@ -145,14 +146,77 @@ const app = express();
 // client's JSON-RPC message back to its open event stream.
 const transports = new Map<string, SSEServerTransport>();
 
+// Pulls the API key from the request: ?apiKey=… (connector URL query string),
+// or the x-api-key / Authorization: Bearer headers as fallbacks.
+function readApiKey(req: Request): string {
+    const fromQuery = typeof req.query.apiKey === "string" ? req.query.apiKey.trim() : "";
+    if (fromQuery) return fromQuery;
+    const header = req.header("x-api-key");
+    if (header) return header.trim();
+    const auth = req.header("authorization");
+    if (auth?.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
+    return "";
+}
+
 // Health probe for Render / uptime monitors.
 app.get("/health", (_req: Request, res: Response) => {
     res.json({ status: "ok", sessions: transports.size, uptime: process.uptime() });
 });
 
-// Claude opens the event stream here and supplies its Arkalyn Kitty API key as a
-// query param: GET /sse?apiKey=ak_live_xxx. The key is held only for this
-// session (in the server's tool closures) and dropped when the stream closes.
+// ── Streamable HTTP (modern transport — what Claude.ai's custom connector uses) ──
+// Connector URL: https://<host>/mcp?apiKey=ak_live_xxx
+//
+// Stateless: each request gets a fresh server+transport (sessionIdGenerator
+// undefined), so there's no session to terminate mid-call — the failure mode the
+// legacy SSE transport hits with Claude.ai. express.json() is scoped to this
+// route only, so the SSE /messages route below still receives a raw stream.
+app.post("/mcp", express.json(), async (req: Request, res: Response) => {
+    const apiKey = readApiKey(req);
+    if (!apiKey) {
+        res.status(401).json({
+            jsonrpc: "2.0",
+            error: { code: -32001, message: "Missing apiKey (set ?apiKey= on the connector URL)" },
+            id: null,
+        });
+        return;
+    }
+
+    try {
+        const server = buildServer(apiKey);
+        const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+        res.on("close", () => {
+            void transport.close();
+            void server.close();
+        });
+        await server.connect(transport);
+        await transport.handleRequest(req, res, req.body);
+    } catch {
+        if (!res.headersSent) {
+            res.status(500).json({
+                jsonrpc: "2.0",
+                error: { code: -32603, message: "Internal server error" },
+                id: null,
+            });
+        }
+    }
+});
+
+// Stateless mode has no standalone GET/DELETE stream — answer with the
+// protocol's "method not allowed" JSON-RPC error rather than a hang.
+const methodNotAllowed = (_req: Request, res: Response): void => {
+    res.status(405).json({
+        jsonrpc: "2.0",
+        error: { code: -32000, message: "Method not allowed." },
+        id: null,
+    });
+};
+app.get("/mcp", methodNotAllowed);
+app.delete("/mcp", methodNotAllowed);
+
+// ── Legacy HTTP+SSE transport (for the MCP Inspector / older clients) ──
+// Opens the event stream with the API key as a query param: GET /sse?apiKey=…
+// The key is held only for this session (in the server's tool closures) and
+// dropped when the stream closes. Prefer /mcp above for Claude.ai.
 app.get("/sse", async (req: Request, res: Response) => {
     const apiKey = typeof req.query.apiKey === "string" ? req.query.apiKey.trim() : "";
     if (!apiKey) {
@@ -184,5 +248,7 @@ app.post("/messages", async (req: Request, res: Response) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Arkalyn Kitty MCP server listening on :${PORT} (API ${API_BASE_URL})`);
+    console.log(`Arkalyn Kitty MCP server on :${PORT} → API ${API_BASE_URL}`);
+    console.log(`  Claude.ai connector URL:  /mcp?apiKey=ak_live_…  (Streamable HTTP)`);
+    console.log(`  MCP Inspector (SSE):      /sse?apiKey=ak_live_…`);
 });
