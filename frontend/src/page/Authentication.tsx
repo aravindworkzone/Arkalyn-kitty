@@ -10,21 +10,23 @@ import { FieldInput, ErrorMessage, Logo } from '../components/ui';
 import { useTranslation } from 'react-i18next';
 import { useEffect } from 'react';
 import { useCurrentUser } from '../hooks/useCurrentUser';
+import DashboardSkeleton from '../components/DashboardSkeletonLoader';
 
 const Templete = ({inputs, link} : AuthFormProps) => {
     const { t } = useTranslation();
     const linkText = link === "register" ? t("auth.noAccount") : t("auth.haveAccount");
     const head = link !== "register" ? t("auth.signUpAccount") : t("auth.signInAccount");
     const signButtonText = link !== "register" ? t("auth.signUp") : t("auth.signIn");
-    const { isLoading } = useCurrentUser();
+    const { isAuthenticated, isLoading } = useCurrentUser();
     const { handleSubmit, loading } = useAuthHandlers(link);
-    const combinedLoading = loading || isLoading;
     const { fieldErrors, setFieldError, clearFieldError } = useFieldError<AuthField>();
     const [apiError, setApiError] = useState('');
     const [shownPasswords, setShownPasswords] = useState<Record<string, boolean>>({});
     const toggleShown = (name: string) =>
         setShownPasswords((prev) => ({ ...prev, [name]: !prev[name] }));
     return (
+        <>
+        {isLoading || isAuthenticated ? <DashboardSkeleton /> : (
             <div className="min-h-screen flex flex-col items-center justify-center bg-black relative overflow-hidden px-3 sm:px-4 py-6 pt-safe pb-safe">
                 <div className="absolute top-[-100px] left-[-100px] w-[500px] h-[500px] rounded-full bg-[#FFFFFF10] blur-3xl pointer-events-none" />
                 <div className="absolute top-[-100px] right-[-100px] w-[500px] h-[500px] rounded-full bg-[#FFFFFF10] blur-3xl pointer-events-none" />
@@ -91,10 +93,10 @@ const Templete = ({inputs, link} : AuthFormProps) => {
                         {apiError && <ErrorMessage error={apiError} />}
                         <button
                             type="submit"
-                            disabled={combinedLoading}
+                            disabled={loading}
                             className="mt-1 w-full min-h-touch py-3 rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 text-white font-semibold text-sm tracking-tight disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:opacity-90 active:scale-[0.98] transition-all cursor-pointer"
                         >
-                            {combinedLoading ? (
+                            {loading ? (
                                 <span className="flex items-center justify-center gap-2">
                                     <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
@@ -125,6 +127,8 @@ const Templete = ({inputs, link} : AuthFormProps) => {
                     </p>
                 </div>
             </div>
+        )}
+        </>
     )
 }
 
