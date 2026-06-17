@@ -6,11 +6,11 @@ import type { AuthFormProps } from '../interface/auth';
 import { useAuthHandlers } from '../handlers/useAuthHandlers';
 import type { AuthField } from '../handlers/useAuthHandlers';
 import { useFieldError } from '../hooks/useFieldError';
-import { FieldInput, ErrorMessage, Logo } from '../components/ui';
+import { FieldInput, ErrorMessage, Logo, StatusBanner } from '../components/ui';
 import { useTranslation } from 'react-i18next';
 import { useEffect } from 'react';
 import { useCurrentUser } from '../hooks/useCurrentUser';
-import DashboardSkeleton from '../components/DashboardSkeletonLoader';
+import AuthLoader from '../components/AuthLoader';
 
 const Templete = ({inputs, link} : AuthFormProps) => {
     const { t } = useTranslation();
@@ -21,12 +21,19 @@ const Templete = ({inputs, link} : AuthFormProps) => {
     const { handleSubmit, loading } = useAuthHandlers(link);
     const { fieldErrors, setFieldError, clearFieldError } = useFieldError<AuthField>();
     const [apiError, setApiError] = useState('');
+    const [sessionExpired, setSessionExpired] = useState(
+        () => sessionStorage.getItem("auth:sessionExpired") === "1"
+    );
     const [shownPasswords, setShownPasswords] = useState<Record<string, boolean>>({});
+    // Consume the flag once so the notice doesn't reappear on later visits.
+    useEffect(() => {
+        if (sessionExpired) sessionStorage.removeItem("auth:sessionExpired");
+    }, [sessionExpired]);
     const toggleShown = (name: string) =>
         setShownPasswords((prev) => ({ ...prev, [name]: !prev[name] }));
     return (
         <>
-        {isLoading || isAuthenticated ? <DashboardSkeleton /> : (
+        {isLoading || isAuthenticated ? <AuthLoader /> : (
             <div className="min-h-screen flex flex-col items-center justify-center bg-black relative overflow-hidden px-3 sm:px-4 py-6 pt-safe pb-safe">
                 <div className="absolute top-[-100px] left-[-100px] w-[500px] h-[500px] rounded-full bg-[#FFFFFF10] blur-3xl pointer-events-none" />
                 <div className="absolute top-[-100px] right-[-100px] w-[500px] h-[500px] rounded-full bg-[#FFFFFF10] blur-3xl pointer-events-none" />
@@ -40,6 +47,15 @@ const Templete = ({inputs, link} : AuthFormProps) => {
                     </div>
                     <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mb-1">{t("auth.welcome")}</h1>
                     <p className="text-white/40 text-sm mb-6 sm:mb-8"> {head} </p>
+
+                    {sessionExpired && (
+                        <div className="mb-5">
+                            <StatusBanner
+                                status="err"
+                                text={t("auth.sessionExpired", "Your session expired. Please sign in again.")}
+                            />
+                        </div>
+                    )}
 
                     <form onSubmit={(e) => handleSubmit(e, setFieldError, setApiError)} className="flex flex-col gap-4 sm:gap-5">
                         {

@@ -15,9 +15,16 @@ const isAuthEndpoint = (url: string): boolean =>
 
 const redirectToLogin = (): void => {
     const path = window.location.pathname;
-    if (path !== "/login" && path !== "/register") {
-        window.location.href = "/login";
+    if (path === "/login" || path === "/register") return;
+
+    // Only flag an expiry notice for users who actually had a session — a
+    // first-time visitor hitting a protected route never "expired". The login
+    // page reads and clears this flag to show a "session expired" banner.
+    if (sessionStorage.getItem("auth:hadSession")) {
+        sessionStorage.setItem("auth:sessionExpired", "1");
+        sessionStorage.removeItem("auth:hadSession");
     }
+    window.location.href = "/login";
 };
 
 // Single-flight refresh: when several requests 401 at once they all await the

@@ -18,19 +18,23 @@ if (!API_BASE_URL) {
 }
 
 // ---------------------------------------------------------------------------
-// Arkalyn Kitty API client — READ-ONLY. callAPI never issues anything but GET,
-// so this server is structurally incapable of writing to the backend.
+// Arkalyn Kitty API client. callAPI issues GETs for the read tools; postAPI
+// issues POSTs for the write tools. Both attach the caller's API key, and the
+// backend scopes every request to that key's owner.
 // ---------------------------------------------------------------------------
 class ApiError extends Error {
-    constructor(public readonly status: number) {
-        super(`Arkalyn Kitty API responded ${status}`);
+    constructor(
+        public readonly status: number,
+        public readonly detail?: string,
+    ) {
+        super(detail ?? `Arkalyn Kitty API responded ${status}`);
         this.name = "ApiError";
     }
 }
 
 async function callAPI<T = unknown>(path: string, apiKey: string): Promise<T> {
     const res = await fetch(`${API_BASE_URL}${path}`, {
-        method: "GET", // never POST/PUT/PATCH/DELETE
+        method: "GET",
         headers: {
             "x-api-key": apiKey,
             Accept: "application/json",
@@ -41,12 +45,41 @@ async function callAPI<T = unknown>(path: string, apiKey: string): Promise<T> {
     return (await res.json()) as T;
 }
 
-// Maps a thrown error to the user-facing message required by the spec.
+// Reads the backend's `{ message }` so a 400/403/404 surfaces the actual reason
+// (e.g. "Group is closed", "requires SUPER_ADMIN or ADMIN") instead of a bare
+// status code — these write failures are usually user-correctable.
+async function postAPI<T = unknown>(path: string, apiKey: string, body: unknown): Promise<T> {
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+        method: "POST",
+        headers: {
+            "x-api-key": apiKey,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+        },
+        body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+        let detail: string | undefined;
+        try {
+            const data = (await res.json()) as { message?: string };
+            detail = typeof data?.message === "string" ? data.message : undefined;
+        } catch {
+            // Non-JSON error body — fall back to the status-based message.
+        }
+        throw new ApiError(res.status, detail);
+    }
+    return (await res.json()) as T;
+}
+
+// Maps a thrown error to a user-facing message. When the backend explained the
+// failure (validation, closed group, insufficient role/balance, …) that detail
+// is preferred, since it tells the user how to fix the call.
 function errorText(err: unknown): string {
     if (err instanceof ApiError) {
+        if (err.status === 401) return "Invalid or expired API key";
+        if (err.detail) return err.detail;
         switch (err.status) {
-            case 401:
-                return "Invalid or expired API key";
             case 404:
                 return "No data found";
             case 500:
@@ -152,6 +185,87 @@ function buildServer(apiKey: string): McpServer {
         async () => {
             try {
                 return ok(await callAPI("/api/mcp/subscription", apiKey));
+            } catch (err) {
+                return fail(err);
+            }
+        },
+    );
+
+    // ── Write tools ──────────────────────────────────────────────────────────
+    // Each writes only to one of YOUR groups; the backend re-checks group status
+    // and your role before applying the change.
+
+    server.tool(
+        "add_expense",
+        "Adds an expense to one of your groups. The category must already exist " +
+            "in that group (use add_category first if needed). Amounts are in the " +
+            "group currency (INR). Defaults: paidBy = you, paymentType = Cash, " +
+            "date = today. Any group member can add an expense.",
+        {
+            group: z.string().describe("Group name or group ID the expense belongs to"),
+            title: z.string().min(3).max(100).describe("What the expense was for"),
+            amount: z.number().positive().describe("Amount in INR (must not exceed the group balance)"),
+            category: z.string().describe("Existing category name in the group"),
+            paymentType: z
+                .enum(["Cash", "Card", "UPI", "Net Banking"])
+                .describe("How it was paid (default Cash)")
+                .optional(),
+            date: z
+                .string()
+                .describe("Expense date (ISO 8601, e.g. 2026-06-17). Defaults to today.")
+                .optional(),
+            paidBy: z
+                .string()
+                .describe("Member name or email who paid (default: you)")
+                .optional(),
+        },
+        async (args) => {
+            try {
+                return ok(await postAPI("/api/mcp/expenses", apiKey, args));
+            } catch (err) {
+                return fail(err);
+            }
+        },
+    );
+
+    server.tool(
+        "add_category",
+        "Creates a new expense category in one of your groups. Requires that you " +
+            "are an admin (SUPER_ADMIN or ADMIN) of the group.",
+        {
+            group: z.string().describe("Group name or group ID to add the category to"),
+            name: z.string().describe("Category name (must be unique within the group)"),
+            color: z
+                .string()
+                .describe("Optional hex colour for the category, e.g. #4f46e5")
+                .optional(),
+        },
+        async (args) => {
+            try {
+                return ok(await postAPI("/api/mcp/categories", apiKey, args));
+            } catch (err) {
+                return fail(err);
+            }
+        },
+    );
+
+    server.tool(
+        "add_contribution",
+        "Adds a contribution (credit) into one of your groups' pool. Requires that " +
+            "you are an admin (SUPER_ADMIN or ADMIN). Defaults to crediting you; pass " +
+            "a member name/email to credit someone else.",
+        {
+            group: z.string().describe("Group name or group ID to contribute to"),
+            amount: z.number().positive().describe("Contribution amount in INR"),
+            member: z
+                .string()
+                .describe("Member name or email to credit (default: you)")
+                .optional(),
+            description: z.string().describe("Optional note for the contribution").optional(),
+        },
+        async (args) => {
+            try {
+                return ok(await postAPI("/api/mcp/contributions", apiKey, args));
             } catch (err) {
                 return fail(err);
             }

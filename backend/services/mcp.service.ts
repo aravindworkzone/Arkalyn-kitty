@@ -1,15 +1,21 @@
 import mongoose from 'mongoose';
-import GroupMember from '../models/group_member.model';
-import Expense from '../models/expense.model';
-import Group from '../models/group.model';
+import GroupMember, { type IGroupMember } from '../models/group_member.model';
+import Expense, { PAYMENT_TYPES, type PaymentType } from '../models/expense.model';
+import Group, { type IGroup } from '../models/group.model';
 import Category from '../models/category.model';
 import User from '../models/user.model';
 import { AppError } from '../helpers/AppError';
 import { getEffectivePlan } from '../helpers/planLimits';
+import { createExpenseService } from './expense.service';
+import { createCategoryService } from './category.service';
+import { addContributionService } from './group.service';
 
-// All MCP services are READ-ONLY and scoped to the calling user. They never take
-// a groupId from the client — the set of groups is derived from the user's own
-// (non-deleted) memberships, so a key can only ever read its owner's data.
+// MCP services are scoped to the calling user. They never take a raw groupId
+// from the client — every group is resolved from the user's own (non-deleted)
+// memberships, so a key can only ever read or write its owner's data. The write
+// services additionally re-check group status and role, mirroring the same
+// guards the web routes apply, and delegate to the shared create services so
+// balance math, audit logs, and plan limits stay identical across both paths.
 
 const userGroupIds = (userId: mongoose.Types.ObjectId) =>
     GroupMember.distinct('groupId', { userId, isDeleted: false });
@@ -170,5 +176,196 @@ export const mcpSubscriptionService = async (userId: mongoose.Types.ObjectId) =>
         status: eff.status, // active | grace | expired
         renewalDate: eff.planExpiresAt, // null on FREE (no renewal)
         isReadOnly: eff.isReadOnly,
+    };
+};
+
+// ---------------------------------------------------------------------------
+// Write services — each resolves the target group from the user's memberships,
+// enforces the same status/role guards as the equivalent web route, then hands
+// off to the shared create service.
+// ---------------------------------------------------------------------------
+
+type GroupRole = IGroupMember['role'];
+
+// Resolves a user-supplied group reference (name or displayId) to one of the
+// caller's own groups, applying the active-status and (optional) role checks the
+// web middleware would. Ambiguous references fail loudly rather than guessing.
+const resolveGroupForWrite = async (
+    userId: mongoose.Types.ObjectId,
+    groupRef: string,
+    roles?: GroupRole[]
+): Promise<{ group: IGroup; member: IGroupMember }> => {
+    const ref = (groupRef ?? '').trim();
+    if (!ref) throw new AppError('A group name or ID is required', 400);
+
+    const groupIds = await userGroupIds(userId);
+
+    // Prefer an exact (case-insensitive) name/displayId match; fall back to a
+    // substring match only if nothing matched exactly.
+    const exact = new RegExp(`^${escapeRegex(ref)}$`, 'i');
+    let matches = await Group.find({ _id: { $in: groupIds }, $or: [{ name: exact }, { displayId: exact }] });
+    if (matches.length === 0) {
+        const sub = new RegExp(escapeRegex(ref), 'i');
+        matches = await Group.find({ _id: { $in: groupIds }, $or: [{ name: sub }, { displayId: sub }] });
+    }
+
+    if (matches.length === 0) throw new AppError(`No group of yours matches "${ref}"`, 404);
+    if (matches.length > 1) {
+        const ids = matches.map((g) => g.displayId).join(', ');
+        throw new AppError(`"${ref}" matches multiple groups (${ids}). Use the group ID.`, 400);
+    }
+
+    const group = matches[0];
+    if (group.status === 'CLOSED') {
+        throw new AppError('Group is closed — no further changes are allowed', 403);
+    }
+
+    const member = await GroupMember.findOne({ groupId: group._id, userId, isDeleted: false });
+    if (!member) throw new AppError('You are not a member of this group', 403);
+    if (roles && !roles.includes(member.role)) {
+        throw new AppError(`This action requires ${roles.join(' or ')} in the group`, 403);
+    }
+
+    return { group, member };
+};
+
+// Resolves a member reference (name or email) to a userId within the group.
+const resolveMember = async (groupId: mongoose.Types.ObjectId, ref: string): Promise<mongoose.Types.ObjectId> => {
+    const r = ref.trim().toLowerCase();
+    const members = await GroupMember.aggregate<{ userId: mongoose.Types.ObjectId; name?: string; email?: string }>([
+        { $match: { groupId, isDeleted: false } },
+        { $lookup: { from: 'users', localField: 'userId', foreignField: '_id', as: 'user' } },
+        { $unwind: '$user' },
+        { $project: { _id: 0, userId: '$userId', name: '$user.name', email: '$user.email' } },
+    ]);
+
+    const exact = members.filter((m) => m.name?.toLowerCase() === r || m.email?.toLowerCase() === r);
+    const pool = exact.length ? exact : members.filter((m) => m.name?.toLowerCase().includes(r));
+
+    if (pool.length === 0) throw new AppError(`No member matching "${ref}" in this group`, 404);
+    if (pool.length > 1) throw new AppError(`"${ref}" matches multiple members. Be more specific.`, 400);
+    return pool[0].userId;
+};
+
+export interface McpAddExpenseInput {
+    group: string;
+    title: string;
+    amount: number;
+    category: string;
+    paymentType?: string;
+    date?: string;
+    paidBy?: string;
+}
+
+// Adds an expense to one of the caller's groups. Any member may add an expense
+// (matching the web route, which has no role gate), but the group must be active
+// and the category must already exist.
+export const mcpAddExpenseService = async (userId: mongoose.Types.ObjectId, input: McpAddExpenseInput) => {
+    const { group } = await resolveGroupForWrite(userId, input.group);
+
+    // Resolve category by name within this group (exact first, then substring).
+    const catRef = (input.category ?? '').trim();
+    if (!catRef) throw new AppError('A category name is required', 400);
+    const exactCat = new RegExp(`^${escapeRegex(catRef)}$`, 'i');
+    let category = await Category.findOne({ groupId: group._id, name: exactCat, isDeleted: false });
+    if (!category) {
+        const subCat = new RegExp(escapeRegex(catRef), 'i');
+        const cats = await Category.find({ groupId: group._id, name: subCat, isDeleted: false });
+        if (cats.length === 1) category = cats[0];
+        else if (cats.length > 1) throw new AppError(`"${catRef}" matches multiple categories. Be more specific.`, 400);
+    }
+    if (!category) throw new AppError(`Category "${catRef}" not found in this group — add it first.`, 404);
+
+    // Who paid: defaults to the key owner; an optional name/email picks another member.
+    const paidBy = input.paidBy?.trim() ? await resolveMember(group._id, input.paidBy) : userId;
+
+    const paymentType = (input.paymentType?.trim() || 'Cash') as PaymentType;
+    if (!PAYMENT_TYPES.includes(paymentType)) {
+        throw new AppError(`Invalid payment type. Use one of: ${PAYMENT_TYPES.join(', ')}`, 400);
+    }
+
+    const date = input.date ? new Date(input.date) : new Date();
+    if (Number.isNaN(date.getTime())) throw new AppError('Invalid date — use ISO 8601 (e.g. 2026-06-17)', 400);
+
+    const expense = await createExpenseService({
+        user: userId.toString(),
+        group: { _id: group._id.toString(), balance: group.balance },
+        category: category._id.toString(),
+        title: input.title,
+        amount: input.amount,
+        paymentType,
+        paidBy: paidBy.toString(),
+        date,
+    });
+
+    return {
+        id: expense._id.toString(),
+        title: expense.title,
+        amount: expense.amount, // getter returns display units
+        currency: 'INR',
+        category: category.name,
+        paymentType,
+        date: expense.date,
+        group: group.name,
+    };
+};
+
+export interface McpAddCategoryInput {
+    group: string;
+    name: string;
+    color?: string;
+}
+
+// Adds a category to one of the caller's groups (admins only).
+export const mcpAddCategoryService = async (userId: mongoose.Types.ObjectId, input: McpAddCategoryInput) => {
+    const { group } = await resolveGroupForWrite(userId, input.group, ['SUPER_ADMIN', 'ADMIN']);
+
+    const { category } = await createCategoryService({
+        name: input.name,
+        groupId: group._id as mongoose.Types.ObjectId,
+        userId,
+        color: input.color?.trim() || undefined,
+    });
+
+    return {
+        id: category._id.toString(),
+        name: category.name,
+        color: category.color,
+        group: group.name,
+    };
+};
+
+export interface McpAddContributionInput {
+    group: string;
+    amount: number;
+    member?: string;
+    description?: string;
+}
+
+// Credits a contribution into one of the caller's groups (admins only). Defaults
+// to crediting the caller; an optional member name/email targets someone else.
+export const mcpAddContributionService = async (userId: mongoose.Types.ObjectId, input: McpAddContributionInput) => {
+    const { group } = await resolveGroupForWrite(userId, input.group, ['SUPER_ADMIN', 'ADMIN']);
+
+    const targetId = input.member?.trim() ? await resolveMember(group._id, input.member) : userId;
+
+    await addContributionService({
+        group: group._id as mongoose.Types.ObjectId,
+        userId: targetId,
+        contribution: input.amount,
+        description: input.description?.trim() ?? '',
+    });
+
+    const [target, fresh] = await Promise.all([
+        User.findById(targetId).select('name'),
+        Group.findById(group._id).select('balance'),
+    ]);
+
+    return {
+        group: group.name,
+        member: target?.name ?? 'Unknown',
+        amount: input.amount,
+        currency: 'INR',
+        newGroupBalance: fresh?.balance ?? null,
     };
 };
