@@ -7,9 +7,14 @@ import {
     mcpExpensesService,
     mcpMembersService,
     mcpSubscriptionService,
+    mcpAddExpenseService,
+    mcpAddCategoryService,
+    mcpAddContributionService,
 } from '../services/mcp.service';
 
-// All handlers are read-only and rely on apiKeyAuth having set req.user.
+// Handlers rely on apiKeyAuth having set req.user. The read handlers are
+// read-only; the write handlers below resolve and authorize the target group
+// inside the service before mutating.
 
 export const McpBalance = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
@@ -62,4 +67,31 @@ export const McpSubscription = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
     const data = await mcpSubscriptionService(req.user._id);
     sendSuccess(res, data, 'Subscription fetched');
+});
+
+// ── Write handlers ─────────────────────────────────────────────────────────
+// Each pulls its inputs from req.body; the service resolves the group from the
+// caller's memberships and enforces status/role before writing.
+
+export const McpAddExpense = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    const { group, title, amount, category, paymentType, date, paidBy } = req.body ?? {};
+    const data = await mcpAddExpenseService(req.user._id, {
+        group, title, amount, category, paymentType, date, paidBy,
+    });
+    sendSuccess(res, data, 'Expense created', 201);
+});
+
+export const McpAddCategory = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    const { group, name, color } = req.body ?? {};
+    const data = await mcpAddCategoryService(req.user._id, { group, name, color });
+    sendSuccess(res, data, 'Category created', 201);
+});
+
+export const McpAddContribution = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    const { group, amount, member, description } = req.body ?? {};
+    const data = await mcpAddContributionService(req.user._id, { group, amount, member, description });
+    sendSuccess(res, data, 'Contribution added', 201);
 });

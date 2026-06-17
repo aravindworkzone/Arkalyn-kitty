@@ -1,10 +1,14 @@
 # Arkalyn Kitty — MCP Server
 
-A small, hosted **MCP SSE server** that lets a Claude.ai user read their own
-Arkalyn Kitty data through a personal API key. Everything is **read-only** — the
-server only ever issues `GET` requests to the backend.
+A small, hosted **MCP server** that lets a Claude.ai user read *and* update their
+own Arkalyn Kitty data through a personal API key. Every call is scoped to the
+key's owner: reads only ever touch the owner's groups, and writes resolve their
+target group from the owner's memberships and re-check group status/role on the
+backend before applying — so a key can never reach another user's data.
 
 ## Tools
+
+### Read
 
 | Tool | Input | Backend call |
 | --- | --- | --- |
@@ -12,6 +16,28 @@ server only ever issues `GET` requests to the backend.
 | `get_my_expenses` | `{ limit?: number (default 10, max 100), from?: ISO date, to?: ISO date, group?: string, category?: string }` | `GET /api/mcp/expenses?limit=…&from=…&to=…&group=…&category=…` |
 | `get_my_members` | — | `GET /api/mcp/members` |
 | `get_my_subscription` | — | `GET /api/mcp/subscription` |
+
+### Write
+
+| Tool | Input | Backend call | Who can |
+| --- | --- | --- | --- |
+| `add_expense` | `{ group, title, amount, category, paymentType?, date?, paidBy? }` | `POST /api/mcp/expenses` | any group member |
+| `add_category` | `{ group, name, color? }` | `POST /api/mcp/categories` | SUPER_ADMIN / ADMIN |
+| `add_contribution` | `{ group, amount, member?, description? }` | `POST /api/mcp/contributions` | SUPER_ADMIN / ADMIN |
+
+Write notes:
+
+- `group` accepts a group **name or display ID**, resolved against the caller's
+  own groups; an ambiguous match is rejected so nothing is written to the wrong
+  group.
+- `add_expense` requires the **category to already exist** in the group (run
+  `add_category` first). Defaults: `paidBy` = you, `paymentType` = `Cash`,
+  `date` = today. Amounts are INR and can't exceed the group balance.
+- `add_contribution` defaults to crediting **you**; pass `member` (name/email) to
+  credit another member.
+- Writes go through the same create services as the web app, so balance updates,
+  transaction logs, audit events, and plan limits stay identical. Closed groups
+  and over-limit/expired plans are rejected by the backend.
 
 ## How it works
 
@@ -60,6 +86,7 @@ npm run dev            # tsx watch
 | Backend status | Message returned to Claude |
 | --- | --- |
 | 401 | `Invalid or expired API key` |
-| 404 | `No data found` |
+| 400 / 402 / 403 / 404 / 409 (write) | the backend's own `message` (e.g. `Group is closed — no further changes are allowed`, `This action requires SUPER_ADMIN or ADMIN in the group`, `Category "Food" not found in this group — add it first.`) |
+| 404 (read, no detail) | `No data found` |
 | 500 | `Arkalyn Kitty API unavailable` |
 | network failure | `Arkalyn Kitty API unavailable` |
