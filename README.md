@@ -3,9 +3,9 @@
 A production-oriented, group-based expense manager built as a TypeScript MERN monorepo. The system prioritizes **financial integrity, role-based access, and a verifiable audit trail** over feature count. It ships with realtime updates, Razorpay-backed subscriptions, and a hosted **MCP server** that lets a Claude.ai user read and write their own data through a personal API key.
 
 **Live**
-- Frontend (Vercel): `[arkalynkitty-fin.vercel.app](https://arkalynkitty-fin.vercel.app/)`
-- Backend (Render): `[arkalyn-kitty-v8e5.onrender.com](https://arkalyn-kitty-v8e5.onrender.com)` — health probe at `/health`
-- MCP server: `https://arkalyn-kitty-mcp.onrender.com/mcp`
+- Frontend (Vercel): [arkalynkitty-fin.vercel.app](https://arkalynkitty-fin.vercel.app/)
+- Backend (Render): [arkalyn-kitty-v8e5.onrender.com](https://arkalyn-kitty-v8e5.onrender.com) — health probe at `/health`
+- MCP server: [arkalyn-kitty-mcp.onrender.com](https://arkalyn-kitty-mcp.onrender.com/mcp)
 
 ---
 
