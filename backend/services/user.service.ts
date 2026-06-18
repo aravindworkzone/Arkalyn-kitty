@@ -119,10 +119,15 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
             },
         },
         {
+            // Only live expenses — soft-deleted rows must not inflate the card's
+            // count (mirrors the category lookup below and the report's filter).
             $lookup: {
                 from: 'expenses',
-                localField: 'group._id',
-                foreignField: 'groupId',
+                let: { gid: '$group._id' },
+                pipeline: [
+                    { $match: { $expr: { $eq: ['$groupId', '$$gid'] }, isDeleted: { $ne: true } } },
+                    { $project: { _id: 1 } },
+                ],
                 as: 'expense',
             },
         },
