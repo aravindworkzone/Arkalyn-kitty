@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
-import { useGetCategoriesQuery } from "../redux/api/category";
+import { useGetCategoriesQuery, useGetCreditCategoriesQuery } from "../redux/api/category";
 import {
   useGetPaymentMethodQuery,
   useGetExpenseByIdQuery,
@@ -48,6 +48,7 @@ export default function CreateExpensePage() {
   const currentUserId = userId ?? undefined;
   const { data: paymentTypes = [], isLoading: pmLoading } = useGetPaymentMethodQuery();
   const { data: categories = [], isLoading: catLoading } = useGetCategoriesQuery(groupId!, { skip: !groupId });
+  const { data: creditCategories = [], isLoading: creditCatLoading } = useGetCreditCategoriesQuery(groupId!, { skip: !groupId });
   const { data: groupMembers = [], isLoading: membersLoading } = useGetGroupMembersQuery(groupId!, { skip: !groupId });
   const { data: groupDetails } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
   const { data: editExpense } = useGetExpenseByIdQuery(
@@ -71,6 +72,7 @@ export default function CreateExpensePage() {
   const [amount, setAmount]             = useState("");
   const [date, setDate]                 = useState(() => new Date().toISOString().split("T")[0]);
   const [categoryId, setCategoryId]     = useState("");
+  const [creditCategoryId, setCreditCategoryId] = useState("");
   const [paymentType, setPaymentType]   = useState("Cash");
   const [paidBy, setPaidBy]             = useState("");
   const [splits, setSplits]             = useState<SplitEntry[]>([]);
@@ -169,6 +171,7 @@ export default function CreateExpensePage() {
     setAmount(String(editExpense.amount));
     setDate(new Date(editExpense.date).toISOString().split("T")[0]);
     setCategoryId(editExpense.category._id);
+    if (editExpense.creditCategory?._id) setCreditCategoryId(editExpense.creditCategory._id);
     setPaymentType(editExpense.paymentType);
     setPaidBy(editExpense.paidBy._id);
     const editSplits = editExpense.splitBetween.map((s) => ({
@@ -188,6 +191,15 @@ export default function CreateExpensePage() {
       setCategoryId(sorted[0]._id);
     }
   }, [catLoading, categories.length, categoryId]);
+
+  // Default the credit pool to the most-used credit category. Backend already
+  // returns credit categories sorted by usage (most-used first).
+  useEffect(() => {
+    if (isEdit) return;
+    if (!creditCatLoading && creditCategories.length > 0 && !creditCategoryId) {
+      setCreditCategoryId(creditCategories[0]._id);
+    }
+  }, [creditCatLoading, creditCategories.length, creditCategoryId]);
 
   // Auto-select current user in Who Paid when members load
   useEffect(() => {
@@ -223,7 +235,7 @@ export default function CreateExpensePage() {
           dupBypassRef.current = false;
           handleSubmit(e, {
             title, description, totalAmount, maxAmount: effectiveBalance,
-            categoryId, paidBy, splits, splitValid, splitEnabled,
+            categoryId, creditCategoryId: creditCategoryId || undefined, paidBy, splits, splitValid, splitEnabled,
             date, paymentType, setFieldError, setApiError,
           });
         }}
@@ -396,6 +408,33 @@ export default function CreateExpensePage() {
             </div>
             {fieldErrors.category && <div className="mt-2"><ErrorMessage error={fieldErrors.category} /></div>}
           </div>
+
+          {creditCategories.length > 0 && (
+            <div>
+              <label className={fieldLabel}>{t("createExpense.creditCategory", "Credit pool")}</label>
+              <div className="flex flex-wrap gap-2">
+                {creditCategories.map((cat) => (
+                  <button
+                    key={cat._id}
+                    type="button"
+                    onClick={() => setCreditCategoryId(cat._id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border transition-all duration-150"
+                    style={
+                      creditCategoryId === cat._id
+                        ? { background: cat.color + "25", borderColor: cat.color + "60", color: cat.color }
+                        : { background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.35)" }
+                    }
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ background: creditCategoryId === cat._id ? cat.color : "rgba(255,255,255,0.2)" }}
+                    />
+                    <span translate="no">{cat.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div data-tour="expense-payment">
             <label className={fieldLabel}>{t("createExpense.paymentType")}</label>

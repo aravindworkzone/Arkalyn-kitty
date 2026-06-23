@@ -672,6 +672,7 @@ export default function GroupDetailPage() {
 
                 {tab === "contribution" && (
                   <SettingsContribution
+                    groupId={groupId}
                     members={GroupMembers}
                     isAddingContrib={isAddingContrib}
                     handleAddContribution={handleAddContribution}

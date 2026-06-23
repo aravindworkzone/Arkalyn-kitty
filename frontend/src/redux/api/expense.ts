@@ -5,6 +5,7 @@ import type { PaginatedData, ApiSuccess } from "../../interface/api";
 export interface CreateExpenseRequest {
     groupId: string;
     category: string;
+    creditCategory?: string;
     title: string;
     description?: string;
     amount: number;

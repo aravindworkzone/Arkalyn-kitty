@@ -12,6 +12,8 @@ export interface IGroupTransaction extends Document {
     referenceId: mongoose.Types.ObjectId;
     performedBy: mongoose.Types.ObjectId;
     referenceModel: string;
+    // Which credit category this transaction belongs to (CREDIT rows only).
+    category?: mongoose.Types.ObjectId;
     metadata?: Record<string, unknown> | unknown[];
     isDeleted?: boolean;
     createdAt?: Date;
@@ -26,6 +28,7 @@ const groupTransactionSchema = new Schema<IGroupTransaction>({
     referenceId: { type: mongoose.Schema.Types.ObjectId, refPath: "referenceModel", required: true },
     referenceModel: { type: String, enum: ["Expense", "Group", "Category", "User"], required: true },
     performedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    category: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
     isDeleted: { type: Boolean, default: false }
 }, {timestamps: true, toJSON: { getters: true }, toObject: { getters: true }});

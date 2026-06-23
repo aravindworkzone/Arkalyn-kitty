@@ -7,6 +7,8 @@ import { toDBAmount, fromDBAmount } from "../helpers/Money";
 export interface IExpense extends Document {
     groupId: mongoose.Types.ObjectId;
     category: mongoose.Types.ObjectId;
+    // Which credit category (pool) this expense is drawn from. Optional.
+    creditCategory?: mongoose.Types.ObjectId;
     title: string;
     description?: string;
     amount: number;
@@ -25,6 +27,7 @@ export interface IExpense extends Document {
 const expenseSchema = new Schema<IExpense>({
     groupId: {type: mongoose.Types.ObjectId, ref: "Group", required: true},
     category: {type: mongoose.Types.ObjectId, ref: "Category", required: true},
+    creditCategory: {type: mongoose.Types.ObjectId, ref: "Category"},
     title: {type: String, required: true, trim: true, minlength: 3, maxlength: 100},
     description: {type: String, trim: true, maxlength: 500},
     amount: {type: Number, required: true, min: 1, set:toDBAmount, get:fromDBAmount},

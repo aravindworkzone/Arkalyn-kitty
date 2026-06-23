@@ -10,12 +10,14 @@ export const createCategory = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
 
     const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    const type = req.body.type === 'CREDIT' ? 'CREDIT' : 'EXPENSE';
 
     const result = await createCategoryService({
         name,
         groupId: req.group._id,
         userId: req.user._id,
         color: req.body.color,
+        type,
     });
 
     emitToGroup(req.group.displayId.toString(), SOCKET_EVENTS.CATEGORY_CREATED);
@@ -58,6 +60,7 @@ export const deleteCategory = asyncHandler(async (req, res) => {
 export const getCategoryDetails = asyncHandler(async (req, res) => {
     if (!req.group?._id) throw new AppError('Group not found', 400);
 
-    const categories = await getCategoryDetailsService(req.group._id);
+    const type = req.query.type === 'CREDIT' ? 'CREDIT' : 'EXPENSE';
+    const categories = await getCategoryDetailsService(req.group._id, type);
     sendSuccess(res, { categories }, 'Categories fetched');
 });

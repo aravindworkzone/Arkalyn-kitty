@@ -10,6 +10,7 @@ const splitBetweenItemSchema = z.object({
 export const createExpenseBodySchema = z.object({
     groupId: groupIdParamSchema,
     category: objectIdSchema,
+    creditCategory: objectIdSchema.optional(),
     title: z
         .string()
         .trim()

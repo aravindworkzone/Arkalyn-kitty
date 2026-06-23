@@ -1,12 +1,12 @@
 import { useCreateCategoryMutation, useUpdateCategoryMutation, useDeleteCategoryMutation } from "../redux/api/category";
-import type { Category } from "../interface/category";
+import type { Category, CategoryType } from "../interface/category";
 import { validateCategoryName } from "../helpers/validators";
 import type { SetFieldError } from "../hooks/useFieldError";
 import { getApiErrorMessage } from "../hooks/useApiError";
 
 export type CategoryField = "name";
 
-export const useCategoryHandlers = (groupId: string | undefined) => {
+export const useCategoryHandlers = (groupId: string | undefined, type: CategoryType = "EXPENSE") => {
   const [createCategory, { isLoading: isCreating }] = useCreateCategoryMutation();
   const [updateCategory, { isLoading: isUpdatingColor }] = useUpdateCategoryMutation();
   const [deleteCategory, { isLoading: isDeleting }] = useDeleteCategoryMutation();
@@ -38,7 +38,7 @@ export const useCategoryHandlers = (groupId: string | undefined) => {
     if (!groupId) { setApiError("No group selected"); return; }
 
     try {
-      await createCategory({ name: cleanName, groupId, color }).unwrap();
+      await createCategory({ name: cleanName, groupId, color, type }).unwrap();
     } catch (error: unknown) {
       setApiError(getApiErrorMessage(error, "Failed to create category"));
       return;
@@ -46,7 +46,7 @@ export const useCategoryHandlers = (groupId: string | undefined) => {
 
     setCategories((prev) => [
       ...prev,
-      { _id: Date.now().toString(), name: cleanName, color, expenseCount: 0 },
+      { _id: Date.now().toString(), name: cleanName, color, type, expenseCount: 0 },
     ]);
     setName("");
     setColor(defaultColor);

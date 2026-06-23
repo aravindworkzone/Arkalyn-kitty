@@ -7,6 +7,7 @@ import GroupTransaction from "../models/group_transaction.model";
 import GroupInvite from "../models/group_invite.model";
 import Notification from "../models/notification.model";
 import { createNotification } from "./notification.service";
+import { getOrCreateOtherCreditCategory } from "./category.service";
 import { emitToGroup } from "../sockets";
 import { SOCKET_EVENTS } from "../sockets/events";
 import { creditGroupBalance } from "../helpers/balanceOps";
@@ -78,6 +79,8 @@ export const acceptInviteService = async (data: { inviteId: string; userId: mong
 
         await creditGroupBalance(invite.groupId, contribution, { session });
 
+        const otherCreditCategory = await getOrCreateOtherCreditCategory(invite.groupId, session);
+
         const event = new GroupEvent({
             groupId: invite.groupId,
             performedBy: userId,
@@ -95,6 +98,7 @@ export const acceptInviteService = async (data: { inviteId: string; userId: mong
             description: `Joined group with ${contribution} contribution`,
             referenceId: userId,
             referenceModel: "User",
+            category: otherCreditCategory._id,
             metadata: [{ userId, contribution }],
             performedBy: userId,
         });
