@@ -9,6 +9,7 @@ import Category from "../models/category.model";
 import { GROUP_PURPOSES, type GroupPurpose } from "../models/group.model";
 import { PURPOSE_DEFAULT_CATEGORIES } from "../config/purposeCategories";
 import { createNotification } from "./notification.service";
+import { getOrCreateOtherCreditCategory } from "./category.service";
 import { creditGroupBalance, debitGroupBalance, reverseGroupCredit, adjustMemberContribution } from "../helpers/balanceOps";
 import { getUserPlan, getGroupOwnerPlan, assertWithinLimit, assertFeature, retentionFloor, countActiveOwnedGroups } from "../helpers/planLimits";
 
@@ -77,10 +78,16 @@ export const createGroupService = async (data: { name: string; invitees: string[
                     name: c.name,
                     color: c.color,
                     isSpecial: c.isSpecial ?? false,
+                    type: "EXPENSE",
                 })),
                 { session }
             );
         }
+
+        // Every group starts with a single "Other" credit category — the
+        // creator's initial contribution (and any later credit) lands here
+        // until the group adds more credit categories.
+        const otherCreditCategory = await getOrCreateOtherCreditCategory(group._id, session);
 
         const creatorMember = new GroupMember({
             groupId: group._id,
@@ -107,6 +114,7 @@ export const createGroupService = async (data: { name: string; invitees: string[
             description: "Group created with creator's initial contribution",
             referenceId: superAdmin,
             referenceModel: "User",
+            category: otherCreditCategory._id,
             metadata: [{ userId: superAdmin, contribution }],
             performedBy: superAdmin,
         });
@@ -235,24 +243,15 @@ export const cloneGroupService = async (data: { sourceGroupId: string; name: str
         });
         await CreateGroupEvent.save({ session });
 
-        const CreateGroupTransaction = new GroupTransaction({
-            groupId: group._id,
-            amount: 0,
-            action: "CREDIT",
-            description: `Group cloned from "${sourceGroup.name}"`,
-            referenceId: superAdmin,
-            referenceModel: "User",
-            metadata: [{ userId: superAdmin, contribution: 0 }],
-            performedBy: superAdmin,
-        });
-        await CreateGroupTransaction.save({ session });
-
-        // Copy each category and log a MANAGE_CATEGORY event per category.
+        // Copy each category (preserving its EXPENSE/CREDIT type) and log a
+        // MANAGE_CATEGORY event per category.
         for (const category of sourceCategories) {
             const clonedCategory = new Category({
                 groupId: group._id,
                 name: category.name,
                 color: category.color,
+                type: category.type ?? "EXPENSE",
+                isSpecial: category.isSpecial ?? false,
             });
             await clonedCategory.save({ session });
 
@@ -266,6 +265,23 @@ export const cloneGroupService = async (data: { sourceGroupId: string; name: str
             });
             await categoryEvent.save({ session });
         }
+
+        // Ensure the clone has an "Other" credit category (finds a copied one
+        // or creates it) and tag the opening 0-credit row to it.
+        const otherCreditCategory = await getOrCreateOtherCreditCategory(group._id, session);
+
+        const CreateGroupTransaction = new GroupTransaction({
+            groupId: group._id,
+            amount: 0,
+            action: "CREDIT",
+            description: `Group cloned from "${sourceGroup.name}"`,
+            referenceId: superAdmin,
+            referenceModel: "User",
+            category: otherCreditCategory._id,
+            metadata: [{ userId: superAdmin, contribution: 0 }],
+            performedBy: superAdmin,
+        });
+        await CreateGroupTransaction.save({ session });
 
         if (invitees.length > 0) {
             const inviteDocs = invitees.map((userId) => ({
@@ -396,6 +412,8 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
 
             await creditGroupBalance(groupData, contribution ?? 0, { session });
 
+            const otherCreditCategory = await getOrCreateOtherCreditCategory(groupData, session);
+
             const groupEventCreate = new GroupEvent({
                 groupId: groupData,
                 performedBy: userId,
@@ -413,6 +431,7 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
                 description: `Added as MEMBER with ${contribution} contribution`,
                 referenceId: Member,
                 referenceModel: "User",
+                category: otherCreditCategory._id,
                 metadata: [{ Member, contribution }],
                 performedBy: userId
             });
@@ -604,7 +623,7 @@ export const manageAdminService = async (data: { group: mongoose.Types.ObjectId,
     }
 };
 
-export const addContributionService = async (data: {group: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, contribution: number, description: string}) => {
+export const addContributionService = async (data: {group: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, contribution: number, description: string, category?: string}) => {
     const groupData = data.group;
     const userId = data.userId;
     const contribution = data.contribution;
@@ -623,7 +642,7 @@ export const addContributionService = async (data: {group: mongoose.Types.Object
     }
 
     const isMember = await GroupMember.findOne({ groupId: groupData, userId: userId, isDeleted: false });
-    
+
     if (!isMember) {
         throw new AppError("User is not a member of this group", 400);
     }
@@ -631,6 +650,24 @@ export const addContributionService = async (data: {group: mongoose.Types.Object
     const session = await mongoose.startSession();
     try {
         session.startTransaction();
+
+        // Resolve which credit category the contribution lands in. A chosen
+        // category must be a non-deleted CREDIT category of this group;
+        // otherwise it falls back to the group's "Other" credit category.
+        let creditCategoryId;
+        if (data.category && mongoose.Types.ObjectId.isValid(data.category)) {
+            const chosen = await Category.findOne({
+                _id: data.category,
+                groupId: groupData,
+                type: "CREDIT",
+                isDeleted: false,
+            }).session(session);
+            if (!chosen) throw new AppError("Invalid credit category", 400);
+            creditCategoryId = chosen._id;
+        } else {
+            const other = await getOrCreateOtherCreditCategory(groupData, session);
+            creditCategoryId = other._id;
+        }
 
         const AddContributionMember = await adjustMemberContribution(groupData, userId, contribution, { session });
 
@@ -643,6 +680,7 @@ export const addContributionService = async (data: {group: mongoose.Types.Object
             description: `Added ${contribution} contribution to group ${description ? `with description: ${description}` : ""}`,
             referenceId: userId,
             referenceModel: "User",
+            category: creditCategoryId,
             metadata: [{ userId, contribution }],
             performedBy: userId
         });

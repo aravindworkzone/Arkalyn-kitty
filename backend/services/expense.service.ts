@@ -17,6 +17,8 @@ interface ExpenseData {
         balance: number;
     };
     category: string;
+    // Optional credit category (pool) the expense is drawn from.
+    creditCategory?: string;
     title: string;
     description?: string;
     amount: number;
@@ -28,6 +30,26 @@ interface ExpenseData {
         amount: number;
     }[];
 }
+
+// Validate an optional credit category: must be a non-deleted CREDIT category
+// of this group. Returns the ObjectId to store, or undefined when not supplied.
+const resolveCreditCategory = async (
+    groupId: string,
+    creditCategory: string | undefined,
+    session: mongoose.ClientSession
+) => {
+    const ref = creditCategory?.trim();
+    if (!ref) return undefined;
+    if (!mongoose.Types.ObjectId.isValid(ref)) throw new AppError("Invalid credit category", 400);
+    const found = await Category.findOne({
+        _id: ref,
+        groupId,
+        type: "CREDIT",
+        isDeleted: false,
+    }).session(session);
+    if (!found) throw new AppError("Invalid credit category", 400);
+    return found._id;
+};
 
 export const createExpenseService = async (data: ExpenseData) => {
     const groupData = data.group;
@@ -85,9 +107,12 @@ export const createExpenseService = async (data: ExpenseData) => {
     const session = await mongoose.startSession();
     try {
         session.startTransaction();
+        const creditCategoryId = await resolveCreditCategory(groupData._id, data.creditCategory, session);
+
         const expense: {
             groupId: string;
             category: string;
+            creditCategory?: mongoose.Types.ObjectId;
             title: string;
             description?: string;
             amount: number;
@@ -105,6 +130,7 @@ export const createExpenseService = async (data: ExpenseData) => {
             date,
             splitBetween: [],
         };
+        if (creditCategoryId) expense.creditCategory = creditCategoryId;
         if (data.description?.trim()) expense.description = data.description.trim();
 
         if (splitBetween.length > 0) {
@@ -329,11 +355,14 @@ export const updateExpenseService = async (data: ExpenseData & { expenseId: stri
         }
 
         // Mutate + save the document so the model's split-sum/unique validator runs.
+        const creditCategoryId = await resolveCreditCategory(groupId, data.creditCategory, session);
+
         expense.title = title;
         expense.description = data.description?.trim() || undefined;
         expense.amount = amount;
         expense.paidBy = new mongoose.Types.ObjectId(paidBy);
         expense.category = new mongoose.Types.ObjectId(category);
+        expense.creditCategory = creditCategoryId;
         expense.paymentType = paymentType;
         expense.date = expenseDate;
         expense.splitBetween =
@@ -404,6 +433,7 @@ export const getExpenseByIdService = async (groupId: mongoose.Types.ObjectId, ex
     const expense = await Expense.findOne({ _id: expenseId, groupId, isDeleted: false })
         .populate("paidBy")
         .populate("category")
+        .populate("creditCategory")
         .populate("splitBetween.userId", "name email");
     if (!expense) throw new AppError("Expense not found", 404);
     return expense;
@@ -411,7 +441,7 @@ export const getExpenseByIdService = async (groupId: mongoose.Types.ObjectId, ex
 
 export const getExpenseAddDetailsService = async (groupId: mongoose.Types.ObjectId, _userId: mongoose.Types.ObjectId) => {
     const [categories, payMethods, members] = await Promise.all([
-        Category.find({ groupId, isDeleted: false }),
+        Category.find({ groupId, type: { $ne: "CREDIT" }, isDeleted: false }),
         Expense.distinct("paymentType"),
         GroupMembers.find({ groupId, isDeleted: false }),
     ]);

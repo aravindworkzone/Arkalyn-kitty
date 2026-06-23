@@ -5,6 +5,7 @@ export const createCategoryBodySchema = z.object({
     groupId: groupIdParamSchema,
     name: z.string().trim().min(3, 'Name must be at least 3 characters').max(50, 'Name must be at most 50 characters'),
     color: z.string().trim().max(20).optional(),
+    type: z.enum(['EXPENSE', 'CREDIT']).optional(),
 });
 
 export const updateCategoryParamsSchema = z.object({
@@ -28,6 +29,10 @@ export const deleteCategoryParamsSchema = z.object({
 
 export const getCategoryParamsSchema = z.object({
     groupId: groupIdParamSchema,
+});
+
+export const getCategoryQuerySchema = z.object({
+    type: z.enum(['EXPENSE', 'CREDIT']).optional(),
 });
 
 export type CreateCategoryDto = z.infer<typeof createCategoryBodySchema>;

@@ -8,6 +8,7 @@ import {
     updateCategoryBodySchema,
     deleteCategoryParamsSchema,
     getCategoryParamsSchema,
+    getCategoryQuerySchema,
 } from '../validators/category.validator';
 
 const router = express.Router();
@@ -44,7 +45,7 @@ router.delete(
 
 router.get(
     '/getCategoryDetails/:groupId',
-    validate({ params: getCategoryParamsSchema }),
+    validate({ params: getCategoryParamsSchema, query: getCategoryQuerySchema }),
     verifyToken,
     loadGroup,
     getCategoryDetails

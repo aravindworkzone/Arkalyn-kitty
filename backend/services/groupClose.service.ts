@@ -183,13 +183,14 @@ export const executeGroupCloseService = async (data: {
         if (shouldCreateExpense) {
             let category = await Category.findOne({
                 groupId,
+                type: { $ne: "CREDIT" },
                 name: CLOSURE_CATEGORY_NAME,
                 isDeleted: false,
             }).session(session);
 
             if (!category) {
                 const created = await Category.create(
-                    [{ groupId, name: CLOSURE_CATEGORY_NAME, color: CLOSURE_CATEGORY_COLOR }],
+                    [{ groupId, name: CLOSURE_CATEGORY_NAME, color: CLOSURE_CATEGORY_COLOR, type: "EXPENSE" }],
                     { session }
                 );
                 category = created[0]!;

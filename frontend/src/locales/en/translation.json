@@ -340,6 +340,7 @@
     "splitEqually": "÷ Split Equally",
     "categoryPayment": "Category & Payment",
     "category": "Category",
+    "creditCategory": "Credit pool",
     "noCategoriesCreate": "No categories — create one",
     "add": "Add",
     "paymentType": "Payment type",
@@ -376,7 +377,13 @@
     "saving": "Saving…",
     "cancel": "Cancel",
     "collective": "Collective",
-    "toggleCollective": "Toggle collective (excluded from per-member report)"
+    "toggleCollective": "Toggle collective (excluded from per-member report)",
+    "expenseType": "Expense",
+    "creditType": "Credit",
+    "creditCount_one": "{{count}} credit",
+    "creditCount_other": "{{count}} credits",
+    "noCredits": "No credits",
+    "hasActiveCredits": "Has credits — remove them first"
   },
   "allExpenses": {
     "label": "All Expenses",
@@ -451,6 +458,7 @@
     "updatingRole": "Updating…",
     "changeRole": "Change Role",
     "addFundsDesc": "Add funds to the group wallet. Select a member or leave as self.",
+    "creditCategory": "Credit category",
     "myContribution": "My contribution (self)",
     "amount": "Amount",
     "addingContrib": "Adding…",

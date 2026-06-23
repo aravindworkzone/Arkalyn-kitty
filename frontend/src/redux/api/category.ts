@@ -1,8 +1,8 @@
 import {api} from "./base";
-import type { Category } from "../../interface/category";
+import type { Category, CategoryType } from "../../interface/category";
 import type { ApiSuccess } from "../../interface/api";
 
-interface CreateCategoryRequest { groupId: string; name: string; color?: string }
+interface CreateCategoryRequest { groupId: string; name: string; color?: string; type?: CategoryType }
 interface UpdateCategoryRequest { id: string; groupId: string; color?: string; isSpecial?: boolean }
 interface DeleteCategoryRequest { id: string; groupId: string }
 
@@ -47,7 +47,17 @@ export const category = api.injectEndpoints({
                 { type: "Category", id: groupId }
             ],
         }),
+        getCreditCategories: builder.query<Category[], string>({
+            query: (groupId) => ({
+                url: `/category/getCategoryDetails/${groupId}?type=CREDIT`,
+                method: 'GET'
+            }),
+            transformResponse: (res: { data: {categories: Category[]} }) => res.data.categories,
+            providesTags: (_result, _error, groupId) => [
+                { type: "Category", id: groupId }
+            ],
+        }),
     })
 });
 
-export const { useCreateCategoryMutation, useUpdateCategoryMutation, useDeleteCategoryMutation, useGetCategoriesQuery } = category;
+export const { useCreateCategoryMutation, useUpdateCategoryMutation, useDeleteCategoryMutation, useGetCategoriesQuery, useGetCreditCategoriesQuery } = category;

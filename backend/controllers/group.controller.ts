@@ -125,6 +125,7 @@ export const addContribution = asyncHandler(async (req, res) => {
         userId: req.body.userId ?? req.user._id,
         contribution: req.body.contribution,
         description: req.body.description,
+        category: req.body.category,
     });
 
     emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_CONTRIBUTION_ADDED);

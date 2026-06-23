@@ -135,7 +135,7 @@ export const group = api.injectEndpoints({
                 { type: 'Group', id: arg.groupId }
             ]
         }),
-        addContribution: builder.mutation<ApiSuccess<null>, { groupId: string; contribution: number; userId?: string; description?: string }>({
+        addContribution: builder.mutation<ApiSuccess<null>, { groupId: string; contribution: number; userId?: string; description?: string; category?: string }>({
             query: (body) => ({ url: '/group/addcontribution', method: 'POST', body }),
             invalidatesTags: (_result, _error, arg) => [
                 { type: 'Group', id: arg.groupId }

@@ -60,7 +60,7 @@ export const useExpenseHandlers = (groupId: string | undefined, expenseId?: stri
   const handleSubmit = async (
     e: React.FormEvent,
     {
-      title, description, totalAmount, maxAmount, categoryId, paidBy,
+      title, description, totalAmount, maxAmount, categoryId, creditCategoryId, paidBy,
       splits, splitValid, splitEnabled, date, paymentType,
       setFieldError, setApiError,
     }: {
@@ -69,6 +69,7 @@ export const useExpenseHandlers = (groupId: string | undefined, expenseId?: stri
       totalAmount: number;
       maxAmount?: number;
       categoryId: string;
+      creditCategoryId?: string;
       paidBy: string;
       splits: SplitEntry[];
       splitValid: boolean;
@@ -109,6 +110,7 @@ export const useExpenseHandlers = (groupId: string | undefined, expenseId?: stri
       amount: totalAmount,
       date,
       category: categoryId,
+      ...(creditCategoryId ? { creditCategory: creditCategoryId } : {}),
       paymentType,
       paidBy,
       splitBetween: splits.map((s) => ({ userId: s.userId, amount: s.amount })),

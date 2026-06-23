@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
-import { useGetCategoriesQuery } from "../redux/api/category";
+import { useGetCategoriesQuery, useGetCreditCategoriesQuery } from "../redux/api/category";
 import { useCategoryHandlers } from "../handlers/useCategoryHandlers";
 import DeleteConfirmModal from "../components/deleteModel";
 import CategoryDeleteSummary from "../components/categorySummary";
 import { colorOptions } from "../helpers/constants";
-import type { Category } from "../interface/category";
+import type { Category, CategoryType } from "../interface/category";
 import { useFieldError } from "../hooks/useFieldError";
 import type { CategoryField } from "../handlers/useCategoryHandlers";
 import { FieldInput, ErrorMessage } from "../components/ui";
@@ -26,8 +26,15 @@ export default function CategoryPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const { handleAdd, handleChangeColor, handleToggleSpecial, handleDelete, isCreating, isUpdatingColor, isDeleting } = useCategoryHandlers(groupId);
-  const { data, isLoading } = useGetCategoriesQuery(groupId!);
+  // Manage both expense and credit categories from this page via a toggle.
+  const [categoryType, setCategoryType] = useState<CategoryType>("EXPENSE");
+  const isCredit = categoryType === "CREDIT";
+
+  const { handleAdd, handleChangeColor, handleToggleSpecial, handleDelete, isCreating, isUpdatingColor, isDeleting } = useCategoryHandlers(groupId, categoryType);
+  const { data: expenseData, isLoading: expenseLoading } = useGetCategoriesQuery(groupId!);
+  const { data: creditData, isLoading: creditLoading } = useGetCreditCategoriesQuery(groupId!);
+  const data = isCredit ? creditData : expenseData;
+  const isLoading = isCredit ? creditLoading : expenseLoading;
 
   const [name, setName]   = useState("");
   const [color, setColor] = useState(colorOptions[0]);
@@ -57,8 +64,8 @@ export default function CategoryPage() {
   const closeColorEditor = () => { setEditingColorId(null); setColorError(""); };
 
   useEffect(() => {
-    if (data) setCategories(data);
-  }, [data]);
+    setCategories(data ?? []);
+  }, [data, categoryType]);
 
   const doAdd = () =>
     handleAdd(name, color, categories, setFieldError, setApiError, setCategories, setName, setColor, colorOptions[0]);
@@ -74,7 +81,7 @@ export default function CategoryPage() {
       isLoading={isDeleting}
       label={t("deleteModal.destructiveAction")}
     >
-      {selectedCategory && <CategoryDeleteSummary category={selectedCategory} />}
+      {selectedCategory && <CategoryDeleteSummary category={selectedCategory} unit={isCredit ? "credit" : "expense"} />}
     </DeleteConfirmModal>
 
     <div className="min-h-screen bg-[#080c14] text-white">
@@ -127,6 +134,27 @@ export default function CategoryPage() {
           <p className="text-white/35 text-sm mt-1.5">
             {t("createCategory.description")}
           </p>
+        </div>
+
+        {/* ── Expense / Credit toggle ── */}
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.03] border border-white/[0.07] w-fit mb-2">
+          {([
+            { key: "EXPENSE", label: t("createCategory.expenseType", "Expense") },
+            { key: "CREDIT", label: t("createCategory.creditType", "Credit") },
+          ] as { key: CategoryType; label: string }[]).map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => { setCategoryType(tab.key); setApiError(""); clearFieldError("name"); }}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
+                categoryType === tab.key
+                  ? "bg-violet-500/20 text-violet-200 border border-violet-500/30"
+                  : "text-white/35 hover:text-white/60 border border-transparent"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* ── 01 Create ── */}
@@ -300,9 +328,9 @@ export default function CategoryPage() {
                   <div className="flex items-center justify-between">
                   <button
                     type="button"
-                    onClick={() => navigate(`/groups/${groupId}/expenses?categoryId=${cat._id}&label=${encodeURIComponent(cat.name)}`)}
-                    title={t("createCategory.viewExpenses", "View expenses in this category")}
-                    className="group/cat flex items-center gap-3 min-w-0 text-left flex-1 mr-2"
+                    onClick={() => { if (!isCredit) navigate(`/groups/${groupId}/expenses?categoryId=${cat._id}&label=${encodeURIComponent(cat.name)}`); }}
+                    title={isCredit ? cat.name : t("createCategory.viewExpenses", "View expenses in this category")}
+                    className={`group/cat flex items-center gap-3 min-w-0 text-left flex-1 mr-2 ${isCredit ? "cursor-default" : ""}`}
                   >
                     <div
                       className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
@@ -320,20 +348,27 @@ export default function CategoryPage() {
                         )}
                       </p>
                       <p className="text-[10px] text-white/25 mt-0.5" translate="no">
-                        {cat.expenseCount > 0
-                          ? t("createCategory.expense", { count: cat.expenseCount })
-                          : t("createCategory.noExpenses")}
+                        {isCredit
+                          ? (cat.expenseCount > 0
+                              ? t("createCategory.creditCount", { count: cat.expenseCount })
+                              : t("createCategory.noCredits", "No credits"))
+                          : (cat.expenseCount > 0
+                              ? t("createCategory.expense", { count: cat.expenseCount })
+                              : t("createCategory.noExpenses"))}
                       </p>
                     </div>
-                    <svg
-                      className="w-3 h-3 shrink-0 text-white/15 opacity-0 group-hover/cat:opacity-100 group-hover/cat:text-white/40 transition-all -translate-x-1 group-hover/cat:translate-x-0"
-                      viewBox="0 0 12 12" fill="none"
-                    >
-                      <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                    {!isCredit && (
+                      <svg
+                        className="w-3 h-3 shrink-0 text-white/15 opacity-0 group-hover/cat:opacity-100 group-hover/cat:text-white/40 transition-all -translate-x-1 group-hover/cat:translate-x-0"
+                        viewBox="0 0 12 12" fill="none"
+                      >
+                        <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
                   </button>
 
                   <div className="flex items-center gap-1 shrink-0">
+                  {!isCredit && (
                   <button
                     type="button"
                     onClick={() => handleToggleSpecial(cat, setApiError, setCategories)}
@@ -348,6 +383,7 @@ export default function CategoryPage() {
                       <path d="M7 1.5l1.6 3.3 3.6.5-2.6 2.5.6 3.6L7 9.7l-3.2 1.7.6-3.6L1.8 5.3l3.6-.5L7 1.5z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
                     </svg>
                   </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => (editingColorId === cat._id ? closeColorEditor() : openColorEditor(cat))}
@@ -385,7 +421,7 @@ export default function CategoryPage() {
                       <div className="absolute right-0 bottom-full mb-2 hidden group-hover/del:flex
                         items-center whitespace-nowrap px-2.5 py-1.5 rounded-lg
                         bg-[#1a1a2a] border border-white/10 text-[10px] text-white/50 shadow-xl z-10">
-                        {t("createCategory.hasActiveExpenses")}
+                        {isCredit ? t("createCategory.hasActiveCredits", "Has credits — remove them first") : t("createCategory.hasActiveExpenses")}
                         <div className="absolute top-full right-3 border-4 border-transparent border-t-[#1a1a2a]" />
                       </div>
                     )}

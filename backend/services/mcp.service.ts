@@ -267,10 +267,10 @@ export const mcpAddExpenseService = async (userId: mongoose.Types.ObjectId, inpu
     const catRef = (input.category ?? '').trim();
     if (!catRef) throw new AppError('A category name is required', 400);
     const exactCat = new RegExp(`^${escapeRegex(catRef)}$`, 'i');
-    let category = await Category.findOne({ groupId: group._id, name: exactCat, isDeleted: false });
+    let category = await Category.findOne({ groupId: group._id, type: { $ne: 'CREDIT' }, name: exactCat, isDeleted: false });
     if (!category) {
         const subCat = new RegExp(escapeRegex(catRef), 'i');
-        const cats = await Category.find({ groupId: group._id, name: subCat, isDeleted: false });
+        const cats = await Category.find({ groupId: group._id, type: { $ne: 'CREDIT' }, name: subCat, isDeleted: false });
         if (cats.length === 1) category = cats[0];
         else if (cats.length > 1) throw new AppError(`"${catRef}" matches multiple categories. Be more specific.`, 400);
     }

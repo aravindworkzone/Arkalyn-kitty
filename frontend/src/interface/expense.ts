@@ -17,6 +17,7 @@ export interface Expense {
   date: string;
   time?: string;
   category: { name: string; color: string; _id: string };
+  creditCategory?: { name: string; color: string; _id: string };
   paidBy: { _id: string; name: string; email: string };
   paymentType: string;
   splitBetween: SplitMember[];

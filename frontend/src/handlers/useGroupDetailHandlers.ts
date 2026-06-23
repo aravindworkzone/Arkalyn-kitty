@@ -112,7 +112,8 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
     setFieldError: SetFieldError<ContributionField>,
     myContribDesc: string,
     setmyContribDesc: React.Dispatch<React.SetStateAction<string>>,
-    setContribErrorDesc: SetFieldError<ContributionDescField>
+    setContribErrorDesc: SetFieldError<ContributionDescField>,
+    creditCategoryId?: string,
   ) => {
     if (!groupId) return;
 
@@ -134,6 +135,7 @@ export const useGroupDetailHandlers = (groupId: string | undefined) => {
         contribution: Number(myContrib),
         description: myContribDesc,
         ...(contribMemberId ? { userId: contribMemberId } : {}),
+        ...(creditCategoryId ? { category: creditCategoryId } : {}),
       }).unwrap();
       setMsg({ ok: true, text: "Contribution added" });
       setMyContrib("");

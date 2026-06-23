@@ -1,39 +1,76 @@
 import mongoose from 'mongoose';
-import Category from '../models/category.model';
+import Category, { CategoryType } from '../models/category.model';
 import GroupEvent from '../models/group_event.model';
 import Expense from '../models/expense.model';
+import GroupTransaction from '../models/group_transaction.model';
 import { AppError } from '../helpers/AppError';
 import { getGroupOwnerPlan, assertWithinLimit } from '../helpers/planLimits';
+
+// The default credit category every group gets. New credits land here unless a
+// specific credit category is chosen.
+export const OTHER_CREDIT_CATEGORY = { name: 'Other', color: '#64748b' } as const;
+
+// Mongo filter fragment for "expense-side" categories. Pre-existing documents
+// have no `type` field, so we match on NOT credit rather than == expense.
+export const EXPENSE_CATEGORY_FILTER = { type: { $ne: 'CREDIT' } } as const;
+
+// Fetch (or lazily create) a group's "Other" credit category. Used by every
+// credit-creation flow so older groups get one on first use.
+export const getOrCreateOtherCreditCategory = async (
+    groupId: mongoose.Types.ObjectId,
+    session?: mongoose.ClientSession
+) => {
+    const query = Category.findOne({
+        groupId,
+        type: 'CREDIT',
+        name: OTHER_CREDIT_CATEGORY.name,
+        isDeleted: false,
+    });
+    if (session) query.session(session);
+    let category = await query;
+    if (!category) {
+        const created = await Category.create(
+            [{ groupId, type: 'CREDIT', name: OTHER_CREDIT_CATEGORY.name, color: OTHER_CREDIT_CATEGORY.color }],
+            session ? { session } : {}
+        );
+        category = created[0]!;
+    }
+    return category;
+};
 
 export const createCategoryService = async (data: {
     name: string;
     groupId: mongoose.Types.ObjectId;
     userId: mongoose.Types.ObjectId;
     color?: string;
+    type?: CategoryType;
 }) => {
     const { groupId, userId, name, color } = data;
+    const type: CategoryType = data.type === 'CREDIT' ? 'CREDIT' : 'EXPENSE';
+    const typeFilter = type === 'CREDIT' ? { type: 'CREDIT' } : EXPENSE_CATEGORY_FILTER;
 
     // Collapse internal whitespace so "test  name" and "test name" can't both
-    // exist — the { groupId, name } unique index only catches exact matches.
+    // exist — the { groupId, type, name } unique index only catches exact matches.
     const cleanName = name.replace(/\s+/g, ' ').trim();
 
     const session = await mongoose.startSession();
     try {
         session.startTransaction();
 
-        const existing = await Category.findOne({ groupId, name: cleanName, isDeleted: false }).session(session);
+        const existing = await Category.findOne({ groupId, ...typeFilter, name: cleanName, isDeleted: false }).session(session);
         if (existing) throw new AppError('Category already exists', 409);
 
         // Subscription gate: cap categories per group on the owner's tier.
+        // Counted per type so credit categories don't eat the expense allowance.
         const ownerPlan = await getGroupOwnerPlan(groupId, session);
-        const categoryCount = await Category.countDocuments({ groupId, isDeleted: false }).session(session);
+        const categoryCount = await Category.countDocuments({ groupId, ...typeFilter, isDeleted: false }).session(session);
         assertWithinLimit(
             categoryCount,
             ownerPlan.limits.maxCategoriesPerGroup,
             `This group has reached its ${ownerPlan.config.name}-plan category limit (${ownerPlan.limits.maxCategoriesPerGroup}). The group owner can upgrade to add more.`
         );
 
-        const categorySave = new Category({ name: cleanName, groupId, color });
+        const categorySave = new Category({ name: cleanName, groupId, color, type });
         await categorySave.save({ session });
 
         const event = await GroupEvent.create(
@@ -149,21 +186,31 @@ export const deleteCategoryService = async (data: {
     }
 };
 
-export const getCategoryDetailsService = async (groupId: mongoose.Types.ObjectId) => {
-    const categories = await Category.find({ groupId, isDeleted: false })
-        .select('_id name color isSpecial')
+export const getCategoryDetailsService = async (
+    groupId: mongoose.Types.ObjectId,
+    type: CategoryType = 'EXPENSE'
+) => {
+    const isCredit = type === 'CREDIT';
+    const typeFilter = isCredit ? { type: 'CREDIT' } : EXPENSE_CATEGORY_FILTER;
+
+    const categories = await Category.find({ groupId, ...typeFilter, isDeleted: false })
+        .select('_id name color isSpecial type')
         .sort({ createdAt: -1 })
         .lean();
 
-    const counts = await Expense.aggregate([
-        {
-            $match: {
-                category: { $in: categories.map((c) => c._id) },
-                isDeleted: false,
-            },
-        },
-        { $group: { _id: '$category', count: { $sum: 1 } } },
-    ]);
+    const ids = categories.map((c) => c._id);
+
+    // Usage count = expenses (EXPENSE) or credit transactions (CREDIT) that
+    // reference the category. Drives the delete-blocked state on the client.
+    const counts = isCredit
+        ? await GroupTransaction.aggregate([
+              { $match: { category: { $in: ids }, action: 'CREDIT', isDeleted: false } },
+              { $group: { _id: '$category', count: { $sum: 1 } } },
+          ])
+        : await Expense.aggregate([
+              { $match: { category: { $in: ids }, isDeleted: false } },
+              { $group: { _id: '$category', count: { $sum: 1 } } },
+          ]);
 
     const countMap = new Map<string, number>(
         counts.map((c) => [c._id.toString(), c.count])
@@ -174,7 +221,10 @@ export const getCategoryDetailsService = async (groupId: mongoose.Types.ObjectId
             _id: c._id,
             name: c.name,
             color: c.color,
+            type: (c.type ?? 'EXPENSE') as CategoryType,
             isSpecial: Boolean(c.isSpecial),
+            // `expenseCount` is the generic usage count (credits, for credit
+            // categories) — kept under this name so the client stays uniform.
             expenseCount: countMap.get(c._id.toString()) ?? 0,
         }))
         .sort((a, b) => b.expenseCount - a.expenseCount);
