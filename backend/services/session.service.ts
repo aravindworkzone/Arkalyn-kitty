@@ -135,7 +135,9 @@ export const rotateSession = async (
         throw new AppError('Account is not active', 401);
     }
 
-    await Session.deleteOne({ _id: matched._id });
+    const result = await Session.deleteOne({ _id: matched._id });
+    if (result.deletedCount === 0) throw new AppError('Session already rotated', 401);
+    
 
     return issueTokensForUser(userId, user.role, deviceInfo);
 };
