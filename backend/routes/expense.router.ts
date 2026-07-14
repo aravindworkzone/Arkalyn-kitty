@@ -32,6 +32,7 @@ router.post(
     verifyToken,
     loadGroup,
     ensureGroupActive,
+    authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
     createExpense
 );
 
@@ -51,6 +52,7 @@ router.get(
     validate({ params: getOneExpenseParamsSchema }),
     verifyToken,
     loadGroup,
+    authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
     getExpenseById
 );
 
@@ -69,6 +71,7 @@ router.get(
     validate({ params: groupIdOnlyParamsSchema }),
     verifyToken,
     loadGroup,
+    authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
     getExpenseAddDetails
 );
 
@@ -88,6 +91,7 @@ router.get(
     validate({ params: groupIdOnlyParamsSchema }),
     verifyToken,
     loadGroup,
+    authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
     expenseReport
 );
 
@@ -96,6 +100,7 @@ router.get(
     validate({ params: groupIdOnlyParamsSchema, query: allExpensesQuerySchema }),
     verifyToken,
     loadGroup,
+    authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
     getAllExpenses
 );
 

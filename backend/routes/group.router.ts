@@ -190,6 +190,7 @@ router.get(
     validate({ params: groupIdParamObject }),
     verifyToken,
     loadGroup,
+    authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
     getGroupById
 );
 
@@ -198,6 +199,7 @@ router.get(
     validate({ params: groupIdParamObject }),
     verifyToken,
     loadGroup,
+    authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
     getGroupMember
 );
 
@@ -206,6 +208,7 @@ router.get(
     validate({ params: groupIdParamObject }),
     verifyToken,
     loadGroup,
+    authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
     getLeftContributors
 );
 
@@ -214,6 +217,7 @@ router.get(
     validate({ params: groupIdParamObject }),
     verifyToken,
     loadGroup,
+    authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
     getBasicTransaction
 );
 
@@ -222,6 +226,7 @@ router.get(
     validate({ params: groupIdParamObject, query: paginationQuerySchema }),
     verifyToken,
     loadGroup,
+    authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
     getTransaction
 );
 
@@ -230,6 +235,7 @@ router.get(
     validate({ params: groupIdParamObject }),
     verifyToken,
     loadGroup,
+    authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
     getEvent
 );
 
@@ -238,6 +244,7 @@ router.get(
     validate({ params: groupIdParamObject, query: paginationQuerySchema }),
     verifyToken,
     loadGroup,
+    authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
     getAllCredits
 );
 

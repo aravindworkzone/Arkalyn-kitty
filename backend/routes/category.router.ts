@@ -48,6 +48,7 @@ router.get(
     validate({ params: getCategoryParamsSchema, query: getCategoryQuerySchema }),
     verifyToken,
     loadGroup,
+    authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
     getCategoryDetails
 );
 
