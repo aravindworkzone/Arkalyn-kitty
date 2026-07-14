@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import MemberAvatars from "../components/ListMember";
 import Header from "../components/header";
 import DeleteConfirmModal from "../components/deleteModel";
+import NotFoundPage from "./NotFoundPage";
 import CloseGroupModal from "../components/CloseGroupModal";
 import CloneGroupModal from "../components/CloneGroupModal";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
@@ -72,7 +73,7 @@ export default function GroupDetailPage() {
     return () => { document.body.style.overflow = ""; };
   }, [settingsOpen]);
 
-  const { data: GroupDetails, isLoading: groupLoading } =
+  const { data: GroupDetails, isLoading: groupLoading, isError: groupError } =
     useGetGroupByIdQuery(groupId!, { skip: !groupId });
   const { data: TodayExpenses } =
     useGetExpenseReportQuery(groupId!, { skip: !groupId });
@@ -141,6 +142,11 @@ export default function GroupDetailPage() {
     },
     { id: "danger",       label: t("groupDetail.tabDanger"),       show: !!role },
   ];
+
+  // Non-members (403) and unknown groups (404) both land here.
+  if (groupError) {
+    return <NotFoundPage />;
+  }
 
   if (groupLoading) {
     return (

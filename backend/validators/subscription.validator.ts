@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { BILLING_CYCLES } from '../config/constants';
 import { objectIdSchema } from './common';
 
-// FREE is intentionally excluded — the free tier is never purchased.
 export const createOrderBodySchema = z.object({
     plan: z.enum(['PRO', 'PREMIUM']),
     cycle: z.enum(BILLING_CYCLES),

@@ -36,9 +36,6 @@ export const createSubscriptionOrderService = async (
 ) => {
     if (plan === 'FREE') throw new AppError('The Free plan does not require payment', 400);
 
-    // Don't allow buying a strictly lower tier while a paid plan is still active
-    // (or in grace). Same-tier renewal and upgrades stay allowed; an expired plan
-    // resolves to FREE so anything is purchasable again. Mirrors the promo guard.
     const buyer = await User.findById(userId).select('plan planExpiresAt');
     if (buyer) {
         const eff = getEffectivePlan({ plan: buyer.plan, planExpiresAt: buyer.planExpiresAt });
@@ -83,14 +80,8 @@ export const createSubscriptionOrderService = async (
     };
 };
 
-// Atomic, idempotent grant keyed on the Razorpay order id. The created -> paid
-// findOneAndUpdate is the lock: only the first caller (browser callback OR
-// webhook) flips the row and applies the entitlement; later callers no-op.
 const grantFromPayment = async (razorpayOrderId: string, razorpayPaymentId: string) => {
-    // Lock filter includes 'failed' so a capture webhook can still grant an
-    // attempt the browser optimistically marked failed (e.g. on dismiss) but
-    // Razorpay actually captured. A genuine payment.failed yields no capture
-    // event, so it stays failed.
+
     const payment = await SubscriptionPayment.findOneAndUpdate(
         { razorpayOrderId, status: { $in: ['created', 'failed'] } },
         { status: 'paid', razorpayPaymentId },
@@ -98,8 +89,6 @@ const grantFromPayment = async (razorpayOrderId: string, razorpayPaymentId: stri
     );
 
     if (!payment) {
-        // Already processed (or unknown order) — return the current effective plan
-        // so the caller still gets a coherent response. Idempotent by design.
         const existing = await SubscriptionPayment.findOne({ razorpayOrderId });
         if (!existing) throw new AppError('Payment not found', 404);
         const u = await User.findById(existing.userId).select('plan planExpiresAt');
@@ -135,9 +124,6 @@ export const verifySubscriptionPaymentService = async (
     return toPlanView(eff);
 };
 
-// Server-to-server confirmation. Source of truth even if the browser callback is
-// lost. Signature failure rejects (Razorpay retries); a grant failure is logged
-// but the handler still resolves so we ack with 200.
 export const handleSubscriptionWebhookService = async (
     rawBody: Buffer,
     signature: string
@@ -165,9 +151,6 @@ export const handleSubscriptionWebhookService = async (
     }
 };
 
-// Marks a still-pending checkout attempt as failed (Razorpay payment.failed, or
-// the user dismissed the modal). Only flips created -> failed; never overwrites a
-// granted (paid) row, and ownership is enforced in the filter.
 export const markPaymentFailedService = async (
     userId: mongoose.Types.ObjectId,
     razorpayOrderId: string
@@ -180,8 +163,6 @@ export const markPaymentFailedService = async (
     return { updated: Boolean(updated) };
 };
 
-// The user's recent subscription payment attempts (newest first) for the profile
-// Transactions section. amount getter returns rupees.
 export const listSubscriptionPaymentsService = async (userId: mongoose.Types.ObjectId) => {
     const rows = await SubscriptionPayment.find({ userId, isDeleted: { $ne: true } })
         .sort({ createdAt: -1 })
@@ -197,11 +178,6 @@ export const listSubscriptionPaymentsService = async (userId: mongoose.Types.Obj
     }));
 };
 
-// Soft-deletes one of the user's own subscription payment rows so it no longer
-// shows in the Transactions list. Ownership is enforced in the filter. The row
-// is kept in the DB (audit + the grant lock still works): a webhook capture can
-// still flip a hidden 'created'/'failed' attempt to 'paid' — soft-delete only
-// hides it from the user's history view.
 export const softDeleteSubscriptionPaymentService = async (
     userId: mongoose.Types.ObjectId,
     paymentId: string
@@ -215,9 +191,6 @@ export const softDeleteSubscriptionPaymentService = async (
     return { deleted: true };
 };
 
-// Redeems a promo code: validates it, then grants the plan immediately with no
-// payment gateway involved. One redemption per user (unique index); the total
-// is capped by maxRedemptions via an atomic guarded $inc.
 export const redeemPromoCodeService = async (userId: mongoose.Types.ObjectId, codeRaw: string) => {
     const code = codeRaw.trim().toUpperCase();
 
@@ -231,7 +204,6 @@ export const redeemPromoCodeService = async (userId: mongoose.Types.ObjectId, co
         throw new AppError('This promo code has reached its redemption limit', 409);
     }
 
-    // Don't let a promo downgrade an active higher tier.
     const user = await User.findById(userId).select('plan planExpiresAt');
     if (!user) throw new AppError('User not found', 404);
     const eff = getEffectivePlan({ plan: user.plan, planExpiresAt: user.planExpiresAt });
@@ -243,8 +215,6 @@ export const redeemPromoCodeService = async (userId: mongoose.Types.ObjectId, co
     try {
         session.startTransaction();
 
-        // Per-user guard: the unique {promoCodeId, userId} index rejects a second
-        // redemption (and races safely).
         try {
             await PromoRedemption.create(
                 [{ promoCodeId: promo._id, code: promo.code, userId, plan: promo.plan, periodDays: promo.periodDays }],
@@ -255,7 +225,6 @@ export const redeemPromoCodeService = async (userId: mongoose.Types.ObjectId, co
             throw e;
         }
 
-        // Atomic global claim — guards maxRedemptions under concurrency.
         const claimed = await PromoCode.findOneAndUpdate(
             {
                 _id: promo._id,
