@@ -7,7 +7,7 @@ import { AppError } from '../helpers/AppError';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 import { toDBAmount } from '../helpers/Money';
-import { createRazorpayOrder, verifyPaymentSignature, verifyWebhookSignature } from '../utils/razorpay';
+import { createRazorpayOrder, verifyPaymentSignature, verifyWebhookSignature, getFullRazorpayDetails, type RazorpayPayment } from '../utils/razorpay';
 import { getEffectivePlan, toPlanView } from '../helpers/planLimits';
 import { PLANS, PLAN_RANK, BILLING_PERIOD_DAYS, type Plan, type BillingCycle } from '../config/constants';
 
@@ -109,16 +109,26 @@ const grantFromPayment = async (razorpayOrderId: string, razorpayPaymentId: stri
 
 export const verifySubscriptionPaymentService = async (
     userId: mongoose.Types.ObjectId,
-    data: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }
+    data: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string; }
 ) => {
     if (!verifyPaymentSignature(data.razorpay_order_id, data.razorpay_payment_id, data.razorpay_signature)) {
         throw new AppError('Payment signature verification failed', 400);
     }
 
-    // Ownership guard: the order must belong to the authenticated user.
+    const razorpay_payment = await getFullRazorpayDetails(data.razorpay_payment_id);
+
     const payment = await SubscriptionPayment.findOne({ razorpayOrderId: data.razorpay_order_id });
     if (!payment) throw new AppError('Payment not found', 404);
     if (!payment.userId.equals(userId)) throw new AppError('Forbidden', 403);
+
+    if (razorpay_payment.status !== 'captured' && razorpay_payment.status !== 'authorized') {
+        throw new AppError('Payment not completed', 400);
+    }
+    // payment.amount is exposed in rupees via the schema getter; the gateway
+    // reports paise, so normalise before comparing.
+    if (toDBAmount(payment.amount) !== razorpay_payment.amount) {
+        throw new AppError('Payment amount mismatch', 400);
+    }
 
     const eff = await grantFromPayment(data.razorpay_order_id, data.razorpay_payment_id);
     return toPlanView(eff);
