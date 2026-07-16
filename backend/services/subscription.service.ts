@@ -142,7 +142,7 @@ export const handleSubscriptionWebhookService = async (
         throw new AppError('Invalid webhook signature', 400);
     }
 
-    let event: { event?: string; payload?: { payment?: { entity?: { id?: string; order_id?: string } } } };
+    let event: { event?: string; payload?: { payment?: { entity?: { id?: string; order_id?: string; amount?: number } } } };
     try {
         event = JSON.parse(rawBody.toString('utf8'));
     } catch {
@@ -153,6 +153,11 @@ export const handleSubscriptionWebhookService = async (
         const entity = event.payload?.payment?.entity;
         if (entity?.order_id && entity.id) {
             try {
+                const payment = await SubscriptionPayment.findOne({ razorpayOrderId: entity.order_id });
+                if (!payment) throw new AppError('Payment not found', 404);
+                if (toDBAmount(payment.amount) !== entity.amount) {
+                    throw new AppError('Webhook amount mismatch', 400);
+                }
                 await grantFromPayment(entity.order_id, entity.id);
             } catch (err) {
                 logger.error({ err, orderId: entity.order_id }, 'Webhook subscription grant failed');
