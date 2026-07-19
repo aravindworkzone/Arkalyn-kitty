@@ -2,7 +2,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 import { toDBAmount, fromDBAmount } from '../helpers/Money';
 import { PLAN_TIERS, BILLING_CYCLES, type Plan, type BillingCycle } from '../config/constants';
 
-export type PaymentStatus = 'created' | 'paid' | 'failed';
+export type PaymentStatus = 'created' | 'paid' | 'failed' | 'refunded';
 
 export interface ISubscriptionPayment extends Document {
     userId: mongoose.Types.ObjectId;
@@ -12,6 +12,7 @@ export interface ISubscriptionPayment extends Document {
     periodDays: number;
     razorpayOrderId: string;
     razorpayPaymentId?: string;
+    razorpayRefundId?: string;
     status: PaymentStatus;
     isDeleted: boolean; // soft-delete: hidden from the user's Transactions list
     createdAt?: Date;
@@ -31,7 +32,8 @@ const subscriptionPaymentSchema = new Schema<ISubscriptionPayment>(
         periodDays: { type: Number, required: true },
         razorpayOrderId: { type: String, required: true, unique: true },
         razorpayPaymentId: { type: String },
-        status: { type: String, enum: ['created', 'paid', 'failed'], default: 'created', index: true },
+        razorpayRefundId: { type: String },
+        status: { type: String, enum: ['created', 'paid', 'failed', 'refunded'], default: 'created', index: true },
         isDeleted: { type: Boolean, default: false, index: true },
     },
     { timestamps: true, toJSON: { getters: true }, toObject: { getters: true } }
