@@ -7,7 +7,7 @@ import { AppError } from '../helpers/AppError';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 import { toDBAmount } from '../helpers/Money';
-import { createRazorpayOrder, verifyPaymentSignature, verifyWebhookSignature, getFullRazorpayDetails, type RazorpayPayment } from '../utils/razorpay';
+import { createRazorpayOrder, verifyPaymentSignature, verifyWebhookSignature, getFullRazorpayDetails, refundPayment, type RazorpayPayment } from '../utils/razorpay';
 import { getEffectivePlan, toPlanView } from '../helpers/planLimits';
 import { PLANS, PLAN_RANK, BILLING_PERIOD_DAYS, type Plan, type BillingCycle } from '../config/constants';
 
@@ -107,6 +107,38 @@ const grantFromPayment = async (razorpayOrderId: string, razorpayPaymentId: stri
     return getEffectivePlan({ plan: user.plan, planExpiresAt: user.planExpiresAt });
 };
 
+// Refunds a captured payment that can't be turned into a plan grant. Never
+// throws: callers refuse the grant regardless of whether the refund succeeds.
+// The created/failed -> refunded transition is an atomic findOneAndUpdate on the
+// unique razorpayOrderId, mirroring grantFromPayment's claim, so the browser
+// callback and the webhook can't both issue a refund for the same payment.
+const refundCapturedPayment = async (
+    razorpayOrderId: string,
+    razorpayPaymentId: string,
+    reason: string
+): Promise<void> => {
+    const claimed = await SubscriptionPayment.findOneAndUpdate(
+        { razorpayOrderId, status: { $in: ['created', 'failed'] } },
+        { status: 'refunded', razorpayPaymentId },
+        { new: false }
+    );
+    if (!claimed) return;
+
+    try {
+        const refund = await refundPayment(razorpayPaymentId);
+        await SubscriptionPayment.updateOne({ razorpayOrderId }, { razorpayRefundId: refund.id });
+        logger.warn({ razorpayOrderId, razorpayPaymentId, reason }, 'Refunded ungranted subscription payment');
+    } catch (err) {
+        // Refund call failed — undo the claim so the doc isn't stuck as 'refunded'
+        // with no actual refund, letting a retry or manual op try again.
+        await SubscriptionPayment.updateOne(
+            { razorpayOrderId, status: 'refunded' },
+            { status: claimed.status }
+        );
+        logger.error({ err, razorpayOrderId, razorpayPaymentId, reason }, 'Refund of ungranted subscription payment failed');
+    }
+};
+
 export const verifySubscriptionPaymentService = async (
     userId: mongoose.Types.ObjectId,
     data: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string; }
@@ -127,6 +159,11 @@ export const verifySubscriptionPaymentService = async (
     // payment.amount is exposed in rupees via the schema getter; the gateway
     // reports paise, so normalise before comparing.
     if (toDBAmount(payment.amount) !== razorpay_payment.amount) {
+        // Money settled but we won't grant the plan — refund it. An authorized
+        // (not yet captured) payment has taken nothing, so leave it to expire.
+        if (razorpay_payment.status === 'captured') {
+            await refundCapturedPayment(data.razorpay_order_id, data.razorpay_payment_id, 'amount mismatch');
+        }
         throw new AppError('Payment amount mismatch', 400);
     }
 
@@ -156,7 +193,10 @@ export const handleSubscriptionWebhookService = async (
                 const payment = await SubscriptionPayment.findOne({ razorpayOrderId: entity.order_id });
                 if (!payment) throw new AppError('Payment not found', 404);
                 if (toDBAmount(payment.amount) !== entity.amount) {
-                    throw new AppError('Webhook amount mismatch', 400);
+                    // payment.captured event: the money is settled, so refund it
+                    // rather than silently keeping a payment we won't honour.
+                    await refundCapturedPayment(entity.order_id, entity.id, 'webhook amount mismatch');
+                    return;
                 }
                 await grantFromPayment(entity.order_id, entity.id);
             } catch (err) {

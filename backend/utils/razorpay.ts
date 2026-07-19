@@ -80,6 +80,35 @@ export const getFullRazorpayDetails = async (
   }
 };
 
+export interface RazorpayRefund {
+  id: string;
+  entity: "refund";
+  amount: number; // in paise
+  currency: string;
+  payment_id: string;
+  status: "pending" | "processed" | "failed";
+  created_at: number;
+}
+
+// Refunds a captured payment. Omitting the amount refunds it in full. Used when
+// a payment is captured but the plan can't be granted (e.g. amount mismatch), so
+// the customer isn't left having paid for nothing.
+export const refundPayment = async (
+  razorpayPaymentId: string,
+  amountPaise?: number
+): Promise<RazorpayRefund> => {
+  if (!razorpay) throw new AppError('Payments not configured', 503);
+  try {
+    const params = amountPaise !== undefined ? { amount: amountPaise } : undefined;
+    return (await razorpay.payments.refund(razorpayPaymentId, params as any)) as RazorpayRefund;
+  } catch (err: any) {
+    const description: string = err?.error?.description ?? 'Payment gateway error';
+    const sdkStatus: number = err?.statusCode;
+    const httpStatus = sdkStatus >= 400 && sdkStatus < 500 ? 400 : 502;
+    throw new AppError(description, httpStatus);
+  }
+};
+
 export const createRazorpayOrder = async ({ amountPaise, receipt, notes }: CreateOrderInput) => {
     if (!razorpay) throw new AppError('Payments not configured', 503);
     try {
