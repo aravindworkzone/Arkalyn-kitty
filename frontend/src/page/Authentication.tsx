@@ -1,5 +1,5 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { loginDetails, RegistrationDetails } from '../helpers/Authentication'
 import { useState } from 'react';
 import type { AuthFormProps } from '../interface/auth';
@@ -11,6 +11,18 @@ import { useTranslation } from 'react-i18next';
 import { useEffect } from 'react';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import AuthLoader from '../components/AuthLoader';
+import GoogleButton from '../components/GoogleButton'
+
+// The OAuth callback is a browser redirect, so failures arrive as ?error=<code>
+// rather than as a response body. Codes are set by the backend's OAuth handler.
+const OAUTH_ERRORS: Record<string, string> = {
+    google_denied: "Google sign-in was cancelled.",
+    invalid_state: "That sign-in link has expired. Please try again.",
+    missing_code: "Google sign-in didn't complete. Please try again.",
+    google_unverified: "Your Google email address is not verified.",
+    account_suspended: "Your account has been suspended. Contact support.",
+    account_conflict: "That email is already linked to a different Google account.",
+};
 
 const Templete = ({inputs, link} : AuthFormProps) => {
     const { t } = useTranslation();
@@ -21,14 +33,24 @@ const Templete = ({inputs, link} : AuthFormProps) => {
     const { handleSubmit, loading } = useAuthHandlers(link);
     const { fieldErrors, setFieldError, clearFieldError } = useFieldError<AuthField>();
     const [apiError, setApiError] = useState('');
-    const [sessionExpired, setSessionExpired] = useState(
+    const [sessionExpired] = useState(
         () => sessionStorage.getItem("auth:sessionExpired") === "1"
     );
     const [shownPasswords, setShownPasswords] = useState<Record<string, boolean>>({});
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [oauthError] = useState(() => searchParams.get("error"));
     // Consume the flag once so the notice doesn't reappear on later visits.
     useEffect(() => {
         if (sessionExpired) sessionStorage.removeItem("auth:sessionExpired");
     }, [sessionExpired]);
+    // Same idea for the OAuth code: strip it from the URL so a reload or a
+    // shared link doesn't resurrect a stale failure message.
+    useEffect(() => {
+        if (!searchParams.get("error")) return;
+        const next = new URLSearchParams(searchParams);
+        next.delete("error");
+        setSearchParams(next, { replace: true });
+    }, [searchParams, setSearchParams]);
     const toggleShown = (name: string) =>
         setShownPasswords((prev) => ({ ...prev, [name]: !prev[name] }));
     return (
@@ -53,6 +75,18 @@ const Templete = ({inputs, link} : AuthFormProps) => {
                             <StatusBanner
                                 status="err"
                                 text={t("auth.sessionExpired", "Your session expired. Please sign in again.")}
+                            />
+                        </div>
+                    )}
+
+                    {oauthError && (
+                        <div className="mb-5">
+                            <StatusBanner
+                                status="err"
+                                text={t(
+                                    `auth.oauth.${oauthError}`,
+                                    OAUTH_ERRORS[oauthError] ?? "Google sign-in failed. Please try again."
+                                )}
                             />
                         </div>
                     )}
@@ -107,21 +141,51 @@ const Templete = ({inputs, link} : AuthFormProps) => {
                             })
                         }
                         {apiError && <ErrorMessage error={apiError} />}
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="mt-1 w-full min-h-touch py-3 rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 text-white font-semibold text-sm tracking-tight disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:opacity-90 active:scale-[0.98] transition-all cursor-pointer"
-                        >
-                            {loading ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                                    </svg>
-                                    {signButtonText}…
-                                </span>
-                            ) : signButtonText}
-                        </button>
+                        <div className="space-y-4">
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full min-h-touch rounded-xl bg-gradient-to-r from-black-500 to-gray-500 py-3 text-sm font-semibold tracking-tight text-white transition-all active:scale-[0.98] active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-[#3367D6] hover:shadow-lg active:scale-[0.98]"
+                            >
+                                {loading ? (
+                                    <span className="flex items-center justify-center gap-2">
+                                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="3"
+                                            />
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8v8H4z"
+                                            />
+                                        </svg>
+                                        {signButtonText}…
+                                    </span>
+                                ) : (
+                                    signButtonText
+                                )}
+                            </button>
+
+                            {/* Divider */}
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-gray-300 dark:border-gray-700"></div>
+                                </div>
+
+                                <div className="relative flex justify-center">
+                                    <span className="bg-white px-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+                                        Or
+                                    </span>
+                                </div>
+                            </div>
+
+                            <GoogleButton />
+                        </div>
                     </form>
 
                     {link === "register" && (
