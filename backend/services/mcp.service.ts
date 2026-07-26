@@ -25,7 +25,7 @@ const userGroupIds = (userId: mongoose.Types.ObjectId) =>
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export interface McpExpenseFilters {
-    limit: number;
+    limit?: number; // omitted => every matching expense
     from?: Date;
     to?: Date;
     group?: string; // matches group name or displayId (case-insensitive substring)
@@ -58,7 +58,8 @@ export const mcpBalanceService = async (userId: mongoose.Types.ObjectId) => {
 
 // Most-recent expenses across all of the user's groups, optionally narrowed by
 // date range, group, and/or category so a client can target exactly what it
-// needs instead of paging through everything.
+// needs instead of paging through everything. Without an explicit limit this
+// returns every matching expense.
 export const mcpExpensesService = async (
     userId: mongoose.Types.ObjectId,
     { limit, from, to, group, category }: McpExpenseFilters
@@ -105,7 +106,8 @@ export const mcpExpensesService = async (
     const expenses = await Expense.aggregate([
         { $match: match },
         { $sort: { date: -1, createdAt: -1 } },
-        { $limit: limit },
+        // No limit => return the full matching set.
+        ...(limit === undefined ? [] : [{ $limit: limit }]),
         { $lookup: { from: 'groups', localField: 'groupId', foreignField: '_id', as: 'group' } },
         { $unwind: '$group' },
         { $lookup: { from: 'categories', localField: 'category', foreignField: '_id', as: 'category' } },
@@ -130,6 +132,7 @@ export const mcpExpensesService = async (
         count: expenses.length,
         // Echo what was actually applied so the caller can confirm the filter.
         filters: {
+            limit: limit ?? null, // null => unlimited, every match returned
             from: from ?? null,
             to: to ?? null,
             group: group ?? null,

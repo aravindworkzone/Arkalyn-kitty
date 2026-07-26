@@ -13,7 +13,7 @@ backend before applying — so a key can never reach another user's data.
 | Tool | Input | Backend call |
 | --- | --- | --- |
 | `get_my_balance` | — | `GET /api/mcp/balance` |
-| `get_my_expenses` | `{ limit?: number (default 10, max 100), from?: ISO date, to?: ISO date, group?: string, category?: string }` | `GET /api/mcp/expenses?limit=…&from=…&to=…&group=…&category=…` |
+| `get_my_expenses` | `{ limit?: number (omit for all matching expenses), from?: ISO date, to?: ISO date, group?: string, category?: string }` | `GET /api/mcp/expenses?limit=…&from=…&to=…&group=…&category=…` |
 | `get_my_members` | — | `GET /api/mcp/members` |
 | `get_my_subscription` | — | `GET /api/mcp/subscription` |
 
