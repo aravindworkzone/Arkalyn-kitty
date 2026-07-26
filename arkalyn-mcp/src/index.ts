@@ -131,11 +131,10 @@ function buildServer(apiKey: string): McpServer {
 
     server.tool(
         "get_my_expenses",
-        "Returns your recent expenses. Use the optional filters to narrow results " +
-            "by date range, group, or category instead of fetching everything — " +
-            "results are capped at 100 per call.",
+        "Returns your expenses. If no limit is given, returns ALL matching expenses. " +
+            "Use the optional filters to narrow results by date range, group, or category.",
         {
-            limit: z.number().int().positive().max(100).optional(),
+            limit: z.number().int().positive().optional(),
             from: z
                 .string()
                 .describe("Only expenses on/after this date (ISO 8601, e.g. 2026-01-01)")
@@ -155,7 +154,8 @@ function buildServer(apiKey: string): McpServer {
         },
         async ({ limit, from, to, group, category }) => {
             try {
-                const params = new URLSearchParams({ limit: String(limit ?? 10) });
+                const params = new URLSearchParams();
+                if (limit) params.set("limit", String(limit));
                 if (from) params.set("from", from);
                 if (to) params.set("to", to);
                 if (group) params.set("group", group);

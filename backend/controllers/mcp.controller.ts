@@ -1,7 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 import { AppError } from '../helpers/AppError';
-import { PAGINATION } from '../config/constants';
 import {
     mcpBalanceService,
     mcpExpensesService,
@@ -36,15 +35,24 @@ const parseDateParam = (value: unknown, name: string): Date | undefined => {
 const trimParam = (value: unknown): string | undefined =>
     typeof value === 'string' && value.trim() ? value.trim() : undefined;
 
+// Parses ?limit. Absent/blank => undefined, meaning "no cap, return everything".
+// A supplied value is used as-is (floored at 1); non-numeric input fails loudly
+// rather than being silently treated as unlimited.
+const parseLimitParam = (value: unknown): number | undefined => {
+    if (value === undefined || (typeof value === 'string' && !value.trim())) return undefined;
+    const n = Number(value);
+    if (!Number.isFinite(n)) {
+        throw new AppError('Invalid limit — must be a positive integer', 400);
+    }
+    return Math.max(Math.trunc(n), 1);
+};
+
 export const McpExpenses = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
 
-    // ?limit — default 10, clamped to [1, MAX_LIMIT] so a client can't ask for
-    // an unbounded scan.
-    const raw = Number(req.query.limit);
-    const limit = Number.isFinite(raw)
-        ? Math.min(Math.max(Math.trunc(raw), 1), PAGINATION.MAX_LIMIT)
-        : 10;
+    // ?limit — honoured as given (floored at 1). Omitted or blank means no cap:
+    // every expense matching the filters below is returned.
+    const limit = parseLimitParam(req.query.limit);
 
     // Optional server-side filters: ?from / ?to (date range), ?group, ?category.
     const data = await mcpExpensesService(req.user._id, {
