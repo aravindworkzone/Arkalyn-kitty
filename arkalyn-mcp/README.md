@@ -14,8 +14,29 @@ backend before applying — so a key can never reach another user's data.
 | --- | --- | --- |
 | `get_my_balance` | — | `GET /api/mcp/balance` |
 | `get_my_expenses` | `{ limit?: number (omit for all matching expenses), from?: ISO date, to?: ISO date, group?: string, category?: string }` | `GET /api/mcp/expenses?limit=…&from=…&to=…&group=…&category=…` |
+| `get_group_details` | `{ group: string }` | `GET /api/mcp/group?group=…` |
+| `get_group_activity` | `{ group: string, limit?: number (omit for the whole window), from?: ISO date, to?: ISO date, kind?: enum }` | `GET /api/mcp/group/activity?group=…&limit=…&from=…&to=…&kind=…` |
 | `get_my_members` | — | `GET /api/mcp/members` |
 | `get_my_subscription` | — | `GET /api/mcp/subscription` |
+
+`get_group_details` returns identity, status, created date/creator, balance,
+totalContribution and the roster with roles. There is no group description field
+in the schema — `purpose` (FAMILY/FRIENDS/ROOMMATES/TEAM/OTHER) is the nearest
+equivalent, and `status` has three states (ACTIVE/INACTIVE/CLOSED).
+
+`get_group_activity` merges two collections into one timeline, because the audit
+trail is split: `GroupEvent` holds membership, role, category and lifecycle
+events, while `GroupTransaction` holds contributions, expenses and refunds.
+Deleting an expense writes only a REFUND transaction — there is no
+`EXPENSE_DELETED` event type — so deletions surface as `kind: "refund"`.
+Category create/update/delete all log as one `MANAGE_CATEGORY` event and arrive
+as `kind: "category_changed"` with the specifics in the `what` text.
+
+Both logs are retention-gated by the group **owner's** plan, on separate
+windows (FREE: 15 days events / 30 days transactions; unlimited on the top
+tier). The response's `retention` field reports the effective cut-off so a
+caller can tell "nothing happened" apart from "your plan can't see that far
+back".
 
 ### Write
 

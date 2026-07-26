@@ -119,7 +119,15 @@ function buildServer(apiKey: string): McpServer {
 
     server.tool(
         "get_my_balance",
-        "Returns balance summary across all your Arkalyn Kitty groups",
+        "Overview across every group you belong to: for each one the group ID, " +
+            "name, status, your role and its pool balance, plus a combined " +
+            "totalBalance and groupCount. All amounts are INR, ready to use as-is. " +
+            "Balance is money left in the group's shared pool — it is NOT what any " +
+            "person owes. Arkalyn Kitty tracks no per-person debt figure, so for " +
+            "who has put in what, use get_group_details (per-member contribution " +
+            "and settled status) or get_my_members. Start here for \"how much is " +
+            "left\" or \"what are my groups\"; use get_group_details for one group " +
+            "in depth.",
         async () => {
             try {
                 return ok(await callAPI("/api/mcp/balance", apiKey));
@@ -131,10 +139,21 @@ function buildServer(apiKey: string): McpServer {
 
     server.tool(
         "get_my_expenses",
-        "Returns your expenses. If no limit is given, returns ALL matching expenses. " +
-            "Use the optional filters to narrow results by date range, group, or category.",
+        "Individual expense rows across your groups, newest first. Each row has id, " +
+            "title, amount (INR), paymentType, date, group, category and paidBy. The " +
+            "response echoes the filters actually applied plus a count, so totals you " +
+            "compute can be trusted against it. If no limit is given this returns ALL " +
+            "matching expenses, so pass from/to, group or category to keep a monthly " +
+            "or per-group question narrow rather than fetching a whole history. For " +
+            "the audit trail — edits, deletions, joins, contributions — use " +
+            "get_group_activity instead; this tool lists only current expenses.",
         {
-            limit: z.number().int().positive().optional(),
+            limit: z
+                .number()
+                .int()
+                .positive()
+                .describe("Max rows to return. Omit for every match — there is no cap.")
+                .optional(),
             from: z
                 .string()
                 .describe("Only expenses on/after this date (ISO 8601, e.g. 2026-01-01)")
@@ -169,7 +188,11 @@ function buildServer(apiKey: string): McpServer {
 
     server.tool(
         "get_my_members",
-        "Returns all members in your groups",
+        "Every member of every group you belong to, as flat rows: group name, group " +
+            "ID, member name, role (SUPER_ADMIN, ADMIN or MEMBER) and that member's " +
+            "contribution in INR. Spans all your groups at once — use this to find " +
+            "someone by name or to compare rosters. For one group only, with " +
+            "settlement and pending-leave status included, use get_group_details.",
         async () => {
             try {
                 return ok(await callAPI("/api/mcp/members", apiKey));
@@ -180,8 +203,117 @@ function buildServer(apiKey: string): McpServer {
     );
 
     server.tool(
+        "get_group_details",
+        "One group's full profile: name, groupId, purpose, groupType (POOL or SPLIT), " +
+            "status (ACTIVE, INACTIVE or CLOSED), createdAt, createdBy, balance and " +
+            "totalContribution in INR, memberCount, an admins name list, and the " +
+            "roster with each member's role, contribution, settled flag and whether " +
+            "they have requested to leave. Use this for \"tell me about this group\", " +
+            "\"who are the admins\", \"when was it created\" or \"has X settled\". " +
+            "Groups have no free-text description field — purpose (FAMILY, FRIENDS, " +
+            "ROOMMATES, TEAM, OTHER) is the nearest equivalent, so do not invent one. " +
+            "Note INACTIVE is a third state between ACTIVE and CLOSED.",
+        {
+            group: z
+                .string()
+                .describe(
+                    "Group name or group ID, case-insensitive and partial. An exact " +
+                        "name or ID beats a partial match; a fragment matching several " +
+                        "of your groups returns an error listing them, which is the " +
+                        "moment to ask which one was meant.",
+                ),
+        },
+        async ({ group }) => {
+            try {
+                const params = new URLSearchParams({ group });
+                return ok(await callAPI(`/api/mcp/group?${params}`, apiKey));
+            } catch (err) {
+                return fail(err);
+            }
+        },
+    );
+
+    server.tool(
+        "get_group_activity",
+        "One group's audit history, newest first. Each entry is { when, kind, who, " +
+            "target, what, amount }: 'who' is the person who performed it, 'target' " +
+            "the person it was done to (member and role changes only, otherwise null), " +
+            "'what' a ready-to-read summary, 'amount' INR or null. Answers \"what " +
+            "changed\", \"who joined\", \"who was removed\", \"what happened in July\". " +
+            "Two quirks to rely on rather than guess around: deleting an expense is " +
+            "recorded as kind 'refund', never a delete event; and category create, " +
+            "update and delete all arrive as 'category_changed' with the specifics in " +
+            "'what'. If no limit is given, returns everything in the visible window. " +
+            "That window depends on the group OWNER's plan, not yours — always check " +
+            "the response's 'retention' field before saying nothing happened, because " +
+            "an empty result may simply predate what the plan can show.",
+        {
+            group: z
+                .string()
+                .describe(
+                    "Group name or group ID, case-insensitive and partial. Ambiguous " +
+                        "fragments return an error naming the candidate groups.",
+                ),
+            limit: z
+                .number()
+                .int()
+                .positive()
+                .describe("Max entries to return. Omit for the whole window — there is no cap.")
+                .optional(),
+            from: z
+                .string()
+                .describe("Only entries on/after this date (ISO 8601, e.g. 2026-01-01)")
+                .optional(),
+            to: z
+                .string()
+                .describe("Only entries on/before this date (ISO 8601, e.g. 2026-01-31)")
+                .optional(),
+            kind: z
+                .enum([
+                    "member_added",
+                    "member_removed",
+                    "role_changed",
+                    "category_changed",
+                    "group_created",
+                    "group_closed",
+                    "credit_removed",
+                    "expense_edited",
+                    "contribution",
+                    "expense_added",
+                    "refund",
+                ])
+                .describe(
+                    "Return only this kind. Use 'refund' for expense deletions, " +
+                        "'expense_added' for new expense ledger entries, 'contribution' " +
+                        "for money paid into the pool, 'category_changed' for any " +
+                        "category create/update/delete.",
+                )
+                .optional(),
+        },
+        async ({ group, limit, from, to, kind }) => {
+            try {
+                const params = new URLSearchParams({ group });
+                if (limit) params.set("limit", String(limit));
+                if (from) params.set("from", from);
+                if (to) params.set("to", to);
+                if (kind) params.set("kind", kind);
+                return ok(await callAPI(`/api/mcp/group/activity?${params}`, apiKey));
+            } catch (err) {
+                return fail(err);
+            }
+        },
+    );
+
+    server.tool(
         "get_my_subscription",
-        "Returns your current plan and renewal date",
+        "Your effective plan: tier, planName, status (active, grace or expired), " +
+            "renewalDate (null on FREE, which never renews) and isReadOnly. Note tier " +
+            "is the EFFECTIVE tier — once a paid plan is past its grace period it " +
+            "reverts to FREE and isReadOnly turns true, which is why a group that " +
+            "previously allowed more members or categories can start rejecting writes " +
+            "on FREE limits. Check this when a write fails with a limit error. Caveat: " +
+            "get_group_activity's history window follows the group OWNER's plan, not " +
+            "yours, so this tool does not predict it for groups you did not create.",
         async () => {
             try {
                 return ok(await callAPI("/api/mcp/subscription", apiKey));
@@ -197,10 +329,15 @@ function buildServer(apiKey: string): McpServer {
 
     server.tool(
         "add_expense",
-        "Adds an expense to one of your groups. The category must already exist " +
-            "in that group (use add_category first if needed). Amounts are in the " +
-            "group currency (INR). Defaults: paidBy = you, paymentType = Cash, " +
-            "date = today. Any group member can add an expense.",
+        "Records one expense in a group, deducting it from that group's pool balance. " +
+            "Any member can do this — no admin role needed. Defaults: paidBy = you, " +
+            "paymentType = Cash, date = today, so only group, title, amount and " +
+            "category are actually required. The category is matched " +
+            "case-insensitively, exact name first then partial. Fails if: no such " +
+            "category exists in that group (call add_category first) or a partial name " +
+            "matches several, the amount exceeds the group's remaining pool balance, or " +
+            "the group is CLOSED. Each call creates a new expense, so do not retry one " +
+            "that already succeeded — check with get_my_expenses first.",
         {
             group: z.string().describe("Group name or group ID the expense belongs to"),
             title: z.string().min(3).max(100).describe("What the expense was for"),
@@ -230,8 +367,12 @@ function buildServer(apiKey: string): McpServer {
 
     server.tool(
         "add_category",
-        "Creates a new expense category in one of your groups. Requires that you " +
-            "are an admin (SUPER_ADMIN or ADMIN) of the group.",
+        "Creates a new expense category in a group, so add_expense can then use it. " +
+            "Requires that you are SUPER_ADMIN or ADMIN of that group — a plain MEMBER " +
+            "cannot. Fails if the name already exists in the group, if the group has " +
+            "hit its plan's category cap (FREE allows 10), or if the group is CLOSED. " +
+            "Check the existing categories via get_group_details before creating a " +
+            "near-duplicate like \"Food\" alongside \"Foods\".",
         {
             group: z.string().describe("Group name or group ID to add the category to"),
             name: z.string().describe("Category name (must be unique within the group)"),
@@ -251,9 +392,12 @@ function buildServer(apiKey: string): McpServer {
 
     server.tool(
         "add_contribution",
-        "Adds a contribution (credit) into one of your groups' pool. Requires that " +
-            "you are an admin (SUPER_ADMIN or ADMIN). Defaults to crediting you; pass " +
-            "a member name/email to credit someone else.",
+        "Pays money INTO a group's shared pool, increasing its balance and the " +
+            "crediting member's recorded contribution. This is the opposite of " +
+            "add_expense — use it for \"I put in 500\", not for a purchase. Requires " +
+            "SUPER_ADMIN or ADMIN. Defaults to crediting you; pass a member name or " +
+            "email to credit someone else. Fails if the group is CLOSED, and each call " +
+            "adds a separate credit, so do not repeat one that already succeeded.",
         {
             group: z.string().describe("Group name or group ID to contribute to"),
             amount: z.number().positive().describe("Contribution amount in INR"),

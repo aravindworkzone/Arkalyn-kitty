@@ -4,8 +4,10 @@ import Expense, { PAYMENT_TYPES, type PaymentType } from '../models/expense.mode
 import Group, { type IGroup } from '../models/group.model';
 import Category from '../models/category.model';
 import User from '../models/user.model';
+import GroupEvent from '../models/group_event.model';
+import GroupTransaction from '../models/group_transaction.model';
 import { AppError } from '../helpers/AppError';
-import { getEffectivePlan } from '../helpers/planLimits';
+import { getEffectivePlan, getGroupOwnerPlan, retentionFloor } from '../helpers/planLimits';
 import { createExpenseService } from './expense.service';
 import { createCategoryService } from './category.service';
 import { addContributionService } from './group.service';
@@ -23,6 +25,36 @@ const userGroupIds = (userId: mongoose.Types.ObjectId) =>
 // Escape user-supplied text before it goes into a RegExp so a filter value can't
 // inject regex metacharacters.
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Resolves a single group from a name/displayId fragment, searching only the
+// user's own memberships. An exact (case-insensitive) name or displayId wins
+// outright, so "Family" still resolves when "Family Budget July" also exists;
+// only a genuinely ambiguous fragment errors, and it names the candidates so the
+// caller can ask one short follow-up question instead of guessing.
+const resolveOneGroup = async (userId: mongoose.Types.ObjectId, group: string) => {
+    const groupIds = await userGroupIds(userId);
+    const rx = new RegExp(escapeRegex(group), 'i');
+    const matches = await Group.find({
+        _id: { $in: groupIds },
+        $or: [{ name: rx }, { displayId: rx }],
+    }).select('_id name displayId');
+
+    if (!matches.length) {
+        throw new AppError(`No group of yours matches "${group}"`, 404);
+    }
+    if (matches.length > 1) {
+        const needle = group.trim().toLowerCase();
+        const exact = matches.filter(
+            (m) => m.name.toLowerCase() === needle || m.displayId?.toLowerCase() === needle
+        );
+        if (exact.length !== 1) {
+            const names = matches.map((m) => m.name).join(', ');
+            throw new AppError(`"${group}" matches several of your groups: ${names}`, 400);
+        }
+        return exact[0];
+    }
+    return matches[0];
+};
 
 export interface McpExpenseFilters {
     limit?: number; // omitted => every matching expense
@@ -165,6 +197,262 @@ export const mcpMembersService = async (userId: mongoose.Types.ObjectId) => {
     ]);
 
     return { currency: 'INR', count: members.length, members };
+};
+
+// One group's profile: identity, money totals, and its current roster. The model
+// has no description field, so `purpose` and `groupType` carry that meaning.
+export const mcpGroupDetailsService = async (
+    userId: mongoose.Types.ObjectId,
+    group: string
+) => {
+    const resolved = await resolveOneGroup(userId, group);
+
+    const [details] = await Group.aggregate([
+        { $match: { _id: resolved._id } },
+        { $lookup: { from: 'users', localField: 'createdBy', foreignField: '_id', as: 'creator' } },
+        {
+            $project: {
+                _id: 0,
+                groupId: '$displayId',
+                name: '$name',
+                purpose: '$purpose',
+                groupType: '$groupType',
+                status: '$status', // ACTIVE | INACTIVE | CLOSED
+                createdAt: '$createdAt',
+                createdBy: { $ifNull: [{ $first: '$creator.name' }, 'Deleted user'] },
+                // Both stored as integer cents — surface in display units.
+                balance: { $divide: ['$balance', 100] },
+                totalContribution: { $divide: ['$totalContribution', 100] },
+            },
+        },
+    ]);
+    if (!details) throw new AppError('Group not found', 404);
+
+    const members = await GroupMember.aggregate([
+        { $match: { groupId: resolved._id, isDeleted: false } },
+        { $lookup: { from: 'users', localField: 'userId', foreignField: '_id', as: 'user' } },
+        {
+            $project: {
+                _id: 0,
+                name: { $ifNull: [{ $first: '$user.name' }, 'Deleted user'] },
+                role: '$role', // SUPER_ADMIN | ADMIN | MEMBER
+                contribution: { $divide: ['$contribution', 100] },
+                settled: '$settlement',
+                leaveRequested: { $ne: ['$leaveRequestedAt', null] },
+            },
+        },
+        { $sort: { role: 1, name: 1 } },
+    ]);
+
+    return {
+        currency: 'INR',
+        ...details,
+        memberCount: members.length,
+        admins: members.filter((m) => m.role !== 'MEMBER').map((m) => m.name),
+        members,
+    };
+};
+
+// A GroupEvent's eventType and a GroupTransaction's action both collapse into one
+// `kind` vocabulary so a single timeline reads consistently. Expense deletion has
+// no event type of its own — it is recorded as a REFUND transaction — which is why
+// the two collections have to be merged rather than one queried.
+const EVENT_KINDS: Record<string, string> = {
+    MEMBER_ADDED: 'member_added',
+    MEMBER_REMOVED: 'member_removed',
+    CHANGE_ROLE: 'role_changed',
+    MANAGE_CATEGORY: 'category_changed', // create/update/delete all log as one type
+    CREATE_GROUP: 'group_created',
+    GROUP_CLOSED: 'group_closed',
+    CREDIT_REMOVED: 'credit_removed',
+    EXPENSE_EDITED: 'expense_edited',
+};
+
+const TRANSACTION_KINDS: Record<string, string> = {
+    CREDIT: 'contribution',
+    DEBIT: 'expense_added',
+    REFUND: 'refund', // includes expense deletions
+};
+
+export const ACTIVITY_KINDS = [
+    ...Object.values(EVENT_KINDS),
+    ...Object.values(TRANSACTION_KINDS),
+] as const;
+
+// Fallback label for an event whose metadata.note is missing.
+const EVENT_LABELS: Record<string, string> = {
+    MEMBER_ADDED: 'Member added',
+    MEMBER_REMOVED: 'Member removed',
+    CHANGE_ROLE: 'Role changed',
+    MANAGE_CATEGORY: 'Category changed',
+    CREATE_GROUP: 'Group created',
+    GROUP_CLOSED: 'Group closed',
+    CREDIT_REMOVED: 'Credit removed',
+    EXPENSE_EDITED: 'Expense edited',
+};
+
+export interface McpActivityFilters {
+    group: string;
+    limit?: number; // omitted => every entry inside the retention window
+    from?: Date;
+    to?: Date;
+    kind?: string; // one of ACTIVITY_KINDS
+}
+
+// Clamps the caller's window to the plan's retention floor: whichever lower bound
+// is later wins, so a request for older history silently returns nothing rather
+// than reaching past what the plan allows.
+const activityRange = (from?: Date, to?: Date, floor?: Date | null) => {
+    const lower = floor && (!from || floor > from) ? floor : from;
+    if (!lower && !to) return undefined;
+    return { ...(lower ? { $gte: lower } : {}), ...(to ? { $lte: to } : {}) };
+};
+
+// Merged audit timeline for one group: membership changes, role changes, category
+// changes and group lifecycle from GroupEvent, plus contributions, expenses and
+// refunds from GroupTransaction. Both logs are retention-gated by the group
+// OWNER's plan — and on different windows — so the response reports the effective
+// cut-off, letting a caller distinguish "nothing happened" from "your plan can't
+// see that far back".
+export const mcpGroupActivityService = async (
+    userId: mongoose.Types.ObjectId,
+    { group, limit, from, to, kind }: McpActivityFilters
+) => {
+    const resolved = await resolveOneGroup(userId, group);
+
+    if (kind && !ACTIVITY_KINDS.includes(kind as (typeof ACTIVITY_KINDS)[number])) {
+        throw new AppError(
+            `Unknown kind "${kind}" — expected one of: ${ACTIVITY_KINDS.join(', ')}`,
+            400
+        );
+    }
+
+    const plan = await getGroupOwnerPlan(resolved._id);
+    const eventFloor = retentionFloor(plan, 'event');
+    const transactionFloor = retentionFloor(plan, 'transaction');
+
+    // Skip a source entirely when the kind filter can't match it.
+    const eventTypes = Object.keys(EVENT_KINDS).filter((k) => !kind || EVENT_KINDS[k] === kind);
+    const actions = Object.keys(TRANSACTION_KINDS).filter(
+        (a) => !kind || TRANSACTION_KINDS[a] === kind
+    );
+
+    const eventRange = activityRange(from, to, eventFloor);
+    const transactionRange = activityRange(from, to, transactionFloor);
+
+    // Each source is capped at `limit` before merging: the newest N overall are
+    // always within the newest N of each source, so the slice below stays correct
+    // while keeping both queries bounded.
+    const [events, transactions] = await Promise.all([
+        eventTypes.length
+            ? GroupEvent.aggregate([
+                  {
+                      $match: {
+                          groupId: resolved._id,
+                          isDeleted: false,
+                          eventType: { $in: eventTypes },
+                          ...(eventRange ? { createdAt: eventRange } : {}),
+                      },
+                  },
+                  { $sort: { createdAt: -1 } },
+                  ...(limit === undefined ? [] : [{ $limit: limit }]),
+                  { $lookup: { from: 'users', localField: 'performedBy', foreignField: '_id', as: 'actor' } },
+                  // Member/role events name the actor in performedBy and the
+                  // subject only in referenceId, so resolve that too or
+                  // "member_added" never says who joined.
+                  { $lookup: { from: 'users', localField: 'referenceId', foreignField: '_id', as: 'subject' } },
+                  {
+                      $project: {
+                          _id: 0,
+                          when: '$createdAt',
+                          eventType: '$eventType',
+                          who: { $ifNull: [{ $first: '$actor.name' }, 'Deleted user'] },
+                          target: {
+                              $cond: [
+                                  { $eq: ['$referenceModel', 'User'] },
+                                  { $ifNull: [{ $first: '$subject.name' }, 'Deleted user'] },
+                                  null,
+                              ],
+                          },
+                          note: { $ifNull: ['$metadata.note', null] },
+                          amount: {
+                              $cond: [
+                                  { $gt: ['$amount', null] },
+                                  { $divide: ['$amount', 100] },
+                                  null,
+                              ],
+                          },
+                      },
+                  },
+              ])
+            : [],
+        actions.length
+            ? GroupTransaction.aggregate([
+                  {
+                      $match: {
+                          groupId: resolved._id,
+                          isDeleted: false,
+                          action: { $in: actions },
+                          ...(transactionRange ? { createdAt: transactionRange } : {}),
+                      },
+                  },
+                  { $sort: { createdAt: -1 } },
+                  ...(limit === undefined ? [] : [{ $limit: limit }]),
+                  { $lookup: { from: 'users', localField: 'performedBy', foreignField: '_id', as: 'actor' } },
+                  {
+                      $project: {
+                          _id: 0,
+                          when: '$createdAt',
+                          action: '$action',
+                          who: { $ifNull: [{ $first: '$actor.name' }, 'Deleted user'] },
+                          description: '$description',
+                          amount: { $divide: ['$amount', 100] },
+                      },
+                  },
+              ])
+            : [],
+    ]);
+
+    const timeline = [
+        ...events.map((e) => ({
+            when: e.when,
+            kind: EVENT_KINDS[e.eventType],
+            who: e.who,
+            target: e.target,
+            what: e.note ?? EVENT_LABELS[e.eventType],
+            amount: e.amount,
+        })),
+        ...transactions.map((t) => ({
+            when: t.when,
+            kind: TRANSACTION_KINDS[t.action],
+            who: t.who,
+            target: null,
+            what: t.description,
+            amount: t.amount,
+        })),
+    ].sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime());
+
+    const entries = limit === undefined ? timeline : timeline.slice(0, limit);
+
+    return {
+        currency: 'INR',
+        group: resolved.name,
+        groupId: resolved.displayId,
+        count: entries.length,
+        filters: {
+            limit: limit ?? null, // null => unlimited within the retention window
+            from: from ?? null,
+            to: to ?? null,
+            kind: kind ?? null,
+        },
+        // How far back this plan can actually see; null => no limit.
+        retention: {
+            plan: plan.tier,
+            eventsSince: eventFloor,
+            transactionsSince: transactionFloor,
+        },
+        entries,
+    };
 };
 
 // The user's effective subscription tier + renewal date.

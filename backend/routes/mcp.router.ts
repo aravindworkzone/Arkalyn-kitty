@@ -3,6 +3,8 @@ import { apiKeyAuth } from '../middlewares/apiKeyAuth.middleware';
 import {
     McpBalance,
     McpExpenses,
+    McpGroupDetails,
+    McpGroupActivity,
     McpMembers,
     McpSubscription,
     McpAddExpense,
@@ -20,6 +22,8 @@ router.use(apiKeyAuth);
 
 router.get('/balance', McpBalance);
 router.get('/expenses', McpExpenses);
+router.get('/group', McpGroupDetails);
+router.get('/group/activity', McpGroupActivity);
 router.get('/members', McpMembers);
 router.get('/subscription', McpSubscription);
 
