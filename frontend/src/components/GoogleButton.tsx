@@ -3,7 +3,7 @@ const GoogleButton = () => {
     // an HttpOnly cookie (which this page could neither set nor read) and builds
     // the consent URL from its own client id and redirect URI, so the two can't
     // drift apart. All this button does is leave.
-    const startUrl = `${import.meta.env.VITE_API_URL}/auth/oauth/start`;
+    const startUrl = `${import.meta.env.VITE_API_URL}auth/oauth/start`;
     return (
         <button
         className="flex w-full items-center justify-center gap-3 rounded-lg bg-gradient-to-r from-black-500 to-gray-500 px-4 py-2.5 text-sm font-medium text-white shadow-md transition-all duration-200 hover:bg-[#3367D6] hover:shadow-lg active:scale-[0.98]"

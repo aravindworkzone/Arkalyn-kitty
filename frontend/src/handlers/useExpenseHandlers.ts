@@ -122,7 +122,7 @@ export const useExpenseHandlers = (groupId: string | undefined, expenseId?: stri
       } else {
         await createExpense(payload).unwrap();
       }
-      navigate(`/groups/${groupId}`);
+      navigate(-1);
     } catch (error: any) {
       setApiError(error.data?.message || (isEdit ? "Failed to update expense" : "Failed to create expense"));
     }
