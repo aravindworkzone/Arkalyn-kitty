@@ -120,7 +120,7 @@ Role checks are applied per route, so unauthorized actions are rejected at the A
 
 A hosted MCP server (`arkalyn-mcp/`) lets a Claude.ai user operate on their **own** Arkalyn Kitty data through a personal API key. Every call is scoped to the key's owner.
 
-**Read tools:** `get_my_balance`, `get_my_expenses`, `get_my_members`, `get_my_subscription`
+**Read tools:** `get_my_balance`, `get_my_expenses`, `get_group_details`, `get_group_activity`, `get_my_members`, `get_my_subscription`
 **Write tools:** `add_expense`, `add_category`, `add_contribution`
 
 Writes go through the same services as the web app, so balance updates, ledger entries, audit events, and plan limits stay identical. Transports: **Streamable HTTP** (`/mcp`, used by Claude.ai connectors) and legacy **HTTP+SSE**. Full details in [`arkalyn-mcp/README.md`](./arkalyn-mcp/README.md).

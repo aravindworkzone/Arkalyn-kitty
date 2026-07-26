@@ -4,6 +4,8 @@ import { AppError } from '../helpers/AppError';
 import {
     mcpBalanceService,
     mcpExpensesService,
+    mcpGroupDetailsService,
+    mcpGroupActivityService,
     mcpMembersService,
     mcpSubscriptionService,
     mcpAddExpenseService,
@@ -63,6 +65,34 @@ export const McpExpenses = asyncHandler(async (req, res) => {
         category: trimParam(req.query.category),
     });
     sendSuccess(res, data, 'Expenses fetched');
+});
+
+export const McpGroupDetails = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+
+    const group = trimParam(req.query.group);
+    if (!group) throw new AppError('group is required (name or group ID)', 400);
+
+    const data = await mcpGroupDetailsService(req.user._id, group);
+    sendSuccess(res, data, 'Group details fetched');
+});
+
+export const McpGroupActivity = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+
+    const group = trimParam(req.query.group);
+    if (!group) throw new AppError('group is required (name or group ID)', 400);
+
+    // Same limit semantics as /expenses: omitted means the whole timeline the
+    // plan's retention window allows.
+    const data = await mcpGroupActivityService(req.user._id, {
+        group,
+        limit: parseLimitParam(req.query.limit),
+        from: parseDateParam(req.query.from, 'from'),
+        to: parseDateParam(req.query.to, 'to'),
+        kind: trimParam(req.query.kind),
+    });
+    sendSuccess(res, data, 'Group activity fetched');
 });
 
 export const McpMembers = asyncHandler(async (req, res) => {
