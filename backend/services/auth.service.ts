@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import User from '../models/user.model';
 import PasswordReset from '../models/password_reset.model';
 import Session from '../models/session.model';
@@ -10,6 +11,12 @@ import { BCRYPT_SALT_ROUNDS, PASSWORD_RESET_TOKEN_TTL_MS } from '../config/const
 import { sendPasswordResetEmail } from '../utils/email';
 import type { SignUpDto, SignInDto } from '../types/dto';
 import { issueTokensForUser, rotateSession, revokeSession, IssuedTokens } from './session.service';
+import GoogleToken from '../utils/googletoken';
+
+// Verifies Google ID tokens: signature against Google's rotating JWKS, plus
+// `iss`, `exp`, and `aud` — the last is what rejects a token minted for a
+// different application. Keys are fetched once and cached by the client.
+const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
 export const SignUpService = async (data: SignUpDto) => {
     const hashedPassword = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
@@ -23,6 +30,8 @@ export const SignUpService = async (data: SignUpDto) => {
     return {
         name: newUser.name,
         email: newUser.email,
+        _id: newUser._id,
+        role: newUser.role
     };
 };
 
@@ -153,4 +162,54 @@ export const resetPasswordService = async (
     // cannot outlive the reset.
     await PasswordReset.deleteMany({ userId: record.userId });
     await Session.deleteMany({ userId: record.userId });
+};
+
+export const OAuthService = async (code: string, deviceInfo: string) => {
+    const googleTokens = await GoogleToken(code);
+
+    // Full verification, not a bare decode: signature, issuer, expiry, and
+    // audience. Without the `aud` check an ID token issued to any other Google
+    // client would be accepted here as proof of identity.
+    const ticket = await googleClient.verifyIdToken({
+        idToken: googleTokens.id_token,
+        audience: env.GOOGLE_CLIENT_ID,
+    });
+    const decoded = ticket.getPayload();
+
+    // An unverified address must never match an existing account — on custom
+    // domains it can be claimed by someone who does not control the mailbox.
+    if (!decoded?.email || !decoded.email_verified) {
+        throw new AppError('Google account email is not verified', 401);
+    }
+
+    const email = decoded.email.toLowerCase();
+    let user = await User.findOne({ googleId: decoded.sub });
+    if (!user) user = await User.findOne({ email });
+
+    if (user && user.email !== email) {
+        const clash = await User.findOne({ email });
+        if (clash) throw new AppError('That email is already in use by another account', 409);
+        user.email = email;
+        await user.save();
+    }
+
+    if (!user) {
+        // `name` is only present when the profile scope is granted, and a few
+        // accounts carry no display name at all — but it is required on the
+        // model, so fall back to the address's local part.
+        const name = decoded.name?.trim() || email.split('@')[0];
+        user = await User.create({ name, email, authProvider: 'GOOGLE', googleId: decoded.sub });
+    } else if (!user.googleId) {
+        user.googleId = decoded.sub;
+        await user.save();
+    } else if (user.googleId && user.googleId !== decoded.sub ) {
+        throw new AppError('This email is already linked to a different Google account', 409);
+    }
+
+    if (user.status === 'SUSPENDED') throw new AppError('Your account has been suspended. Contact support.', 403);
+    if (user.status === 'DELETED') throw new AppError('Invalid credentials', 401);
+
+    const id = user._id as import('mongoose').Types.ObjectId;
+    const tokens = await issueTokensForUser(id, user.role, deviceInfo);
+    return { tokens };
 };

@@ -8,6 +8,10 @@ const REQUIRED_ENV_VARS = [
     'ACCESS_TOKEN_SECRET',
     'REFRESH_TOKEN_SECRET',
     'FRONTEND_URL',
+    'FRONTEND_DASHBOARD_URL',
+    'GOOGLE_CLIENT_ID',
+    'GOOGLE_CLIENT_SECRET',
+    'GOOGLE_REDIRECT_URI',
 ] as const;
 
 type RequiredEnvVar = typeof REQUIRED_ENV_VARS[number];
@@ -40,6 +44,7 @@ export const env = {
     // Trailing slashes silently break CORS — browsers send `Origin` without one.
     // Empty string when unset; validateEnv() rejects that before the app serves.
     FRONTEND_URL: (process.env.FRONTEND_URL ?? '').replace(/\/+$/, ''),
+    FRONTEND_DASHBOARD_URL: (process.env.FRONTEND_DASHBOARD_URL ?? '').replace(/\/+$/, ''),
     // Resend HTTP API for transactional email (password reset). Optional — the
     // app boots without a key; email simply degrades to a logged warning.
     // RESEND_FROM defaults to onboarding@resend.dev (no domain verification
@@ -59,6 +64,11 @@ export const env = {
     RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID ?? '',
     RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET ?? '',
     RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET ?? '',
+    // The auth/token endpoints are pinned constants (config/constants.ts) — only
+    // the app's own credentials and callback URL are environment-specific.
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? '',
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? '',
+    GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI ?? '',
     isProduction: process.env.NODE_ENV === 'production',
     isDevelopment: process.env.NODE_ENV !== 'production',
 };

@@ -1,6 +1,18 @@
 export const ACCESS_TOKEN_COOKIE = 'accessToken';
 export const REFRESH_TOKEN_COOKIE = 'refreshToken';
 
+// Anti-CSRF nonce for the Google OAuth round trip. Minted by /auth/oauth/start,
+// stored HttpOnly so the page (and any attacker) can't read or forge it, and
+// compared against the `state` query param on the callback. Single-use.
+export const OAUTH_STATE_COOKIE = 'oauthState';
+export const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+
+// Pinned, never env-driven: a configurable token endpoint would let a bad env
+// value swap in an attacker-controlled issuer and mint arbitrary identities.
+export const GOOGLE_AUTH_URI = 'https://accounts.google.com/o/oauth2/v2/auth';
+export const GOOGLE_TOKEN_URI = 'https://oauth2.googleapis.com/token';
+export const GOOGLE_OAUTH_SCOPE = 'openid email profile';
+
 export const MAX_ACTIVE_SESSIONS = 3;
 
 export const BCRYPT_SALT_ROUNDS = 10;
@@ -62,6 +74,9 @@ export type PlanSource = typeof PLAN_SOURCES[number];
 
 export const PLAN_TIERS = ['FREE', 'PRO', 'PREMIUM'] as const;
 export type Plan = typeof PLAN_TIERS[number];
+
+export const AUTH_PROVIDERS = ['LOCAL', 'GOOGLE'] as const;
+export type AuthProvider = typeof AUTH_PROVIDERS[number];
 
 // Ordinal rank for comparing tiers (e.g. to block a promo from downgrading an
 // active higher plan).

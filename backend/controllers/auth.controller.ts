@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import type { CookieOptions, Request, Response } from 'express';
 import {
     SignUpService,
@@ -7,18 +8,37 @@ import {
     requestPasswordResetService,
     resetPasswordService,
     changePasswordService,
+    OAuthService,
 } from '../services/auth.service';
 import { AppError } from '../helpers/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendCreated } from '../utils/response';
 import { env } from '../config/env';
-import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '../config/constants';
+import { logger } from '../utils/logger';
+import {
+    ACCESS_TOKEN_COOKIE,
+    REFRESH_TOKEN_COOKIE,
+    OAUTH_STATE_COOKIE,
+    OAUTH_STATE_TTL_MS,
+    GOOGLE_AUTH_URI,
+    GOOGLE_OAUTH_SCOPE,
+} from '../config/constants';
 
 const baseCookieOptions = (): CookieOptions => ({
     httpOnly: true,
     secure: env.isProduction,
     sameSite: env.isProduction ? 'none' : 'lax',
     path: '/',
+});
+
+// Deliberately 'lax' rather than 'strict': Google's callback is a cross-site
+// top-level navigation, and 'strict' would withhold the cookie on exactly the
+// request that needs to read it. Scoped to /api/auth so it travels no further.
+const oauthStateCookieOptions = (): CookieOptions => ({
+    httpOnly: true,
+    secure: env.isProduction,
+    sameSite: 'lax',
+    path: '/api/auth',
 });
 
 const setAuthCookies = (
@@ -107,3 +127,59 @@ export const ChangePassword = asyncHandler(async (req, res) => {
     setAuthCookies(res, tokens);
     sendSuccess(res, null, 'Password changed successfully');
 });
+
+const OAUTH_ERROR_CODES: Record<number, string> = {
+    401: 'google_unverified',
+    403: 'account_suspended',
+    409: 'account_conflict',
+};
+
+export const OAuthStart = (_req: Request, res: Response): void => {
+    const state = crypto.randomBytes(32).toString('hex');
+    res.cookie(OAUTH_STATE_COOKIE, state, {
+        ...oauthStateCookieOptions(),
+        maxAge: OAUTH_STATE_TTL_MS,
+    });
+
+    const url = new URL(GOOGLE_AUTH_URI);
+    url.searchParams.set('client_id', env.GOOGLE_CLIENT_ID);
+    url.searchParams.set('redirect_uri', env.GOOGLE_REDIRECT_URI);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('scope', GOOGLE_OAUTH_SCOPE);
+    url.searchParams.set('state', state);
+    res.redirect(url.toString());
+};
+
+// Google's callback is a browser navigation, not an XHR — so every outcome ends
+// in a redirect. Falling through to the JSON error handler would strand the user
+// on a raw API response with no way back.
+export const OAuth = async (req: Request, res: Response): Promise<void> => {
+    const fail = (reason: string): void => {
+        res.redirect(`${env.FRONTEND_URL}/login?error=${reason}`);
+    };
+
+    // Read then immediately clear: the nonce is single-use, so a replayed
+    // callback fails even if the authorization code is still live.
+    const cookieState: string | undefined = req.cookies?.[OAUTH_STATE_COOKIE];
+    res.clearCookie(OAUTH_STATE_COOKIE, oauthStateCookieOptions());
+
+    if (req.query.error) return fail('google_denied');
+
+    const code = typeof req.query.code === 'string' ? req.query.code : '';
+    const state = typeof req.query.state === 'string' ? req.query.state : '';
+
+    if (!code) return fail('missing_code');
+    if (!cookieState || cookieState !== state) return fail('invalid_state');
+
+    try {
+        const { tokens } = await OAuthService(code, getDeviceInfo(req));
+        setAuthCookies(res, tokens);
+        res.redirect(env.FRONTEND_DASHBOARD_URL);
+    } catch (err) {
+        logger.warn(
+            { err: err instanceof Error ? err.message : err },
+            'Google OAuth callback failed'
+        );
+        fail(err instanceof AppError ? OAUTH_ERROR_CODES[err.statusCode] ?? 'oauth_failed' : 'oauth_failed');
+    }
+};

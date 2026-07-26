@@ -1,5 +1,7 @@
 import express from 'express';
 import {
+    OAuth,
+    OAuthStart,
     SignUp,
     Login,
     Refresh,
@@ -20,6 +22,8 @@ import {
 
 const router = express.Router();
 
+router.get('/oauth/start', OAuthStart);
+router.get('/oauth', OAuth);
 router.post('/signup', validate({ body: signUpBodySchema }), SignUp);
 router.post('/login', validate({ body: signInBodySchema }), Login);
 router.post('/refresh', Refresh);

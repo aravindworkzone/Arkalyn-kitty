@@ -1,7 +1,7 @@
 import mongoose , { Document, Schema} from 'mongoose';
 import {
-    PLAN_TIERS, USER_ROLES, USER_STATUSES, PLAN_SOURCES, BILLING_CYCLES,
-    type Plan, type UserRole, type UserStatus, type PlanSource, type BillingCycle,
+    PLAN_TIERS, USER_ROLES, USER_STATUSES, PLAN_SOURCES, BILLING_CYCLES, AUTH_PROVIDERS,
+    type Plan, type UserRole, type UserStatus, type PlanSource, type BillingCycle, type AuthProvider
 } from '../config/constants';
 
 export interface IUser extends Document {
@@ -29,6 +29,8 @@ export interface IUser extends Document {
     apiKey: string | null;
     apiKeyPrefix: string | null;
     apiKeyCreatedAt: Date | null;
+    authProvider: AuthProvider | null;
+    googleId?: string;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -36,7 +38,7 @@ export interface IUser extends Document {
 const userSchema = new Schema<IUser>({
     name: {type: String, required: true, trim: true, index: true},
     email: {type: String, required: true, unique: true, lowercase: true, trim: true, match: [/\S+@\S+\.\S+/, "Please enter a valid email"]},
-    password: {type: String, required: true},
+    password: {type: String, required: function(this: IUser) { return this.authProvider === 'LOCAL';}},
     role: {type: String, enum: USER_ROLES, default: 'USER', index: true},
     status: {type: String, enum: USER_STATUSES, default: 'ACTIVE', index: true},
     plan: {type: String, enum: PLAN_TIERS, default: 'FREE'},
@@ -50,10 +52,13 @@ const userSchema = new Schema<IUser>({
     apiKey: {type: String, default: null, select: false},
     apiKeyPrefix: {type: String, default: null, index: true},
     apiKeyCreatedAt: {type: Date, default: null},
+    authProvider: {type: String, enum: AUTH_PROVIDERS, default: 'LOCAL'},
+    googleId: {type: String},
 }, {timestamps: true});
 
 // Admin user list sorts by newest first over the whole collection; an index on
 // createdAt avoids an in-memory sort of every user on each dashboard page load.
 userSchema.index({ createdAt: -1 });
+userSchema.index({ googleId: 1}, { unique: true, partialFilterExpression: { googleId: { $type: 'string' } } });
 
 export default mongoose.model<IUser>("User", userSchema);
