@@ -5,9 +5,9 @@ venv/
 # ...but example env files must be committed (placeholders only, no secrets)
 .env.example
 
-# =========================
+# ========================
 # React / Vite / Node
-# =========================
+# ========================
 node_modules/
 dist/
 build/
@@ -18,9 +18,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# =========================
+# ========================
 # OS / Editor
-# =========================
+# ========================
 .DS_Store
 Thumbs.db
 
@@ -30,7 +30,7 @@ Thumbs.db
 # IntelliJ / PyCharm
 .idea/
 
-# =========================
+# ========================
 # Git
-# =========================
+# ========================
 *.orig

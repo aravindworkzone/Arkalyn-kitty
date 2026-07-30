@@ -59,6 +59,14 @@ function Nav() {
     [t("landing.nav.faq"), "#faq"],
   ];
 
+  const ScrollSmooth = (href: string) => {
+    if(!href) return;
+    document.querySelector(href)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+
   useEffect(() => {
     if (menuOpen) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "";
@@ -68,7 +76,7 @@ function Nav() {
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 dark:border-stone-800 bg-stone-50/85 dark:bg-stone-950/85 backdrop-blur-md backdrop-saturate-150 pt-safe">
       <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-4 h-16 sm:h-20 flex items-center gap-3">
-        <a href="#top" className="flex items-center gap-2 font-semibold text-[15px] tracking-tight text-stone-950 dark:text-stone-50 flex-shrink-0">
+        <a onClick={() => ScrollSmooth("#top")} className="flex items-center gap-2 font-semibold text-[15px] tracking-tight text-stone-950 dark:text-stone-50 flex-shrink-0">
           <Logo variant="mini" className="h-10 w-10 sm:h-12 sm:w-12 rounded-md" />
           <Logo variant="word" className="h-10 w-24 sm:h-12 sm:w-28 rounded-md" />
         </a>
@@ -76,7 +84,7 @@ function Nav() {
           {navLinks.map(([label, href]) => (
             <a
               key={href}
-              href={href}
+              onClick={() => ScrollSmooth(href)}
               className="px-3 py-2 text-sm text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg transition-colors"
             >
               {label}
