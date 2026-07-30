@@ -19,7 +19,7 @@ const TIER_ORDER: PlanTier[] = ['FREE', 'PRO', 'PREMIUM'];
 
 // Featured promo advertised on the pricing page — grants 3 months of Premium.
 // The code must also exist in the DB (created via the admin dashboard) to redeem.
-const FEATURED_PROMO = 'ARKALYN-KITTY-3M-PREMIUM';
+const FEATURED_PROMO = 'ARKALYN-KITTY-3M-PREMIUM-Y-INIT';
 
 const fmtLimit = (n: number | null) => (n === null ? 'Unlimited' : String(n));
 const fmtDays = (n: number | null) => (n === null ? 'Unlimited' : `${n} days`);
