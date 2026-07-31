@@ -244,7 +244,7 @@ export default function PricingPage() {
                     >
                         <div className="min-w-0">
                             <p className="font-mono text-[12px] tracking-wider text-amber-200 truncate">{FEATURED_PROMO}</p>
-                            <p className="text-[10px] text-amber-200/50 mt-0.5">Free Premium trial valid until August 1, 2026</p>
+                            <p className="text-[10px] text-amber-200/50 mt-0.5">Free Premium trial valid until December 31, 2026</p>
                         </div>
                         <span className="text-[10px] font-semibold text-amber-200/80 shrink-0">Tap to use</span>
                     </button>

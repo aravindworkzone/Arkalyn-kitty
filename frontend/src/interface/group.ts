@@ -46,4 +46,5 @@ export interface GroupCardProps {
   isTogglingFavorite?: boolean;
 }
 
-export type SettingsTab = "addMember" | "changeRole" | "contribution" | "settlement" | "leaveRequests" | "danger";
+// "requests" holds both join approvals and leave requests.
+export type SettingsTab = "addMember" | "changeRole" | "contribution" | "settlement" | "requests" | "danger";

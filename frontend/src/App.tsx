@@ -25,7 +25,6 @@ import NotFoundPage from './page/NotFoundPage'
 import ShortcutHelp from './components/ShortcutHelp'
 import UseSocket from './hooks/socket'
 import useGlobalShortcuts from './hooks/useGlobalShortcuts'
-import TourProvider from './tour/TourProvider'
 
 function App() {
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
@@ -38,7 +37,6 @@ function App() {
       <TopProgressBar />
       <UseSocket />
       <ShortcutHelp isOpen={shortcutHelpOpen} onClose={() => setShortcutHelpOpen(false)} />
-      <TourProvider>
       {/* Keyed by path so routed content gently fades in on each navigation. */}
       <div key={location.pathname} className="route-fade">
       <Routes location={location}>
@@ -71,7 +69,6 @@ function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
       </div>
-      </TourProvider>
     </ErrorBoundary>
   )
 }

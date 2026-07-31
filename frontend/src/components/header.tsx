@@ -7,7 +7,6 @@ import NotificationPanel from "./NotificationPanel";
 import { Logo } from "./ui";
 import MobileNav from "./MobileNav";
 import { socket } from "../socket/socket";
-import { useTour } from "../tour/useTour";
 import { usePlan } from "../hooks/usePlan";
 
 const Header = () => {
@@ -18,14 +17,6 @@ const Header = () => {
   const navigate = useNavigate();
   const [signOut] = useSignOutMutation();
   const { t } = useTranslation();
-  const { start: startTour, reset: resetTour } = useTour();
-
-  const handleTakeTour = () => {
-    setOpen(false);
-    resetTour();
-    startTour();
-    navigate("/groups");
-  };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -169,21 +160,6 @@ const Header = () => {
                     }`} translate="no">{tier}</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleTakeTour}
-                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg
-                      text-[12px] font-medium text-white/45 hover:text-cyan-200 hover:bg-cyan-500/[0.08]
-                      active:text-cyan-200 active:bg-cyan-500/[0.08] transition-all duration-100 group"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"
-                      className="text-white/25 group-hover:text-cyan-300/70 transition-colors">
-                      <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.2" />
-                      <path d="M4.5 4.8c.2-1 1-1.6 2-1.6 1.1 0 2 .8 2 1.9 0 1-.7 1.5-1.5 1.9-.5.3-.7.6-.7 1.1M6.5 9.6v.1"
-                        stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                    </svg>
-                    {t("nav.takeTour", "Take a Tour")}
-                  </button>
                 </div>
               </div>
             )}

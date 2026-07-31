@@ -1,9 +1,8 @@
 import MemberAvatars from "./ListMember";
-import { roleGrade, roleLabel } from "../helpers/constants";
 import type { GroupCardProps } from "../interface/group";
 import { useTranslation } from "react-i18next";
 import { usePlan } from "../hooks/usePlan";
-
+import RoleBadge from "../components/ui/RoleBadge"
 
 const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingFavorite }: GroupCardProps) => {
   const { t } = useTranslation();
@@ -69,13 +68,7 @@ const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingF
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-white/10 bg-white/[0.05] text-white/40" translate="no">
               {group.displayId}
             </span>
-            <span
-              className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
-                roleGrade[group.role]}"
-              }`}
-            >
-              {roleLabel(group.role)}
-            </span>
+            <RoleBadge Role={group.role} info={false} groupName={group.name} />
             {showPlanBadge && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border border-violet-500/30 bg-violet-500/10 text-violet-300" translate="no">
                 {badgeTier}

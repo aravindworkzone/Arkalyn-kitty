@@ -73,7 +73,7 @@ export default function SettingsContribution({ groupId, members, isAddingContrib
         </p>
       )}
 
-      <div data-tour="contrib-amount-field">
+      <div>
         <AmountInput
           size="md"
           value={myContrib}
@@ -85,7 +85,7 @@ export default function SettingsContribution({ groupId, members, isAddingContrib
         />
       </div>
 
-      <div data-tour="contrib-desc-field">
+      <div>
         <FieldInput
           type="text"
           inputMode="text"
@@ -127,7 +127,7 @@ export default function SettingsContribution({ groupId, members, isAddingContrib
         </div>
       )}
 
-      <div data-tour="contrib-submit">
+      <div>
         <ActionButton
           tone="violet"
           loading={isAddingContrib}

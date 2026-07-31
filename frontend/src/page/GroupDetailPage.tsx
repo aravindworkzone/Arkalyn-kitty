@@ -13,10 +13,10 @@ import {
   useGetGroupMembersQuery,
   useGetGroupByIdQuery,
   useGetLeftContributorsQuery,
+  useInviteMemberMutation,
 } from "../redux/api/group";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useGroupDetailHandlers } from "../handlers/useGroupDetailHandlers";
-import { roleGrade, roleLabel } from "../helpers/constants";
 import type { SettingsTab } from "../interface/group";
 import { StatusBanner, ActionButton } from "../components/ui";
 import {
@@ -24,14 +24,22 @@ import {
   SettingsChangeRole,
   SettingsContribution,
   SettingsSettlement,
+  SettingsJoinRequests,
   SettingsLeaveRequests,
   SettingsDangerZone,
 } from "../components/groupSettings";
+import type { DeclineJoinArgs } from "../components/groupSettings/SettingsJoinRequests";
+import {
+  useGetPendingJoinRequestsQuery,
+  useApproveJoinMutation,
+  useDeclineJoinMutation,
+} from "../redux/api/invite";
 import { useTranslation } from "react-i18next";
 import { joinGroup } from "../socket/emiter/group.emit";
 import { setGroupId } from "../redux/slice/group.slice";
-import { setTourGroupBalance } from "../store/tourStore";
 import { useDispatch } from "react-redux";
+import RoleBadge from "../components/ui/RoleBadge";
+import { type Group } from "../interface/group";
 
 export default function GroupDetailPage() {
   const { groupId } = useParams();
@@ -85,17 +93,6 @@ export default function GroupDetailPage() {
     useGetCategoriesQuery(groupId!, { skip: !groupId });
   const { userId: currentUserId } = useCurrentUser();
 
-  // Feed the current group's balance into the tour engine so its `skipWhen`
-  // predicates can short-circuit the contribution detour when the wallet is
-  // already funded. Cleared on unmount so other routes don't see stale data.
-  useEffect(() => {
-    if (GroupDetails?.balance == null) return;
-    dispatch(setTourGroupBalance(GroupDetails.balance));
-    return () => {
-      dispatch(setTourGroupBalance(null));
-    };
-  }, [dispatch, GroupDetails?.balance]);
-
   const {
     msg, setMsg,
     isVerifying, isInvitingMember, isChangingRole,
@@ -111,11 +108,58 @@ export default function GroupDetailPage() {
 
   const pendingLeaveCount = GroupMembers?.filter((m) => m.leaveRequestedAt).length ?? 0;
 
+  // Join approvals are admin-only; skip the fetch entirely for plain members.
+  const canReviewJoins = GroupDetails?.role === "SUPER_ADMIN" || GroupDetails?.role === "ADMIN";
+  const { data: joinRequests } = useGetPendingJoinRequestsQuery(groupId!, {
+    skip: !groupId || !canReviewJoins,
+  });
+  const [approveJoin, { isLoading: isApprovingJoin }] = useApproveJoinMutation();
+  const [declineJoin, { isLoading: isDecliningJoin }] = useDeclineJoinMutation();
+  // Used only for the "decline, then re-invite" path in the requests queue.
+  const [inviteMember, { isLoading: isReinviting }] = useInviteMemberMutation();
+  const [joinReviewError, setJoinReviewError] = useState("");
+
+  const pendingJoinCount = joinRequests?.length ?? 0;
+  // The tab badge counts both queues it now holds.
+  const pendingRequestCount = pendingLeaveCount + pendingJoinCount;
+
+  const handleApproveJoin = async (inviteId: string) => {
+    setJoinReviewError("");
+    try {
+      await approveJoin({ groupId: groupId!, inviteId }).unwrap();
+    } catch (err: any) {
+      setJoinReviewError(err?.data?.message || t("joinRequests.actionFailed"));
+    }
+  };
+
+  const handleDeclineJoin = async ({ inviteId, invitedUserId, reinvite }: DeclineJoinArgs) => {
+    setJoinReviewError("");
+    try {
+      await declineJoin({ groupId: groupId!, inviteId }).unwrap();
+    } catch (err: any) {
+      setJoinReviewError(err?.data?.message || t("joinRequests.actionFailed"));
+      return;
+    }
+
+    if (!reinvite) return;
+    // Order matters: the server refuses a second invite while one is still
+    // PENDING/PENDING_APPROVAL, so this only works once the decline has landed.
+    // The decline is already committed, so a failure here costs only the
+    // re-invite — hence its own message rather than the generic one.
+    try {
+      await inviteMember({ groupId: groupId!, invitedUser: invitedUserId }).unwrap();
+    } catch (err: any) {
+      setJoinReviewError(
+        err?.data?.error || err?.data?.message || t("joinRequests.reinviteFailed")
+      );
+    }
+  };
+
   const memberNames   = GroupMembers?.map((m) => m.userId.name) ?? [];
   const todayTotal    = (TodayExpenses ?? []).reduce((s, e) => s + e.amount, 0);
   const totalContrib  = GroupDetails?.totalContribution ?? 0;
 
-  const role        = GroupDetails?.role as string | undefined;
+  const role        = GroupDetails?.role as Group["role"];
   const isAdmin     = role === "SUPER_ADMIN" || role === "ADMIN";
   const isSuperAdmin = role === "SUPER_ADMIN";
 
@@ -134,10 +178,10 @@ export default function GroupDetailPage() {
     { id: "contribution", label: t("groupDetail.tabContribution"), show: isAdmin },
     { id: "settlement",   label: t("groupDetail.tabSettlement"),   show: isAdmin },
     {
-      id: "leaveRequests",
-      label: pendingLeaveCount > 0
-        ? `${t("groupDetail.tabLeaveRequests")} (${pendingLeaveCount})`
-        : t("groupDetail.tabLeaveRequests"),
+      id: "requests",
+      label: pendingRequestCount > 0
+        ? `${t("groupDetail.tabRequests")} (${pendingRequestCount})`
+        : t("groupDetail.tabRequests"),
       show: isAdmin,
     },
     { id: "danger",       label: t("groupDetail.tabDanger"),       show: !!role },
@@ -225,9 +269,10 @@ export default function GroupDetailPage() {
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-white/10 bg-white/[0.05] text-white/40" translate="no">
                   {GroupDetails?.displayId}
                 </span>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleGrade[role || "MEMBER"]}`}>
+                {/* <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleGrade[role || "MEMBER"]}`}>
                   {roleLabel(role || "MEMBER")}
-                </span>
+                </span> */}
+                <RoleBadge Role={role || "MEMBER"} groupName={GroupDetails?.name} />
               </div>
             </div>
             <div className="text-right">
@@ -309,7 +354,6 @@ export default function GroupDetailPage() {
               onClick: () => navigate(`/groups/${groupId}/expenses/new`),
               color: "text-cyan-300 bg-cyan-500/10 border-cyan-500/20 hover:bg-cyan-500/20 hover:border-cyan-400/35",
               icon: <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />,
-              tourId: "create-expense",
               // An expense needs a category — hide the entry until one exists.
               show: catLoading || categories.length > 0,
             },
@@ -318,7 +362,6 @@ export default function GroupDetailPage() {
               onClick: () => navigate(`/groups/${groupId}/categories/new`),
               color: "text-violet-300 bg-violet-500/10 border-violet-500/20 hover:bg-violet-500/20 hover:border-violet-400/35",
               icon: <path d="M2 4h4v4H2zM8 4h4v4H8zM2 10h4v4H2zM8 10h4v4H8z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />,
-              tourId: "create-category",
               show: isAdmin,
             },
             {
@@ -326,7 +369,6 @@ export default function GroupDetailPage() {
               onClick: () => navigate(`/groups/${groupId}/activity`),
               color: "text-slate-300 bg-slate-500/10 border-slate-500/20 hover:bg-slate-500/20 hover:border-slate-400/35",
               icon: <path d="M2 12V6l4-4h6l2 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />,
-              tourId: "view-report",
               show: true,
             },
             {
@@ -339,7 +381,6 @@ export default function GroupDetailPage() {
                   <path d="M7 1.5v5.5l4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
                 </>
               ),
-              tourId: "view-breakdown",
               show: true,
             },
             ...(role ? [{
@@ -347,7 +388,6 @@ export default function GroupDetailPage() {
               onClick: openSettings,
               color: "text-amber-300 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20 hover:border-amber-400/35",
               show: true,
-              tourId: "view-settings",
               icon: (
                 <>
                   <circle cx="7" cy="7" r="2" stroke="currentColor" strokeWidth="1.3" />
@@ -360,7 +400,6 @@ export default function GroupDetailPage() {
             <button
               key={btn.label}
               onClick={btn.onClick}
-              data-tour={btn.tourId}
               className={`flex flex-col items-center gap-2 py-3.5 rounded-xl border text-[11px] font-semibold transition-all duration-150 ${btn.color}`}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -496,9 +535,10 @@ export default function GroupDetailPage() {
                           </p>
                         )}
                       </div>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleGrade[member.role]}`}>
+                      {/* <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleGrade[member.role]}`}>
                         {roleLabel(member.role)}
-                      </span>
+                      </span> */}
+                      <RoleBadge Role={member.role as Group["role"] || "MEMBER"} info={false} groupName={GroupDetails?.name}/>
                       {isAdmin && member.role !== "SUPER_ADMIN" && (
                         <button
                           onClick={() => setDeleteMemberTarget({ id: member.userId._id, name: member.userId.name })}
@@ -623,7 +663,6 @@ export default function GroupDetailPage() {
                 <p className="text-sm font-semibold text-white/70">{t("groupDetail.groupSettings")}</p>
                 <button
                   onClick={() => setSettingsOpen(false)}
-                  data-tour="settings-close"
                   className="w-7 h-7 flex items-center justify-center rounded-lg
                     bg-white/[0.04] text-white/40 hover:text-white/70 hover:bg-white/[0.08] active:text-white/70 active:bg-white/[0.08] transition-colors"
                 >
@@ -639,7 +678,6 @@ export default function GroupDetailPage() {
                     <button
                       key={tabItem.id}
                       onClick={() => switchTab(tabItem.id)}
-                      data-tour={`settings-${tabItem.id}`}
                       className={`px-3.5 pb-2 text-xs font-semibold whitespace-nowrap transition-colors border-b-2
                         ${tab === tabItem.id
                           ? tabItem.id === "danger"
@@ -693,15 +731,40 @@ export default function GroupDetailPage() {
                   />
                 )}
 
-                {tab === "leaveRequests" && (
-                  <SettingsLeaveRequests
-                    members={GroupMembers}
-                    isSuperAdmin={isSuperAdmin}
-                    isApprovingLeave={isApprovingLeave}
-                    isRejectingLeave={isRejectingLeave}
-                    handleApproveLeave={handleApproveLeave}
-                    handleRejectLeave={handleRejectLeave}
-                  />
+                {tab === "requests" && (
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30">
+                        {t("joinRequests.heading")}
+                        {pendingJoinCount > 0 ? ` (${pendingJoinCount})` : ""}
+                      </p>
+                      <SettingsJoinRequests
+                        requests={joinRequests}
+                        onApprove={handleApproveJoin}
+                        onDecline={handleDeclineJoin}
+                        isApproving={isApprovingJoin}
+                        // The re-invite runs inside the decline action, so it
+                        // keeps the same button spinning.
+                        isDeclining={isDecliningJoin || isReinviting}
+                        error={joinReviewError}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30">
+                        {t("leaveRequests.heading")}
+                        {pendingLeaveCount > 0 ? ` (${pendingLeaveCount})` : ""}
+                      </p>
+                      <SettingsLeaveRequests
+                        members={GroupMembers}
+                        isSuperAdmin={isSuperAdmin}
+                        isApprovingLeave={isApprovingLeave}
+                        isRejectingLeave={isRejectingLeave}
+                        handleApproveLeave={handleApproveLeave}
+                        handleRejectLeave={handleRejectLeave}
+                      />
+                    </div>
+                  </div>
                 )}
 
                 {tab === "danger" && (

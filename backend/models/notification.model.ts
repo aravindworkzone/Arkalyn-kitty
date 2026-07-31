@@ -4,6 +4,9 @@ export type NotificationType =
     | 'GROUP_INVITE'
     | 'INVITE_ACCEPTED'
     | 'INVITE_REJECTED'
+    | 'JOIN_APPROVAL_REQUESTED'
+    | 'JOIN_APPROVED'
+    | 'JOIN_DECLINED'
     | 'LEAVE_REQUESTED'
     | 'LEAVE_APPROVED'
     | 'LEAVE_REJECTED'
@@ -15,6 +18,9 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
     'GROUP_INVITE',
     'INVITE_ACCEPTED',
     'INVITE_REJECTED',
+    'JOIN_APPROVAL_REQUESTED',
+    'JOIN_APPROVED',
+    'JOIN_DECLINED',
     'LEAVE_REQUESTED',
     'LEAVE_APPROVED',
     'LEAVE_REJECTED',

@@ -504,8 +504,21 @@ export const inviteMemberService = async (data: {
         `This group has reached its ${ownerPlan.config.name}-plan member limit (${ownerPlan.limits.maxMembersPerGroup}). The group owner can upgrade to invite more.`
     );
 
-    const pendingInvite = await GroupInvite.findOne({ groupId, invitedUser, status: "PENDING" });
-    if (pendingInvite) throw new AppError("This user already has a pending invite", 400);
+    // Covers both an unanswered invite and one the user accepted that is still
+    // waiting on an admin — only the former is guarded by the unique index.
+    const pendingInvite = await GroupInvite.findOne({
+        groupId,
+        invitedUser,
+        status: { $in: ["PENDING", "PENDING_APPROVAL"] },
+    });
+    if (pendingInvite) {
+        throw new AppError(
+            pendingInvite.status === "PENDING_APPROVAL"
+                ? "This user is already waiting for approval to join"
+                : "This user already has a pending invite",
+            400
+        );
+    }
 
     let invite;
     try {
