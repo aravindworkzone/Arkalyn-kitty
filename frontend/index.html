@@ -19,6 +19,30 @@
     <meta name="apple-mobile-web-app-title" content="Arkalyn" />
     <meta name="format-detection" content="telephone=no" />
     <meta name="google" content="notranslate" />
+
+    <!-- Theme bootstrap. Must stay INLINE and in <head>: it runs before first
+         paint so a dark-mode reload never flashes light. Mirrors the resolution
+         order in src/hooks/useTheme.ts — an explicit stored choice wins,
+         otherwise follow the OS.
+
+         Deliberately does NOT touch `color-scheme` or the theme-color meta yet.
+         While the app's own styling is still hardcoded dark (pre-phase-5), an
+         OS-light visitor would otherwise get light scrollbars and a white
+         browser chrome around a dark page. Enable both in phase 6. -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var dark = stored
+            ? stored === 'dark'
+            : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          document.documentElement.classList.toggle('dark', dark);
+        } catch (e) {
+          /* Storage can throw in private/embedded contexts — fall through to
+             whatever the markup already renders rather than breaking boot. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
