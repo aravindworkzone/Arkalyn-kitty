@@ -4,6 +4,13 @@ export const roleGrade: Record<string, string> = {
   MEMBER:      "border-slate-500/30 bg-slate-500/10 text-slate-400",
 };
 
+// Maps the API's role enum onto the `roles.*` i18n namespace.
+export const roleNs: Record<string, string> = {
+  SUPER_ADMIN: "superAdmin",
+  ADMIN: "admin",
+  MEMBER: "member",
+};
+
 export const roleLabel = (role: string): string =>
   role
     .toLowerCase()

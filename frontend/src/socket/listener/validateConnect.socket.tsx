@@ -18,14 +18,14 @@ export default function ConnectSocket() {
             console.log(err);
         };
 
-        const handleAny = (
-            event: string,
-            ...args: any[]
-        ) => {
-            console.log("incoming", event, args);
-        };
+        // const handleAny = (
+        //     event: string,
+        //     ...args: any[]
+        // ) => {
+        //     console.log("incoming", event, args);
+        // };
 
-        socket.onAny(handleAny);
+        // socket.onAny(handleAny);
 
         socket.on("connect", onConnect);
         socket.on("disconnect", onDisconnect);
@@ -33,7 +33,7 @@ export default function ConnectSocket() {
 
         return () => {
 
-            socket.offAny(handleAny);
+            // socket.offAny(handleAny);
 
             socket.off("connect", onConnect);
             socket.off("disconnect", onDisconnect);

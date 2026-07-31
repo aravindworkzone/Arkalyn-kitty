@@ -20,7 +20,6 @@ import { api } from "../redux/api/base";
 import type { AppDispatch } from "../redux/store";
 import type { PlanTier, PaymentStatus } from "../interface/subscription";
 import { socket } from "../socket/socket";
-import { useTour } from "../tour/useTour";
 import Header from "../components/header";
 import { PageBackground, BackButton } from "../components/ui";
 
@@ -144,7 +143,6 @@ export default function ProfilePage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
-  const { start: startTour, reset: resetTour } = useTour();
 
   const { user: currentUser } = useCurrentUser();
   const user: ProfileUser = currentUser ?? {};
@@ -299,13 +297,6 @@ export default function ProfilePage() {
         t("profile.deleteError", "Could not delete your account.");
       setDeleteError(message);
     }
-  };
-
-  const handleTakeTour = () => {
-    // Reset progress and (re)start the guided walkthrough from the groups page.
-    resetTour();
-    startTour();
-    navigate("/groups");
   };
 
   const handleSignOut = async () => {
@@ -712,12 +703,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <ChevronRow
-            label={t("profile.takeTour", "Take a tour")}
-            hint={t("profile.takeTourDesc", "Replay the guided product walkthrough")}
-            expanded={false}
-            onClick={handleTakeTour}
-          />
         </section>
 
         {/* 8. Sign out */}

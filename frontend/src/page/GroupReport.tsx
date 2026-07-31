@@ -68,7 +68,6 @@ export default function ReportPage() {
 
         <button
           onClick={() => navigate(-1)}
-          data-tour="activity-back"
           className="flex items-center gap-2 text-white/35 hover:text-white/60 active:text-white/60 text-xs font-medium transition-colors mb-4"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -102,7 +101,7 @@ export default function ReportPage() {
           <p className="text-white/35 text-sm mt-1.5">{t("report.description")}</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-2" data-tour="activity-page">
+        <div className="grid grid-cols-3 gap-2">
           {[
             { label: t("report.totalIn"),  value: totalCredit, color: "#34d399" },
             { label: t("report.totalOut"), value: totalDebit,  color: "#f87171" },
