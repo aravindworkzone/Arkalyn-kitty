@@ -52,7 +52,7 @@ export default function SettingsContribution({ groupId, members, isAddingContrib
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-white/30">{t("groupDetail.addFundsDesc")}</p>
+      <p className="text-xs text-fg-muted">{t("groupDetail.addFundsDesc")}</p>
 
       <MemberSelect
         members={members}
@@ -65,7 +65,7 @@ export default function SettingsContribution({ groupId, members, isAddingContrib
       />
 
       {targetSettled && (
-        <p className="text-[11px] text-amber-400/70">
+        <p className="text-theme-xs text-warning-700 dark:text-warning-300">
           {t(
             "groupDetail.settledNoContribution",
             "This member is already settled — contributions can no longer be added for them.",
@@ -100,7 +100,7 @@ export default function SettingsContribution({ groupId, members, isAddingContrib
 
       {creditCategories.length > 0 && (
         <div>
-          <label className="block text-[10px] font-semibold text-white/40 mb-1.5 uppercase tracking-widest">
+          <label className="block text-theme-2xs font-semibold text-fg-muted mb-1.5 uppercase tracking-widest">
             {t("groupDetail.creditCategory", "Credit category")}
           </label>
           <div className="flex flex-wrap gap-2">
@@ -109,7 +109,7 @@ export default function SettingsContribution({ groupId, members, isAddingContrib
                 key={cat._id}
                 type="button"
                 onClick={() => setCreditCategoryId(cat._id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border transition-all duration-150"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-theme-xs font-semibold border transition-all duration-150"
                 style={
                   creditCategoryId === cat._id
                     ? { background: cat.color + "25", borderColor: cat.color + "60", color: cat.color }
@@ -129,7 +129,7 @@ export default function SettingsContribution({ groupId, members, isAddingContrib
 
       <div>
         <ActionButton
-          tone="violet"
+          tone="brand"
           loading={isAddingContrib}
           loadingLabel={t("groupDetail.addingContrib")}
           disabled={!myContrib || Number(myContrib) <= 0 || targetSettled}

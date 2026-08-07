@@ -10,6 +10,7 @@ import {
 import { useAcceptInviteMutation, useRejectInviteMutation } from "../redux/api/invite";
 import type { NotificationItem } from "../interface/notification";
 import { sanitizeAmount } from "../helpers/validators";
+import { Input } from "./ui";
 
 const useTimeAgo = () => {
   const { t } = useTranslation();
@@ -237,6 +238,9 @@ export default function NotificationPanel() {
                           <div className="mt-2 space-y-2" onClick={(e) => e.stopPropagation()}>
                             <p className="text-theme-xs text-fg-muted">{t("notifications.contributionLabel")}</p>
                             <div className="flex items-center gap-2">
+                              {/* Phase 3 left this hand-rolled because Input had
+                                  no size below 42px; it has `sm` now, so this is
+                                  the primitive. */}
                               <div className="relative flex-1">
                                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">₹</span>
                                 <input

@@ -43,13 +43,13 @@ const MCP_CONNECTOR_BASE_URL =
   "https://arkalyn-kitty-mcp.onrender.com/mcp";
 
 const INPUT_CLASS =
-  "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-violet-500 transition-colors";
+  "w-full rounded-xl border border-line bg-surface-hover px-3 py-2.5 text-sm text-fg placeholder:text-fg-subtle outline-none focus:border-brand-500 transition-colors";
 
 // Maps a payment status to a badge label + colour for the Transactions list.
 const TX_STATUS: Record<PaymentStatus, { label: string; cls: string }> = {
-  created: { label: "Pending", cls: "border-amber-500/30 bg-amber-500/10 text-amber-300" },
-  paid:    { label: "Success", cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" },
-  failed:  { label: "Failed",  cls: "border-red-500/30 bg-red-500/10 text-red-300" },
+  created: { label: "Pending", cls: "border-warning-200 dark:border-warning-500/30 bg-warning-50 dark:bg-warning-500/10 text-warning-700 dark:text-warning-300" },
+  paid:    { label: "Success", cls: "border-success-200 dark:border-success-500/30 bg-success-50 dark:bg-success-500/10 text-success-700 dark:text-success-300" },
+  failed:  { label: "Failed",  cls: "border-error-200 dark:border-error-500/30 bg-error-50 dark:bg-error-500/10 text-error-600 dark:text-error-400" },
 };
 
 // A tappable settings row with a chevron that rotates open when expanded.
@@ -74,15 +74,15 @@ function ChevronRow({
       className={
         "flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-4 text-left transition-colors " +
         (danger
-          ? "border-red-500/20 bg-red-500/5 hover:bg-red-500/10 active:bg-red-500/10"
-          : "border-white/10 bg-white/5 hover:bg-white/10 active:bg-white/10")
+          ? "border-error-200 dark:border-error-500/20 bg-error-50 dark:bg-error-500/5 hover:bg-error-50 dark:bg-error-500/10 active:bg-error-50 dark:bg-error-500/10"
+          : "border-line bg-surface-hover hover:bg-line active:bg-line")
       }
     >
       <span className="flex min-w-0 flex-col">
-        <span className={"text-sm font-medium " + (danger ? "text-red-300" : "text-white/85")}>
+        <span className={"text-sm font-medium " + (danger ? "text-error-600 dark:text-error-400" : "text-fg")}>
           {label}
         </span>
-        <span className="mt-0.5 truncate text-xs text-white/40">{hint}</span>
+        <span className="mt-0.5 truncate text-xs text-fg-muted">{hint}</span>
       </span>
       <svg
         width="14"
@@ -118,10 +118,10 @@ function CopyField({ label, value }: { label: string; value: string }) {
   };
   return (
     <div className="space-y-1">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-white/40">{label}</p>
+      <p className="text-theme-xs font-medium uppercase tracking-wide text-fg-muted">{label}</p>
       <div className="flex items-stretch gap-2">
         <code
-          className="min-w-0 flex-1 truncate rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-xs text-white/80"
+          className="min-w-0 flex-1 truncate rounded-xl border border-line bg-surface-hover px-3 py-2.5 text-xs text-fg"
           translate="no"
           title={value}
         >
@@ -130,7 +130,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
         <button
           type="button"
           onClick={handleCopy}
-          className="shrink-0 rounded-xl border border-violet-500/40 bg-violet-500/15 px-3 text-xs font-semibold text-violet-200 transition-colors hover:bg-violet-500/25 active:bg-violet-500/25"
+          className="shrink-0 rounded-xl border border-brand-200 dark:border-brand-500/40 bg-brand-50 dark:bg-brand-500/15 px-3 text-xs font-semibold text-brand-600 dark:text-brand-300 transition-colors hover:bg-brand-50 dark:bg-brand-500/25 active:bg-brand-50 dark:bg-brand-500/25"
         >
           {copied ? "Copied" : "Copy"}
         </button>
@@ -312,10 +312,10 @@ export default function ProfilePage() {
 
   const langButton = (active: boolean) =>
     "px-3 py-1.5 text-xs font-semibold transition-colors " +
-    (active ? "bg-violet-500/20 text-violet-200" : "text-white/50 hover:bg-white/10 active:bg-white/10");
+    (active ? "bg-brand-50 dark:bg-brand-500/20 text-brand-600 dark:text-brand-300" : "text-fg-muted hover:bg-line active:bg-line");
 
   return (
-    <div className="relative min-h-screen bg-slate-950 text-white">
+    <div className="relative min-h-screen bg-surface text-fg">
       <PageBackground />
       <Header />
 
@@ -324,20 +324,20 @@ export default function ProfilePage() {
 
         {/* 1–3. Avatar hero + name/email + joined date */}
         <section className="flex flex-col items-center gap-3 pt-2 text-center">
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-700 shadow-lg">
-            <span className="text-2xl font-bold text-white" translate="no">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-brand-600 to-brand-700 shadow-lg">
+            <span className="text-2xl font-bold text-fg" translate="no">
               {initials}
             </span>
           </div>
           <div className="space-y-1">
-            <h1 className="text-xl font-semibold text-white" translate="no">
+            <h1 className="text-xl font-semibold text-fg" translate="no">
               {user.name}
             </h1>
-            <p className="text-sm text-white/50" translate="no">
+            <p className="text-sm text-fg-muted" translate="no">
               {user.email}
             </p>
             {user.createdAt && (
-              <p className="text-xs text-white/30">
+              <p className="text-xs text-fg-muted">
                 {t("profile.memberSince", "Member since {{date}}", {
                   date: formatMonthYear(user.createdAt),
                 })}
@@ -347,15 +347,15 @@ export default function ProfilePage() {
         </section>
 
         {/* 6. Subscription strip */}
-        <section className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+        <section className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface-raised p-4">
           <div className="min-w-0">
-            <p className="text-xs uppercase tracking-wide text-white/40">
+            <p className="text-xs uppercase tracking-wide text-fg-muted">
               {t("profile.subscription", "Subscription")}
             </p>
-            <p className="mt-0.5 text-base font-semibold text-white" translate="no">
+            <p className="mt-0.5 text-base font-semibold text-fg" translate="no">
               {planName}
             </p>
-            <p className="mt-0.5 text-xs text-white/40">
+            <p className="mt-0.5 text-xs text-fg-muted">
               {renewsAt
                 ? t("profile.renewsOn", "Renews {{date}}", { date: formatFullDate(renewsAt) })
                 : t("profile.noRenewal", "No renewal — free plan")}
@@ -364,7 +364,7 @@ export default function ProfilePage() {
           <button
             type="button"
             onClick={() => navigate("/pricing")}
-            className="shrink-0 rounded-xl border border-violet-500/40 bg-violet-500/15 px-4 py-2 text-sm font-semibold text-violet-200 transition-colors hover:bg-violet-500/25 active:bg-violet-500/25"
+            className="shrink-0 rounded-xl border border-brand-200 dark:border-brand-500/40 bg-brand-50 dark:bg-brand-500/15 px-4 py-2 text-sm font-semibold text-brand-600 dark:text-brand-300 transition-colors hover:bg-brand-50 dark:bg-brand-500/25 active:bg-brand-50 dark:bg-brand-500/25"
             translate="no"
           >
             {planName}
@@ -380,15 +380,15 @@ export default function ProfilePage() {
             onClick={() => setTxOpen((o) => !o)}
           />
           {txOpen && (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+            <div className="rounded-2xl border border-line bg-surface-raised p-3">
               {txLoading ? (
                 <div className="space-y-2">
                   {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-14 rounded-xl bg-white/[0.04] animate-pulse" style={{ animationDelay: `${i * 90}ms` }} />
+                    <div key={i} className="h-14 rounded-xl bg-surface-hover animate-pulse" style={{ animationDelay: `${i * 90}ms` }} />
                   ))}
                 </div>
               ) : !transactions || transactions.length === 0 ? (
-                <p className="px-1 py-6 text-center text-xs text-white/30">
+                <p className="px-1 py-6 text-center text-xs text-fg-muted">
                   {t("profile.noTransactions", "No payments yet")}
                 </p>
               ) : (
@@ -399,13 +399,13 @@ export default function ProfilePage() {
                     return (
                       <li
                         key={tx.id}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3.5 py-2.5"
+                        className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface-raised px-3.5 py-2.5"
                       >
                         <div className="min-w-0">
-                          <p className="text-[13px] font-medium text-white/85" translate="no">
+                          <p className="text-theme-sm font-medium text-fg" translate="no">
                             {tx.plan} · {tx.cycle}
                           </p>
-                          <p className="mt-0.5 text-[11px] text-white/35" translate="no">
+                          <p className="mt-0.5 text-theme-xs text-fg-muted" translate="no">
                             ₹{tx.amount.toLocaleString("en-IN")} · {formatFullDate(tx.createdAt)}
                           </p>
                         </div>
@@ -415,7 +415,7 @@ export default function ProfilePage() {
                               type="button"
                               onClick={() => handleDeleteTransaction(tx.id)}
                               disabled={deletingTx}
-                              className="rounded-md border border-red-500/30 bg-red-500/15 px-2 py-1 text-[10px] font-semibold text-red-300 transition-colors hover:bg-red-500/25 active:bg-red-500/25 disabled:opacity-40"
+                              className="rounded-md border border-error-200 dark:border-error-500/30 bg-error-50 dark:bg-error-500/15 px-2 py-1 text-theme-2xs font-semibold text-error-600 dark:text-error-400 transition-colors hover:bg-error-50 dark:bg-error-500/25 active:bg-error-50 dark:bg-error-500/25 disabled:opacity-40"
                             >
                               {deletingTx
                                 ? t("profile.removing", "Removing…")
@@ -425,14 +425,14 @@ export default function ProfilePage() {
                               type="button"
                               onClick={() => setConfirmDeleteId(null)}
                               disabled={deletingTx}
-                              className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold text-white/50 transition-colors hover:bg-white/10 active:bg-white/10 disabled:opacity-40"
+                              className="rounded-md border border-line bg-surface-hover px-2 py-1 text-theme-2xs font-semibold text-fg-muted transition-colors hover:bg-line active:bg-line disabled:opacity-40"
                             >
                               {t("profile.cancel", "Cancel")}
                             </button>
                           </div>
                         ) : (
                           <div className="flex shrink-0 items-center gap-2">
-                            <span className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold ${st.cls}`}>
+                            <span className={`rounded-md border px-2 py-0.5 text-theme-2xs font-semibold ${st.cls}`}>
                               {st.label}
                             </span>
                             {
@@ -441,7 +441,7 @@ export default function ProfilePage() {
                                   type="button"
                                   onClick={() => setConfirmDeleteId(tx.id)}
                                   aria-label={t("profile.txRemoveAria", "Remove from history")}
-                                  className="rounded-md p-1 text-white/30 transition-colors hover:bg-white/10 hover:text-red-300 active:bg-white/10"
+                                  className="rounded-md p-1 text-fg-muted transition-colors hover:bg-line hover:text-error-600 dark:text-error-400 active:bg-line"
                                 >
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                                     <path
@@ -481,11 +481,11 @@ export default function ProfilePage() {
             }}
           />
           {devOpen && (
-            <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="space-y-3 rounded-2xl border border-line bg-surface-raised p-4">
               {newKey ? (
                 /* Just generated — one-time reveal with copy + warning. */
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-amber-300">
+                  <p className="text-xs font-medium text-warning-700 dark:text-warning-300">
                     {t(
                       "profile.apiKeyWarning",
                       "This key will not be shown again. Copy and store it now.",
@@ -493,7 +493,7 @@ export default function ProfilePage() {
                   </p>
                   <div className="flex items-stretch gap-2">
                     <code
-                      className="min-w-0 flex-1 break-all rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-xs text-emerald-300"
+                      className="min-w-0 flex-1 break-all rounded-xl border border-line bg-surface-hover px-3 py-2.5 text-xs text-success-700 dark:text-success-300"
                       translate="no"
                     >
                       {newKey}
@@ -501,7 +501,7 @@ export default function ProfilePage() {
                     <button
                       type="button"
                       onClick={handleCopyKey}
-                      className="shrink-0 rounded-xl border border-violet-500/40 bg-violet-500/15 px-3 text-xs font-semibold text-violet-200 transition-colors hover:bg-violet-500/25 active:bg-violet-500/25"
+                      className="shrink-0 rounded-xl border border-brand-200 dark:border-brand-500/40 bg-brand-50 dark:bg-brand-500/15 px-3 text-xs font-semibold text-brand-600 dark:text-brand-300 transition-colors hover:bg-brand-50 dark:bg-brand-500/25 active:bg-brand-50 dark:bg-brand-500/25"
                     >
                       {keyCopied
                         ? t("profile.copied", "Copied")
@@ -510,8 +510,8 @@ export default function ProfilePage() {
                   </div>
 
                   {/* Ready-to-paste values for Claude's "Add custom connector". */}
-                  <div className="space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                    <p className="text-[11px] leading-relaxed text-white/45">
+                  <div className="space-y-3 rounded-xl border border-line bg-surface-raised p-3">
+                    <p className="text-theme-xs leading-relaxed text-fg-muted">
                       {t(
                         "profile.mcpConnectorHelp",
                         'In Claude → Add custom connector, paste these into "Name" and "Remote MCP server URL".',
@@ -530,7 +530,7 @@ export default function ProfilePage() {
                   <button
                     type="button"
                     onClick={() => setNewKey(null)}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/10 active:bg-white/10"
+                    className="w-full rounded-xl border border-line bg-surface-hover py-2.5 text-sm font-medium text-fg transition-colors hover:bg-line active:bg-line"
                   >
                     {t("profile.apiKeyDone", "Done")}
                   </button>
@@ -538,11 +538,11 @@ export default function ProfilePage() {
               ) : user.apiKey ? (
                 /* A key exists — show masked prefix + revoke. */
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3.5 py-2.5">
-                    <code className="min-w-0 truncate text-xs text-white/70" translate="no">
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface-raised px-3.5 py-2.5">
+                    <code className="min-w-0 truncate text-xs text-fg" translate="no">
                       {user.apiKey.prefix}…
                     </code>
-                    <span className="shrink-0 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                    <span className="shrink-0 rounded-md border border-success-200 dark:border-success-500/30 bg-success-50 dark:bg-success-500/10 px-2 py-0.5 text-theme-2xs font-semibold text-success-700 dark:text-success-300">
                       {t("profile.apiKeyActive", "Active")}
                     </span>
                   </div>
@@ -552,7 +552,7 @@ export default function ProfilePage() {
                         type="button"
                         onClick={handleRevokeKey}
                         disabled={revokingKey}
-                        className="flex-1 rounded-xl border border-red-500/30 bg-red-500/15 py-2.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/25 active:bg-red-500/25 disabled:opacity-40"
+                        className="flex-1 rounded-xl border border-error-200 dark:border-error-500/30 bg-error-50 dark:bg-error-500/15 py-2.5 text-sm font-semibold text-error-600 dark:text-error-400 transition-colors hover:bg-error-50 dark:bg-error-500/25 active:bg-error-50 dark:bg-error-500/25 disabled:opacity-40"
                       >
                         {revokingKey
                           ? t("profile.revoking", "Revoking…")
@@ -562,7 +562,7 @@ export default function ProfilePage() {
                         type="button"
                         onClick={() => setConfirmRevoke(false)}
                         disabled={revokingKey}
-                        className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/10 active:bg-white/10 disabled:opacity-40"
+                        className="flex-1 rounded-xl border border-line bg-surface-hover py-2.5 text-sm font-medium text-fg transition-colors hover:bg-line active:bg-line disabled:opacity-40"
                       >
                         {t("profile.cancel", "Cancel")}
                       </button>
@@ -571,7 +571,7 @@ export default function ProfilePage() {
                     <button
                       type="button"
                       onClick={() => setConfirmRevoke(true)}
-                      className="w-full rounded-xl border border-red-500/20 bg-red-500/5 py-2.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/10 active:bg-red-500/10"
+                      className="w-full rounded-xl border border-error-200 dark:border-error-500/20 bg-error-50 dark:bg-error-500/5 py-2.5 text-sm font-semibold text-error-600 dark:text-error-400 transition-colors hover:bg-error-50 dark:bg-error-500/10 active:bg-error-50 dark:bg-error-500/10"
                     >
                       {t("profile.apiKeyRevoke", "Revoke API key")}
                     </button>
@@ -580,7 +580,7 @@ export default function ProfilePage() {
               ) : (
                 /* No key yet — offer to generate one. */
                 <div className="space-y-3">
-                  <p className="text-xs leading-relaxed text-white/50">
+                  <p className="text-xs leading-relaxed text-fg-muted">
                     {t(
                       "profile.apiKeyIntro",
                       "Generate a key to connect Arkalyn Kitty to Claude (MCP). It grants read-only access to your own groups, expenses, members, and subscription.",
@@ -590,7 +590,7 @@ export default function ProfilePage() {
                     type="button"
                     onClick={handleGenerateKey}
                     disabled={generatingKey}
-                    className="w-full rounded-xl bg-violet-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-400 active:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="w-full rounded-xl bg-brand-500 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-brand-400 active:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {generatingKey
                       ? t("profile.generating", "Generating…")
@@ -598,7 +598,7 @@ export default function ProfilePage() {
                   </button>
                 </div>
               )}
-              {devError && <p className="text-xs text-red-400">{devError}</p>}
+              {devError && <p className="text-xs text-error-600 dark:text-error-400">{devError}</p>}
             </div>
           )}
         </section>
@@ -618,7 +618,7 @@ export default function ProfilePage() {
           {pwOpen && (
             <form
               onSubmit={handleChangePassword}
-              className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4"
+              className="space-y-3 rounded-2xl border border-line bg-surface-raised p-4"
             >
               <input
                 type="password"
@@ -645,8 +645,8 @@ export default function ProfilePage() {
                 className={INPUT_CLASS}
               />
 
-              {pwError && <p className="text-xs text-red-400">{pwError}</p>}
-              {pwSuccess && <p className="text-xs text-emerald-400">{pwSuccess}</p>}
+              {pwError && <p className="text-xs text-error-600 dark:text-error-400">{pwError}</p>}
+              {pwSuccess && <p className="text-xs text-success-700 dark:text-success-300">{pwSuccess}</p>}
 
               <div className="flex gap-2 pt-1">
                 <button
@@ -659,14 +659,14 @@ export default function ProfilePage() {
                     setPwError("");
                     setPwSuccess("");
                   }}
-                  className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/10 active:bg-white/10"
+                  className="flex-1 rounded-xl border border-line bg-surface-hover py-2.5 text-sm font-medium text-fg transition-colors hover:bg-line active:bg-line"
                 >
                   {t("profile.cancel", "Cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
-                  className="flex-1 rounded-xl bg-violet-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-400 active:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex-1 rounded-xl bg-brand-500 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-brand-400 active:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {changingPassword
                     ? t("profile.saving", "Saving…")
@@ -676,14 +676,14 @@ export default function ProfilePage() {
             </form>
           )}
 
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface-raised p-4">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-white/85">{t("profile.language", "Language")}</p>
-              <p className="mt-0.5 text-xs text-white/40">
+              <p className="text-sm font-medium text-fg">{t("profile.language", "Language")}</p>
+              <p className="mt-0.5 text-xs text-fg-muted">
                 {t("profile.languageDesc", "Choose your display language")}
               </p>
             </div>
-            <div className="flex shrink-0 overflow-hidden rounded-xl border border-white/10">
+            <div className="flex shrink-0 overflow-hidden rounded-xl border border-line">
               <button
                 type="button"
                 onClick={() => switchLanguage("en")}
@@ -710,14 +710,14 @@ export default function ProfilePage() {
           type="button"
           onClick={handleSignOut}
           disabled={signingOut}
-          className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 active:bg-white/10 disabled:opacity-50"
+          className="w-full rounded-2xl border border-line bg-surface-hover px-4 py-4 text-sm font-medium text-fg transition-colors hover:bg-line active:bg-line disabled:opacity-50"
         >
           {signingOut ? t("profile.signingOut", "Signing out…") : t("profile.signOut", "Sign out")}
         </button>
 
         {/* 7. Account deletion — danger zone */}
         <section className="space-y-3 pt-2">
-          <p className="px-1 text-xs font-semibold uppercase tracking-wide text-red-400/70">
+          <p className="px-1 text-xs font-semibold uppercase tracking-wide text-error-600 dark:text-error-400">
             {t("profile.dangerZone", "Danger zone")}
           </p>
           <ChevronRow
@@ -732,14 +732,14 @@ export default function ProfilePage() {
             }}
           />
           {deleteOpen && (
-            <div className="space-y-3 rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
-              <p className="text-xs leading-relaxed text-white/50">
+            <div className="space-y-3 rounded-2xl border border-error-200 dark:border-error-500/20 bg-error-50 dark:bg-error-500/5 p-4">
+              <p className="text-xs leading-relaxed text-fg-muted">
                 {t(
                   "profile.deleteWarning",
                   "This cannot be undone. Your account will be removed and you will be signed out.",
                 )}
               </p>
-              <label className="block text-xs font-medium text-white/50">
+              <label className="block text-xs font-medium text-fg-muted">
                 {t("profile.deleteConfirmLabel", 'Type "DELETE" to confirm')}
               </label>
               <input
@@ -750,12 +750,12 @@ export default function ProfilePage() {
                 className={INPUT_CLASS}
                 translate="no"
               />
-              {deleteError && <p className="text-xs text-red-400">{deleteError}</p>}
+              {deleteError && <p className="text-xs text-error-600 dark:text-error-400">{deleteError}</p>}
               <button
                 type="button"
                 onClick={handleDeleteAccount}
                 disabled={deleting || confirmText !== DELETE_KEYWORD}
-                className="w-full rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-400 active:bg-red-400 disabled:cursor-not-allowed disabled:opacity-40"
+                className="w-full rounded-xl bg-error-500 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-error-400 active:bg-error-400 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {deleting
                   ? t("profile.deleting", "Deleting…")

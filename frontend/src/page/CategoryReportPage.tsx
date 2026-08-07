@@ -12,10 +12,13 @@ import {
     BackButton,
     PageHeader,
     StatCard,
+    SegmentedToggle,
+    INPUT_CLASS,
     DATE_INPUT_EXTRA,
 } from '../components/ui';
 import type { ReportPreset, CategoryBreakdownRow, TrendGranularity, MemberBy } from '../interface/report';
 import { MIN_DATE, todayISODate, blockDateTyping } from '../helpers/validators';
+import { seriesColor } from '../helpers/chartPalette';
 import { usePlan } from '../hooks/usePlan';
 import { useGetGroupByIdQuery } from '../redux/api/group';
 
@@ -38,8 +41,10 @@ const GRANULARITY_LABEL: Record<TrendGranularity, string> = {
     month: 'Monthly',
 };
 
-// Colours assigned to members by rank — members have no stored colour.
-const MEMBER_COLORS = ['#818cf8', '#f472b6', '#34d399', '#fbbf24', '#60a5fa', '#fb923c', '#a78bfa', '#4ade80'];
+// Members have no stored colour, so they take the shared categorical sequence
+// by rank. seriesColor assigns in fixed order and does NOT cycle — a 9th member
+// gets the neutral "Other" grey rather than reusing hue 1, which would read as
+// "same person as the first row".
 
 const formatCents = (cents: number, locale: string) =>
     new Intl.NumberFormat(locale === 'ta' ? 'ta-IN' : 'en-IN', {
@@ -92,21 +97,36 @@ function Donut({ rows, totalCents }: DonutProps) {
     const stroke = 28;
     const r = (size - stroke) / 2;
     const c = 2 * Math.PI * r;
+    // 2px of surface between adjacent fills so neighbouring segments stay
+    // separable without relying on their colours differing enough.
+    const GAP = 2;
 
     let offset = 0;
     return (
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <svg
+            width={size}
+            height={size}
+            viewBox={`0 0 ${size} ${size}`}
+            className="-rotate-90"
+            role="img"
+            aria-label="Spending by category"
+        >
+            {/* Track — `currentColor` so it follows the surrounding text colour
+                and therefore the theme; an rgba literal was invisible on light. */}
             <circle
                 cx={size / 2}
                 cy={size / 2}
                 r={r}
                 fill="none"
-                stroke="rgba(255,255,255,0.06)"
+                className="text-line"
+                stroke="currentColor"
                 strokeWidth={stroke}
             />
             {rows.map((row) => {
                 const length = (row.totalCents / totalCents) * c;
-                const dasharray = `${length} ${c - length}`;
+                // Never let the gap eat a sliver segment entirely.
+                const drawn = Math.max(length - GAP, 1);
+                const dasharray = `${drawn} ${c - drawn}`;
                 const dashoffset = -offset;
                 offset += length;
                 return (
@@ -216,7 +236,7 @@ export default function CategoryReportPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#080c14] text-white">
+        <div className="min-h-screen bg-surface text-fg">
             <PageBackground />
             <Header />
 
@@ -226,11 +246,11 @@ export default function CategoryReportPage() {
                 </div>
 
                 <PageHeader
-                    color="indigo"
+                    accent="brand"
                     icon={
-                        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                            <circle cx="7" cy="7" r="5.5" stroke="#a5b4fc" strokeWidth="1.4" />
-                            <path d="M7 1.5v5.5l4 3" stroke="#a5b4fc" strokeWidth="1.4" strokeLinecap="round" />
+                        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                            <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4" />
+                            <path d="M7 1.5v5.5l4 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
                         </svg>
                     }
                     label={t('reports.label', 'Insights')}
@@ -241,25 +261,17 @@ export default function CategoryReportPage() {
                 {/* view tabs + date range — sticks below the global header so
                     the view switch and the preset range stay reachable while
                     scrolling. */}
-                <div className="sticky top-14 lg:top-16 z-20 -mx-4 px-4 py-2 bg-[#080c14]/95 backdrop-blur-md space-y-3">
-                <div className="flex gap-1.5 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1">
-                    {VIEWS.map((v) => (
-                        <button
-                            key={v}
-                            onClick={() => setView(v)}
-                            className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
-                                view === v
-                                    ? 'bg-indigo-500/15 text-indigo-200'
-                                    : 'text-white/40 hover:text-white/65 active:text-white/65'
-                            }`}
-                        >
-                            {t(`reports.tab.${v}`, VIEW_LABEL[v])}
-                        </button>
-                    ))}
-                </div>
+                <div className="sticky top-14 lg:top-16 z-sticky -mx-4 px-4 py-2 bg-surface/95 backdrop-blur-md space-y-3">
+                <SegmentedToggle
+                    className="w-full [&>button]:flex-1"
+                    options={VIEWS.map((v) => ({ value: v, label: t(`reports.tab.${v}`, VIEW_LABEL[v]) }))}
+                    value={view}
+                    onChange={setView}
+                    ariaLabel={t('reports.title', 'Spending Reports')}
+                />
 
                 {/* date range selector */}
-                <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-3 space-y-3">
+                <div className="bg-surface-raised border border-line rounded-xl p-3 space-y-3">
                     <div className="flex flex-wrap gap-2">
                         {presets.map((p) => {
                             const locked = !canAdvancedRange && (p === 'all_time' || p === 'custom');
@@ -268,17 +280,19 @@ export default function CategoryReportPage() {
                                 key={p}
                                 onClick={() => (locked ? navigate('/pricing') : setPreset(p))}
                                 title={locked ? t('reports.upgradeRange', 'All-time & custom ranges need Pro') : undefined}
-                                className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors inline-flex items-center gap-1 ${
+                                aria-pressed={!locked && preset === p}
+                                className={`px-3 py-1.5 rounded-lg text-theme-xs font-semibold border transition-colors inline-flex items-center gap-1
+                                    focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
                                     locked
-                                        ? 'bg-white/[0.02] border-white/[0.06] text-white/30 hover:text-violet-300'
+                                        ? 'bg-surface-raised border-line text-fg-muted hover:text-brand-600 dark:hover:text-brand-400'
                                         : preset === p
-                                        ? 'bg-indigo-500/15 border-indigo-400/35 text-indigo-200'
-                                        : 'bg-white/[0.03] border-white/[0.08] text-white/40 hover:text-white/60 active:text-white/60'
+                                        ? 'bg-brand-50 border-brand-300 text-brand-700 dark:bg-brand-500/15 dark:border-brand-400/35 dark:text-brand-200'
+                                        : 'bg-surface-raised border-line text-fg-muted hover:text-fg active:text-fg'
                                 }`}
                             >
                                 {t(`categoryReport.preset.${p}`)}
                                 {locked && (
-                                    <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                                    <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true">
                                         <rect x="2" y="4.5" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="1" />
                                         <path d="M3.5 4.5V3.2a1.5 1.5 0 013 0v1.3" stroke="currentColor" strokeWidth="1" />
                                     </svg>
@@ -290,7 +304,7 @@ export default function CategoryReportPage() {
                     {preset === 'custom' && (
                         <div className="grid grid-cols-2 gap-2">
                             <label className="block">
-                                <span className="text-[10px] uppercase tracking-widest text-white/30">
+                                <span className="text-theme-2xs uppercase tracking-widest text-fg-muted">
                                     {t('categoryReport.startDate')}
                                 </span>
                                 <input
@@ -306,11 +320,11 @@ export default function CategoryReportPage() {
                                         // than the new "from" is snapped forward.
                                         if (endDate && v && endDate < v) setEndDate(v);
                                     }}
-                                    className={`mt-1 w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white/80 ${DATE_INPUT_EXTRA}`}
+                                    className={`mt-1 ${INPUT_CLASS} ${DATE_INPUT_EXTRA}`}
                                 />
                             </label>
                             <label className="block">
-                                <span className="text-[10px] uppercase tracking-widest text-white/30">
+                                <span className="text-theme-2xs uppercase tracking-widest text-fg-muted">
                                     {t('categoryReport.endDate')}
                                 </span>
                                 <input
@@ -320,7 +334,7 @@ export default function CategoryReportPage() {
                                     max={todayISODate()}
                                     onKeyDown={blockDateTyping}
                                     onChange={(e) => setEndDate(e.target.value)}
-                                    className={`mt-1 w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white/80 ${DATE_INPUT_EXTRA}`}
+                                    className={`mt-1 ${INPUT_CLASS} ${DATE_INPUT_EXTRA}`}
                                 />
                             </label>
                         </div>
@@ -343,7 +357,7 @@ export default function CategoryReportPage() {
                 )}
 
                 {activeData && (
-                    <p className="text-[11px] text-white/30 px-0.5">
+                    <p className="text-theme-xs text-fg-muted px-0.5">
                         {formatDate(activeData.range.start, locale)} —{' '}
                         {formatDate(activeData.range.end, locale)}
                     </p>
@@ -351,18 +365,18 @@ export default function CategoryReportPage() {
 
                 {(isLoading || isFetching) && !activeData && (
                     <div className="space-y-4">
-                        <div className="h-[220px] bg-white/[0.04] rounded-2xl animate-pulse" />
+                        <div className="h-[220px] bg-surface-hover rounded-2xl animate-pulse" />
                         <div className="space-y-2">
                             {[...Array(4)].map((_, i) => (
                                 <div
                                     key={i}
-                                    className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between"
+                                    className="bg-surface-raised border border-line rounded-xl px-4 py-3.5 flex items-center justify-between"
                                 >
                                     <div className="flex items-center gap-3 flex-1">
-                                        <div className="w-3 h-3 rounded-full bg-white/[0.06] animate-pulse" />
-                                        <div className="h-3 bg-white/[0.05] rounded animate-pulse w-1/3" />
+                                        <div className="w-3 h-3 rounded-full bg-line animate-pulse" />
+                                        <div className="h-3 bg-line rounded animate-pulse w-1/3" />
                                     </div>
-                                    <div className="h-4 w-16 bg-white/[0.05] rounded animate-pulse" />
+                                    <div className="h-4 w-16 bg-line rounded animate-pulse" />
                                 </div>
                             ))}
                         </div>
@@ -370,7 +384,7 @@ export default function CategoryReportPage() {
                 )}
 
                 {error && (
-                    <div className="bg-red-500/[0.06] border border-red-500/15 rounded-xl px-4 py-4 text-sm text-red-300">
+                    <div className="bg-error-50 border border-error-200 dark:bg-error-500/[0.06] dark:border-error-500/15 rounded-xl px-4 py-4 text-theme-sm text-error-700 dark:text-error-300">
                         {t('categoryReport.errorLoading')}
                     </div>
                 )}
@@ -378,22 +392,25 @@ export default function CategoryReportPage() {
                 {activeData && activeData.totalSpendCents === 0 &&
                     !(view === 'member' && memberQ.data && memberQ.data.specialCategories.length > 0) && (
                     <div className="text-center py-16 space-y-2">
-                        <p className="text-white/40 text-sm font-medium">{t('categoryReport.emptyTitle')}</p>
-                        <p className="text-white/25 text-xs">{t('categoryReport.emptyHint')}</p>
+                        <p className="text-fg text-theme-sm font-medium">{t('categoryReport.emptyTitle')}</p>
+                        <p className="text-fg-muted text-theme-xs">{t('categoryReport.emptyHint')}</p>
                     </div>
                 )}
 
                 {/* CATEGORY view */}
                 {view === 'category' && categoryQ.data && categoryQ.data.totalSpendCents > 0 && (
                     <>
-                        <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 flex flex-col items-center">
+                        <div className="bg-surface-raised border border-line rounded-2xl p-6 flex flex-col items-center shadow-theme-xs">
                             <Donut rows={visibleRows} totalCents={visibleTotalCents || 1} />
-                            <p className="text-[11px] uppercase tracking-widest text-white/30 mt-4">
+                            <p className="text-theme-xs uppercase tracking-widest text-fg-muted mt-4">
                                 {t('categoryReport.totalSpent')}
                             </p>
-                            <p className="text-2xl font-semibold font-mono text-[#f0eeff] mt-1" translate="no">
+                            <p className="text-title-sm font-semibold font-mono text-fg mt-1" translate="no">
                                 {formatCents(visibleTotalCents, locale)}
                             </p>
+                            {/* Legend — always present, and each row is also
+                                direct-labelled in the list below, so identity is
+                                never carried by colour alone. */}
                             <div className="flex flex-wrap justify-center gap-1.5 mt-5 w-full">
                                 {categoryQ.data.categories.map((row) => {
                                     const hidden = hiddenCategories.has(row.categoryId);
@@ -401,10 +418,12 @@ export default function CategoryReportPage() {
                                         <button
                                             key={row.categoryId}
                                             onClick={() => toggleHiddenCategory(row.categoryId)}
-                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-200 ${
+                                            aria-pressed={!hidden}
+                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-theme-2xs font-medium transition-all duration-200
+                                                focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
                                                 hidden
-                                                    ? 'bg-white/[0.03] text-white/30'
-                                                    : 'bg-white/[0.07] text-white/70'
+                                                    ? 'bg-surface-raised text-fg-muted'
+                                                    : 'bg-surface-hover text-fg'
                                             }`}
                                         >
                                             <span
@@ -425,7 +444,9 @@ export default function CategoryReportPage() {
                                 <button
                                     key={row.categoryId}
                                     onClick={() => goToExpenses({ categoryId: row.categoryId, label: row.name })}
-                                    className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.05] active:border-white/[0.12] transition-colors text-left"
+                                    className="w-full bg-surface-raised border border-line rounded-xl px-4 py-3.5 shadow-theme-xs
+                                        flex items-center justify-between hover:bg-surface-hover hover:border-line-strong transition-colors text-left
+                                        focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
                                     style={{
                                         animation: 'fadeSlideIn 0.22s ease forwards',
                                         animationDelay: `${i * 40}ms`,
@@ -439,26 +460,26 @@ export default function CategoryReportPage() {
                                         />
                                         <div className="min-w-0">
                                             <p
-                                                className={`text-[13px] font-medium truncate leading-tight ${
-                                                    row.isDeleted ? 'text-white/40 italic' : 'text-white/80'
+                                                className={`text-theme-sm font-medium truncate leading-tight ${
+                                                    row.isDeleted ? 'text-fg-muted italic' : 'text-fg'
                                                 }`}
                                                 translate="no"
                                             >
                                                 {row.name}
                                                 {row.isDeleted && (
-                                                    <span className="ml-2 text-[9px] uppercase tracking-widest text-white/30">
+                                                    <span className="ml-2 text-theme-2xs uppercase tracking-widest text-fg-muted">
                                                         {t('categoryReport.deleted')}
                                                     </span>
                                                 )}
                                             </p>
-                                            <p className="text-[10px] text-white/30 mt-0.5">
+                                            <p className="text-theme-2xs text-fg-muted mt-0.5">
                                                 {t('categoryReport.expenseCount', { count: row.expenseCount })} ·{' '}
                                                 {row.sharePct.toFixed(1)}%
                                             </p>
                                         </div>
                                     </div>
                                     <p
-                                        className="text-[15px] font-semibold font-mono text-[#f0eeff] shrink-0 ml-3"
+                                        className="text-theme-sm font-semibold font-mono text-fg shrink-0 ml-3"
                                         translate="no"
                                     >
                                         {formatCents(row.totalCents, locale)}
@@ -471,30 +492,23 @@ export default function CategoryReportPage() {
 
                 {/* MEMBER view: paid vs spent toggle */}
                 {view === 'member' && (
-                    <div className="flex gap-1.5 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1">
-                        {(['spent', 'paid'] as MemberBy[]).map((mode) => (
-                            <button
-                                key={mode}
-                                onClick={() => setMemberBy(mode)}
-                                className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
-                                    memberBy === mode
-                                        ? 'bg-indigo-500/15 text-indigo-200'
-                                        : 'text-white/40 hover:text-white/65 active:text-white/65'
-                                }`}
-                            >
-                                {mode === 'spent'
-                                    ? t('categoryReport.whoSpent', 'Who spent')
-                                    : t('categoryReport.whoPaid', 'Who paid')}
-                            </button>
-                        ))}
-                    </div>
+                    <SegmentedToggle
+                        className="w-full [&>button]:flex-1"
+                        options={[
+                            { value: 'spent', label: t('categoryReport.whoSpent', 'Who spent') },
+                            { value: 'paid',  label: t('categoryReport.whoPaid', 'Who paid') },
+                        ]}
+                        value={memberBy}
+                        onChange={(v) => setMemberBy(v as MemberBy)}
+                        ariaLabel={t('reports.tab.member', 'By member')}
+                    />
                 )}
 
                 {/* MEMBER view */}
                 {view === 'member' && memberQ.data && memberQ.data.totalSpendCents > 0 && (
                     <div className="space-y-2">
                         {memberQ.data.members.map((m, i) => {
-                            const color = MEMBER_COLORS[i % MEMBER_COLORS.length];
+                            const color = seriesColor(i);
                             return (
                                 <button
                                     key={m.userId}
@@ -505,7 +519,9 @@ export default function CategoryReportPage() {
                                                 : { spender: m.userId, label: m.name }
                                         )
                                     }
-                                    className="w-full text-left bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.05] active:border-white/[0.12] transition-colors"
+                                    className="w-full text-left bg-surface-raised border border-line rounded-xl px-4 py-3.5 shadow-theme-xs
+                                        hover:bg-surface-hover hover:border-line-strong transition-colors
+                                        focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
                                     style={{
                                         animation: 'fadeSlideIn 0.22s ease forwards',
                                         animationDelay: `${i * 40}ms`,
@@ -515,17 +531,17 @@ export default function CategoryReportPage() {
                                     <div className="flex items-center justify-between gap-3">
                                         <div className="flex items-center gap-3 min-w-0">
                                             <span
-                                                className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0"
+                                                className="w-8 h-8 rounded-full flex items-center justify-center text-theme-xs font-semibold shrink-0"
                                                 style={{ background: color + '22', color }}
                                                 translate="no"
                                             >
                                                 {initials(m.name)}
                                             </span>
                                             <div className="min-w-0">
-                                                <p className="text-[13px] font-medium text-white/80 truncate leading-tight" translate="no">
+                                                <p className="text-theme-sm font-medium text-fg truncate leading-tight" translate="no">
                                                     {m.name}
                                                 </p>
-                                                <p className="text-[10px] text-white/30 mt-0.5">
+                                                <p className="text-theme-2xs text-fg-muted mt-0.5">
                                                     {memberBy === 'paid' && (
                                                         <>
                                                             {t('categoryReport.expenseCount', { count: m.expenseCount })} ·{' '}
@@ -536,13 +552,13 @@ export default function CategoryReportPage() {
                                             </div>
                                         </div>
                                         <p
-                                            className="text-[15px] font-semibold font-mono text-[#f0eeff] shrink-0 ml-3"
+                                            className="text-theme-sm font-semibold font-mono text-fg shrink-0 ml-3"
                                             translate="no"
                                         >
                                             {formatCents(m.totalCents, locale)}
                                         </p>
                                     </div>
-                                    <div className="mt-2.5 h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+                                    <div className="mt-2.5 h-1.5 rounded-full bg-line overflow-hidden">
                                         <div
                                             className="h-full rounded-full"
                                             style={{ width: `${Math.max(m.sharePct, 2)}%`, background: color }}
@@ -558,10 +574,10 @@ export default function CategoryReportPage() {
                 {view === 'member' && memberQ.data && memberQ.data.specialCategories.length > 0 && (
                     <div className="space-y-2">
                         <div className="flex items-center justify-between px-1 pt-1">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30">
+                            <p className="text-theme-2xs font-semibold uppercase tracking-widest text-fg-muted">
                                 {t('categoryReport.collective', 'Shared / collective')}
                             </p>
-                            <p className="text-[11px] font-mono text-white/40" translate="no">
+                            <p className="text-theme-xs font-mono text-fg-muted" translate="no">
                                 {formatCents(memberQ.data.specialTotalCents, locale)}
                             </p>
                         </div>
@@ -569,19 +585,21 @@ export default function CategoryReportPage() {
                             <button
                                 key={c.categoryId}
                                 onClick={() => goToExpenses({ categoryId: c.categoryId, label: c.name })}
-                                className="w-full text-left bg-amber-500/[0.05] border border-amber-500/15 rounded-xl px-4 py-3 hover:bg-amber-500/[0.09] active:bg-amber-500/[0.09] transition-colors"
+                                className="w-full text-left bg-warning-50 border border-warning-200 dark:bg-warning-500/[0.05] dark:border-warning-500/15
+                                    rounded-xl px-4 py-3 hover:bg-warning-100 dark:hover:bg-warning-500/[0.09] transition-colors
+                                    focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
                             >
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-3 min-w-0">
                                         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.color }} />
                                         <div className="min-w-0">
-                                            <p className="text-[13px] font-medium text-white/80 truncate leading-tight" translate="no">{c.name}</p>
-                                            <p className="text-[10px] text-white/30 mt-0.5">
+                                            <p className="text-theme-sm font-medium text-fg truncate leading-tight" translate="no">{c.name}</p>
+                                            <p className="text-theme-2xs text-fg-muted mt-0.5">
                                                 {t('categoryReport.collectiveHint', 'Collective — not split per member')}
                                             </p>
                                         </div>
                                     </div>
-                                    <p className="text-[14px] font-semibold font-mono text-amber-200/90 shrink-0 ml-3" translate="no">
+                                    <p className="text-theme-sm font-semibold font-mono text-warning-800 dark:text-warning-200/90 shrink-0 ml-3" translate="no">
                                         {formatCents(c.totalCents, locale)}
                                     </p>
                                 </div>
@@ -593,24 +611,28 @@ export default function CategoryReportPage() {
                 {/* TREND view */}
                 {view === 'trend' && trendData && trendData.totalSpendCents > 0 && (
                     <>
-                        <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5">
-                            <p className="text-[10px] uppercase tracking-widest text-white/30 mb-3">
+                        <div className="bg-surface-raised border border-line rounded-2xl p-5 shadow-theme-xs">
+                            <p className="text-theme-2xs uppercase tracking-widest text-fg-muted mb-3">
                                 {t(
                                     `reports.granularity.${trendData.granularity}`,
                                     GRANULARITY_LABEL[trendData.granularity]
                                 )}
                             </p>
+                            {/* One series over time, so no legend — the label above
+                                names it. Flat brand fill rather than a gradient:
+                                a fading bar reads as a value that trails off.
+                                Rounded top only, anchored to the baseline. */}
                             <div className="flex items-end gap-1.5 h-40">
                                 {trendData.points.map((p) => {
                                     const h = Math.max((p.totalCents / maxTrendCents) * 100, 4);
                                     return (
                                         <div
                                             key={p.periodStart}
-                                            className="flex-1 flex items-end h-full min-w-0"
+                                            className="flex-1 flex items-end h-full min-w-0 group/bar"
                                             title={`${formatPeriod(p.periodStart, trendData.granularity, locale)}: ${formatCents(p.totalCents, locale)}`}
                                         >
                                             <div
-                                                className="w-full rounded-t bg-gradient-to-t from-indigo-500/40 to-indigo-400/80"
+                                                className="w-full rounded-t-[4px] bg-brand-500 transition-colors group-hover/bar:bg-brand-600"
                                                 style={{ height: `${h}%` }}
                                             />
                                         </div>
@@ -630,7 +652,9 @@ export default function CategoryReportPage() {
                                             label: formatPeriod(p.periodStart, trendData.granularity, locale),
                                         })
                                     }
-                                    className="w-full text-left bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3 flex items-center justify-between hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.05] active:border-white/[0.12] transition-colors"
+                                    className="w-full text-left bg-surface-raised border border-line rounded-xl px-4 py-3 shadow-theme-xs
+                                        flex items-center justify-between hover:bg-surface-hover hover:border-line-strong transition-colors
+                                        focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
                                     style={{
                                         animation: 'fadeSlideIn 0.22s ease forwards',
                                         animationDelay: `${i * 40}ms`,
@@ -638,15 +662,15 @@ export default function CategoryReportPage() {
                                     }}
                                 >
                                     <div className="min-w-0">
-                                        <p className="text-[13px] font-medium text-white/80 leading-tight" translate="no">
+                                        <p className="text-theme-sm font-medium text-fg leading-tight" translate="no">
                                             {formatPeriod(p.periodStart, trendData.granularity, locale)}
                                         </p>
-                                        <p className="text-[10px] text-white/30 mt-0.5">
+                                        <p className="text-theme-2xs text-fg-muted mt-0.5">
                                             {t('categoryReport.expenseCount', { count: p.expenseCount })}
                                         </p>
                                     </div>
                                     <p
-                                        className="text-[15px] font-semibold font-mono text-[#f0eeff] shrink-0 ml-3"
+                                        className="text-theme-sm font-semibold font-mono text-fg shrink-0 ml-3"
                                         translate="no"
                                     >
                                         {formatCents(p.totalCents, locale)}

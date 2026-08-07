@@ -25,6 +25,11 @@ import {
   FormActions,
   FieldInput,
   AmountInput,
+  Chip,
+  Input,
+  Label,
+  Switch,
+  INPUT_CLASS,
   DATE_INPUT_EXTRA,
 } from "../components/ui";
 import DuplicateNoticeBar from "../components/ui/DuplicateNoticeBar";
@@ -33,11 +38,9 @@ import { sanitizeAmount, MIN_DATE, todayISODate } from "../helpers/validators";
 import { useFieldError } from "../hooks/useFieldError";
 import { useTranslation } from "react-i18next";
 
-export const inputCls =
-  "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-base sm:text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all duration-200";
-
-export const fieldLabel =
-  "block text-[10px] font-semibold text-white/40 mb-2 uppercase tracking-widest";
+// Kept as a local alias so the many call sites below stay short. The old
+// hand-rolled dark-only string is gone; this is the shared token-driven one.
+const inputCls = INPUT_CLASS;
 
 export default function CreateExpensePage() {
   const { groupId, expenseId } = useParams<{ groupId: string; expenseId?: string }>();
@@ -220,7 +223,7 @@ export default function CreateExpensePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080c14] text-white">
+    <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
       <Header />
 
@@ -244,10 +247,10 @@ export default function CreateExpensePage() {
         <BackButton />
 
         <PageHeader
-          color="cyan"
+          accent="brand"
           icon={
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M7 1v12M1 7h12" stroke="#67e8f9" strokeWidth="1.5" strokeLinecap="round" />
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           }
           label={isEdit ? t("editExpense.label", "Edit") : t("createExpense.label")}
@@ -258,7 +261,7 @@ export default function CreateExpensePage() {
         {/* ── 01 Basic details ── */}
         <FormSection step="01" title={t("createExpense.basicDetails")} contentClass="px-5 py-4 space-y-3">
           <div>
-            <label className={fieldLabel}>{t("createExpense.titleLabel")}</label>
+            <Label>{t("createExpense.titleLabel")}</Label>
             <FieldInput
               className={inputCls}
               type="text"
@@ -271,17 +274,17 @@ export default function CreateExpensePage() {
               maxLength={100}
             />
             <div className="flex justify-end mt-1">
-              <span className="text-[10px] text-white/20" translate="no">{title.length}/100</span>
+              <span className="text-theme-2xs text-fg-muted" translate="no">{title.length}/100</span>
             </div>
           </div>
 
           <div>
-            <label className={fieldLabel}>
+            <Label>
               {t("createExpense.descriptionLabel")}
-              <span className="ml-2 text-[9px] font-normal text-white/25 normal-case tracking-normal">
+              <span className="ml-2 text-theme-2xs font-normal text-fg-muted">
                 {t("createExpense.optional")}
               </span>
-            </label>
+            </Label>
             <textarea
               className={`${inputCls} resize-none`}
               rows={2}
@@ -291,13 +294,13 @@ export default function CreateExpensePage() {
               maxLength={500}
             />
             <div className="flex justify-end mt-1">
-              <span className="text-[10px] text-white/20" translate="no">{description.length}/500</span>
+              <span className="text-theme-2xs text-fg-muted" translate="no">{description.length}/500</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={fieldLabel}>{t("createExpense.amount")}</label>
+              <Label>{t("createExpense.amount")}</Label>
               <AmountInput
                 size="lg"
                 value={amount}
@@ -308,8 +311,8 @@ export default function CreateExpensePage() {
                 inputClassName={inputCls}
               />
               {effectiveBalance > 0 && (
-                <p className={`mt-1 text-[10px] font-medium transition-colors ${
-                  amountIsNearLimit ? "text-amber-400/70" : "text-white/20"
+                <p className={`mt-1 text-theme-2xs font-medium transition-colors ${
+                  amountIsNearLimit ? "text-warning-700 dark:text-warning-400" : "text-fg-muted"
                 }`}>
                   {t("createExpense.groupBalance", { amount: effectiveBalance.toLocaleString("en-IN") })}
                 </p>
@@ -318,9 +321,9 @@ export default function CreateExpensePage() {
 
             {/* ── Date with quick chips (Idea C) ── */}
             <div>
-              <label className={fieldLabel}>{t("createExpense.date")}</label>
+              <Label>{t("createExpense.date")}</Label>
               <FieldInput
-                className={`${inputCls} text-white/70 ${DATE_INPUT_EXTRA}`}
+                className={`${inputCls} ${DATE_INPUT_EXTRA}`}
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
@@ -334,18 +337,14 @@ export default function CreateExpensePage() {
                   { label: t("createExpense.today"),     value: todayISO     },
                   { label: t("createExpense.yesterday"), value: yesterdayISO },
                 ].map((preset) => (
-                  <button
+                  <Chip
                     key={preset.value}
-                    type="button"
+                    selected={date === preset.value}
                     onClick={() => { clearFieldError("date"); setDate(preset.value); }}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all duration-150 ${
-                      date === preset.value
-                        ? "bg-cyan-500/15 border-cyan-500/35 text-cyan-300"
-                        : "bg-white/[0.03] border-white/[0.07] text-white/30 hover:border-white/20 hover:text-white/50"
-                    }`}
+                    className="!px-2.5 !py-1 !rounded-lg !text-theme-2xs"
                   >
                     {preset.label}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
@@ -359,46 +358,33 @@ export default function CreateExpensePage() {
         {/* ── 02 Category + Payment ── */}
         <FormSection step="02" title={t("createExpense.categoryPayment")} contentClass="px-5 py-4 space-y-4">
           <div>
-            <label className={fieldLabel}>{t("createExpense.category")}</label>
+            <Label>{t("createExpense.category")}</Label>
             <div className="flex flex-wrap gap-2">
               {catLoading
                 ? [...Array(4)].map((_, i) => (
-                    <div key={i} className="h-8 rounded-xl bg-white/[0.05] animate-pulse" style={{ width: `${64 + i * 16}px`, animationDelay: `${i * 80}ms` }} />
+                    <div key={i} className="h-8 rounded-xl bg-surface-hover animate-pulse" style={{ width: `${64 + i * 16}px`, animationDelay: `${i * 80}ms` }} />
                   ))
                 : (
                   <>
                     {sortedCategories.map((cat) => (
-                      <button
+                      <Chip
                         key={cat._id}
-                        type="button"
+                        selected={categoryId === cat._id}
+                        accentColor={cat.color}
                         onClick={() => { clearFieldError("category"); setCategoryId(cat._id); }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border transition-all duration-150"
-                        style={
-                          categoryId === cat._id
-                            ? { background: cat.color + "25", borderColor: cat.color + "60", color: cat.color }
-                            : { background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.35)" }
-                        }
                       >
-                        <span
-                          className="w-1.5 h-1.5 rounded-full"
-                          style={{ background: categoryId === cat._id ? cat.color : "rgba(255,255,255,0.2)" }}
-                        />
                         <span translate="no">{cat.name}</span>
-                      </button>
+                      </Chip>
                     ))}
                     {isAdmin ? (
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/groups/${groupId}/categories/new`)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border border-dashed border-white/[0.12] text-white/30 hover:border-cyan-500/40 hover:text-cyan-400 active:border-cyan-500/40 active:text-cyan-400 transition-all duration-150"
-                      >
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <Chip dashed onClick={() => navigate(`/groups/${groupId}/categories/new`)}>
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
                           <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                         </svg>
                         {categories.length === 0 ? t("createExpense.noCategoriesCreate") : t("createExpense.add")}
-                      </button>
+                      </Chip>
                     ) : categories.length === 0 ? (
-                      <span className="text-[12px] text-white/30 px-1 py-1.5">
+                      <span className="text-theme-xs text-fg-muted px-1 py-1.5">
                         {t("createExpense.noCategoriesMember", "No categories yet — ask an admin to add one.")}
                       </span>
                     ) : null}
@@ -411,51 +397,38 @@ export default function CreateExpensePage() {
 
           {creditCategories.length > 0 && (
             <div>
-              <label className={fieldLabel}>{t("createExpense.creditCategory", "Credit pool")}</label>
+              <Label>{t("createExpense.creditCategory", "Credit pool")}</Label>
               <div className="flex flex-wrap gap-2">
                 {creditCategories.map((cat) => (
-                  <button
+                  <Chip
                     key={cat._id}
-                    type="button"
+                    selected={creditCategoryId === cat._id}
+                    accentColor={cat.color}
                     onClick={() => setCreditCategoryId(cat._id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold border transition-all duration-150"
-                    style={
-                      creditCategoryId === cat._id
-                        ? { background: cat.color + "25", borderColor: cat.color + "60", color: cat.color }
-                        : { background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.35)" }
-                    }
                   >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ background: creditCategoryId === cat._id ? cat.color : "rgba(255,255,255,0.2)" }}
-                    />
                     <span translate="no">{cat.name}</span>
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
           )}
 
           <div>
-            <label className={fieldLabel}>{t("createExpense.paymentType")}</label>
+            <Label>{t("createExpense.paymentType")}</Label>
             <div className="grid grid-cols-4 gap-2">
               {pmLoading
                 ? [...Array(4)].map((_, i) => (
-                    <div key={i} className="h-12 rounded-xl bg-white/[0.05] animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
+                    <div key={i} className="h-12 rounded-xl bg-surface-hover animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
                   ))
                 : paymentTypes?.map((pt) => (
-                    <button
+                    <Chip
                       key={pt}
-                      type="button"
+                      selected={paymentType === pt}
                       onClick={() => setPaymentType(pt)}
-                      className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-[10px] font-semibold transition-all duration-150 ${
-                        paymentType === pt
-                          ? "bg-cyan-500/15 border-cyan-500/35 text-cyan-300"
-                          : "bg-white/[0.03] border-white/[0.07] text-white/30 hover:bg-white/[0.06]"
-                      }`}
+                      className="!flex-col !gap-1.5 !py-3 !text-theme-2xs justify-center"
                     >
                       <span translate="no">{pt}</span>
-                    </button>
+                    </Chip>
                   ))
               }
             </div>
@@ -467,30 +440,30 @@ export default function CreateExpensePage() {
           <div className="flex flex-wrap gap-2">
             {membersLoading
               ? [...Array(3)].map((_, i) => (
-                  <div key={i} className="h-9 rounded-xl bg-white/[0.05] animate-pulse" style={{ width: `${88 + i * 20}px`, animationDelay: `${i * 80}ms` }} />
+                  <div key={i} className="h-9 rounded-xl bg-surface-hover animate-pulse" style={{ width: `${88 + i * 20}px`, animationDelay: `${i * 80}ms` }} />
                 ))
-              : groupMembers?.map((member) => (
-                  <button
-                    key={member.userId._id}
-                    type="button"
-                    onClick={() => { clearFieldError("paidBy"); setPaidBy(member.userId._id); }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[12px] font-semibold transition-all duration-150 ${
-                      paidBy === member.userId._id
-                        ? "bg-violet-500/15 border-violet-500/35 text-violet-200"
-                        : "bg-white/[0.03] border-white/[0.07] text-white/35 hover:bg-white/[0.06]"
-                    }`}
-                  >
-                    <span
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${
-                        paidBy === member.userId._id ? "bg-violet-500/30 text-violet-300" : "bg-white/10 text-white/40"
-                      }`}
-                      translate="no"
+              : groupMembers?.map((member) => {
+                  const selected = paidBy === member.userId._id;
+                  return (
+                    <Chip
+                      key={member.userId._id}
+                      selected={selected}
+                      dot={false}
+                      onClick={() => { clearFieldError("paidBy"); setPaidBy(member.userId._id); }}
+                      className="!gap-2 !py-2"
                     >
-                      {member.userId?.name.slice(0, 2).toUpperCase()}
-                    </span>
-                    <span translate="no">{member.userId?.name}</span>
-                  </button>
-                ))
+                      <span
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-theme-2xs font-bold ${
+                          selected ? "bg-brand-500/25 text-brand-700 dark:text-brand-300" : "bg-surface-hover text-fg-muted"
+                        }`}
+                        translate="no"
+                      >
+                        {member.userId?.name.slice(0, 2).toUpperCase()}
+                      </span>
+                      <span translate="no">{member.userId?.name}</span>
+                    </Chip>
+                  );
+                })
             }
           </div>
           {fieldErrors.paidBy && <div className="mt-2"><ErrorMessage error={fieldErrors.paidBy} /></div>}
@@ -515,70 +488,59 @@ export default function CreateExpensePage() {
                       setSplitEnabled(true);
                     }
                   }}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all duration-150 ${
+                  className={`px-2.5 py-1 rounded-lg text-theme-2xs font-semibold border transition-all duration-150
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
                     allMembersInSplit
-                      ? "bg-red-500/10 border-red-500/25 text-red-400 hover:bg-red-500/15 active:bg-red-500/15"
-                      : "bg-white/[0.03] border-white/[0.07] text-white/35 hover:border-cyan-500/30 hover:text-cyan-400"
+                      ? "bg-error-50 border-error-200 text-error-700 hover:bg-error-100 dark:bg-error-500/10 dark:border-error-500/25 dark:text-error-400 dark:hover:bg-error-500/15"
+                      : "bg-surface-raised border-line text-fg-muted hover:border-brand-300 hover:text-brand-600 dark:hover:text-brand-400"
                   }`}
                 >
                   {allMembersInSplit ? t("createExpense.clearAll") : t("createExpense.addAll")}
                 </button>
               )}
               {!splitEnabled && (
-                <span className="text-[9px] font-medium text-white/30 uppercase tracking-wide">
+                <span className="text-theme-2xs font-medium text-fg-muted uppercase tracking-wide">
                   {t("createExpense.optional")}
                 </span>
               )}
-              <button
-                type="button"
-                onClick={() => handleToggleSplit(!splitEnabled)}
-                aria-label={splitEnabled ? "Disable split tracking" : "Enable split tracking"}
-                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 ${
-                  splitEnabled ? "bg-cyan-500/70" : "bg-white/10"
-                }`}
-              >
-                <span
-                  className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200 ${
-                    splitEnabled ? "translate-x-[18px]" : "translate-x-[3px]"
-                  }`}
-                />
-              </button>
+              <Switch
+                checked={splitEnabled}
+                onChange={handleToggleSplit}
+                ariaLabel={splitEnabled ? "Disable split tracking" : "Enable split tracking"}
+              />
             </div>
           }
         >
           <div className="flex flex-wrap gap-2">
             {membersLoading
               ? [...Array(3)].map((_, i) => (
-                  <div key={i} className="h-9 rounded-xl bg-white/[0.05] animate-pulse" style={{ width: `${88 + i * 20}px`, animationDelay: `${i * 80}ms` }} />
+                  <div key={i} className="h-9 rounded-xl bg-surface-hover animate-pulse" style={{ width: `${88 + i * 20}px`, animationDelay: `${i * 80}ms` }} />
                 ))
               : groupMembers?.map((member) => {
                   const selected = splits.some((s) => s.userId === member._id);
                   return (
-                    <button
+                    <Chip
                       key={member._id}
-                      type="button"
+                      selected={selected}
+                      dot={false}
                       onClick={() => {
                         clearFieldError("splits");
                         const isAdding = !splits.some((s) => s.userId === member._id);
                         toggleSplit(setSplits, member.userId!);
                         if (isAdding) setSplitEnabled(true);
                       }}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[12px] font-semibold transition-all duration-150 ${
-                        selected
-                          ? "bg-cyan-500/15 border-cyan-500/35 text-cyan-200"
-                          : "bg-white/[0.03] border-white/[0.07] text-white/35 hover:bg-white/[0.06]"
-                      }`}
+                      className="!gap-2 !py-2"
                     >
                       <span
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${
-                          selected ? "bg-cyan-500/25 text-cyan-300" : "bg-white/10 text-white/40"
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-theme-2xs font-bold ${
+                          selected ? "bg-brand-500/25 text-brand-700 dark:text-brand-300" : "bg-surface-hover text-fg-muted"
                         }`}
                         translate="no"
                       >
                         {member.userId?.name.slice(0, 2).toUpperCase()}
                       </span>
                       <span translate="no">{member.userId?.name}</span>
-                    </button>
+                    </Chip>
                   );
                 })
             }
@@ -589,20 +551,22 @@ export default function CreateExpensePage() {
               {splits.map((split) => (
                 <div
                   key={split.userId}
-                  className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-2.5"
+                  className="flex items-center gap-3 bg-surface-raised border border-line rounded-xl px-4 py-2.5"
                 >
-                  <span className="w-7 h-7 rounded-full bg-cyan-500/15 border border-cyan-500/20 flex items-center justify-center text-[10px] font-bold text-cyan-400 shrink-0" translate="no">
+                  <span className="w-7 h-7 rounded-full bg-brand-50 border border-brand-200 dark:bg-brand-500/15 dark:border-brand-500/20 flex items-center justify-center text-theme-2xs font-bold text-brand-600 dark:text-brand-400 shrink-0" translate="no">
                     {split.name.slice(0, 2).toUpperCase()}
                   </span>
-                  <span className="flex-1 text-[13px] font-medium text-white/60 truncate" translate="no">{split.name}</span>
+                  <span className="flex-1 text-theme-sm font-medium text-fg truncate" translate="no">{split.name}</span>
                   <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25 text-xs">₹</span>
-                    <input
-                      className="w-24 bg-white/[0.05] border border-white/[0.09] rounded-lg pl-6 pr-2.5 py-1.5 text-xs text-white text-right placeholder-white/20 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-muted text-theme-xs z-10">₹</span>
+                    <Input
+                      size="sm"
+                      className="w-24 pl-6 text-right"
                       placeholder="0"
                       type="text"
                       value={split.amount || ""}
                       inputMode="decimal"
+                      aria-label={t("createExpense.splitTotal")}
                       onChange={(e) => updateSplitAmount(setSplits, split.userId, Number(sanitizeAmount(e.target.value, totalAmount)))}
                     />
                   </div>
@@ -615,35 +579,39 @@ export default function CreateExpensePage() {
                   <button
                     type="button"
                     onClick={() => { clearFieldError("splits"); splitEqually(setSplits, totalAmount); }}
-                    className="flex items-center gap-1 text-[10px] font-semibold text-cyan-400/70 hover:text-cyan-300 active:text-cyan-300 transition-colors"
+                    className="flex items-center gap-1 text-theme-2xs font-semibold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors"
                   >
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
                       <path d="M1 5h8M1 2.5h8M1 7.5h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
                     </svg>
                     {t("createExpense.splitEqually")}
                   </button>
                 ) : (
-                  <span className="text-[10px] uppercase tracking-widest text-white/25">{t("createExpense.splitTotal")}</span>
+                  <span className="text-theme-2xs uppercase tracking-widest text-fg-muted">{t("createExpense.splitTotal")}</span>
                 )}
                 <div className="flex items-center gap-2">
-                  <span className={`text-[12px] font-mono font-semibold ${
-                    splits.length === 0 ? "text-white/25" : splitValid ? "text-emerald-400" : "text-red-400"
+                  <span className={`text-theme-xs font-mono font-semibold ${
+                    splits.length === 0
+                      ? "text-fg-muted"
+                      : splitValid
+                        ? "text-success-700 dark:text-success-400"
+                        : "text-error-600 dark:text-error-400"
                   }`} translate="no">
                     ₹{splitTotal.toLocaleString("en-IN")}
                   </span>
-                  <span className="text-white/20 text-[10px]">/</span>
-                  <span className="text-[12px] font-mono text-white/40" translate="no">
+                  <span className="text-fg-muted text-theme-2xs">/</span>
+                  <span className="text-theme-xs font-mono text-fg-muted" translate="no">
                     ₹{totalAmount.toLocaleString("en-IN")}
                   </span>
                   {splits.length > 0 && (
                     splitValid ? (
-                      <span className="text-emerald-400">
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <span className="text-success-700 dark:text-success-400">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                           <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </span>
                     ) : (
-                      <span className="text-[10px] font-semibold text-red-400" translate="no">
+                      <span className="text-theme-2xs font-semibold text-error-600 dark:text-error-400" translate="no">
                         {splitDiff > 0
                           ? t("createExpense.left", { amount: splitDiff.toFixed(2) })
                           : t("createExpense.over", { amount: Math.abs(splitDiff).toFixed(2) })}

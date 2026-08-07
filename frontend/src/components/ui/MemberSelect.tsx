@@ -1,7 +1,15 @@
-import type { SelectHTMLAttributes } from "react";
+import { useMemo } from "react";
+import Select from "./Select";
+import type { SelectOption } from "./Select";
 import type { GroupMember } from "../../interface/member";
 
-interface MemberSelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "children" | "onChange" | "value"> {
+/**
+ * Member picker. Now a thin wrapper over the design-system <Select> rather than
+ * a styled native <select> — that removes the last hardcoded `#0d1220` option
+ * background (unthemeable, and wrong in light mode) and brings keyboard/ARIA
+ * support along for free.
+ */
+interface MemberSelectProps {
   members: GroupMember[] | undefined;
   value: string;
   onChange: (userId: string) => void;
@@ -9,11 +17,11 @@ interface MemberSelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>
   filter?: (m: GroupMember) => boolean;
   renderLabel?: (m: GroupMember) => string;
   className?: string;
+  disabled?: boolean;
+  /** When false the placeholder is itself a selectable row — the caller treats
+   *  an empty value as a real choice (e.g. "me"), not as "nothing picked". */
   placeholderDisabled?: boolean;
 }
-
-const baseClass =
-  "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 transition-all appearance-none";
 
 export default function MemberSelect({
   members,
@@ -22,29 +30,27 @@ export default function MemberSelect({
   placeholder,
   filter,
   renderLabel,
-  className = "",
+  className,
+  disabled,
   placeholderDisabled = true,
-  ...rest
 }: MemberSelectProps) {
-  const list = filter ? (members ?? []).filter(filter) : (members ?? []);
-  const label = renderLabel ?? ((m: GroupMember) => m.userId.name);
+  const options = useMemo<SelectOption[]>(() => {
+    const list = filter ? (members ?? []).filter(filter) : (members ?? []);
+    const label = renderLabel ?? ((m: GroupMember) => m.userId.name);
+    const rows = list.map((m) => ({ value: m.userId._id, label: label(m) }));
+    // A selectable placeholder has to exist as a real row, otherwise there is
+    // no way back to the empty value once something else is chosen.
+    return placeholderDisabled ? rows : [{ value: "", label: placeholder }, ...rows];
+  }, [members, filter, renderLabel, placeholderDisabled, placeholder]);
 
   return (
-    <select
-      {...rest}
+    <Select
+      options={options}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={`${baseClass} ${className}`}
-      style={{ background: "#0d1220", ...(rest.style ?? {}) }}
-    >
-      <option value="" disabled={placeholderDisabled} style={{ background: "#0d1220" }}>
-        {placeholder}
-      </option>
-      {list.map((m) => (
-        <option key={m._id} value={m.userId._id} style={{ background: "#0d1220" }}>
-          {label(m)}
-        </option>
-      ))}
-    </select>
+      onChange={onChange}
+      placeholder={placeholder}
+      disabled={disabled}
+      className={className}
+    />
   );
 }

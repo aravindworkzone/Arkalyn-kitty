@@ -10,9 +10,12 @@
     <link rel="icon" type="image/png" href="/mini-logo.png" />
     <link rel="apple-touch-icon" href="/mini-logo.png" />
 
-    <!-- PWA / Mobile -->
-    <meta name="theme-color" content="#080c14" />
-    <meta name="color-scheme" content="dark light" />
+    <!-- PWA / Mobile.
+         `theme-color` is a placeholder here — the bootstrap below overwrites it
+         with the resolved theme's surface before first paint. It stays in the
+         markup so a browser that blocks inline script still gets something. -->
+    <meta name="theme-color" content="#f9fafb" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

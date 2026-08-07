@@ -9,8 +9,8 @@ const AdminRoute = () => {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-[#080c14] flex items-center justify-center">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 to-blue-500 animate-pulse" />
+            <div className="min-h-screen bg-surface flex items-center justify-center">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 animate-pulse" />
             </div>
         );
     }
@@ -21,10 +21,10 @@ const AdminRoute = () => {
 
     if (!isAppOwner) {
         return (
-            <div className="min-h-screen bg-[#080c14] text-white flex flex-col items-center justify-center gap-3 px-6 text-center">
-                <p className="text-5xl font-bold text-white/80">403</p>
-                <p className="text-sm text-white/40">You don't have access to the owner dashboard.</p>
-                <a href="/groups" className="mt-2 text-violet-400 text-sm hover:text-violet-300">← Back to the app</a>
+            <div className="min-h-screen bg-surface text-fg flex flex-col items-center justify-center gap-3 px-6 text-center">
+                <p className="text-title-md font-bold text-fg">403</p>
+                <p className="text-theme-sm text-fg-muted">You don't have access to the owner dashboard.</p>
+                <a href="/groups" className="mt-2 text-brand-600 dark:text-brand-400 text-theme-sm hover:text-brand-700 dark:hover:text-brand-300">← Back to the app</a>
             </div>
         );
     }

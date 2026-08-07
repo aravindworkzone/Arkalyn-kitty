@@ -1,27 +1,29 @@
-type AvatarColor = "cyan" | "violet" | "white";
-type AvatarSize  = "sm" | "md";
+type AvatarTone = "brand" | "success" | "neutral";
+type AvatarSize = "sm" | "md";
 
 interface Props {
   name: string;
-  color?: AvatarColor;
+  tone?: AvatarTone;
   size?: AvatarSize;
 }
 
-const colorMap: Record<AvatarColor, string> = {
-  cyan:   "bg-cyan-500/15 border-cyan-500/20 text-cyan-400",
-  violet: "bg-violet-500/15 border-violet-500/20 text-violet-400",
-  white:  "bg-white/10 border-white/10 text-white/40",
+const toneMap: Record<AvatarTone, string> = {
+  brand:
+    "bg-brand-50 border-brand-200 text-brand-700 dark:bg-brand-500/15 dark:border-brand-500/20 dark:text-brand-400",
+  success:
+    "bg-success-50 border-success-200 text-success-700 dark:bg-success-500/15 dark:border-success-500/20 dark:text-success-400",
+  neutral: "bg-surface-hover border-line text-fg-muted",
 };
 
 const sizeMap: Record<AvatarSize, string> = {
-  sm: "w-6 h-6 text-[9px]",
-  md: "w-8 h-8 text-[11px]",
+  sm: "w-6 h-6 text-theme-2xs",
+  md: "w-8 h-8 text-theme-xs",
 };
 
-export default function MemberAvatar({ name, color = "cyan", size = "md" }: Props) {
+export default function MemberAvatar({ name, tone = "brand", size = "md" }: Props) {
   return (
     <div
-      className={`${sizeMap[size]} ${colorMap[color]} rounded-full border flex items-center justify-center shrink-0 font-bold`}
+      className={`${sizeMap[size]} ${toneMap[tone]} rounded-full border flex items-center justify-center shrink-0 font-bold`}
     >
       {name.slice(0, 2).toUpperCase()}
     </div>

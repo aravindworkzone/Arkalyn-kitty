@@ -27,10 +27,10 @@ const fmtDays = (n: number | null) => (n === null ? 'Unlimited' : `${n} days`);
 // Per-tier visual accent + icon.
 const TIER_THEME: Record<PlanTier, { ring: string; chip: string; cta: string; glow: string; icon: ReactNode }> = {
     FREE: {
-        ring: 'border-white/[0.08]',
-        chip: 'bg-white/[0.06] text-white/50',
-        cta: 'bg-white/[0.04] border border-white/[0.08] text-white/40 cursor-default',
-        glow: 'from-transparent via-white/15 to-transparent',
+        ring: 'border-line',
+        chip: 'bg-surface-hover text-fg-muted',
+        cta: 'bg-surface-hover border border-line text-fg-muted cursor-default',
+        glow: 'from-transparent via-line-strong to-transparent',
         icon: (
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.3" />
@@ -38,10 +38,10 @@ const TIER_THEME: Record<PlanTier, { ring: string; chip: string; cta: string; gl
         ),
     },
     PRO: {
-        ring: 'border-violet-500/40 ring-1 ring-violet-500/30',
-        chip: 'bg-violet-500/15 text-violet-300',
-        cta: 'bg-violet-500/85 border border-violet-500/50 text-white hover:bg-violet-500 active:bg-violet-600 shadow-lg shadow-violet-900/30',
-        glow: 'from-transparent via-violet-500/50 to-transparent',
+        ring: 'border-brand-500/40 ring-1 ring-brand-500/30',
+        chip: 'bg-brand-500/15 text-brand-300',
+        cta: 'bg-brand-500/85 border border-brand-500/50 text-on-accent hover:bg-brand-500 active:bg-brand-600 shadow-lg shadow-brand-900/30',
+        glow: 'from-transparent via-brand-500/50 to-transparent',
         icon: (
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M2.5 11.5L4 5l3 3 1-5 1 5 3-3 1.5 6.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
@@ -49,10 +49,10 @@ const TIER_THEME: Record<PlanTier, { ring: string; chip: string; cta: string; gl
         ),
     },
     PREMIUM: {
-        ring: 'border-amber-400/30',
-        chip: 'bg-amber-400/15 text-amber-300',
-        cta: 'bg-gradient-to-r from-amber-400/90 to-orange-500/90 border border-amber-400/40 text-[#1a1206] font-bold hover:from-amber-400 hover:to-orange-500 shadow-lg shadow-amber-900/20',
-        glow: 'from-transparent via-amber-400/50 to-transparent',
+        ring: 'border-warning-400/30',
+        chip: 'bg-warning-400/15 text-warning-300',
+        cta: 'bg-gradient-to-r from-warning-400/90 to-warning-500/90 border border-warning-400/40 text-[#1a1206] font-bold hover:from-warning-400 hover:to-warning-500 shadow-lg shadow-warning-900/20',
+        glow: 'from-transparent via-warning-400/50 to-transparent',
         icon: (
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M3 5l2.5 2L8 3l2.5 4L13 5l-1 7H4L3 5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
@@ -193,46 +193,46 @@ export default function PricingPage() {
             : null;
 
     return (
-        <div className="min-h-screen bg-[#080c14] text-white">
+        <div className="min-h-screen bg-surface text-fg">
             <PageBackground />
             <Header />
 
             <main className="max-w-5xl mx-auto px-4 pt-10 pb-28">
                 {/* Hero */}
                 <div className="text-center max-w-xl mx-auto mb-8">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-violet-500/25 bg-violet-500/10 mb-4">
-                        <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
-                        <span className="text-[10px] font-semibold uppercase tracking-widest text-violet-300/80">Plans & Billing</span>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-500/25 bg-brand-500/10 mb-4">
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand-400" />
+                        <span className="text-theme-2xs font-semibold uppercase tracking-widest text-brand-300/80">Plans & Billing</span>
                     </div>
                     <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#f0eeff]">
                         Do more with your groups
                     </h1>
-                    <p className="text-white/45 text-sm mt-3 leading-relaxed">
+                    <p className="text-fg-muted text-sm mt-3 leading-relaxed">
                         Start free, upgrade when you grow. One-time payment unlocks access for the full billing period —
                         no auto-renewal surprises.
                     </p>
 
-                    <div className="mt-4 inline-flex items-center gap-2 text-[12px] text-white/40">
+                    <div className="mt-4 inline-flex items-center gap-2 text-theme-xs text-fg-muted">
                         <span>Current plan:</span>
                         <span className={`px-2 py-0.5 rounded-md font-semibold ${TIER_THEME[currentTier].chip}`} translate="no">
                             {currentTier}
                         </span>
-                        {status === 'grace' && <span className="text-amber-300/80">· grace period</span>}
-                        {status === 'expired' && <span className="text-red-300/80">· expired</span>}
+                        {status === 'grace' && <span className="text-warning-300/80">· grace period</span>}
+                        {status === 'expired' && <span className="text-error-300/80">· expired</span>}
                         {expiryLabel && status !== 'expired' && <span>· renews/expires {expiryLabel}</span>}
                     </div>
                 </div>
 
                 {/* promo code — directly below the current plan */}
-                <div className="mb-8 max-w-md mx-auto rounded-2xl border border-white/[0.07] bg-white/[0.03] p-5">
+                <div className="mb-8 max-w-md mx-auto rounded-2xl border border-line bg-surface-raised p-5">
                     <div className="flex items-center gap-2 mb-1">
-                        <svg className="w-4 h-4 text-violet-300" viewBox="0 0 16 16" fill="none">
+                        <svg className="w-4 h-4 text-brand-300" viewBox="0 0 16 16" fill="none">
                             <path d="M2 6.5l5-4 7 3-1 7-7 1-4-5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
                             <circle cx="6" cy="6" r="1" fill="currentColor" />
                         </svg>
-                        <h3 className="text-[13px] font-semibold text-white/80">Have a promo code?</h3>
+                        <h3 className="text-theme-sm font-semibold text-fg">Have a promo code?</h3>
                     </div>
-                    <p className="text-[11px] text-white/35 mb-3">
+                    <p className="text-theme-xs text-fg-muted mb-3">
                         Enter it to unlock your plan instantly — no payment needed.
                     </p>
 
@@ -240,13 +240,13 @@ export default function PricingPage() {
                     <button
                         type="button"
                         onClick={() => setPromoCode(FEATURED_PROMO)}
-                        className="w-full mb-3 flex items-center justify-between gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-3.5 py-2.5 text-left hover:border-amber-400/40 hover:bg-amber-400/[0.1] transition-colors"
+                        className="w-full mb-3 flex items-center justify-between gap-3 rounded-xl border border-warning-400/25 bg-warning-400/[0.06] px-3.5 py-2.5 text-left hover:border-warning-400/40 hover:bg-warning-400/[0.1] transition-colors"
                     >
                         <div className="min-w-0">
-                            <p className="font-mono text-[12px] tracking-wider text-amber-200 truncate">{FEATURED_PROMO}</p>
-                            <p className="text-[10px] text-amber-200/50 mt-0.5">Free Premium trial valid until December 31, 2026</p>
+                            <p className="font-mono text-theme-xs tracking-wider text-warning-200 truncate">{FEATURED_PROMO}</p>
+                            <p className="text-theme-2xs text-warning-200/50 mt-0.5">Free Premium trial valid until December 31, 2026</p>
                         </div>
-                        <span className="text-[10px] font-semibold text-amber-200/80 shrink-0">Tap to use</span>
+                        <span className="text-theme-2xs font-semibold text-warning-200/80 shrink-0">Tap to use</span>
                     </button>
 
                     <div className="flex gap-2">
@@ -258,12 +258,12 @@ export default function PricingPage() {
                             placeholder="PROMO CODE"
                             autoComplete="off"
                             spellCheck={false}
-                            className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm font-mono tracking-wider text-white placeholder-white/20 outline-none focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/10 transition-all"
+                            className="flex-1 bg-surface-hover border border-line rounded-xl px-4 py-2.5 text-sm font-mono tracking-wider text-fg placeholder:text-fg-subtle outline-none focus:border-brand-500/40 focus:ring-1 focus:ring-brand-500/10 transition-all"
                         />
                         <button
                             onClick={handleRedeem}
                             disabled={redeeming || !promoCode.trim()}
-                            className="rounded-xl px-5 py-2.5 text-sm font-semibold bg-violet-500/80 border border-violet-500/50 text-white hover:bg-violet-500 active:bg-violet-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="rounded-xl px-5 py-2.5 text-sm font-semibold bg-brand-500/80 border border-brand-500/50 text-on-accent hover:bg-brand-500 active:bg-brand-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {redeeming ? 'Applying…' : 'Apply'}
                         </button>
@@ -272,18 +272,18 @@ export default function PricingPage() {
 
                 {/* Billing cycle toggle */}
                 <div className="flex justify-center mb-8">
-                    <div className="inline-flex items-center gap-1 bg-white/[0.03] border border-white/[0.08] rounded-2xl p-1.5">
+                    <div className="inline-flex items-center gap-1 bg-surface-raised border border-line rounded-2xl p-1.5">
                         {(['monthly', 'yearly'] as BillingCycle[]).map((c) => (
                             <button
                                 key={c}
                                 onClick={() => setCycle(c)}
-                                className={`relative px-5 py-2 rounded-xl text-[13px] font-semibold transition-all duration-150 ${
-                                    cycle === c ? 'bg-violet-500/20 text-violet-100 shadow-sm' : 'text-white/45 hover:text-white/75'
+                                className={`relative px-5 py-2 rounded-xl text-theme-sm font-semibold transition-all duration-150 ${
+                                    cycle === c ? 'bg-brand-500/20 text-brand-100 shadow-sm' : 'text-fg-muted hover:text-fg'
                                 }`}
                             >
                                 {c === 'monthly' ? 'Monthly' : 'Yearly'}
                                 {c === 'yearly' && (
-                                    <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 align-middle">
+                                    <span className="ml-2 text-theme-2xs font-bold px-1.5 py-0.5 rounded bg-success-500/20 text-success-300 align-middle">
                                         SAVE 20%
                                     </span>
                                 )}
@@ -296,8 +296,8 @@ export default function PricingPage() {
                     <div
                         className={`max-w-md mx-auto mb-8 rounded-xl px-4 py-3 text-sm border text-center ${
                             msg.ok
-                                ? 'bg-emerald-500/[0.06] border-emerald-500/20 text-emerald-300'
-                                : 'bg-red-500/[0.06] border-red-500/15 text-red-300'
+                                ? 'bg-success-500/[0.06] border-success-500/20 text-success-300'
+                                : 'bg-error-500/[0.06] border-error-500/15 text-error-300'
                         }`}
                     >
                         {msg.text}
@@ -308,7 +308,7 @@ export default function PricingPage() {
                 {plansLoading || !plansData ? (
                     <div className="grid sm:grid-cols-3 gap-4">
                         {[...Array(3)].map((_, i) => (
-                            <div key={i} className="h-[520px] rounded-3xl bg-white/[0.03] border border-white/[0.05] animate-pulse" />
+                            <div key={i} className="h-[520px] rounded-3xl bg-surface-raised border border-line animate-pulse" />
                         ))}
                     </div>
                 ) : (
@@ -327,7 +327,7 @@ export default function PricingPage() {
                             return (
                                 <div
                                     key={tier}
-                                    className={`relative rounded-3xl border p-6 flex flex-col bg-white/[0.03] transition-transform duration-200 ${theme.ring} ${
+                                    className={`relative rounded-3xl border p-6 flex flex-col bg-surface-raised transition-transform duration-200 ${theme.ring} ${
                                         isPopular ? 'sm:-translate-y-3' : ''
                                     }`}
                                 >
@@ -335,7 +335,7 @@ export default function PricingPage() {
                                     <div className={`absolute top-0 left-8 right-8 h-px bg-gradient-to-r ${theme.glow}`} />
 
                                     {isPopular && (
-                                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-violet-500 text-white text-[10px] font-bold uppercase tracking-wider shadow-lg shadow-violet-900/40">
+                                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-brand-500 text-on-accent text-theme-2xs font-bold uppercase tracking-wider shadow-lg shadow-brand-900/40">
                                             Most popular
                                         </div>
                                     )}
@@ -346,10 +346,10 @@ export default function PricingPage() {
                                             <span className={`w-9 h-9 rounded-xl flex items-center justify-center ${theme.chip}`}>
                                                 {theme.icon}
                                             </span>
-                                            <h2 className="text-[17px] font-semibold text-[#f0eeff]">{cfg.name}</h2>
+                                            <h2 className="text-theme-xl font-semibold text-[#f0eeff]">{cfg.name}</h2>
                                         </div>
                                         {isCurrent && (
-                                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md border border-white/15 bg-white/[0.06] text-white/60">
+                                            <span className="text-theme-2xs font-semibold px-2 py-0.5 rounded-md border border-line-strong bg-surface-hover text-fg">
                                                 Current
                                             </span>
                                         )}
@@ -358,14 +358,14 @@ export default function PricingPage() {
                                     {/* price */}
                                     <div className="mt-5 mb-1">
                                         <div className="flex items-baseline gap-1.5">
-                                            <span className="text-4xl font-bold text-white tracking-tight" translate="no">
+                                            <span className="text-4xl font-bold text-fg tracking-tight" translate="no">
                                                 ₹{price}
                                             </span>
                                             {tier !== 'FREE' && (
-                                                <span className="text-sm text-white/40">{cycle === 'yearly' ? '/year' : '/month'}</span>
+                                                <span className="text-sm text-fg-muted">{cycle === 'yearly' ? '/year' : '/month'}</span>
                                             )}
                                         </div>
-                                        <p className="text-[11px] text-white/35 mt-1 h-4" translate="no">
+                                        <p className="text-theme-xs text-fg-muted mt-1 h-4" translate="no">
                                             {tier === 'FREE'
                                                 ? 'Free forever'
                                                 : perMonth !== null
@@ -374,13 +374,13 @@ export default function PricingPage() {
                                         </p>
                                     </div>
 
-                                    <div className="my-5 h-px bg-white/[0.06]" />
+                                    <div className="my-5 h-px bg-surface-hover" />
 
                                     {/* features */}
                                     <ul className="space-y-2.5 flex-1">
                                         {featureLines(tier, cfg).map((line) => (
-                                            <li key={line} className="flex items-start gap-2.5 text-[12.5px] text-white/60 leading-snug">
-                                                <svg className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400/80" viewBox="0 0 16 16" fill="none">
+                                            <li key={line} className="flex items-start gap-2.5 text-[12.5px] text-fg leading-snug">
+                                                <svg className="w-4 h-4 mt-0.5 shrink-0 text-success-400/80" viewBox="0 0 16 16" fill="none">
                                                     <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.12" />
                                                     <path d="M5 8.2l2 2 4-4.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                                 </svg>
@@ -408,7 +408,7 @@ export default function PricingPage() {
                                             : `Upgrade to ${cfg.name}`}
                                     </button>
                                     {isDowngrade && (
-                                        <p className="mt-2 text-[10.5px] text-white/30 text-center leading-snug">
+                                        <p className="mt-2 text-[10.5px] text-fg-muted text-center leading-snug">
                                             You're on {currentTier}. Downgrades take effect after it expires.
                                         </p>
                                     )}
@@ -420,14 +420,14 @@ export default function PricingPage() {
 
                 {/* trust footer */}
                 <div className="mt-8 flex flex-col items-center gap-3 text-center">
-                    <div className="flex items-center gap-2 text-[11px] text-white/30">
+                    <div className="flex items-center gap-2 text-theme-xs text-fg-muted">
                         <svg className="w-3.5 h-3.5" viewBox="0 0 14 14" fill="none">
                             <rect x="2.5" y="6" width="9" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.1" />
                             <path d="M4.5 6V4.5a2.5 2.5 0 015 0V6" stroke="currentColor" strokeWidth="1.1" />
                         </svg>
                         Secured by Razorpay · Cards, UPI & Net Banking
                     </div>
-                    <button onClick={() => navigate('/groups')} className="text-violet-400 text-xs hover:text-violet-300 transition-colors">
+                    <button onClick={() => navigate('/groups')} className="text-brand-400 text-xs hover:text-brand-300 transition-colors">
                         ← Back to groups
                     </button>
                 </div>

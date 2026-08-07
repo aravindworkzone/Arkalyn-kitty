@@ -18,11 +18,11 @@ export default function AuthLoader({ delay = 250 }: { delay?: number }) {
   if (!show) return null;
 
   return (
-    <div className="min-h-screen bg-[#080c14] flex flex-col items-center justify-center gap-6">
+    <div className="min-h-screen bg-surface flex flex-col items-center justify-center gap-6">
       <Logo variant="mini" className="w-12 h-12 rounded-2xl animate-pulse" />
       <div className="space-y-2 w-48">
-        <div className="h-2.5 bg-white/[0.06] rounded animate-pulse" />
-        <div className="h-2.5 bg-white/[0.04] rounded animate-pulse w-3/4 mx-auto" />
+        <div className="h-2.5 bg-line rounded animate-pulse" />
+        <div className="h-2.5 bg-surface-hover rounded animate-pulse w-3/4 mx-auto" />
       </div>
     </div>
   );

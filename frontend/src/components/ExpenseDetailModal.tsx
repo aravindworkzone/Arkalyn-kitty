@@ -8,8 +8,8 @@ import { useShareAsImage } from "../hooks/useShareAsImage";
 import { useGetUserQuery } from "../redux/api/auth";
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="flex items-start justify-between gap-4 py-2.5 border-b border-white/[0.05] last:border-0">
-    <span className="text-[10px] font-semibold uppercase tracking-widest text-white/30 shrink-0 pt-0.5">
+  <div className="flex items-start justify-between gap-4 py-2.5 border-b border-line last:border-0">
+    <span className="text-theme-2xs font-semibold uppercase tracking-widest text-fg-muted shrink-0 pt-0.5">
       {label}
     </span>
     <div className="flex-1 text-right min-w-0">{children}</div>
@@ -67,13 +67,13 @@ export default function ExpenseDetailModal({
   return (
     <DetailModal isOpen={!!expense} onClose={handleClose} title="Expense Detail">
       {/* hero */}
-      <div className="mb-5 pb-5 border-b border-white/[0.06]">
-        <p className="font-mono text-[34px] font-semibold text-[#f0eeff] leading-none">
+      <div className="mb-5 pb-5 border-b border-line">
+        <p className="font-mono text-title-md font-semibold text-fg leading-none">
           ₹{expense.amount.toLocaleString("en-IN")}
         </p>
-        <p className="text-sm font-medium text-white/55 mt-2 leading-snug">{expense.title}</p>
+        <p className="text-sm font-medium text-fg-muted mt-2 leading-snug">{expense.title}</p>
         {expense.description && (
-          <p className="text-[12px] text-white/35 mt-2 leading-relaxed">{expense.description}</p>
+          <p className="text-theme-xs text-fg-muted mt-2 leading-relaxed">{expense.description}</p>
         )}
       </div>
 
@@ -81,7 +81,7 @@ export default function ExpenseDetailModal({
       <div>
         <Row label="Category">
           <span
-            className="text-[11px] font-semibold px-2 py-0.5 rounded-md"
+            className="text-theme-xs font-semibold px-2 py-0.5 rounded-md"
             style={{ background: expense.category.color + "20", color: expense.category.color }}
           >
             {expense.category.name}
@@ -90,19 +90,19 @@ export default function ExpenseDetailModal({
 
         <Row label="Paid by">
           <div className="min-w-0">
-            <p className="text-[13px] text-white/75 leading-tight break-words">{expense.paidBy.name}</p>
-            <p className="text-[11px] text-white/30 mt-0.5 break-all">{expense.paidBy.email}</p>
+            <p className="text-theme-sm text-fg leading-tight break-words">{expense.paidBy.name}</p>
+            <p className="text-theme-xs text-fg-muted mt-0.5 break-all">{expense.paidBy.email}</p>
           </div>
         </Row>
 
         <Row label="Payment">
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md border border-white/10 bg-white/[0.05] text-white/50">
+          <span className="text-theme-xs font-semibold px-2 py-0.5 rounded-md border border-line bg-surface-hover text-fg-muted">
             {expense.paymentType}
           </span>
         </Row>
 
         <Row label="Date">
-          <span className="text-[13px] text-white/60">{dateLabel}</span>
+          <span className="text-theme-sm text-fg">{dateLabel}</span>
         </Row>
 
         <Row label="Split">
@@ -110,21 +110,21 @@ export default function ExpenseDetailModal({
             <div className="space-y-1.5 text-left">
               {expense.splitBetween.map((s) => (
                 <div key={s.userId._id} className="flex items-center justify-between gap-3">
-                  <span className="text-[12px] text-white/60 truncate">{s.userId.name}</span>
-                  <span className="text-[12px] font-mono text-white/75 shrink-0">
+                  <span className="text-theme-xs text-fg truncate">{s.userId.name}</span>
+                  <span className="text-theme-xs font-mono text-fg shrink-0">
                     ₹{s.amount.toLocaleString("en-IN")}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <span className="text-[11px] text-white/25">No split</span>
+            <span className="text-theme-xs text-fg-muted">No split</span>
           )}
         </Row>
       </div>
 
       {/* share section — visible to everyone */}
-      <div className="mt-5 pt-4 border-t border-white/[0.06]">
+      <div className="mt-5 pt-4 border-t border-line">
         <div className="flex gap-2">
           <button
             onClick={() =>
@@ -135,7 +135,7 @@ export default function ExpenseDetailModal({
               })
             }
             disabled={isSharing || isDownloading}
-            className="flex-1 py-2 rounded-xl border border-white/10 bg-white/[0.04] text-white/70 text-[12px] font-semibold hover:bg-white/[0.08] active:bg-white/[0.08] disabled:opacity-50 transition-colors"
+            className="flex-1 py-2 rounded-xl border border-line bg-surface-hover text-fg text-theme-xs font-semibold hover:bg-surface-hover active:bg-surface-hover disabled:opacity-50 transition-colors"
           >
             {isSharing ? "Preparing…" : "Share"}
           </button>
@@ -146,13 +146,13 @@ export default function ExpenseDetailModal({
               })
             }
             disabled={isSharing || isDownloading}
-            className="flex-1 py-2 rounded-xl border border-white/10 bg-white/[0.04] text-white/70 text-[12px] font-semibold hover:bg-white/[0.08] active:bg-white/[0.08] disabled:opacity-50 transition-colors"
+            className="flex-1 py-2 rounded-xl border border-line bg-surface-hover text-fg text-theme-xs font-semibold hover:bg-surface-hover active:bg-surface-hover disabled:opacity-50 transition-colors"
           >
             {isDownloading ? "Downloading…" : "Download"}
           </button>
         </div>
         {shareError && (
-          <p className="mt-2 text-[11px] text-red-400">{shareError}</p>
+          <p className="mt-2 text-theme-xs text-error-600 dark:text-error-400">{shareError}</p>
         )}
       </div>
 
@@ -161,13 +161,13 @@ export default function ExpenseDetailModal({
 
       {/* edit section — admins or the expense's payer */}
       {canEdit && groupId && (
-        <div className="mt-5 pt-4 border-t border-white/[0.06]">
+        <div className="mt-5 pt-4 border-t border-line">
           <button
             onClick={() => {
               handleClose();
               navigate(`/groups/${groupId}/expenses/${expense._id}/edit`);
             }}
-            className="w-full py-2 rounded-xl border border-cyan-500/25 bg-cyan-500/[0.08] text-cyan-300 text-[12px] font-semibold hover:bg-cyan-500/[0.15] active:bg-cyan-500/[0.15] transition-colors"
+            className="w-full py-2 rounded-xl border border-brand-200 dark:border-brand-500/25 bg-brand-50 dark:bg-brand-500/[0.08] text-brand-600 dark:text-brand-300 text-theme-xs font-semibold hover:bg-brand-50 dark:bg-brand-500/[0.15] active:bg-brand-50 dark:bg-brand-500/[0.15] transition-colors"
           >
             Edit Expense
           </button>
@@ -176,38 +176,38 @@ export default function ExpenseDetailModal({
 
       {/* delete / refund section — admin/super_admin only */}
       {canDelete && (
-        <div className="mt-5 pt-4 border-t border-white/[0.06]">
+        <div className="mt-5 pt-4 border-t border-line">
           {!showRefund ? (
             <button
               onClick={() => setShowRefund(true)}
-              className="w-full py-2 rounded-xl border border-red-500/20 bg-red-500/[0.07] text-red-400 text-[12px] font-semibold hover:bg-red-500/[0.14] active:bg-red-500/[0.14] transition-colors"
+              className="w-full py-2 rounded-xl border border-error-200 dark:border-error-500/20 bg-error-50 dark:bg-error-500/[0.07] text-error-600 dark:text-error-400 text-theme-xs font-semibold hover:bg-error-50 dark:bg-error-500/[0.14] active:bg-error-50 dark:bg-error-500/[0.14] transition-colors"
             >
               Refund Expense
             </button>
           ) : (
             <div className="space-y-3">
-              <p className="text-[11px] text-white/30 uppercase tracking-widest font-semibold">Refund reason (optional)</p>
+              <p className="text-theme-xs text-fg-muted uppercase tracking-widest font-semibold">Refund reason (optional)</p>
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="e.g. Duplicate entry, wrong amount..."
                 rows={2}
-                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white placeholder-white/20 outline-none focus:border-red-500/40 resize-none transition-all"
+                className="w-full bg-surface-hover border border-line rounded-xl px-3 py-2 text-sm text-fg placeholder:text-fg-subtle outline-none focus:border-error-200 dark:border-error-500/40 resize-none transition-all"
               />
               {refundError && (
-                <p className="text-[11px] text-red-400">{refundError}</p>
+                <p className="text-theme-xs text-error-600 dark:text-error-400">{refundError}</p>
               )}
               <div className="flex gap-2">
                 <button
                   onClick={() => { setShowRefund(false); setReason(""); setRefundError(""); }}
-                  className="flex-1 py-2 rounded-xl border border-white/10 text-white/40 text-[12px] font-semibold hover:bg-white/[0.04] active:bg-white/[0.04] transition-colors"
+                  className="flex-1 py-2 rounded-xl border border-line text-fg-muted text-theme-xs font-semibold hover:bg-surface-hover active:bg-surface-hover transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => handleRefund(expense, groupId)}
                   disabled={isDeleting}
-                  className="flex-1 py-2 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 text-[12px] font-semibold hover:bg-red-500/30 active:bg-red-500/30 disabled:opacity-50 transition-colors"
+                  className="flex-1 py-2 rounded-xl bg-error-50 dark:bg-error-500/20 border border-error-200 dark:border-error-500/30 text-error-600 dark:text-error-400 text-theme-xs font-semibold hover:bg-error-50 dark:bg-error-500/30 active:bg-error-50 dark:bg-error-500/30 disabled:opacity-50 transition-colors"
                 >
                   {isDeleting ? "Processing…" : "Confirm Refund"}
                 </button>

@@ -30,9 +30,9 @@ export default function DuplicateExpenseModal({
   });
 
   const detailRow = (label: string, value: string) => (
-    <div className="flex items-start justify-between gap-2 py-2 border-b border-white/[0.06] last:border-b-0">
-      <span className="text-[11px] font-medium text-white/40 uppercase tracking-wider">{label}</span>
-      <span className="text-[13px] text-white/80 text-right">{value}</span>
+    <div className="flex items-start justify-between gap-2 py-2 border-b border-line last:border-b-0">
+      <span className="text-theme-xs font-medium text-fg-muted uppercase tracking-wider">{label}</span>
+      <span className="text-theme-sm text-fg text-right">{value}</span>
     </div>
   );
 
@@ -42,11 +42,11 @@ export default function DuplicateExpenseModal({
       onClose={onClose}
       title={t("duplicateModal.title", "Duplicate Expense Detected")}
     >
-      <p className="text-xs text-white/50 mb-4">
+      <p className="text-theme-xs text-fg-muted mb-4">
         {t("duplicateModal.description", "An expense with the same details already exists:")}
       </p>
 
-      <div className="rounded-xl border border-white/[0.06] px-4 py-1 mb-6 bg-white/[0.02]">
+      <div className="rounded-xl border border-line px-4 py-1 mb-6 bg-surface-raised">
         {detailRow(t("duplicateModal.date", "Date"), formattedDate)}
         {detailRow(t("duplicateModal.amount", "Amount"), `₹${formattedAmount}`)}
         {detailRow(t("duplicateModal.category", "Category"), match.category.name)}
@@ -55,7 +55,7 @@ export default function DuplicateExpenseModal({
       </div>
 
       <div className="flex flex-col gap-2">
-        <ActionButton onClick={onConfirm} tone="amber">
+        <ActionButton onClick={onConfirm} tone="warning">
           {t("duplicateModal.addAnyway", "Add Anyway")}
         </ActionButton>
         <ActionButton onClick={onClose} tone="neutral">

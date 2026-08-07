@@ -168,7 +168,7 @@ export default function CloseGroupModal({ isOpen, groupId, onClose, onClosed }: 
     : "";
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-center overflow-y-auto p-4 bg-black/75 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-modal flex justify-center overflow-y-auto p-4 bg-scrim backdrop-blur-[2px]">
       <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
 
       <div
@@ -177,43 +177,43 @@ export default function CloseGroupModal({ isOpen, groupId, onClose, onClosed }: 
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative my-auto w-full max-w-[560px] rounded-2xl border border-white/[0.08] bg-[#080c14] px-6 py-6 shadow-2xl animate-[fadeUp_0.18s_ease-out] max-h-[90vh] flex flex-col outline-none"
+        className="relative my-auto w-full max-w-[560px] rounded-2xl border border-line bg-surface-overlay px-6 py-6 shadow-theme-md animate-[fadeUp_0.18s_ease-out] max-h-[90vh] flex flex-col outline-none"
       >
 
-        <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-red-500/30 to-transparent rounded-full" />
+        <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-error-500/30 to-transparent rounded-full" />
 
         <div className="mb-4 flex items-center gap-3 shrink-0">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-500/10 border border-red-500/20">
-            <svg className="h-3.5 w-3.5 text-red-400" viewBox="0 0 16 16" fill="none">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-error-50 dark:bg-error-500/10 border border-error-200 dark:border-error-500/20">
+            <svg className="h-3.5 w-3.5 text-error-600 dark:text-error-400" viewBox="0 0 16 16" fill="none">
               <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-red-400/60">
+            <p className="text-theme-2xs font-bold uppercase tracking-widest text-error-600 dark:text-error-400">
               {t("deleteModal.destructiveAction")}
             </p>
-            <h2 id={titleId} className="text-[15px] font-semibold text-white/90 leading-tight">
+            <h2 id={titleId} className="text-theme-sm font-semibold text-fg leading-tight">
               {t("closeGroup.title", "Close Group")}
             </h2>
           </div>
         </div>
 
-        <div className="mb-3 h-px bg-white/[0.06] shrink-0" />
+        <div className="mb-3 h-px bg-surface-hover shrink-0" />
 
         <div className="overflow-y-auto pr-1 flex-1">
           {isFetching && (
-            <p className="text-xs text-white/40">{t("closeGroup.loading", "Loading preview…")}</p>
+            <p className="text-xs text-fg-muted">{t("closeGroup.loading", "Loading preview…")}</p>
           )}
 
           {previewErrorMsg && (
-            <div className="mb-3 flex items-center gap-2 rounded-xl border border-red-500/15 bg-red-500/[0.06] px-3.5 py-2.5">
-              <p className="text-xs text-red-400/80">{previewErrorMsg}</p>
+            <div className="mb-3 flex items-center gap-2 rounded-xl border border-error-200 dark:border-error-500/15 bg-error-50 dark:bg-error-500/[0.06] px-3.5 py-2.5">
+              <p className="text-xs text-error-600 dark:text-error-400">{previewErrorMsg}</p>
             </div>
           )}
 
           {preview && !isFetching && (
             <>
-              <p className="text-[11px] text-white/40 mb-4">
+              <p className="text-theme-xs text-fg-muted mb-4">
                 {t(
                   "closeGroup.description",
                   "Closing distributes the remaining balance back to members as a single refund expense. Edit amounts if you need to override the proportional split — the total must match the current balance."
@@ -221,24 +221,24 @@ export default function CloseGroupModal({ isOpen, groupId, onClose, onClosed }: 
               </p>
 
               <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
-                  <p className="text-[10px] uppercase tracking-widest text-white/30 mb-0.5">
+                <div className="rounded-xl border border-line bg-surface-raised px-3 py-2.5">
+                  <p className="text-theme-2xs uppercase tracking-widest text-fg-muted mb-0.5">
                     {t("closeGroup.balance", "Group balance")}
                   </p>
-                  <p className="font-mono text-[15px] font-semibold text-white/90" translate="no">
+                  <p className="font-mono text-theme-sm font-semibold text-fg" translate="no">
                     ₹{balance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div className={`rounded-xl border px-3 py-2.5 ${
                   isBalanced
-                    ? "border-emerald-500/15 bg-emerald-500/[0.05]"
-                    : "border-amber-500/20 bg-amber-500/[0.06]"
+                    ? "border-success-200 dark:border-success-500/15 bg-success-50 dark:bg-success-500/[0.05]"
+                    : "border-warning-200 dark:border-warning-500/20 bg-warning-50 dark:bg-warning-500/[0.06]"
                 }`}>
-                  <p className="text-[10px] uppercase tracking-widest text-white/30 mb-0.5">
+                  <p className="text-theme-2xs uppercase tracking-widest text-fg-muted mb-0.5">
                     {t("closeGroup.refundsTotal", "Refunds total")}
                   </p>
-                  <p className={`font-mono text-[15px] font-semibold ${
-                    isBalanced ? "text-emerald-300" : "text-amber-300"
+                  <p className={`font-mono text-theme-sm font-semibold ${
+                    isBalanced ? "text-success-700 dark:text-success-300" : "text-warning-700 dark:text-warning-300"
                   }`} translate="no">
                     ₹{fromCents(sumCents).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
@@ -246,8 +246,8 @@ export default function CloseGroupModal({ isOpen, groupId, onClose, onClosed }: 
               </div>
 
               {!isBalanced && (
-                <div className="mb-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2">
-                  <p className="text-[11px] text-amber-300/90">
+                <div className="mb-3 rounded-xl border border-warning-200 dark:border-warning-500/20 bg-warning-50 dark:bg-warning-500/[0.06] px-3 py-2">
+                  <p className="text-theme-xs text-warning-700 dark:text-warning-300">
                     {diffCents > 0
                       ? t("closeGroup.over", { amount: fromCents(diffCents).toFixed(2), defaultValue: "Refunds exceed balance by ₹{{amount}}" })
                       : t("closeGroup.under", { amount: fromCents(-diffCents).toFixed(2), defaultValue: "Refunds short of balance by ₹{{amount}}" })}
@@ -256,7 +256,7 @@ export default function CloseGroupModal({ isOpen, groupId, onClose, onClosed }: 
               )}
 
               <div className="space-y-2 mb-3">
-                <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-1 text-[10px] uppercase tracking-widest text-white/30">
+                <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-1 text-theme-2xs uppercase tracking-widest text-fg-muted">
                   <span>{t("closeGroup.member", "Member")}</span>
                   <span className="text-right">{t("closeGroup.contributed", "Contributed")}</span>
                   <span className="text-right w-28">{t("closeGroup.refund", "Refund")}</span>
@@ -265,16 +265,16 @@ export default function CloseGroupModal({ isOpen, groupId, onClose, onClosed }: 
                 {rows.map((row) => (
                   <div
                     key={row.userId}
-                    className="grid grid-cols-[1fr_auto_auto] items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2"
+                    className="grid grid-cols-[1fr_auto_auto] items-center gap-3 rounded-xl border border-line bg-surface-raised px-3 py-2"
                   >
                     <div className="min-w-0">
-                      <p className="text-[13px] text-white/85 truncate" translate="no">{row.name}</p>
-                      <p className="text-[10px] font-mono text-white/35" translate="no">
+                      <p className="text-theme-sm text-fg truncate" translate="no">{row.name}</p>
+                      <p className="text-theme-2xs font-mono text-fg-muted" translate="no">
                         {t("closeGroup.proportional", "Proportional")}: ₹
                         {row.proportional.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
                     </div>
-                    <p className="font-mono text-[12px] text-white/60 text-right" translate="no">
+                    <p className="font-mono text-theme-xs text-fg text-right" translate="no">
                       ₹{row.contribution.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <input
@@ -284,7 +284,7 @@ export default function CloseGroupModal({ isOpen, groupId, onClose, onClosed }: 
                       step="0.01"
                       value={fromCents(refundCentsByUser[row.userId] ?? 0)}
                       onChange={(e) => handleAmountChange(row.userId, e.target.value)}
-                      className="w-28 bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1.5 font-mono text-[12px] text-right text-white outline-none focus:border-red-500/30 focus:ring-1 focus:ring-red-500/10 transition"
+                      className="w-28 bg-surface-hover border border-line rounded-lg px-2 py-1.5 font-mono text-theme-xs text-right text-fg outline-none focus:border-error-200 dark:border-error-500/30 focus:ring-1 focus:ring-error-500/10 transition"
                     />
                   </div>
                 ))}
@@ -293,12 +293,12 @@ export default function CloseGroupModal({ isOpen, groupId, onClose, onClosed }: 
           )}
 
           {submitError && (
-            <div className="mb-3 flex items-center gap-2 rounded-xl border border-red-500/15 bg-red-500/[0.06] px-3.5 py-2.5">
-              <svg className="h-3.5 w-3.5 shrink-0 text-red-400" viewBox="0 0 14 14" fill="none">
+            <div className="mb-3 flex items-center gap-2 rounded-xl border border-error-200 dark:border-error-500/15 bg-error-50 dark:bg-error-500/[0.06] px-3.5 py-2.5">
+              <svg className="h-3.5 w-3.5 shrink-0 text-error-600 dark:text-error-400" viewBox="0 0 14 14" fill="none">
                 <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.2" />
                 <path d="M7 4.5v3M7 9h.01" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
               </svg>
-              <p className="text-xs text-red-400/80">{submitError}</p>
+              <p className="text-xs text-error-600 dark:text-error-400">{submitError}</p>
             </div>
           )}
         </div>
@@ -307,7 +307,7 @@ export default function CloseGroupModal({ isOpen, groupId, onClose, onClosed }: 
           <button
             onClick={onClose}
             disabled={isClosing}
-            className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-sm font-medium text-white/50 transition hover:bg-white/[0.06] hover:text-white/70 active:bg-white/[0.06] active:text-white/70 disabled:opacity-50"
+            className="flex-1 rounded-xl border border-line bg-surface-raised py-2.5 text-sm font-medium text-fg-muted transition hover:bg-surface-hover hover:text-fg active:bg-surface-hover active:text-fg disabled:opacity-50"
           >
             {t("deleteModal.cancel")}
           </button>
@@ -317,8 +317,8 @@ export default function CloseGroupModal({ isOpen, groupId, onClose, onClosed }: 
             disabled={!isBalanced || isClosing || !preview || isFetching}
             className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-all duration-150 ${
               isBalanced && !isClosing && preview && !isFetching
-                ? "bg-red-500/80 border border-red-500/50 text-white hover:bg-red-500/90 active:bg-red-500"
-                : "bg-red-500/[0.06] border border-red-500/10 text-red-400/25 cursor-not-allowed"
+                ? "bg-error-50 dark:bg-error-500/80 border border-error-200 dark:border-error-500/50 text-fg hover:bg-error-50 dark:bg-error-500/90 active:bg-error-500"
+                : "bg-error-50 dark:bg-error-500/[0.06] border border-error-200 dark:border-error-500/10 text-error-600 dark:text-error-400 cursor-not-allowed"
             }`}
           >
             {isClosing ? (
@@ -334,7 +334,7 @@ export default function CloseGroupModal({ isOpen, groupId, onClose, onClosed }: 
           </button>
         </div>
 
-        <p className="mt-3 text-center text-[10px] font-medium uppercase tracking-widest text-white/15">
+        <p className="mt-3 text-center text-theme-2xs font-medium uppercase tracking-widest text-fg-muted">
           {t("deleteModal.cannotUndo")}
         </p>
       </div>

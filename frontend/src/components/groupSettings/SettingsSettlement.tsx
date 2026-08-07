@@ -50,7 +50,7 @@ export default function SettingsSettlement({ members, isSettling, handleSettleme
       />
 
       <ActionButton
-        tone="green"
+        tone="success"
         loading={isSettling}
         loadingLabel={t("groupDetail.settling")}
         disabled={!settleMemberId}

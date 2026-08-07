@@ -60,7 +60,7 @@ export default function TopProgressBar() {
             style={{ opacity: visible ? 1 : 0, transition: "opacity 300ms ease" }}
         >
             <div
-                className="h-full bg-gradient-to-r from-violet-500 via-blue-500 to-cyan-400 shadow-[0_0_8px_rgba(139,92,246,0.7)]"
+                className="h-full bg-gradient-to-r from-brand-600 via-brand-500 to-brand-400 shadow-[0_0_8px] shadow-brand-500/70"
                 style={{ width: `${width}%`, transition: "width 200ms ease" }}
             />
         </div>

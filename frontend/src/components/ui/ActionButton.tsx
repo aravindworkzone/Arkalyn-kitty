@@ -1,7 +1,16 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import Spinner from "./Spinner";
 
-export type Tone = "cyan" | "amber" | "violet" | "green" | "red" | "neutral";
+/**
+ * Soft-filled action button — a tinted fill with a matching border, used for
+ * the in-context actions in group settings and the activity rows.
+ *
+ * Distinct from <Button>: that one is the solid primary/secondary pair from
+ * UI_PROMPT. This is the low-emphasis tinted variant those screens are built
+ * around. Tones are semantic; the old literal hue names (cyan/violet/green/
+ * amber/red) are gone.
+ */
+export type Tone = "brand" | "success" | "warning" | "error" | "neutral";
 
 interface ActionButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> {
   tone?: Tone;
@@ -12,16 +21,24 @@ interface ActionButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>
 }
 
 const toneMap: Record<Tone, string> = {
-  cyan:    "bg-cyan-500/15 border-cyan-500/25 text-cyan-300 hover:bg-cyan-500/25 active:bg-cyan-500/25",
-  amber:   "bg-amber-500/15 border-amber-500/25 text-amber-300 hover:bg-amber-500/25 active:bg-amber-500/25",
-  violet:  "bg-violet-500/15 border-violet-500/25 text-violet-300 hover:bg-violet-500/25 active:bg-violet-500/25",
-  green:   "bg-green-500/15 border-green-500/25 text-green-300 hover:bg-green-500/25 active:bg-green-500/25",
-  red:     "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20",
-  neutral: "bg-white/[0.04] border-white/[0.09] text-white/50 hover:text-white/80 hover:bg-white/[0.07]",
+  brand:
+    "bg-brand-50 border-brand-200 text-brand-700 hover:bg-brand-100 active:bg-brand-100 " +
+    "dark:bg-brand-500/15 dark:border-brand-500/25 dark:text-brand-300 dark:hover:bg-brand-500/25",
+  success:
+    "bg-success-50 border-success-200 text-success-700 hover:bg-success-100 active:bg-success-100 " +
+    "dark:bg-success-500/15 dark:border-success-500/25 dark:text-success-300 dark:hover:bg-success-500/25",
+  warning:
+    "bg-warning-50 border-warning-200 text-warning-800 hover:bg-warning-100 active:bg-warning-100 " +
+    "dark:bg-warning-500/15 dark:border-warning-500/25 dark:text-warning-300 dark:hover:bg-warning-500/25",
+  error:
+    "bg-error-50 border-error-200 text-error-700 hover:bg-error-100 active:bg-error-100 " +
+    "dark:bg-error-500/10 dark:border-error-500/20 dark:text-error-400 dark:hover:bg-error-500/20",
+  neutral:
+    "bg-surface-hover border-line text-fg-muted hover:text-fg hover:bg-line active:bg-line",
 };
 
 export default function ActionButton({
-  tone = "cyan",
+  tone = "brand",
   loading = false,
   loadingLabel,
   children,
@@ -34,10 +51,12 @@ export default function ActionButton({
     <button
       {...rest}
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       className={[
         fullWidth ? "w-full" : "",
-        "py-2.5 rounded-xl text-sm font-semibold border",
-        "active:scale-[0.97] disabled:opacity-40 transition-all",
+        "py-2.5 rounded-xl text-theme-sm font-semibold border",
+        "active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed transition-all",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40",
         toneMap[tone],
         className,
       ].filter(Boolean).join(" ")}

@@ -1,5 +1,19 @@
+/**
+ * Class strings for call sites that style a bare <input> themselves rather than
+ * using the <Input> primitive. Kept in sync with Input.tsx by hand — if you
+ * change one, change the other.
+ *
+ * INPUT_CLASS_LG and FIELD_LABEL were dead exports (zero consumers) and have
+ * been removed.
+ */
 export const INPUT_CLASS =
-  "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 transition-all";
+  "w-full rounded-lg border px-4 py-2.5 text-theme-sm shadow-theme-xs transition " +
+  "bg-white text-gray-800 placeholder:text-gray-400 " +
+  "dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-gray-500 " +
+  "border-gray-300 dark:border-gray-700 " +
+  "outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/10 " +
+  "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 " +
+  "dark:disabled:bg-gray-900/50 dark:disabled:text-gray-600";
 
 export const INPUT_CLASS_LG =
   "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all duration-200";

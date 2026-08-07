@@ -1,28 +1,38 @@
 import type { ReactNode } from 'react';
+import Badge, { type BadgeTone } from '../ui/Badge';
 
 export const fmtINR = (n: number) => '₹' + n.toLocaleString('en-IN');
 
 export function StatCard({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
     return (
-        <div className="rounded-xl bg-white/[0.03] border border-white/[0.07] px-4 py-3.5">
-            <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">{label}</p>
-            <p className="text-xl font-semibold text-[#e8e3ff]" translate="no">{value}</p>
-            {sub && <p className="text-[10px] text-white/30 mt-0.5">{sub}</p>}
+        <div className="rounded-xl bg-surface-raised border border-line px-4 py-3.5 shadow-theme-xs">
+            <p className="text-theme-2xs uppercase tracking-widest text-fg-muted mb-1">{label}</p>
+            <p className="text-theme-xl font-semibold text-fg" translate="no">{value}</p>
+            {sub && <p className="text-theme-2xs text-fg-muted mt-0.5">{sub}</p>}
         </div>
     );
 }
 
-export function Bars({ data, color = '#818cf8' }: { data: { label: string; value: number }[]; color?: string }) {
+/**
+ * Horizontal magnitude bars — one series, so no legend: the Panel title names
+ * it, and every row is direct-labelled with its own name and value. Flat brand
+ * fill by default rather than a per-row colour: these compare magnitudes of one
+ * measure, and colouring by rank would repaint rows as the data reorders.
+ */
+export function Bars({ data }: { data: { label: string; value: number }[] }) {
     const max = Math.max(...data.map((d) => d.value), 1);
     return (
         <div className="space-y-2">
             {data.map((d) => (
                 <div key={d.label} className="flex items-center gap-3">
-                    <span className="text-[11px] text-white/45 w-24 shrink-0 truncate" translate="no">{d.label}</span>
-                    <div className="flex-1 h-3 rounded-full bg-white/[0.05] overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(d.value / max) * 100}%`, background: color }} />
+                    <span className="text-theme-xs text-fg-muted w-24 shrink-0 truncate" translate="no">{d.label}</span>
+                    <div className="flex-1 h-3 rounded-full bg-line overflow-hidden">
+                        <div
+                            className="h-full rounded-full bg-brand-500 transition-all duration-500"
+                            style={{ width: `${(d.value / max) * 100}%` }}
+                        />
                     </div>
-                    <span className="text-[11px] font-mono text-white/55 w-10 text-right" translate="no">{d.value}</span>
+                    <span className="text-theme-xs font-mono text-fg w-10 text-right" translate="no">{d.value}</span>
                 </div>
             ))}
         </div>
@@ -31,31 +41,31 @@ export function Bars({ data, color = '#818cf8' }: { data: { label: string; value
 
 export function Panel({ title, children }: { title: string; children: ReactNode }) {
     return (
-        <div className="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-5">
-            <h2 className="text-[13px] font-semibold text-white/80 mb-4">{title}</h2>
+        <div className="rounded-2xl bg-surface-raised border border-line p-5 shadow-theme-xs">
+            <h2 className="text-theme-sm font-semibold text-fg mb-4">{title}</h2>
             {children}
         </div>
     );
 }
 
+// UI_PROMPT's rule: status is always a badge, never raw coloured text. Both of
+// these now map onto the shared Badge rather than carrying their own colours.
+const STATUS_TONE: Record<string, BadgeTone> = {
+    ACTIVE: 'success',
+    SUSPENDED: 'warning',
+    DELETED: 'error',
+};
+
 export function StatusBadge({ status }: { status: string }) {
-    const map: Record<string, string> = {
-        ACTIVE: 'bg-emerald-500/15 text-emerald-300',
-        SUSPENDED: 'bg-amber-500/15 text-amber-300',
-        DELETED: 'bg-red-500/15 text-red-300',
-    };
-    return (
-        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${map[status] ?? 'bg-white/[0.06] text-white/40'}`}>
-            {status}
-        </span>
-    );
+    return <Badge tone={STATUS_TONE[status] ?? 'gray'}>{status}</Badge>;
 }
 
+const TIER_TONE: Record<string, BadgeTone> = {
+    FREE: 'gray',
+    PRO: 'brand',
+    PREMIUM: 'warning',
+};
+
 export function TierBadge({ tier }: { tier: string }) {
-    const map: Record<string, string> = {
-        FREE: 'bg-white/[0.06] text-white/45',
-        PRO: 'bg-violet-500/15 text-violet-300',
-        PREMIUM: 'bg-amber-400/15 text-amber-300',
-    };
-    return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${map[tier] ?? ''}`} translate="no">{tier}</span>;
+    return <Badge tone={TIER_TONE[tier] ?? 'gray'} translate="no">{tier}</Badge>;
 }

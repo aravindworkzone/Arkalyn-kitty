@@ -1,3 +1,5 @@
+import { Button } from "./ui";
+
 const GoogleButton = () => {
     // The backend owns the whole handshake: it mints the anti-CSRF `state` into
     // an HttpOnly cookie (which this page could neither set nor read) and builds
@@ -5,8 +7,15 @@ const GoogleButton = () => {
     // drift apart. All this button does is leave.
     const startUrl = `${import.meta.env.VITE_API_URL}auth/oauth/start`;
     return (
-        <button
-        className="flex w-full items-center justify-center gap-3 rounded-lg bg-gradient-to-r from-black-500 to-gray-500 px-4 py-2.5 text-sm font-medium text-white shadow-md transition-all duration-200 hover:bg-[#3367D6] hover:shadow-lg active:scale-[0.98]"
+        /* Was a hand-rolled gradient whose "from" stop named a Tailwind colour
+           that does not exist, so the fill silently rendered as nothing — and a
+           hover background a gradient could never have revealed anyway. The
+           secondary Button is both the design-system control and what Google's
+           branding guidance asks for: a neutral surface, not a coloured one. */
+        <Button
+        variant="secondary"
+        fullWidth
+        className="gap-3 active:scale-[0.98]"
         type="button"
         onClick={() => {
             window.location.href = startUrl;
@@ -36,7 +45,7 @@ const GoogleButton = () => {
             </svg>
 
             <span>Continue with Google</span>
-        </button>
+        </Button>
     )
 }
 
