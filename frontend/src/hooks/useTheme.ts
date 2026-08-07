@@ -43,11 +43,23 @@ const writeStored = (theme: Theme | null): void => {
 
 const resolve = (): Theme => readStored() ?? (mediaQuery()?.matches ? "dark" : "light");
 
+/** Resolved value of --surface per theme. Keep in step with src/index.css and
+ *  with the pre-paint bootstrap in index.html — all three must agree or the
+ *  browser chrome ends up a different colour from the page under it. */
+const SURFACE: Record<Theme, string> = {
+    light: "#f9fafb", // gray-50
+    dark: "#080c14",
+};
+
 const apply = (theme: Theme): void => {
     document.documentElement.classList.toggle("dark", theme === "dark");
-    // NOTE (phase 6): also sync `documentElement.style.colorScheme` and the
-    // theme-color meta here. Held back while the app is still hardcoded dark —
-    // see the comment in index.html.
+    // `color-scheme` is what gives scrollbars, the caret and native form
+    // controls the right theme; `theme-color` colours mobile browser chrome.
+    // Both were held back until phase 5 finished migrating the screens.
+    document.documentElement.style.colorScheme = theme;
+    document
+        .querySelector('meta[name="theme-color"]')
+        ?.setAttribute("content", SURFACE[theme]);
 };
 
 const listeners = new Set<() => void>();

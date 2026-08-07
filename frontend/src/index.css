@@ -147,6 +147,8 @@
   --color-fg: var(--fg);
   --color-fg-muted: var(--fg-muted);
   --color-fg-subtle: var(--fg-subtle);
+  --color-scrim: var(--scrim);
+  --color-on-accent: var(--on-accent);
 }
 
 :root {
@@ -161,6 +163,17 @@
   /* Decorative only — 2.58:1 on white, below AA. Never use for text that
      carries information (hints, errors, values); reach for fg-muted there. */
   --fg-subtle: #98a2b3; /* gray-400 — placeholders       */
+  /* Modal/dialog backdrop. One token so every overlay dims identically —
+     without it each modal hand-picks its own black-alpha, and a 75% black
+     scrim that reads as "focus" on the dark canvas reads as "the page broke"
+     on the light one. Lighter in light mode for exactly that reason. */
+  --scrim: rgba(16, 24, 40, 0.5); /* gray-900 @ 50% */
+  /* Ink on a saturated accent fill — a filled brand/success/error button or
+     badge. White in BOTH themes on purpose: the fill underneath doesn't change
+     with the theme, so the text on it must not either. Having it as a token
+     rather than a bare `text-white` is what makes that intent legible, and it
+     keeps the phase-6 white/black gate meaningful. */
+  --on-accent: #ffffff;
 }
 
 .dark {
@@ -184,6 +197,8 @@
   --fg: #d0d5dd;
   --fg-muted: #98a2b3; /* gray-400 */
   --fg-subtle: #667085; /* gray-500 */
+  --scrim: rgba(0, 0, 0, 0.7);
+  --on-accent: #ffffff;
 }
 
 /* ==========================================================================
