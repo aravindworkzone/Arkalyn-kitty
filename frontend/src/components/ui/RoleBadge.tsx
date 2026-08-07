@@ -30,7 +30,7 @@ const RoleBadge = ({ Role, info = true, groupName }: RoleBadgeProps) => {
         <button
             type="button"
             aria-label={t("roles.badgeAria", { role: label })}
-            className={`text-[10px] font-semibold px-2 py-0.5 flex items-center gap-1.5 rounded-md cursor-pointer border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40 ${roleGrade[Role]}`}
+            className={`text-theme-2xs font-semibold px-2 py-0.5 flex items-center gap-1.5 rounded-md cursor-pointer border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${roleGrade[Role]}`}
             onClick={RolePermission}
         >
             <span>{label}</span> {info && <InfoIcon />}

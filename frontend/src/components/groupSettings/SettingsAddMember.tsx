@@ -66,21 +66,21 @@ export default function SettingsAddMember({ isVerifying, isInvitingMember, handl
           {/* Only surface results for an active search (≥2 chars) — never a stale
               or unfiltered list. */}
           {showSuggestions && debouncedEmail.length >= 2 && suggestions && suggestions.length > 0 && (
-            <ul className="absolute z-[100] left-0 right-0 top-[calc(100%+4px)] bg-[#0d1420] border border-white/[0.08] rounded-xl overflow-hidden shadow-xl shadow-black/40">
+            <ul className="absolute z-dropdown left-0 right-0 top-[calc(100%+4px)] bg-surface-overlay border border-line rounded-xl overflow-hidden shadow-theme-md">
               {suggestions.map((s) => (
                 <li
                   key={s._id}
                   onMouseDown={(e) => { e.preventDefault(); onSuggestionSelect(s); }}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.05] cursor-pointer transition-colors"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-surface-hover cursor-pointer transition-colors"
                 >
-                  <div className="w-7 h-7 rounded-full bg-cyan-500/15 border border-cyan-500/20 flex items-center justify-center shrink-0">
-                    <span className="text-[10px] font-bold text-cyan-400" translate="no">
+                  <div className="w-7 h-7 rounded-full bg-brand-50 dark:bg-brand-500/15 border border-brand-200 dark:border-brand-500/20 flex items-center justify-center shrink-0">
+                    <span className="text-theme-2xs font-bold text-brand-600 dark:text-brand-300" translate="no">
                       {s.name.slice(0, 2).toUpperCase()}
                     </span>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[13px] font-medium text-white/85 truncate leading-tight" translate="no">{s.name}</p>
-                    <p className="text-[11px] text-white/30 truncate" translate="no">{s.email}</p>
+                    <p className="text-theme-sm font-medium text-fg truncate leading-tight" translate="no">{s.name}</p>
+                    <p className="text-theme-xs text-fg-muted truncate" translate="no">{s.email}</p>
                   </div>
                 </li>
               ))}
@@ -102,21 +102,21 @@ export default function SettingsAddMember({ isVerifying, isInvitingMember, handl
 
       {foundUser && (
         <>
-          <div className="flex items-center gap-3 px-4 py-3 bg-white/[0.03] border border-white/[0.07] rounded-xl">
+          <div className="flex items-center gap-3 px-4 py-3 bg-surface-raised border border-line rounded-xl">
             <div
-              className="w-8 h-8 rounded-full bg-cyan-500/15 border border-cyan-500/20
-                flex items-center justify-center text-[11px] font-bold text-cyan-400 shrink-0"
+              className="w-8 h-8 rounded-full bg-brand-50 dark:bg-brand-500/15 border border-brand-200 dark:border-brand-500/20
+                flex items-center justify-center text-theme-xs font-bold text-brand-600 dark:text-brand-300 shrink-0"
               translate="no"
             >
               {foundUser.name.slice(0, 2).toUpperCase()}
             </div>
-            <p className="text-sm text-white/70" translate="no">{foundUser.name}</p>
+            <p className="text-sm text-fg" translate="no">{foundUser.name}</p>
           </div>
 
-          <p className="text-[11px] text-white/30 px-0.5">{t("groupDetail.inviteMemberHint")}</p>
+          <p className="text-theme-xs text-fg-muted px-0.5">{t("groupDetail.inviteMemberHint")}</p>
 
           <ActionButton
-            tone="cyan"
+            tone="brand"
             loading={isInvitingMember}
             loadingLabel={t("groupDetail.invitingMember")}
             onClick={() => handleInviteMember(foundUser, setFoundUser, setSearchEmail)}

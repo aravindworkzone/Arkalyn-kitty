@@ -17,7 +17,7 @@ export default function UserDetailModal({ userId, onClose }: { userId: string; o
         return () => { document.body.style.overflow = ''; };
     }, []);
 
-    const inputCls = 'bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-violet-500/40';
+    const inputCls = 'bg-surface-hover border border-line rounded-lg px-3 py-2 text-sm text-fg outline-none focus:border-brand-200 dark:border-brand-500/40';
 
     const handleApply = async () => {
         setMsg(null);
@@ -34,17 +34,17 @@ export default function UserDetailModal({ userId, onClose }: { userId: string; o
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex justify-center overflow-y-auto p-4 bg-black/75 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-modal flex justify-center overflow-y-auto p-4 bg-scrim backdrop-blur-[2px]">
             <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
-            <div className="relative my-auto w-full max-w-lg rounded-2xl border border-white/[0.08] bg-[#0b0f17] p-5 max-h-[85vh] overflow-y-auto">
+            <div className="relative my-auto w-full max-w-lg rounded-2xl border border-line bg-surface-overlay p-5 max-h-[85vh] overflow-y-auto">
                 {isLoading || !data ? (
-                    <p className="text-white/30 text-sm">Loading…</p>
+                    <p className="text-fg-muted text-sm">Loading…</p>
                 ) : (
                     <>
                         <div className="flex items-start justify-between mb-3">
                             <div>
-                                <h3 className="text-[15px] font-semibold text-white/90">{data.user.name}</h3>
-                                <p className="text-[12px] text-white/40">{data.user.email}</p>
+                                <h3 className="text-theme-sm font-semibold text-fg">{data.user.name}</h3>
+                                <p className="text-theme-xs text-fg-muted">{data.user.email}</p>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <StatusBadge status={data.user.status} />
@@ -52,12 +52,12 @@ export default function UserDetailModal({ userId, onClose }: { userId: string; o
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 text-[11px] text-white/45 mb-4">
-                            <p>Joined: <span className="text-white/70">{new Date(data.user.createdAt).toLocaleDateString('en-IN')}</span></p>
-                            <p>Source: <span className="text-white/70">{data.user.planSource ?? '—'}</span></p>
-                            <p>Status: <span className="text-white/70">{data.user.subscription.status}</span></p>
-                            <p>Expires: <span className="text-white/70">{data.user.planExpiresAt ? new Date(data.user.planExpiresAt).toLocaleDateString('en-IN') : '—'}</span></p>
-                            <p className="col-span-2">Last login: <span className="text-white/70">
+                        <div className="grid grid-cols-2 gap-2 text-theme-xs text-fg-muted mb-4">
+                            <p>Joined: <span className="text-fg">{new Date(data.user.createdAt).toLocaleDateString('en-IN')}</span></p>
+                            <p>Source: <span className="text-fg">{data.user.planSource ?? '—'}</span></p>
+                            <p>Status: <span className="text-fg">{data.user.subscription.status}</span></p>
+                            <p>Expires: <span className="text-fg">{data.user.planExpiresAt ? new Date(data.user.planExpiresAt).toLocaleDateString('en-IN') : '—'}</span></p>
+                            <p className="col-span-2">Last login: <span className="text-fg">
                                 {data.user.lastLoginAt
                                     ? new Date(data.user.lastLoginAt).toLocaleString('en-IN', {
                                           day: '2-digit', month: 'short', year: 'numeric',
@@ -67,16 +67,16 @@ export default function UserDetailModal({ userId, onClose }: { userId: string; o
                             </span></p>
                         </div>
 
-                        <p className="text-[11px] uppercase tracking-widest text-white/30 mb-2">Groups ({data.groups.length})</p>
+                        <p className="text-theme-xs uppercase tracking-widest text-fg-muted mb-2">Groups ({data.groups.length})</p>
                         <div className="space-y-1.5 mb-5 max-h-40 overflow-y-auto">
                             {data.groups.length === 0 ? (
-                                <p className="text-white/30 text-xs">No groups.</p>
+                                <p className="text-fg-muted text-xs">No groups.</p>
                             ) : (
                                 data.groups.map((g) => (
-                                    <div key={g._id} className="flex items-center justify-between gap-2 text-[12px] border-b border-white/[0.05] pb-1.5">
+                                    <div key={g._id} className="flex items-center justify-between gap-2 text-theme-xs border-b border-line pb-1.5">
                                         <div className="min-w-0">
-                                            <p className="text-white/70 truncate">{g.name}</p>
-                                            <p className="text-white/25 text-[10px]">
+                                            <p className="text-fg truncate">{g.name}</p>
+                                            <p className="text-fg-muted text-theme-2xs">
                                                 Last action:{' '}
                                                 {g.lastActionAt
                                                     ? new Date(g.lastActionAt).toLocaleString('en-GB', {
@@ -86,14 +86,14 @@ export default function UserDetailModal({ userId, onClose }: { userId: string; o
                                                     : 'No activity'}
                                             </p>
                                         </div>
-                                        <span className="text-white/30 text-[10px] shrink-0">{g.role} · {g.status}</span>
+                                        <span className="text-fg-muted text-theme-2xs shrink-0">{g.role} · {g.status}</span>
                                     </div>
                                 ))
                             )}
                         </div>
 
-                        <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5">
-                            <p className="text-[12px] font-semibold text-white/75 mb-2.5">Override plan</p>
+                        <div className="rounded-xl border border-line bg-surface-raised p-3.5">
+                            <p className="text-theme-xs font-semibold text-fg mb-2.5">Override plan</p>
                             <div className="grid grid-cols-2 gap-2">
                                 <select value={plan} onChange={(e) => setPlan(e.target.value as PlanTier)} className={inputCls}>
                                     <option value="FREE">Free</option>
@@ -107,19 +107,19 @@ export default function UserDetailModal({ userId, onClose }: { userId: string; o
                                     </select>
                                 )}
                                 {plan !== 'FREE' && (
-                                    <label className="col-span-2 text-[11px] text-white/40 flex flex-col gap-1">
+                                    <label className="col-span-2 text-theme-xs text-fg-muted flex flex-col gap-1">
                                         Expires (optional — defaults to cycle length)
                                         <input type="datetime-local" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className={inputCls} />
                                     </label>
                                 )}
                             </div>
-                            <button onClick={handleApply} disabled={saving} className="mt-3 w-full rounded-xl py-2 text-sm font-semibold bg-violet-500/80 border border-violet-500/50 text-white hover:bg-violet-500 disabled:opacity-50">
+                            <button onClick={handleApply} disabled={saving} className="mt-3 w-full rounded-xl py-2 text-sm font-semibold bg-brand-50 dark:bg-brand-500/80 border border-brand-200 dark:border-brand-500/50 text-fg hover:bg-brand-500 disabled:opacity-50">
                                 {saving ? 'Applying…' : 'Apply override'}
                             </button>
-                            {msg && <p className="mt-2 text-xs text-white/50">{msg}</p>}
+                            {msg && <p className="mt-2 text-xs text-fg-muted">{msg}</p>}
                         </div>
 
-                        <button onClick={onClose} className="mt-4 w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-2 text-sm text-white/60 hover:bg-white/[0.06]">
+                        <button onClick={onClose} className="mt-4 w-full rounded-xl border border-line bg-surface-raised py-2 text-sm text-fg hover:bg-surface-hover">
                             Close
                         </button>
                     </>

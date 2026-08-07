@@ -15,7 +15,7 @@ import type { PlanTier } from '../../interface/subscription';
 
 const LIMIT = 20;
 const selectClass =
-    'bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white/80 outline-none focus:border-violet-500/40 [&>option]:bg-[#0d1320]';
+    'bg-surface-hover border border-line rounded-xl px-3 py-2.5 text-sm text-fg outline-none focus:border-brand-200 dark:border-brand-500/40 [&>option]:bg-surface-overlay';
 
 function ThreeDotsMenu({
     userId,
@@ -56,7 +56,7 @@ function ThreeDotsMenu({
                 onClick={() => setOpen((v) => !v)}
                 disabled={acting}
                 aria-label="User actions"
-                className="flex items-center justify-center w-7 h-7 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/[0.06] active:bg-white/[0.09] transition-colors disabled:opacity-40"
+                className="flex items-center justify-center w-7 h-7 rounded-lg text-fg-muted hover:text-fg hover:bg-surface-hover active:bg-surface-hover transition-colors disabled:opacity-40"
             >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
                     <circle cx="7" cy="2.5" r="1.1" />
@@ -66,11 +66,11 @@ function ThreeDotsMenu({
             </button>
 
             {open && (
-                <div className="absolute right-0 top-8 z-20 w-44 rounded-xl border border-white/[0.08] bg-[#0d1320] shadow-2xl py-1 text-[12px]">
+                <div className="absolute right-0 top-8 z-dropdown w-44 rounded-xl border border-line bg-surface-overlay shadow-theme-md py-1 text-theme-xs">
                     {userStatus === 'ACTIVE' && (
                         <button
                             onClick={() => { setOpen(false); onSuspend(); }}
-                            className="w-full text-left px-3.5 py-2 text-amber-300/80 hover:bg-white/[0.05] hover:text-amber-300 transition-colors"
+                            className="w-full text-left px-3.5 py-2 text-warning-700 dark:text-warning-300 hover:bg-surface-hover hover:text-warning-700 dark:text-warning-300 transition-colors"
                         >
                             Suspend
                         </button>
@@ -78,7 +78,7 @@ function ThreeDotsMenu({
                     {userStatus === 'SUSPENDED' && (
                         <button
                             onClick={() => { setOpen(false); onRestore(); }}
-                            className="w-full text-left px-3.5 py-2 text-emerald-300/80 hover:bg-white/[0.05] hover:text-emerald-300 transition-colors"
+                            className="w-full text-left px-3.5 py-2 text-success-700 dark:text-success-300 hover:bg-surface-hover hover:text-success-700 dark:text-success-300 transition-colors"
                         >
                             Restore
                         </button>
@@ -86,14 +86,14 @@ function ThreeDotsMenu({
                     {userStatus !== 'DELETED' && (
                         <button
                             onClick={() => { setOpen(false); onDelete(); }}
-                            className="w-full text-left px-3.5 py-2 text-red-300/70 hover:bg-white/[0.05] hover:text-red-300 transition-colors"
+                            className="w-full text-left px-3.5 py-2 text-error-600 dark:text-error-400 hover:bg-surface-hover hover:text-error-600 dark:text-error-400 transition-colors"
                         >
                             Delete
                         </button>
                     )}
                     <button
                         onClick={() => { setOpen(false); onHardDelete(); }}
-                        className="w-full text-left px-3.5 py-2 text-red-400 font-semibold hover:bg-white/[0.05] hover:text-red-300 transition-colors"
+                        className="w-full text-left px-3.5 py-2 text-error-600 dark:text-error-400 font-semibold hover:bg-surface-hover hover:text-error-600 dark:text-error-400 transition-colors"
                     >
                         Hard delete
                     </button>
@@ -167,9 +167,9 @@ export default function UsersSection() {
                     onChange={(e) => setSearchInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && submitSearch()}
                     placeholder="Search by name or email…"
-                    className="flex-1 min-w-[180px] bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 outline-none focus:border-violet-500/40"
+                    className="flex-1 min-w-[180px] bg-surface-hover border border-line rounded-xl px-4 py-2.5 text-sm text-fg placeholder:text-fg-subtle outline-none focus:border-brand-200 dark:border-brand-500/40"
                 />
-                <button onClick={submitSearch} className="rounded-xl px-4 py-2.5 text-sm font-semibold bg-violet-500/80 border border-violet-500/50 text-white hover:bg-violet-500">
+                <button onClick={submitSearch} className="rounded-xl px-4 py-2.5 text-sm font-semibold bg-brand-50 dark:bg-brand-500/80 border border-brand-200 dark:border-brand-500/50 text-fg hover:bg-brand-500">
                     Search
                 </button>
                 <select value={statusFilter} onChange={(e) => onFilterChange(setStatusFilter)(e.target.value as UserStatus | '')} className={selectClass} aria-label="Filter by status">
@@ -190,28 +190,28 @@ export default function UsersSection() {
                 </select>
             </div>
 
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.03] overflow-hidden">
+            <div className="rounded-2xl border border-line bg-surface-raised overflow-hidden">
                 {isLoading ? (
-                    <div className="p-6 text-white/30 text-sm">Loading…</div>
+                    <div className="p-6 text-fg-muted text-sm">Loading…</div>
                 ) : items.length === 0 ? (
-                    <div className="p-6 text-white/30 text-sm">No users found.</div>
+                    <div className="p-6 text-fg-muted text-sm">No users found.</div>
                 ) : (
                     items.map((u) => (
                         <div
                             key={u._id}
                             onClick={() => setSelected(u._id)}
-                            className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.05] last:border-0 cursor-pointer hover:bg-white/[0.02] active:bg-white/[0.04] transition-colors"
+                            className="flex items-center gap-3 px-4 py-3 border-b border-line last:border-0 cursor-pointer hover:bg-surface-raised active:bg-surface-hover transition-colors"
                         >
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[13px] text-white/85 truncate">{u.name}</span>
+                                    <span className="text-theme-sm text-fg truncate">{u.name}</span>
                                     {u.role === 'APP_OWNER' && (
-                                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300 font-bold shrink-0">OWNER</span>
+                                        <span className="text-theme-2xs px-1.5 py-0.5 rounded bg-warning-50 dark:bg-warning-500/15 text-warning-700 dark:text-warning-300 font-bold shrink-0">OWNER</span>
                                     )}
                                 </div>
-                                <p className="text-[11px] text-white/35 truncate">{u.email}</p>
+                                <p className="text-theme-xs text-fg-muted truncate">{u.email}</p>
                                 {u.lastLoginAt && (
-                                    <p className="text-[10px] text-white/25 mt-0.5">
+                                    <p className="text-theme-2xs text-fg-muted mt-0.5">
                                         Last login: {new Date(u.lastLoginAt).toLocaleString('en-IN', {
                                             day: '2-digit', month: 'short', year: 'numeric',
                                             hour: '2-digit', minute: '2-digit', hour12: true,
@@ -244,12 +244,12 @@ export default function UsersSection() {
                 )}
             </div>
 
-            <div className="flex items-center justify-between text-[12px] text-white/40">
+            <div className="flex items-center justify-between text-theme-xs text-fg-muted">
                 <span>{total} users</span>
                 <div className="flex items-center gap-3">
-                    <button disabled={page <= 1 || isFetching} onClick={() => setPage((p) => p - 1)} className="disabled:opacity-30 hover:text-white/70">← Prev</button>
+                    <button disabled={page <= 1 || isFetching} onClick={() => setPage((p) => p - 1)} className="disabled:opacity-30 hover:text-fg">← Prev</button>
                     <span>Page {page} / {totalPages}</span>
-                    <button disabled={page >= totalPages || isFetching} onClick={() => setPage((p) => p + 1)} className="disabled:opacity-30 hover:text-white/70">Next →</button>
+                    <button disabled={page >= totalPages || isFetching} onClick={() => setPage((p) => p + 1)} className="disabled:opacity-30 hover:text-fg">Next →</button>
                 </div>
             </div>
 
@@ -263,11 +263,11 @@ export default function UsersSection() {
                 isLoading={deleting}
                 error={opError}
             >
-                <p className="text-[12px] leading-relaxed text-white/40">
+                <p className="text-theme-xs leading-relaxed text-fg-muted">
                     {confirmTarget?.mode === 'hard' ? (
-                        <>This permanently erases <span className="text-white/70 font-medium">{confirmTarget?.name}</span> — account, sessions, memberships, invites, notifications and payment records. Group history is kept.</>
+                        <>This permanently erases <span className="text-fg font-medium">{confirmTarget?.name}</span> — account, sessions, memberships, invites, notifications and payment records. Group history is kept.</>
                     ) : (
-                        <>This soft-deletes <span className="text-white/70 font-medium">{confirmTarget?.name}</span>'s account. They're logged out immediately and blocked from signing in (reversible by restoring).</>
+                        <>This soft-deletes <span className="text-fg font-medium">{confirmTarget?.name}</span>'s account. They're logged out immediately and blocked from signing in (reversible by restoring).</>
                     )}
                 </p>
             </DeleteConfirmModal>

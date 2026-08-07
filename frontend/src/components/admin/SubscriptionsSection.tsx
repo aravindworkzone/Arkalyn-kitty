@@ -5,7 +5,7 @@ export default function SubscriptionsSection() {
     const { data, isLoading } = useGetAnalyticsQuery({ granularity: 'month' });
 
     if (isLoading || !data) {
-        return <div className="h-64 rounded-2xl bg-white/[0.03] border border-white/[0.05] animate-pulse" />;
+        return <div className="h-64 rounded-2xl bg-surface-raised border border-line animate-pulse" />;
     }
 
     const planBars = (['FREE', 'PRO', 'PREMIUM'] as const).map((t) => ({ label: t, value: data.planBreakdown[t] }));
@@ -30,9 +30,9 @@ export default function SubscriptionsSection() {
                 <Bars data={planBars} />
             </Panel>
 
-            <p className="text-[11px] text-white/30">
+            <p className="text-theme-xs text-fg-muted">
                 To assign a plan to a specific user, open the{' '}
-                <span className="text-violet-300">Users</span> tab → <span className="text-violet-300">Manage</span> → Override plan.
+                <span className="text-brand-600 dark:text-brand-300">Users</span> tab → <span className="text-brand-600 dark:text-brand-300">Manage</span> → Override plan.
             </p>
         </div>
     );

@@ -100,7 +100,7 @@ function NavItem({ label, active, onClick, icon, highlight, disabled }: NavItemP
   // The middle "add" action is the primary one, so it carries brand colour at
   // rest; the side tabs only take it once active.
   const color = disabled
-    ? "text-fg-subtle opacity-50"
+    ? "text-fg-muted opacity-50"
     : active
       ? "text-brand-500 dark:text-brand-400"
       : highlight ? "text-brand-500/80 dark:text-brand-400/80" : "text-fg-muted";

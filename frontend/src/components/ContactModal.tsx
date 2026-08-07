@@ -17,7 +17,7 @@ const TABS: { value: ContactKind; label: string; hint: string }[] = [
 ];
 
 const inputClass =
-    "w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 px-4 py-2.5 text-sm text-stone-900 dark:text-stone-100 placeholder-stone-400 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-colors";
+    "w-full rounded-xl border border-line-strong bg-surface-raised px-4 py-2.5 text-sm text-fg placeholder:text-fg-subtle outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-colors";
 
 export default function ContactModal({ open, onClose, initialKind = "question" }: ContactModalProps) {
     const [kind, setKind] = useState<ContactKind>(initialKind);
@@ -92,17 +92,17 @@ export default function ContactModal({ open, onClose, initialKind = "question" }
             aria-label="Contact us"
         >
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-stone-950/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 bg-surface-overlay/60 backdrop-blur-sm" onClick={onClose} />
 
             {/* Panel */}
-            <div className="relative w-full sm:max-w-lg bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
-                <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-6 pt-5 pb-3 bg-stone-50 dark:bg-stone-950 border-b border-stone-200 dark:border-stone-800">
-                    <h2 className="text-lg font-bold tracking-tight text-stone-950 dark:text-stone-50">Get in touch</h2>
+            <div className="relative w-full sm:max-w-lg bg-surface border border-line rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
+                <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-6 pt-5 pb-3 bg-surface border-b border-line">
+                    <h2 className="text-lg font-bold tracking-tight text-fg">Get in touch</h2>
                     <button
                         type="button"
                         onClick={onClose}
                         aria-label="Close"
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-fg-muted hover:bg-line transition-colors"
                     >
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                             <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -113,17 +113,17 @@ export default function ContactModal({ open, onClose, initialKind = "question" }
                 <div className="px-6 py-5">
                     {done ? (
                         <div className="text-center py-8">
-                            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600">
+                            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-success-100 dark:bg-success-950/40 flex items-center justify-center text-success-600">
                                 <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
                                     <path d="M5 11.5l4 4 8-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
                             </div>
-                            <p className="text-base font-semibold text-stone-900 dark:text-stone-100 mb-1">Message sent</p>
-                            <p className="text-sm text-stone-500 dark:text-stone-400 mb-6">{done}</p>
+                            <p className="text-base font-semibold text-fg mb-1">Message sent</p>
+                            <p className="text-sm text-fg-muted mb-6">{done}</p>
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="inline-flex items-center h-10 px-5 rounded-xl text-sm font-semibold bg-indigo-500 hover:bg-indigo-600 text-white transition-colors"
+                                className="inline-flex items-center h-10 px-5 rounded-xl text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-on-accent transition-colors"
                             >
                                 Done
                             </button>
@@ -139,8 +139,8 @@ export default function ContactModal({ open, onClose, initialKind = "question" }
                                         onClick={() => setKind(tab.value)}
                                         className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
                                             kind === tab.value
-                                                ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300"
-                                                : "border-stone-200 dark:border-stone-800 text-stone-500 dark:text-stone-400 hover:border-stone-300 dark:hover:border-stone-700"
+                                                ? "border-brand-500 bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-300"
+                                                : "border-line text-fg-muted hover:border-line "
                                         }`}
                                     >
                                         {tab.label}
@@ -148,12 +148,12 @@ export default function ContactModal({ open, onClose, initialKind = "question" }
                                 ))}
                             </div>
 
-                            <p className="text-[13px] text-stone-500 dark:text-stone-400 mb-5 leading-relaxed">{activeTab.hint}</p>
+                            <p className="text-theme-sm text-fg-muted mb-5 leading-relaxed">{activeTab.hint}</p>
 
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 <div className="grid sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">Your name</label>
+                                        <label className="block text-xs font-medium text-fg-muted mb-1.5">Your name</label>
                                         <input
                                             value={name}
                                             onChange={(e) => setName(e.target.value)}
@@ -164,7 +164,7 @@ export default function ContactModal({ open, onClose, initialKind = "question" }
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">Your email</label>
+                                        <label className="block text-xs font-medium text-fg-muted mb-1.5">Your email</label>
                                         <input
                                             type="email"
                                             value={email}
@@ -177,7 +177,7 @@ export default function ContactModal({ open, onClose, initialKind = "question" }
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">Subject</label>
+                                    <label className="block text-xs font-medium text-fg-muted mb-1.5">Subject</label>
                                     <input
                                         value={subject}
                                         onChange={(e) => setSubject(e.target.value)}
@@ -188,7 +188,7 @@ export default function ContactModal({ open, onClose, initialKind = "question" }
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">
+                                    <label className="block text-xs font-medium text-fg-muted mb-1.5">
                                         {kind === "report" ? "What happened?" : "Your message"}
                                     </label>
                                     <textarea
@@ -204,11 +204,11 @@ export default function ContactModal({ open, onClose, initialKind = "question" }
                                         required
                                         className={`${inputClass} resize-none`}
                                     />
-                                    <p className="text-[11px] text-stone-400 mt-1 text-right">{message.length}/4000</p>
+                                    <p className="text-theme-xs text-fg-muted mt-1 text-right">{message.length}/4000</p>
                                 </div>
 
                                 {error && (
-                                    <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 px-4 py-2.5 text-sm text-red-600 dark:text-red-300">
+                                    <div className="rounded-xl border border-error-200 dark:border-error-900/50 bg-error-50 dark:bg-error-950/30 px-4 py-2.5 text-sm text-error-600 dark:text-error-300">
                                         {error}
                                     </div>
                                 )}
@@ -216,7 +216,7 @@ export default function ContactModal({ open, onClose, initialKind = "question" }
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className="w-full inline-flex items-center justify-center h-11 rounded-xl text-sm font-semibold bg-indigo-500 hover:bg-indigo-600 text-white transition-colors shadow-md shadow-indigo-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    className="w-full inline-flex items-center justify-center h-11 rounded-xl text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-on-accent transition-colors shadow-md shadow-brand-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                     {isLoading ? "Sending…" : kind === "report" ? "Send report" : "Send question"}
                                 </button>

@@ -38,18 +38,18 @@ function LeaveRequestRow({ member, isSuperAdmin, isApprovingLeave, isRejectingLe
   const locked = member.role === "ADMIN" && !isSuperAdmin;
 
   return (
-    <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 space-y-3">
+    <div className="bg-surface-raised border border-line rounded-xl px-4 py-3.5 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[13px] font-medium text-white/80 truncate" translate="no">
+          <p className="text-theme-sm font-medium text-fg truncate" translate="no">
             {member.userId.name}
           </p>
-          <p className="text-[11px] text-white/30 mt-0.5" translate="no">
+          <p className="text-theme-xs text-fg-muted mt-0.5" translate="no">
             {t("leaveRequests.contributed", { amount: maxAmount.toLocaleString("en-IN") })}
           </p>
         </div>
         {member.leaveRequestedAt && (
-          <span className="text-[10px] text-white/25 shrink-0" translate="no">
+          <span className="text-theme-2xs text-fg-muted shrink-0" translate="no">
             {new Date(member.leaveRequestedAt).toLocaleDateString("en-GB", {
               day: "2-digit",
               month: "short",
@@ -72,7 +72,7 @@ function LeaveRequestRow({ member, isSuperAdmin, isApprovingLeave, isRejectingLe
       )}
 
       {locked ? (
-        <p className="text-[11px] text-amber-400/70">
+        <p className="text-theme-xs text-warning-700 dark:text-warning-300">
           {t(
             "leaveRequests.superAdminOnly",
             "Only the super admin can approve or reject an admin's leave request.",
@@ -81,7 +81,7 @@ function LeaveRequestRow({ member, isSuperAdmin, isApprovingLeave, isRejectingLe
       ) : (
         <div className="flex gap-2">
           <ActionButton
-            tone="green"
+            tone="success"
             loading={isApprovingLeave}
             loadingLabel={t("leaveRequests.approving")}
             onClick={() => onApprove(member.userId._id, amount, maxAmount, setFieldError)}
@@ -89,7 +89,7 @@ function LeaveRequestRow({ member, isSuperAdmin, isApprovingLeave, isRejectingLe
             {t("leaveRequests.approve")}
           </ActionButton>
           <ActionButton
-            tone="red"
+            tone="error"
             loading={isRejectingLeave}
             loadingLabel={t("leaveRequests.rejecting")}
             onClick={() => onReject(member.userId._id)}
@@ -115,7 +115,7 @@ export default function SettingsLeaveRequests({
 
   if (pending.length === 0) {
     return (
-      <p className="text-center text-white/25 text-xs py-10">
+      <p className="text-center text-fg-muted text-xs py-10">
         {t("leaveRequests.empty")}
       </p>
     );
@@ -123,7 +123,7 @@ export default function SettingsLeaveRequests({
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] text-white/30">{t("leaveRequests.description")}</p>
+      <p className="text-theme-xs text-fg-muted">{t("leaveRequests.description")}</p>
       {pending.map((member) => (
         <LeaveRequestRow
           key={member._id}

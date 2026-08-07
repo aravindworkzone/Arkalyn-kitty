@@ -53,10 +53,11 @@ export default function FieldInput({
     <div>
       <input
         {...rest}
+        aria-invalid={error ? true : undefined}
         className={
           className +
           (error
-            ? " !border-red-500/60 focus:!border-red-500/70 focus:!ring-red-500/20"
+            ? " !border-error-500 focus:!border-error-500 focus:!ring-error-500/10"
             : "")
         }
         onChange={handleChange}

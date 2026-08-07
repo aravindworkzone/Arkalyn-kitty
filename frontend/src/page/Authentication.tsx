@@ -56,19 +56,19 @@ const Templete = ({inputs, link} : AuthFormProps) => {
     return (
         <>
         {isLoading || isAuthenticated ? <AuthLoader /> : (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-black relative overflow-hidden px-3 sm:px-4 py-6 pt-safe pb-safe">
-                <div className="absolute top-[-100px] left-[-100px] w-[500px] h-[500px] rounded-full bg-[#FFFFFF10] blur-3xl pointer-events-none" />
-                <div className="absolute top-[-100px] right-[-100px] w-[500px] h-[500px] rounded-full bg-[#FFFFFF10] blur-3xl pointer-events-none" />
-                <div className="absolute bottom-[-80px] right-[-80px] w-[400px] h-[400px] rounded-full bg-[#FFFFFF10] blur-3xl pointer-events-none" />
-                <div className="absolute bottom-[-80px] left-[-80px] w-[400px] h-[400px] rounded-full bg-[#FFFFFF10] blur-3xl pointer-events-none" />
-                <div className="relative z-10 w-full max-w-md p-5 sm:p-10 rounded-2xl bg-white/5 border border-white/10 shadow-2xl backdrop-blur-xl">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-surface relative overflow-hidden px-3 sm:px-4 py-6 pt-safe pb-safe">
+                <div className="absolute top-[-100px] left-[-100px] w-[500px] h-[500px] rounded-full bg-line blur-3xl pointer-events-none" />
+                <div className="absolute top-[-100px] right-[-100px] w-[500px] h-[500px] rounded-full bg-line blur-3xl pointer-events-none" />
+                <div className="absolute bottom-[-80px] right-[-80px] w-[400px] h-[400px] rounded-full bg-line blur-3xl pointer-events-none" />
+                <div className="absolute bottom-[-80px] left-[-80px] w-[400px] h-[400px] rounded-full bg-line blur-3xl pointer-events-none" />
+                <div className="relative z-10 w-full max-w-md p-5 sm:p-10 rounded-2xl bg-surface-hover border border-line shadow-2xl backdrop-blur-xl">
 
                     <div className="flex items-center justify-center mb-6 gap-3">
                         <Logo variant="mini" className="h-12 w-12 sm:h-16 sm:w-16 rounded-md" />
                         <Logo variant="word" className="h-14 sm:h-18 w-32 sm:w-42 rounded-md" />
                     </div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mb-1">{t("auth.welcome")}</h1>
-                    <p className="text-white/40 text-sm mb-6 sm:mb-8"> {head} </p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-fg tracking-tight mb-1">{t("auth.welcome")}</h1>
+                    <p className="text-fg-muted text-sm mb-6 sm:mb-8"> {head} </p>
 
                     {sessionExpired && (
                         <div className="mb-5">
@@ -100,10 +100,10 @@ const Templete = ({inputs, link} : AuthFormProps) => {
                                 const inputType = isPassword
                                     ? (shown ? "text" : "password")
                                     : key === "email" ? "email" : "text";
-                                const baseClass = "w-full px-4 py-3 rounded-xl bg-white/[0.07] border border-white/10 text-white text-base sm:text-sm placeholder-white/20 outline-none focus:border-violet-500/60 transition-colors";
+                                const baseClass = "w-full px-4 py-3 rounded-xl bg-surface-hover border border-line text-fg text-base sm:text-sm placeholder:text-fg-subtle outline-none focus:border-brand-500/60 transition-colors";
                                 return (
                                     <div className="flex flex-col gap-1.5" key={field.id}>
-                                        <label htmlFor={field.id} className="text-white/55 text-xs font-medium tracking-wide">{t(field.label)}</label>
+                                        <label htmlFor={field.id} className="text-fg-muted text-xs font-medium tracking-wide">{t(field.label)}</label>
                                         <div className="relative">
                                             <FieldInput
                                                 id={field.id}
@@ -121,7 +121,7 @@ const Templete = ({inputs, link} : AuthFormProps) => {
                                                     type="button"
                                                     onClick={() => toggleShown(field.name)}
                                                     aria-label={shown ? t("auth.hidePassword") : t("auth.showPassword")}
-                                                    className="absolute top-1/2 -translate-y-1/2 right-2 min-h-touch min-w-touch flex items-center justify-center text-white/40 hover:text-white/70 active:text-white/70 transition-colors"
+                                                    className="absolute top-1/2 -translate-y-1/2 right-2 min-h-touch min-w-touch flex items-center justify-center text-fg-muted hover:text-fg active:text-fg transition-colors"
                                                 >
                                                     {shown ? (
                                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -145,7 +145,11 @@ const Templete = ({inputs, link} : AuthFormProps) => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full min-h-touch rounded-xl bg-gradient-to-r from-black-500 to-gray-500 py-3 text-sm font-semibold tracking-tight text-white transition-all active:scale-[0.98] active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-[#3367D6] hover:shadow-lg active:scale-[0.98]"
+                                // The old fill was a gradient whose "from" stop named a
+                                // colour Tailwind does not define, so it rendered as
+                                // nothing. This is the primary action on the page — it
+                                // takes the brand fill, not a neutral one.
+                                className="w-full min-h-touch rounded-xl bg-brand-500 hover:bg-brand-600 active:bg-brand-700 py-3 text-theme-sm font-semibold tracking-tight text-on-accent transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20"
                             >
                                 {loading ? (
                                     <span className="flex items-center justify-center gap-2">
@@ -178,7 +182,7 @@ const Templete = ({inputs, link} : AuthFormProps) => {
                                 </div>
 
                                 <div className="relative flex justify-center">
-                                    <span className="bg-white px-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+                                    <span className="bg-surface-raised px-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:bg-gray-900 dark:text-gray-400">
                                         Or
                                     </span>
                                 </div>
@@ -192,16 +196,16 @@ const Templete = ({inputs, link} : AuthFormProps) => {
                         <p className="mt-4 text-center">
                             <Link
                                 to="/forgot-password"
-                                className="text-xs text-white/40 font-medium hover:text-violet-300 active:text-violet-300 transition-colors"
+                                className="text-xs text-fg-muted font-medium hover:text-brand-300 active:text-brand-300 transition-colors"
                             >
                                 {t("auth.forgotPassword", "Forgot password?")}
                             </Link>
                         </p>
                     )}
 
-                    <p className="mt-6 text-center text-xs text-white/35">
+                    <p className="mt-6 text-center text-xs text-fg-muted">
                         {linkText}{" "}
-                        <Link to={`/${link}`} className="text-violet-400 font-medium hover:text-violet-300 active:text-violet-300 transition-colors">
+                        <Link to={`/${link}`} className="text-brand-400 font-medium hover:text-brand-300 active:text-brand-300 transition-colors">
                             {link.charAt(0).toUpperCase() + link.slice(1)}
                         </Link>
                     </p>

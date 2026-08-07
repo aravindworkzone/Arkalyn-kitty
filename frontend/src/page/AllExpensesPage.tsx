@@ -4,7 +4,8 @@ import Header from "../components/header";
 import { useGetAllExpensesInfiniteQuery } from "../redux/api/expense";
 import { useGetGroupByIdQuery } from "../redux/api/group";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
-import { dateLabel, timeLabel } from "../helpers/formatters";
+import ExpenseRow, { ExpenseRowSkeleton } from "../components/expense/ExpenseRow";
+import { dateLabel } from "../helpers/formatters";
 import {
   PageBackground,
   BackButton,
@@ -14,21 +15,6 @@ import {
 } from "../components/ui";
 import { useTranslation } from "react-i18next";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
-
-function ExpenseRowSkeleton() {
-  return (
-    <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between gap-3">
-      <div className="flex items-center gap-3 flex-1">
-        <div className="w-2 h-8 rounded-full bg-white/[0.06] animate-pulse shrink-0" />
-        <div className="space-y-1.5 flex-1">
-          <div className="h-3 bg-white/[0.06] rounded animate-pulse w-3/4" />
-          <div className="h-2.5 bg-white/[0.04] rounded animate-pulse w-1/3" />
-        </div>
-      </div>
-      <div className="h-4 w-16 bg-white/[0.05] rounded animate-pulse" />
-    </div>
-  );
-}
 
 export default function AllExpensesPage() {
   const { groupId } = useParams();
@@ -93,7 +79,7 @@ export default function AllExpensesPage() {
   const total = filtered.reduce((s, e) => s + e.amount, 0);
 
   return (
-    <div className="min-h-screen bg-[#080c14] text-white">
+    <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
       <Header />
 
@@ -101,10 +87,10 @@ export default function AllExpensesPage() {
         <BackButton />
 
         <PageHeader
-          color="violet"
+          accent="brand"
           icon={
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-              <path d="M2 3h10M2 7h7M2 11h4" stroke="#c4b5fd" strokeWidth="1.4" strokeLinecap="round" />
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M2 3h10M2 7h7M2 11h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
           }
           label={t("allExpenses.label")}
@@ -113,23 +99,23 @@ export default function AllExpensesPage() {
         />
 
         {hasFilter && (
-          <div className="flex items-center justify-between gap-3 bg-violet-500/[0.08] border border-violet-400/20 rounded-xl px-3.5 py-2.5">
+          <div className="flex items-center justify-between gap-3 bg-brand-50 border border-brand-200 dark:bg-brand-500/[0.08] dark:border-brand-400/20 rounded-xl px-3.5 py-2.5">
             <div className="flex items-center gap-2 min-w-0">
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="shrink-0">
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="shrink-0 text-brand-600 dark:text-brand-300" aria-hidden="true">
                 <path
                   d="M1.5 2.5h11l-4.3 5v3.7l-2.4 1.3V7.5l-4.3-5Z"
-                  stroke="#c4b5fd"
+                  stroke="currentColor"
                   strokeWidth="1.3"
                   strokeLinejoin="round"
                 />
               </svg>
-              <span className="text-[12px] text-violet-100/80 truncate" translate="no">
+              <span className="text-theme-xs text-brand-800 dark:text-brand-100/80 truncate" translate="no">
                 {filterLabel ?? t("allExpenses.filterActive", "Filtered")}
               </span>
             </div>
             <button
               onClick={clearFilter}
-              className="text-[11px] font-semibold text-violet-300 hover:text-violet-200 active:text-violet-200 shrink-0 transition-colors"
+              className="text-theme-xs font-semibold text-brand-600 dark:text-brand-300 hover:text-brand-700 dark:hover:text-brand-200 shrink-0 transition-colors"
             >
               {t("allExpenses.clearFilter", "Clear filter")}
             </button>
@@ -158,7 +144,7 @@ export default function AllExpensesPage() {
           <div className="space-y-4">
             {[...Array(3)].map((_, g) => (
               <div key={g} className="space-y-2">
-                <div className="h-3 w-20 bg-white/[0.05] rounded animate-pulse" />
+                <div className="h-3 w-20 bg-line rounded animate-pulse" />
                 {[...Array(2)].map((_, i) => (
                   <ExpenseRowSkeleton key={i} />
                 ))}
@@ -169,7 +155,7 @@ export default function AllExpensesPage() {
 
         {!isLoading && expenses?.length === 0 && (
           <div className="text-center py-16">
-            <p className="text-white/20 text-sm">
+            <p className="text-fg-muted text-theme-sm">
               {hasFilter
                 ? t("allExpenses.noFilterResults", "No expenses match this filter")
                 : t("allExpenses.noExpensesYet")}
@@ -177,7 +163,7 @@ export default function AllExpensesPage() {
             {hasFilter && (
               <button
                 onClick={clearFilter}
-                className="mt-2 text-violet-400 text-xs hover:text-violet-300 active:text-violet-300 transition-colors"
+                className="mt-2 text-brand-600 dark:text-brand-400 text-theme-xs hover:text-brand-700 dark:hover:text-brand-300 transition-colors"
               >
                 {t("allExpenses.clearFilter", "Clear filter")}
               </button>
@@ -187,10 +173,10 @@ export default function AllExpensesPage() {
 
         {!isLoading && (expenses?.length ?? 0) > 0 && filtered.length === 0 && search && (
           <div className="text-center py-12">
-            <p className="text-white/25 text-sm">{t("allExpenses.noResults", { search })}</p>
+            <p className="text-fg-muted text-theme-sm">{t("allExpenses.noResults", { search })}</p>
             <button
               onClick={() => setSearch("")}
-              className="mt-2 text-violet-400 text-xs hover:text-violet-300 active:text-violet-300 transition-colors"
+              className="mt-2 text-brand-600 dark:text-brand-400 text-theme-xs hover:text-brand-700 dark:hover:text-brand-300 transition-colors"
             >
               {t("allExpenses.clearSearch")}
             </button>
@@ -200,65 +186,26 @@ export default function AllExpensesPage() {
         {!isLoading && filtered.length > 0 && groups.map((group, gi) => (
           <div key={group.label} className="space-y-2">
             <div className="flex items-center justify-between px-0.5">
-              <p className="text-xs font-semibold uppercase tracking-widest text-white/40" translate="no">
+              <p className="text-theme-xs font-semibold uppercase tracking-widest text-fg-muted" translate="no">
                 {group.label}
               </p>
-              <p className="text-xs font-mono text-white/30" translate="no">
+              <p className="text-theme-xs font-mono text-fg-muted" translate="no">
                 ₹{group.items!.reduce((s, e) => s + e.amount, 0).toLocaleString("en-IN")}
               </p>
             </div>
 
             {group.items!.map((expense, i) => (
-              <div
+              <ExpenseRow
                 key={expense._id}
-                onClick={() => setSelectedExpense(expense)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setSelectedExpense(expense);
-                  }
-                }}
-                aria-label={t("allExpenses.openExpense", "Open expense: {{title}}", { title: expense.title })}
-                className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3.5 flex items-center justify-between cursor-pointer hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.07] active:border-white/[0.12] focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40 transition-colors"
+                expense={expense}
+                onSelect={() => setSelectedExpense(expense)}
+                ariaLabel={t("allExpenses.openExpense", "Open expense: {{title}}", { title: expense.title })}
                 style={{
                   animation: "fadeSlideIn 0.22s ease forwards",
                   animationDelay: `${(gi * 3 + i) * 40}ms`,
                   opacity: 0,
                 }}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className="w-2 h-8 rounded-full shrink-0"
-                    style={{
-                      background: expense.category.color + "60",
-                      boxShadow: `0 0 8px ${expense.category.color}40`,
-                    }}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-medium text-white/80 truncate leading-tight" translate="no">
-                      {expense.title}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span
-                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
-                        style={{ background: expense.category.color + "20", color: expense.category.color }}
-                        translate="no"
-                      >
-                        {expense.category.name}
-                      </span>
-                      <span className="text-[10px] text-white/25" translate="no">· {expense.paidBy?.name}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right shrink-0 ml-3">
-                  <p className="text-[15px] font-semibold font-mono text-[#f0eeff] leading-tight" translate="no">
-                    ₹{expense.amount.toLocaleString("en-IN")}
-                  </p>
-                  {/* <p className="text-[10px] text-white/25 mt-0.5" translate="no">{timeLabel(expense.date)}</p> */}
-                </div>
-              </div>
+              />
             ))}
           </div>
         ))}
@@ -270,12 +217,14 @@ export default function AllExpensesPage() {
             ) : (
               <button
                 onClick={() => fetchNextPage()}
-                className="w-full py-2.5 rounded-xl border border-white/10 text-white/50 text-xs font-semibold hover:bg-white/[0.04] active:bg-white/[0.04] transition-colors"
+                className="w-full py-2.5 rounded-xl border border-line text-fg-muted text-theme-xs font-semibold
+                  hover:bg-surface-hover hover:text-fg active:bg-surface-hover transition-colors
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
               >
                 {t("allExpenses.loadMore", "Load more")}
               </button>
             )}
-            <p className="text-center text-[10px] text-white/25">
+            <p className="text-center text-theme-2xs text-fg-muted">
               {t("allExpenses.showingCount", {
                 shown: expenses.length,
                 total: totalCount,

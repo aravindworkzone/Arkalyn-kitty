@@ -37,15 +37,15 @@ const TAB_ORDER: Role[] = ["SUPER_ADMIN", "ADMIN", "MEMBER"];
 
 // Full class strings — Tailwind cannot resolve interpolated class names.
 const TAB_ACTIVE: Record<Role, string> = {
-  SUPER_ADMIN: "bg-cyan-400/[0.13] text-cyan-200",
-  ADMIN: "bg-amber-400/[0.13] text-amber-200",
-  MEMBER: "bg-slate-400/[0.15] text-slate-200",
+  SUPER_ADMIN: "bg-brand-50 dark:bg-brand-500/[0.13] text-brand-600 dark:text-brand-300",
+  ADMIN: "bg-warning-400/[0.13] text-warning-700 dark:text-warning-300",
+  MEMBER: "bg-surface-hover text-fg-muted",
 };
 
 const TAB_RING: Record<Role, string> = {
-  SUPER_ADMIN: "focus-visible:ring-cyan-400/60",
-  ADMIN: "focus-visible:ring-amber-400/60",
-  MEMBER: "focus-visible:ring-slate-400/60",
+  SUPER_ADMIN: "focus-visible:ring-brand-400/60",
+  ADMIN: "focus-visible:ring-warning-400/60",
+  MEMBER: "focus-visible:ring-brand-500/40",
 };
 
 // Every rule below mirrors a real server-side check — see Backend/routes/
@@ -134,8 +134,8 @@ const PANELS: Record<Role, Panel> = {
 };
 
 const AllowedIcon = () => (
-  <span className="mt-px shrink-0 w-4 h-4 rounded-[5px] bg-teal-400/10 grid place-items-center">
-    <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 text-teal-400" fill="none" stroke="currentColor"
+  <span className="mt-px shrink-0 w-4 h-4 rounded-[5px] bg-success-400/10 grid place-items-center">
+    <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 text-success-700 dark:text-success-300" fill="none" stroke="currentColor"
       strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 6 9 17l-5-5" />
     </svg>
@@ -143,8 +143,8 @@ const AllowedIcon = () => (
 );
 
 const DeniedIcon = () => (
-  <span className="mt-px shrink-0 w-4 h-4 rounded-[5px] bg-white/[0.04] grid place-items-center">
-    <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 text-white/35" fill="none" stroke="currentColor"
+  <span className="mt-px shrink-0 w-4 h-4 rounded-[5px] bg-surface-hover grid place-items-center">
+    <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 text-fg-muted" fill="none" stroke="currentColor"
       strokeWidth="3.5" strokeLinecap="round">
       <path d="M18 6 6 18M6 6l12 12" />
     </svg>
@@ -173,7 +173,7 @@ const RoleDetails = ({ role = "SUPER_ADMIN", groupName }: RoleDetailsProps) => {
   return (
     <>
       {groupName && (
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35 truncate"
+        <p className="text-theme-2xs font-semibold uppercase tracking-[0.14em] text-fg-muted truncate"
           translate="no">
           {groupName}
         </p>
@@ -183,7 +183,7 @@ const RoleDetails = ({ role = "SUPER_ADMIN", groupName }: RoleDetailsProps) => {
         role="tablist"
         aria-label={t("roles.tablistLabel")}
         onKeyDown={handleTabKeyDown}
-        className={`grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-white/[0.03] border border-white/[0.06] ${
+        className={`grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-surface-raised border border-line ${
           groupName ? "mt-3" : ""
         }`}
       >
@@ -204,13 +204,13 @@ const RoleDetails = ({ role = "SUPER_ADMIN", groupName }: RoleDetailsProps) => {
               } ${
                 isActive
                   ? TAB_ACTIVE[r]
-                  : "text-white/50 hover:bg-white/[0.04] hover:text-white/75"
+                  : "text-fg-muted hover:bg-surface-hover hover:text-fg"
               }`}
             >
-              <span className="block text-[9px] font-bold uppercase tracking-[0.1em] opacity-55">
+              <span className="block text-theme-2xs font-bold uppercase tracking-[0.1em] opacity-55">
                 {t(`roles.tier.${roleNs[r]}`)}
               </span>
-              <span className="mt-0.5 block text-[11px] font-semibold">
+              <span className="mt-0.5 block text-theme-xs font-semibold">
                 {t(`roles.name.${roleNs[r]}`)}
               </span>
             </button>
@@ -231,23 +231,23 @@ const RoleDetails = ({ role = "SUPER_ADMIN", groupName }: RoleDetailsProps) => {
             className="mt-4"
           >
             <span
-              className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md border ${roleGrade[r]}`}
+              className={`inline-block text-theme-2xs font-semibold px-2 py-0.5 rounded-md border ${roleGrade[r]}`}
             >
               {t(`roles.name.${roleNs[r]}`)}
             </span>
-            <p className="mt-2.5 text-[13px] leading-relaxed text-white/55">{t(panel.summary)}</p>
+            <p className="mt-2.5 text-theme-sm leading-relaxed text-fg-muted">{t(panel.summary)}</p>
 
             {panel.sections.map((section) => (
               <div key={section.heading}>
-                <p className="mt-5 mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30">
+                <p className="mt-5 mb-2 text-theme-2xs font-semibold uppercase tracking-[0.14em] text-fg-muted">
                   {t(section.heading)}
                 </p>
                 <ul>
                   {section.rules.map((rule) => (
                     <li
                       key={rule.text}
-                      className={`flex items-start gap-2.5 py-2 text-[13px] leading-snug border-b border-white/[0.04] last:border-0 ${
-                        section.muted ? "text-white/40" : "text-[#d6d6e0]"
+                      className={`flex items-start gap-2.5 py-2 text-theme-sm leading-snug border-b border-line last:border-0 ${
+                        section.muted ? "text-fg-muted" : "text-[#d6d6e0]"
                       }`}
                     >
                       {rule.allowed ? <AllowedIcon /> : <DeniedIcon />}
@@ -259,19 +259,19 @@ const RoleDetails = ({ role = "SUPER_ADMIN", groupName }: RoleDetailsProps) => {
             ))}
 
             {panel.note?.tone === "warn" && (
-              <div className="mt-5 rounded-xl border border-amber-400/20 bg-amber-400/[0.05] px-3.5 py-3 flex gap-3">
-                <svg viewBox="0 0 24 24" className="w-4 h-4 mt-px shrink-0 text-amber-300" fill="none"
+              <div className="mt-5 rounded-xl border border-warning-200 dark:border-warning-500/20 bg-warning-400/[0.05] px-3.5 py-3 flex gap-3">
+                <svg viewBox="0 0 24 24" className="w-4 h-4 mt-px shrink-0 text-warning-700 dark:text-warning-300" fill="none"
                   stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" />
                   <path d="M12 16v-4M12 8h.01" />
                 </svg>
-                <p className="text-[12px] leading-relaxed text-amber-100/70">{t(panel.note.text)}</p>
+                <p className="text-theme-xs leading-relaxed text-warning-700 dark:text-warning-300">{t(panel.note.text)}</p>
               </div>
             )}
 
             {panel.note?.tone === "muted" && (
-              <div className="mt-5 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3.5 py-3">
-                <p className="text-[12px] leading-relaxed text-white/45">{t(panel.note.text)}</p>
+              <div className="mt-5 rounded-xl border border-line bg-surface-raised px-3.5 py-3">
+                <p className="text-theme-xs leading-relaxed text-fg-muted">{t(panel.note.text)}</p>
               </div>
             )}
           </div>

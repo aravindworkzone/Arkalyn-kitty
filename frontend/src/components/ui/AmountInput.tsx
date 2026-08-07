@@ -33,7 +33,7 @@ export default function AmountInput({
   const s = sizeMap[size];
   return (
     <div className={`relative ${wrapperClassName}`}>
-      <span className={`absolute ${s.symbol} text-white/30 pointer-events-none z-10`}>₹</span>
+      <span className={`absolute ${s.symbol} text-fg-subtle pointer-events-none z-10`}>₹</span>
       <FieldInput
         type="text"
         inputMode="decimal"

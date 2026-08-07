@@ -9,7 +9,7 @@ export default function AnalyticsSection() {
     const { data, isLoading } = useGetAnalyticsQuery({ granularity });
 
     if (isLoading || !data) {
-        return <div className="h-64 rounded-2xl bg-white/[0.03] border border-white/[0.05] animate-pulse" />;
+        return <div className="h-64 rounded-2xl bg-surface-raised border border-line animate-pulse" />;
     }
 
     const signupBars = data.signups.map((s) => ({
@@ -40,8 +40,8 @@ export default function AnalyticsSection() {
                         <button
                             key={g}
                             onClick={() => setGranularity(g)}
-                            className={`px-3 py-1 rounded-lg text-[11px] font-semibold capitalize ${
-                                granularity === g ? 'bg-violet-500/15 text-violet-200' : 'text-white/40 hover:text-white/65'
+                            className={`px-3 py-1 rounded-lg text-theme-xs font-semibold capitalize ${
+                                granularity === g ? 'bg-brand-50 dark:bg-brand-500/15 text-brand-600 dark:text-brand-300' : 'text-fg-muted hover:text-fg'
                             }`}
                         >
                             {g}
@@ -49,9 +49,9 @@ export default function AnalyticsSection() {
                     ))}
                 </div>
                 {signupBars.length ? (
-                    <Bars data={signupBars} color="#34d399" />
+                    <Bars data={signupBars} />
                 ) : (
-                    <p className="text-white/30 text-xs">No signups in this range.</p>
+                    <p className="text-fg-muted text-xs">No signups in this range.</p>
                 )}
             </Panel>
         </div>

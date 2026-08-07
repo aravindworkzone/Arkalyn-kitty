@@ -6,17 +6,20 @@ import { useGroupHandlers, removeMember, updateContribution } from "../handlers/
 import type { GroupField } from "../handlers/useGroupHandlers";
 import { sanitizeAmount, sanitizeGroupName } from "../helpers/validators";
 import { useFieldError } from "../hooks/useFieldError";
-import { FieldInput, ErrorMessage } from "../components/ui";
+import {
+  Button,
+  ErrorMessage,
+  FieldInput,
+  FormSection,
+  INPUT_CLASS,
+  Input,
+  PageBackground,
+  PageHeader,
+  Spinner,
+} from "../components/ui";
 import { useTranslation } from "react-i18next";
 import { useSearchUsersQuery, type UserSuggestion } from "../redux/api/user";
 import { useGetUserQuery } from "../redux/api/auth";
-
-const s = {
-  input:
-    "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-base sm:text-sm text-white placeholder-white/25 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all duration-200",
-  label:
-    "block text-[10px] font-semibold text-white/40 mb-2 uppercase tracking-widest",
-};
 
 const PURPOSE_OPTIONS: { value: string; label: string; hint: string }[] = [
   { value: "FAMILY",    label: "Family",    hint: "Household & shared bills" },
@@ -74,19 +77,8 @@ export default function CreateGroupPage() {
   const poolTotal = members.find((m) => m._id === currentUser?._id)?.contribution || 0;
 
   return (
-    <div className="min-h-screen bg-[#080c14] text-white">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
-        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-cyan-500/5 blur-[120px]" />
-        <div className="absolute bottom-0 -right-60 w-[600px] h-[600px] rounded-full bg-indigo-500/4 blur-[120px]" />
-        <div
-          className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px)",
-            backgroundSize: "48px 48px",
-          }}
-        />
-      </div>
+    <div className="min-h-screen bg-surface text-fg">
+      <PageBackground />
 
       <Header />
 
@@ -94,115 +86,91 @@ export default function CreateGroupPage() {
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-white/35 hover:text-white/60 active:text-white/60 text-xs font-medium transition-colors mb-10 group"
+          className="flex items-center gap-2 text-fg-muted hover:text-fg active:text-fg text-theme-xs font-medium transition-colors mb-10 group
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 rounded-md"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
             <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           {t("createGroup.backToGroups")}
         </button>
 
-        <div className="mb-10">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/15 border border-cyan-500/25 flex items-center justify-center">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M7 1v12M1 7h12" stroke="#67e8f9" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-cyan-400/70">
-              {t("createGroup.newGroup")}
-            </p>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#f0eeff]">
-            {t("createGroup.title")}
-          </h1>
-          <p className="text-white/35 text-sm mt-1.5">
-            {t("createGroup.description")}
-          </p>
-        </div>
+        <PageHeader
+          accent="brand"
+          icon={
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          }
+          label={t("createGroup.newGroup")}
+          title={t("createGroup.title")}
+          description={t("createGroup.description")}
+        />
 
         <div className="space-y-3">
           {/* Step 1 — Group name */}
-          <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-3 px-5 py-3.5 border-b border-white/[0.06]">
-              <span className="text-[11px] font-bold text-white/15 tabular-nums">01</span>
-              <span className="text-xs font-semibold text-white/50 uppercase tracking-widest">
-                {t("createGroup.step1")}
+          <FormSection step="01" title={t("createGroup.step1")}>
+            <FieldInput
+              className={INPUT_CLASS}
+              type="text"
+              value={groupName}
+              onChange={(e) => setGroupName(sanitizeGroupName(e.target.value))}
+              error={fieldErrors.groupName}
+              onClearError={() => clearFieldError("groupName")}
+              placeholder={t("createGroup.groupNamePlaceholder")}
+              autoComplete="off"
+              maxLength={30}
+            />
+            <div className="flex justify-end mt-1.5">
+              <span className="text-theme-2xs text-fg-muted tabular-nums" translate="no">
+                {groupName.length}/30
               </span>
             </div>
-            <div className="px-5 py-4">
-              <FieldInput
-                className={s.input}
-                type="text"
-                value={groupName}
-                onChange={(e) => setGroupName(sanitizeGroupName(e.target.value))}
-                error={fieldErrors.groupName}
-                onClearError={() => clearFieldError("groupName")}
-                placeholder={t("createGroup.groupNamePlaceholder")}
-                autoComplete="off"
-                maxLength={30}
-              />
-              <div className="flex justify-end mt-1.5">
-                <span className="text-[10px] text-white/20 tabular-nums" translate="no">
-                  {groupName.length}/30
-                </span>
-              </div>
-            </div>
-          </div>
+          </FormSection>
 
           {/* Step 2 — Purpose */}
-          <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-3 px-5 py-3.5 border-b border-white/[0.06]">
-              <span className="text-[11px] font-bold text-white/15 tabular-nums">02</span>
-              <span className="text-xs font-semibold text-white/50 uppercase tracking-widest">
-                {t("createGroup.purposeStep", "Purpose")}
-              </span>
+          <FormSection step="02" title={t("createGroup.purposeStep", "Purpose")}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {PURPOSE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setPurpose(opt.value)}
+                  aria-pressed={purpose === opt.value}
+                  className={`text-left rounded-xl border px-3 py-2.5 transition-all duration-150
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
+                    purpose === opt.value
+                      ? "bg-brand-50 border-brand-300 dark:bg-brand-500/15 dark:border-brand-500/35"
+                      : "bg-surface-raised border-line hover:border-line-strong"
+                  }`}
+                >
+                  <p className={`text-theme-sm font-semibold leading-tight ${purpose === opt.value ? "text-brand-700 dark:text-brand-200" : "text-fg"}`} translate="no">
+                    {t(`createGroup.purpose.${opt.value}`, opt.label)}
+                  </p>
+                  <p className="text-theme-2xs text-fg-muted mt-0.5" translate="no">
+                    {t(`createGroup.purposeHint.${opt.value}`, opt.hint)}
+                  </p>
+                </button>
+              ))}
             </div>
-            <div className="px-5 py-4">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {PURPOSE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setPurpose(opt.value)}
-                    className={`text-left rounded-xl border px-3 py-2.5 transition-all duration-150 ${
-                      purpose === opt.value
-                        ? "bg-cyan-500/15 border-cyan-500/35"
-                        : "bg-white/[0.03] border-white/[0.07] hover:border-white/20"
-                    }`}
-                  >
-                    <p className={`text-[13px] font-semibold leading-tight ${purpose === opt.value ? "text-cyan-200" : "text-white/70"}`} translate="no">
-                      {t(`createGroup.purpose.${opt.value}`, opt.label)}
-                    </p>
-                    <p className="text-[10px] text-white/30 mt-0.5" translate="no">
-                      {t(`createGroup.purposeHint.${opt.value}`, opt.hint)}
-                    </p>
-                  </button>
-                ))}
-              </div>
-              <p className="text-[10px] text-white/25 mt-2.5">
-                {t("createGroup.purposeNote", "We'll add a starter set of categories for this purpose. You can edit them anytime.")}
-              </p>
-            </div>
-          </div>
+            <p className="text-theme-2xs text-fg-muted mt-2.5">
+              {t("createGroup.purposeNote", "We'll add a starter set of categories for this purpose. You can edit them anytime.")}
+            </p>
+          </FormSection>
 
           {/* Step 3 — Members */}
-          <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06]">
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] font-bold text-white/15 tabular-nums">03</span>
-                <span className="text-xs font-semibold text-white/50 uppercase tracking-widest">
-                  {t("createGroup.step2")}
-                </span>
-              </div>
-              {members.length > 0 && (
-                <span className="text-[10px] font-medium text-white/25 bg-white/[0.05] border border-white/[0.07] px-2 py-0.5 rounded-full">
+          <FormSection
+            step="03"
+            title={t("createGroup.step2")}
+            contentClass="px-5 py-4 space-y-4"
+            headerRight={
+              members.length > 0 ? (
+                <span className="text-theme-2xs font-medium text-fg-muted bg-surface-hover border border-line px-2 py-0.5 rounded-full">
                   {t("createGroup.membersAdded", { count: members.length })}
                 </span>
-              )}
-            </div>
-
-            <div className="px-5 py-4 space-y-4">
+              ) : undefined
+            }
+          >
               <div className="flex items-start gap-2">
                 <div className="flex-1 relative">
                   <FieldInput
@@ -215,53 +183,45 @@ export default function CreateGroupPage() {
                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addMember(emailInput, members, setFieldError, setApiError, setMembers, setEmailInput))}
                     error={fieldErrors.emailInput}
                     onClearError={() => clearFieldError("emailInput")}
-                    className={s.input}
+                    className={INPUT_CLASS}
                     placeholder={t("createGroup.emailPlaceholder")}
                     autoComplete="off"
                   />
                   {showSuggestions && suggestions && suggestions.length > 0 && (
-                    <ul className="absolute z-[999] left-0 right-0 top-[calc(100%+4px)] bg-[#0d1420] border border-white/[0.08] rounded-xl shadow-xl shadow-black/40">
+                    <ul className="absolute z-dropdown left-0 right-0 top-[calc(100%+4px)] bg-surface-overlay border border-line rounded-xl shadow-theme-md overflow-hidden">
                       {suggestions.map((s) => (
                         <li
                           key={s._id}
                           onMouseDown={(e) => { e.preventDefault(); handleSuggestionSelect(s); }}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.05] cursor-pointer transition-colors"
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-surface-hover cursor-pointer transition-colors"
                         >
-                          <div className="w-7 h-7 rounded-full bg-cyan-500/15 border border-cyan-500/20 flex items-center justify-center shrink-0">
-                            <span className="text-[10px] font-bold text-cyan-400" translate="no">
+                          <div className="w-7 h-7 rounded-full bg-brand-50 border border-brand-200 dark:bg-brand-500/15 dark:border-brand-500/20 flex items-center justify-center shrink-0">
+                            <span className="text-theme-2xs font-bold text-brand-600 dark:text-brand-400" translate="no">
                               {s.name.slice(0, 2).toUpperCase()}
                             </span>
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[13px] font-medium text-white/85 truncate leading-tight" translate="no">{s.name}</p>
-                            <p className="text-[11px] text-white/30 truncate" translate="no">{s.email}</p>
+                            <p className="text-theme-sm font-medium text-fg truncate leading-tight" translate="no">{s.name}</p>
+                            <p className="text-theme-xs text-fg-muted truncate" translate="no">{s.email}</p>
                           </div>
                         </li>
                       ))}
                     </ul>
                   )}
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => addMember(emailInput, members, setFieldError, setApiError, setMembers, setEmailInput)}
                   disabled={isVerifying}
-                  className="shrink-0 px-4 py-3 rounded-xl text-sm font-semibold border
-                    bg-cyan-500/10 border-cyan-500/25 text-cyan-300
-                    hover:bg-cyan-500/20 hover:border-cyan-400/40
-                    active:bg-cyan-500/20 active:border-cyan-400/40 active:scale-[0.97]
-                    disabled:opacity-40 transition-all duration-150"
+                  className="shrink-0 py-3"
                 >
-                  {isVerifying ? (
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                  ) : t("createGroup.add")}
-                </button>
+                  {isVerifying ? <Spinner size={16} /> : t("createGroup.add")}
+                </Button>
               </div>
 
               {!fieldErrors.emailInput && members.length === 0 && (
-                <p className="text-white/20 text-xs">
+                <p className="text-fg-muted text-theme-xs">
                   {t("createGroup.emailHint")}
                 </p>
               )}
@@ -271,7 +231,7 @@ export default function CreateGroupPage() {
                   {members.map((member, i) => (
                     <div
                       key={member._id}
-                      className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-3.5"
+                      className="bg-surface-raised border border-line rounded-xl p-3.5"
                       style={{
                         animation: "fadeSlideIn 0.25s ease forwards",
                         animationDelay: `${i * 40}ms`,
@@ -280,43 +240,48 @@ export default function CreateGroupPage() {
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-8 h-8 rounded-full bg-cyan-500/15 border border-cyan-500/20 flex items-center justify-center shrink-0">
-                            <span className="text-[11px] font-bold text-cyan-400" translate="no">
+                          <div className="w-8 h-8 rounded-full bg-brand-50 border border-brand-200 dark:bg-brand-500/15 dark:border-brand-500/20 flex items-center justify-center shrink-0">
+                            <span className="text-theme-xs font-bold text-brand-600 dark:text-brand-400" translate="no">
                               {member.user?.slice(0, 2).toUpperCase()}
                             </span>
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[13px] font-medium text-white/90 truncate leading-tight" translate="no">
+                            <p className="text-theme-sm font-medium text-fg truncate leading-tight" translate="no">
                               {member.user}
                             </p>
-                            <p className="text-[11px] text-white/30 truncate" translate="no">{member.email}</p>
+                            <p className="text-theme-xs text-fg-muted truncate" translate="no">{member.email}</p>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
                           {member._id === currentUser?._id ? (
                             <div className="relative">
-                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25 text-xs">₹</span>
-                              <input
-                                className="w-24 bg-white/[0.05] border border-white/[0.09] rounded-lg pl-6 pr-2.5 py-1.5 text-xs text-white placeholder-white/20 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all text-right"
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-muted text-theme-xs">₹</span>
+                              <Input
+                                size="sm"
+                                className="w-24 pl-6 text-right"
                                 defaultValue={member.contribution || ""}
                                 placeholder="0"
                                 type="text"
                                 inputMode="decimal"
+                                aria-label={t("createGroup.initialPool")}
                                 onChange={(e) => updateContribution(setMembers, member._id, Number(sanitizeAmount(e.target.value)))}
                               />
                             </div>
                           ) : (
                             <>
-                              <span className="text-[10px] font-medium text-white/30 bg-white/[0.04] border border-white/[0.07] px-2 py-1 rounded-md">
+                              <span className="text-theme-2xs font-medium text-fg-muted bg-surface-hover border border-line px-2 py-1 rounded-md">
                                 {t("createGroup.invitePending")}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => removeMember(setMembers, member._id)}
-                                className="w-6 h-6 flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 active:text-red-400 active:bg-red-500/10 transition-colors rounded-md"
+                                aria-label={t("createGroup.removeMember", "Remove member")}
+                                className="w-6 h-6 flex items-center justify-center text-fg-muted rounded-md transition-colors
+                                  hover:text-error-600 hover:bg-error-50 active:text-error-600 active:bg-error-50
+                                  dark:hover:text-error-400 dark:hover:bg-error-500/10 dark:active:text-error-400 dark:active:bg-error-500/10"
                               >
-                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
                                   <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
                                 </svg>
                               </button>
@@ -328,17 +293,16 @@ export default function CreateGroupPage() {
                   ))}
 
                   <div className="flex items-center justify-between px-1 pt-1">
-                    <span className="text-[10px] text-white/25 uppercase tracking-widest">
+                    <span className="text-theme-2xs text-fg-muted uppercase tracking-widest">
                       {t("createGroup.initialPool")}
                     </span>
-                    <span className="text-sm font-semibold font-mono text-cyan-300" translate="no">
+                    <span className="text-theme-sm font-semibold font-mono text-brand-600 dark:text-brand-300" translate="no">
                       ₹{poolTotal.toLocaleString("en-IN")}
                     </span>
                   </div>
                 </div>
               )}
-            </div>
-          </div>
+          </FormSection>
         </div>
 
         {(fieldErrors.members || apiError) && (
@@ -348,42 +312,27 @@ export default function CreateGroupPage() {
           </div>
         )}
         <div className="mt-4 flex gap-3">
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            fullWidth
+            className="flex-1 py-3"
             onClick={() => navigate(-1)}
-            className="flex-1 bg-white/[0.03] hover:bg-white/[0.06] active:bg-white/[0.06] border border-white/[0.08]
-              rounded-xl px-6 py-3 text-sm text-white/40 hover:text-white/60 active:text-white/60 transition-all"
           >
             {t("createGroup.cancel")}
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            disabled={isLoading || isVerifying}
-            className="flex-1 relative overflow-hidden rounded-xl px-6 py-3 text-sm font-semibold
-              text-black bg-cyan-400 hover:bg-cyan-300 active:bg-cyan-300 active:scale-[0.97]
-              disabled:opacity-40 disabled:cursor-not-allowed
-              transition-all duration-150
-              shadow-lg shadow-cyan-500/20"
+            fullWidth
+            className="flex-1 py-3"
+            loading={isLoading}
+            loadingLabel={t("createGroup.creating")}
+            disabled={isVerifying}
           >
-            {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
-                {t("createGroup.creating")}
-              </span>
-            ) : t("createGroup.createGroup")}
-          </button>
+            {t("createGroup.createGroup")}
+          </Button>
         </div>
       </form>
-
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }

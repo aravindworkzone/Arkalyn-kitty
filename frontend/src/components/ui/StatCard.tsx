@@ -1,6 +1,7 @@
 interface Props {
   label: string;
   value: string | number;
+  /** Explicit override — used where the value carries a category's own colour. */
   color?: string;
   currency?: boolean;
 }
@@ -12,10 +13,10 @@ export default function StatCard({ label, value, color, currency = false }: Prop
       : value;
 
   return (
-    <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl px-4 py-3">
-      <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">{label}</p>
+    <div className="bg-surface-raised border border-line rounded-xl px-4 py-3 shadow-theme-xs">
+      <p className="text-theme-2xs uppercase tracking-widest text-fg-muted mb-1">{label}</p>
       <p
-        className="text-[16px] font-semibold font-mono text-[#f0eeff]"
+        className="text-theme-xl font-semibold font-mono text-fg"
         style={color ? { color } : undefined}
       >
         {display}

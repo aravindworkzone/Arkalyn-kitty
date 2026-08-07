@@ -28,25 +28,25 @@ export default function SettingsDangerZone({
       {isSuperAdmin ? (
         <>
           {onRequestCloseGroup && (
-            <div className="bg-amber-500/[0.06] border border-amber-500/15 rounded-xl px-4 py-4">
-              <p className="text-xs font-semibold text-amber-400 mb-1">
+            <div className="bg-warning-50 dark:bg-warning-500/[0.06] border border-warning-200 dark:border-warning-500/15 rounded-xl px-4 py-4">
+              <p className="text-xs font-semibold text-warning-700 dark:text-warning-300 mb-1">
                 {t("closeGroup.title", "Close Group")}
               </p>
-              <p className="text-[11px] text-white/30 mb-3">
+              <p className="text-theme-xs text-fg-muted mb-3">
                 {t(
                   "closeGroup.dangerDesc",
                   "Refund the remaining balance to members and lock the group. No further changes can be made after closing."
                 )}
               </p>
-              <ActionButton tone="amber" onClick={onRequestCloseGroup}>
+              <ActionButton tone="warning" onClick={onRequestCloseGroup}>
                 {t("closeGroup.title", "Close Group")}
               </ActionButton>
             </div>
           )}
-          <div className="bg-red-500/[0.06] border border-red-500/15 rounded-xl px-4 py-4">
-            <p className="text-xs font-semibold text-red-400 mb-1">{t("groupDetail.deleteGroup")}</p>
-            <p className="text-[11px] text-white/30 mb-3">{t("groupDetail.deleteGroupDesc")}</p>
-            <ActionButton tone="red" onClick={onRequestDeleteGroup}>
+          <div className="bg-error-50 dark:bg-error-500/[0.06] border border-error-200 dark:border-error-500/15 rounded-xl px-4 py-4">
+            <p className="text-xs font-semibold text-error-600 dark:text-error-400 mb-1">{t("groupDetail.deleteGroup")}</p>
+            <p className="text-theme-xs text-fg-muted mb-3">{t("groupDetail.deleteGroupDesc")}</p>
+            <ActionButton tone="error" onClick={onRequestDeleteGroup}>
               {t("groupDetail.deleteGroup")}
             </ActionButton>
           </div>
@@ -54,18 +54,18 @@ export default function SettingsDangerZone({
       ) : (
         <div className="space-y-3">
           {hasPendingLeave && (
-            <div className="bg-amber-500/[0.06] border border-amber-500/20 rounded-xl px-4 py-4">
-              <p className="text-xs font-semibold text-amber-300 mb-1">
+            <div className="bg-warning-50 dark:bg-warning-500/[0.06] border border-warning-200 dark:border-warning-500/20 rounded-xl px-4 py-4">
+              <p className="text-xs font-semibold text-warning-700 dark:text-warning-300 mb-1">
                 {t("groupDetail.pendingLeaveTitle", "Leave request pending")}
               </p>
-              <p className="text-[11px] text-white/40 mb-3">
+              <p className="text-theme-xs text-fg-muted mb-3">
                 {t(
                   "groupDetail.pendingLeaveDesc",
                   "Your leave request is awaiting admin approval. You can cancel it to stay in the group, or leave without settlement to exit immediately."
                 )}
               </p>
               <ActionButton
-                tone="amber"
+                tone="warning"
                 onClick={onCancelOwnLeave}
                 disabled={isCancellingOwnLeave}
               >
@@ -75,31 +75,31 @@ export default function SettingsDangerZone({
               </ActionButton>
             </div>
           )}
-          <div className="bg-amber-500/[0.06] border border-amber-500/15 rounded-xl px-4 py-4">
-            <p className="text-xs font-semibold text-amber-400 mb-1">
+          <div className="bg-warning-50 dark:bg-warning-500/[0.06] border border-warning-200 dark:border-warning-500/15 rounded-xl px-4 py-4">
+            <p className="text-xs font-semibold text-warning-700 dark:text-warning-300 mb-1">
               {t("groupDetail.leaveWithSettlement", "Leave with settlement")}
             </p>
-            <p className="text-[11px] text-white/30 mb-3">
+            <p className="text-theme-xs text-fg-muted mb-3">
               {t(
                 "groupDetail.leaveWithSettlementDesc",
                 "If your settlement is done you leave right away. Otherwise a leave request is sent to the group admins for approval."
               )}
             </p>
-            <ActionButton tone="amber" onClick={onRequestLeaveGroup}>
+            <ActionButton tone="warning" onClick={onRequestLeaveGroup}>
               {t("groupDetail.leaveWithSettlement", "Leave with settlement")}
             </ActionButton>
           </div>
-          <div className="bg-red-500/[0.06] border border-red-500/15 rounded-xl px-4 py-4">
-            <p className="text-xs font-semibold text-red-400 mb-1">
+          <div className="bg-error-50 dark:bg-error-500/[0.06] border border-error-200 dark:border-error-500/15 rounded-xl px-4 py-4">
+            <p className="text-xs font-semibold text-error-600 dark:text-error-400 mb-1">
               {t("groupDetail.leaveWithoutSettlement", "Leave without settlement")}
             </p>
-            <p className="text-[11px] text-white/30 mb-3">
+            <p className="text-theme-xs text-fg-muted mb-3">
               {t(
                 "groupDetail.leaveWithoutSettlementDesc",
                 "Leave instantly without admin approval. Your contribution stays in the group pool and will not be refunded. This cannot be undone."
               )}
             </p>
-            <ActionButton tone="red" onClick={onRequestForfeitLeave}>
+            <ActionButton tone="error" onClick={onRequestForfeitLeave}>
               {t("groupDetail.leaveWithoutSettlement", "Leave without settlement")}
             </ActionButton>
           </div>

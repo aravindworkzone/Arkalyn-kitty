@@ -37,9 +37,9 @@ export default function SettingsChangeRole({ members, isChangingRole, handleChan
             className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all
               ${roleAction === a
                 ? a === "promote"
-                  ? "bg-amber-500/15 border-amber-500/30 text-amber-300"
-                  : "bg-slate-500/15 border-slate-500/30 text-slate-300"
-                : "bg-white/[0.03] border-white/[0.08] text-white/30 hover:text-white/50"
+                  ? "bg-warning-50 dark:bg-warning-500/15 border-warning-200 dark:border-warning-500/30 text-warning-700 dark:text-warning-300"
+                  : "bg-surface-hover border-line text-fg-muted"
+                : "bg-surface-raised border-line text-fg-muted hover:text-fg-muted"
               }`}
           >
             {a === "promote" ? t("groupDetail.promoteToAdmin") : t("groupDetail.demoteToMember")}
@@ -48,7 +48,7 @@ export default function SettingsChangeRole({ members, isChangingRole, handleChan
       </div>
 
       <ActionButton
-        tone="amber"
+        tone="warning"
         loading={isChangingRole}
         loadingLabel={t("groupDetail.updatingRole")}
         disabled={!roleMemberId}

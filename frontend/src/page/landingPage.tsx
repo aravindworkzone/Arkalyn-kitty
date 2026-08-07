@@ -74,9 +74,9 @@ function Nav() {
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-stone-200 dark:border-stone-800 bg-stone-50/85 dark:bg-stone-950/85 backdrop-blur-md backdrop-saturate-150 pt-safe">
+    <header className="sticky top-0 z-40 border-b border-line bg-surface-hover/85 /85 backdrop-blur-md backdrop-saturate-150 pt-safe">
       <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-4 h-16 sm:h-20 flex items-center gap-3">
-        <a onClick={() => ScrollSmooth("#top")} className="flex items-center gap-2 font-semibold text-[15px] tracking-tight text-stone-950 dark:text-stone-50 flex-shrink-0">
+        <a onClick={() => ScrollSmooth("#top")} className="flex items-center gap-2 font-semibold text-theme-sm tracking-tight text-fg flex-shrink-0">
           <Logo variant="mini" className="h-10 w-10 sm:h-12 sm:w-12 rounded-md" />
           <Logo variant="word" className="h-10 w-24 sm:h-12 sm:w-28 rounded-md" />
         </a>
@@ -85,7 +85,7 @@ function Nav() {
             <a
               key={href}
               onClick={() => ScrollSmooth(href)}
-              className="px-3 py-2 text-sm text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg transition-colors"
+              className="px-3 py-2 text-sm text-fg-muted hover:text-fg hover:bg-brand-50 dark:hover:bg-brand-950/30 rounded-lg transition-colors"
             >
               {label}
             </a>
@@ -94,7 +94,6 @@ function Nav() {
         <div className="flex-1" />
         <div className="flex items-center gap-1.5">
           <SegmentedToggle
-            variant="light"
             ariaLabel="Language"
             value={lang}
             onChange={changeLang}
@@ -105,13 +104,13 @@ function Nav() {
           />
           <Link
             to="/login"
-            className="hidden lg:inline-flex h-9 px-4 items-center rounded-lg text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+            className="hidden lg:inline-flex h-9 px-4 items-center rounded-lg text-sm font-medium text-fg hover:bg-surface-hover transition-colors"
           >
             {t("landing.nav.login")}
           </Link>
           <Link
             to="/register"
-            className="hidden sm:inline-flex h-9 px-4 items-center rounded-lg text-sm font-semibold bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white transition-colors shadow-sm shadow-indigo-500/20"
+            className="hidden sm:inline-flex h-9 px-4 items-center rounded-lg text-sm font-semibold bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-on-accent transition-colors shadow-sm shadow-brand-500/20"
           >
             {t("landing.nav.register")}
           </Link>
@@ -120,7 +119,7 @@ function Nav() {
           <button
             type="button"
             onClick={() => setMenuOpen((p) => !p)}
-            className="lg:hidden min-h-touch min-w-touch flex items-center justify-center rounded-lg text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 active:bg-stone-100 dark:active:bg-stone-800 transition-colors"
+            className="lg:hidden min-h-touch min-w-touch flex items-center justify-center rounded-lg text-fg hover:bg-surface-hover active:bg-surface-hover transition-colors"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
           >
@@ -137,14 +136,14 @@ function Nav() {
 
       {/* Mobile dropdown panel */}
       {menuOpen && (
-        <div className="lg:hidden border-t border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 pb-safe">
+        <div className="lg:hidden border-t border-line bg-surface pb-safe">
           <nav className="max-w-screen-xl mx-auto px-4 py-3 flex flex-col gap-1">
             {navLinks.map(([label, href]) => (
               <a
                 key={href}
                 href={href}
                 onClick={() => setMenuOpen(false)}
-                className="px-3 min-h-touch flex items-center text-[15px] font-medium text-stone-700 dark:text-stone-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 active:bg-indigo-50 dark:active:bg-indigo-950/30 rounded-lg transition-colors"
+                className="px-3 min-h-touch flex items-center text-theme-sm font-medium text-fg hover:bg-brand-50 dark:hover:bg-brand-950/30 active:bg-brand-50 dark:active:bg-brand-950/30 rounded-lg transition-colors"
               >
                 {label}
               </a>
@@ -152,7 +151,7 @@ function Nav() {
             <Link
               to="/login"
               onClick={() => setMenuOpen(false)}
-              className="mt-2 px-3 min-h-touch flex items-center text-[15px] font-medium text-stone-600 dark:text-stone-300 border-t border-stone-200 dark:border-stone-800 pt-3"
+              className="mt-2 px-3 min-h-touch flex items-center text-theme-sm font-medium text-fg border-t border-line pt-3"
             >
               {t("landing.nav.login")}
             </Link>
@@ -170,7 +169,7 @@ function Hero() {
   return (
     <section
       id="top"
-      className="relative overflow-hidden border-b border-stone-200 dark:border-stone-800"
+      className="relative overflow-hidden border-b border-line"
     >
       <div
         className="absolute inset-0 pointer-events-none"
@@ -194,37 +193,37 @@ function Hero() {
       <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 relative">
         <div className="grid lg:grid-cols-[1fr_1fr] gap-16 max-[1023px]:gap-10 items-center py-20 lg:py-28 max-[767px]:py-12">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-full text-xs font-medium text-stone-500 shadow-sm mb-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-surface-raised border border-line rounded-full text-xs font-medium text-fg-muted shadow-sm mb-5">
               <span
-                className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"
+                className="w-1.5 h-1.5 rounded-full bg-success-500 flex-shrink-0"
                 style={{ boxShadow: "0 0 0 3px rgba(16,185,129,0.2)" }}
               />
               {t("landing.hero.eyebrow")}
             </div>
-            <h1 className="text-[64px] max-[1279px]:text-[56px] max-[1023px]:text-5xl max-[767px]:text-[34px] font-bold leading-[1.05] tracking-[-0.025em] text-stone-950 dark:text-stone-50 text-balance mb-5">
+            <h1 className="text-title-md max-[1279px]:text-title-md max-[1023px]:text-5xl max-[767px]:text-title-md font-bold leading-[1.05] tracking-[-0.025em] text-fg text-balance mb-5">
               {t("landing.hero.title")}
             </h1>
-            <p className="text-lg max-[767px]:text-[15px] text-stone-500 dark:text-stone-400 leading-relaxed max-w-[520px] mb-8 text-pretty">
+            <p className="text-lg max-[767px]:text-theme-sm text-fg-muted leading-relaxed max-w-[520px] mb-8 text-pretty">
               {t("landing.hero.sub")}
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
                 to="/register"
-                className="inline-flex items-center gap-2 h-12 px-6 rounded-xl text-[15px] font-semibold bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white transition-colors shadow-md shadow-indigo-500/20"
+                className="inline-flex items-center gap-2 h-12 px-6 rounded-xl text-theme-sm font-semibold bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-on-accent transition-colors shadow-md shadow-brand-500/20"
               >
                 {t("landing.hero.ctaPrimary")}
               </Link>
               <a
                 href="#how"
-                className="inline-flex items-center gap-2 h-12 px-6 rounded-xl text-[15px] font-medium bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-stone-400 dark:hover:border-stone-500 active:border-stone-400 dark:active:border-stone-500 transition-colors"
+                className="inline-flex items-center gap-2 h-12 px-6 rounded-xl text-theme-sm font-medium bg-surface-raised border border-line text-fg hover:border-line-strong active:border-line-strong transition-colors"
               >
                 {t("landing.hero.ctaSecondary")}
               </a>
             </div>
-            <div className="flex flex-wrap gap-x-6 gap-y-2 mt-7 text-sm text-stone-400">
+            <div className="flex flex-wrap gap-x-6 gap-y-2 mt-7 text-sm text-fg-muted">
               {badges.map((s) => (
                 <span key={s} className="flex items-center gap-1.5">
-                  <span className="w-1 h-1 rounded-full bg-emerald-500" />
+                  <span className="w-1 h-1 rounded-full bg-success-500" />
                   {s}
                 </span>
               ))}
@@ -243,12 +242,12 @@ function Hero() {
 function SectionHeader({ kicker, title, sub }: { kicker: string; title: string; sub?: string }) {
   return (
     <div className="max-w-2xl mb-12 max-[767px]:mb-8">
-      <p className="text-xs font-semibold uppercase tracking-wider text-indigo-500 mb-3">{kicker}</p>
-      <h2 className="text-4xl max-[767px]:text-3xl font-bold tracking-[-0.02em] text-stone-950 dark:text-stone-50 mb-3">
+      <p className="text-xs font-semibold uppercase tracking-wider text-brand-500 mb-3">{kicker}</p>
+      <h2 className="text-4xl max-[767px]:text-3xl font-bold tracking-[-0.02em] text-fg mb-3">
         {title}
       </h2>
       {sub && (
-        <p className="text-base text-stone-500 dark:text-stone-400 leading-relaxed">{sub}</p>
+        <p className="text-base text-fg-muted leading-relaxed">{sub}</p>
       )}
     </div>
   );
@@ -259,7 +258,7 @@ function Why() {
   const points = t("landing.why.points", { returnObjects: true }) as WhyPoint[];
 
   return (
-    <section id="why" className="border-b border-stone-200 dark:border-stone-800">
+    <section id="why" className="border-b border-line">
       <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14">
         <SectionHeader
           kicker={t("landing.why.kicker")}
@@ -270,10 +269,10 @@ function Why() {
           {points.map((p) => (
             <div
               key={p.title}
-              className="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-6"
+              className="rounded-2xl border border-line bg-surface-raised p-6"
             >
-              <p className="text-base font-semibold text-stone-950 dark:text-stone-50 mb-2">{p.title}</p>
-              <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed">{p.body}</p>
+              <p className="text-base font-semibold text-fg mb-2">{p.title}</p>
+              <p className="text-sm text-fg-muted leading-relaxed">{p.body}</p>
             </div>
           ))}
         </div>
@@ -288,7 +287,7 @@ function HowItWorks() {
   const steps = t("landing.howItWorks.steps", { returnObjects: true }) as HowStep[];
 
   return (
-    <section id="how" className="border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900/40">
+    <section id="how" className="border-b border-line bg-surface-raised/40">
       <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14">
         <div className="flex items-start justify-between gap-6 flex-wrap">
           <SectionHeader
@@ -297,7 +296,6 @@ function HowItWorks() {
             sub={t("landing.howItWorks.sub")}
           />
           <SegmentedToggle
-            variant="light"
             ariaLabel={t("landing.howItWorks.kicker")}
             value={mode}
             onChange={setMode}
@@ -311,13 +309,13 @@ function HowItWorks() {
           {steps.map((s) => (
             <div
               key={s.step}
-              className="rounded-2xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 p-6"
+              className="rounded-2xl border border-line bg-surface p-6"
             >
-              <p className="text-xs font-mono text-indigo-500 mb-3">{s.step}</p>
-              <p className="text-base font-semibold text-stone-950 dark:text-stone-50 mb-2">{s.title}</p>
-              <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed">{s.summary}</p>
+              <p className="text-xs font-mono text-brand-500 mb-3">{s.step}</p>
+              <p className="text-base font-semibold text-fg mb-2">{s.title}</p>
+              <p className="text-sm text-fg-muted leading-relaxed">{s.summary}</p>
               {mode === "detailed" && (
-                <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed mt-3 pt-3 border-t border-stone-200 dark:border-stone-800">
+                <p className="text-sm text-fg-muted leading-relaxed mt-3 pt-3 border-t border-line">
                   {s.detail}
                 </p>
               )}
@@ -334,7 +332,7 @@ function WhoFor() {
   const audiences = t("landing.whoFor.audiences", { returnObjects: true }) as Audience[];
 
   return (
-    <section id="who" className="border-b border-stone-200 dark:border-stone-800">
+    <section id="who" className="border-b border-line">
       <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14">
         <SectionHeader
           kicker={t("landing.whoFor.kicker")}
@@ -345,11 +343,11 @@ function WhoFor() {
           {audiences.map((a, i) => (
             <div
               key={a.title}
-              className="rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-6"
+              className="rounded-2xl border border-line bg-surface-raised p-6"
             >
               <div className="text-2xl mb-3">{AUDIENCE_ICONS[i]}</div>
-              <p className="text-base font-semibold text-stone-950 dark:text-stone-50 mb-2">{a.title}</p>
-              <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed">{a.body}</p>
+              <p className="text-base font-semibold text-fg mb-2">{a.title}</p>
+              <p className="text-sm text-fg-muted leading-relaxed">{a.body}</p>
             </div>
           ))}
         </div>
@@ -364,12 +362,11 @@ function Features() {
   const items = t("landing.features.items", { returnObjects: true }) as FeatureItem[];
 
   return (
-    <section id="features" className="border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900/40">
+    <section id="features" className="border-b border-line bg-surface-raised/40">
       <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14">
         <div className="flex items-start justify-between gap-6 flex-wrap">
           <SectionHeader kicker={t("landing.features.kicker")} title={t("landing.features.title")} />
           <SegmentedToggle
-            variant="light"
             ariaLabel={t("landing.features.kicker")}
             value={mode}
             onChange={setMode}
@@ -383,9 +380,9 @@ function Features() {
           {items.map((f) => (
             <div
               key={f.title}
-              className="rounded-2xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 p-6"
+              className="rounded-2xl border border-line bg-surface p-6"
             >
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/15 to-violet-500/15 border border-indigo-500/20 flex items-center justify-center text-indigo-500 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500/15 to-brand-500/15 border border-brand-500/20 flex items-center justify-center text-brand-500 mb-4">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                   <path
                     d="M2 7.5L5.5 11L12 3.5"
@@ -396,10 +393,10 @@ function Features() {
                   />
                 </svg>
               </div>
-              <p className="text-base font-semibold text-stone-950 dark:text-stone-50 mb-2">{f.title}</p>
-              <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed">{f.summary}</p>
+              <p className="text-base font-semibold text-fg mb-2">{f.title}</p>
+              <p className="text-sm text-fg-muted leading-relaxed">{f.summary}</p>
               {mode === "detailed" && (
-                <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed mt-3 pt-3 border-t border-stone-200 dark:border-stone-800">
+                <p className="text-sm text-fg-muted leading-relaxed mt-3 pt-3 border-t border-line">
                   {f.detail}
                 </p>
               )}
@@ -412,9 +409,9 @@ function Features() {
 }
 
 const PRICING_THEME: Record<PlanTier, { accent: string; chip: string }> = {
-  FREE: { accent: "text-stone-500", chip: "bg-stone-100 dark:bg-stone-800 text-stone-500" },
-  PRO: { accent: "text-violet-500", chip: "bg-violet-100 dark:bg-violet-950/40 text-violet-500" },
-  PREMIUM: { accent: "text-amber-500", chip: "bg-amber-100 dark:bg-amber-950/40 text-amber-500" },
+  FREE: { accent: "text-fg-muted", chip: "bg-surface-hover text-fg-muted" },
+  PRO: { accent: "text-brand-500", chip: "bg-brand-100 dark:bg-brand-950/40 text-brand-500" },
+  PREMIUM: { accent: "text-warning-500", chip: "bg-warning-100 dark:bg-warning-950/40 text-warning-500" },
 };
 
 function Pricing() {
@@ -422,7 +419,7 @@ function Pricing() {
   const [cycle, setCycle] = useState<"monthly" | "yearly">("monthly");
 
   return (
-    <section id="pricing" className="border-b border-stone-200 dark:border-stone-800">
+    <section id="pricing" className="border-b border-line">
       <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14">
         <SectionHeader
           kicker={t("landing.pricing.kicker")}
@@ -433,7 +430,6 @@ function Pricing() {
         {/* Billing cycle toggle */}
         <div className="mb-10 max-[767px]:mb-8">
           <SegmentedToggle
-            variant="light"
             ariaLabel={t("landing.pricing.kicker")}
             value={cycle}
             onChange={setCycle}
@@ -455,14 +451,14 @@ function Pricing() {
             return (
               <div
                 key={tier}
-                className={`relative rounded-2xl border bg-white dark:bg-stone-900 p-6 flex flex-col ${
+                className={`relative rounded-2xl border bg-surface-raised p-6 flex flex-col ${
                   isPopular
-                    ? "border-violet-300 dark:border-violet-800 ring-1 ring-violet-200 dark:ring-violet-900/50 md:-translate-y-3"
-                    : "border-stone-200 dark:border-stone-800"
+                    ? "border-brand-300 dark:border-brand-800 ring-1 ring-brand-200 dark:ring-brand-900/50 md:-translate-y-3"
+                    : "border-line"
                 }`}
               >
                 {isPopular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-violet-500 text-white text-[10px] font-bold uppercase tracking-wider shadow-md shadow-violet-500/30">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-brand-500 text-on-accent text-theme-2xs font-bold uppercase tracking-wider shadow-md shadow-brand-500/30">
                     {t("landing.pricing.popular")}
                   </div>
                 )}
@@ -475,16 +471,16 @@ function Pricing() {
 
                 <div className="mb-1">
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-4xl font-bold tracking-tight text-stone-950 dark:text-stone-50" translate="no">
+                    <span className="text-4xl font-bold tracking-tight text-fg" translate="no">
                       ₹{price}
                     </span>
                     {tier !== "FREE" && (
-                      <span className="text-sm text-stone-400">
+                      <span className="text-sm text-fg-muted">
                         {cycle === "yearly" ? t("landing.pricing.perYear") : t("landing.pricing.perMonth")}
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-stone-400 mt-1 h-4" translate="no">
+                  <p className="text-theme-xs text-fg-muted mt-1 h-4" translate="no">
                     {tier === "FREE"
                       ? t("landing.pricing.freeForever")
                       : perMonth !== null
@@ -493,15 +489,15 @@ function Pricing() {
                   </p>
                 </div>
 
-                <div className="my-5 h-px bg-stone-200 dark:bg-stone-800" />
+                <div className="my-5 h-px bg-line " />
 
                 <ul className="space-y-2.5 flex-1">
                   {planFeatureLines(tier, cfg).map((line) => (
                     <li
                       key={line}
-                      className="flex items-start gap-2.5 text-[13px] text-stone-600 dark:text-stone-300 leading-snug"
+                      className="flex items-start gap-2.5 text-theme-sm text-fg leading-snug"
                     >
-                      <svg className="w-4 h-4 mt-0.5 shrink-0 text-emerald-500" viewBox="0 0 16 16" fill="none">
+                      <svg className="w-4 h-4 mt-0.5 shrink-0 text-success-500" viewBox="0 0 16 16" fill="none">
                         <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.12" />
                         <path d="M5 8.2l2 2 4-4.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
@@ -514,8 +510,8 @@ function Pricing() {
                   to="/register"
                   className={`mt-6 w-full inline-flex items-center justify-center rounded-xl py-3 text-sm font-semibold transition-colors ${
                     isPopular
-                      ? "bg-violet-500 hover:bg-violet-600 text-white shadow-md shadow-violet-500/20"
-                      : "bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-100"
+                      ? "bg-brand-500 hover:bg-brand-600 text-on-accent shadow-md shadow-brand-500/20"
+                      : "bg-surface-hover hover:bg-line text-fg"
                   }`}
                 >
                   {tier === "FREE" ? t("landing.pricing.ctaFree") : t("landing.pricing.ctaUpgrade", { plan: cfg.name })}
@@ -526,10 +522,10 @@ function Pricing() {
         </div>
 
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-[12px] text-stone-400">{t("landing.pricing.note")}</p>
+          <p className="text-theme-xs text-fg-muted">{t("landing.pricing.note")}</p>
           <Link
             to="/plans"
-            className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors"
+            className="text-sm font-medium text-brand-600 dark:text-brand-400 hover:text-brand-500 transition-colors"
           >
             {t("landing.pricing.detailsLink")}
           </Link>
@@ -544,21 +540,21 @@ function FAQ() {
   const items = t("landing.faq.items", { returnObjects: true }) as Faq[];
 
   return (
-    <section id="faq" className="border-b border-stone-200 dark:border-stone-800">
+    <section id="faq" className="border-b border-line">
       <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14">
         <SectionHeader kicker={t("landing.faq.kicker")} title={t("landing.faq.title")} />
-        <div className="max-w-3xl divide-y divide-stone-200 dark:divide-stone-800 border-y border-stone-200 dark:border-stone-800">
+        <div className="max-w-3xl divide-y divide-line border-y border-line">
           {items.map((f) => (
             <details key={f.q} className="group py-5">
               <summary className="flex items-center justify-between gap-4 cursor-pointer list-none">
-                <span className="text-base font-semibold text-stone-950 dark:text-stone-50">{f.q}</span>
-                <span className="w-6 h-6 flex items-center justify-center text-stone-400 group-open:rotate-45 transition-transform">
+                <span className="text-base font-semibold text-fg">{f.q}</span>
+                <span className="w-6 h-6 flex items-center justify-center text-fg-muted group-open:rotate-45 transition-transform">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                     <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
                   </svg>
                 </span>
               </summary>
-              <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed mt-3 pr-10">{f.a}</p>
+              <p className="text-sm text-fg-muted leading-relaxed mt-3 pr-10">{f.a}</p>
             </details>
           ))}
         </div>
@@ -571,17 +567,17 @@ function FinalCTA() {
   const { t } = useTranslation();
 
   return (
-    <section className="bg-white dark:bg-stone-900/40">
+    <section className="bg-surface-raised/40">
       <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14 text-center">
-        <h2 className="text-4xl max-[767px]:text-3xl font-bold tracking-[-0.02em] text-stone-950 dark:text-stone-50 mb-3">
+        <h2 className="text-4xl max-[767px]:text-3xl font-bold tracking-[-0.02em] text-fg mb-3">
           {t("landing.finalCTA.title")}
         </h2>
-        <p className="text-base text-stone-500 dark:text-stone-400 mb-7">
+        <p className="text-base text-fg-muted mb-7">
           {t("landing.finalCTA.sub")}
         </p>
         <Link
           to="/register"
-          className="inline-flex items-center gap-2 h-12 px-6 rounded-xl text-[15px] font-semibold bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white transition-colors shadow-md shadow-indigo-500/20"
+          className="inline-flex items-center gap-2 h-12 px-6 rounded-xl text-theme-sm font-semibold bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-on-accent transition-colors shadow-md shadow-brand-500/20"
         >
           {t("landing.finalCTA.cta")}
         </Link>
@@ -594,12 +590,12 @@ function Footer({ onContact }: { onContact: (kind: ContactKind) => void }) {
   const { t } = useTranslation();
 
   return (
-    <footer className="border-t border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950">
+    <footer className="border-t border-line bg-surface">
       <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-14 max-[767px]:py-10">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
           <div>
             <Logo variant="word" className="h-9 w-28 rounded-md mb-3" />
-            <p className="text-sm text-stone-500 dark:text-stone-400 max-w-xs leading-relaxed">
+            <p className="text-sm text-fg-muted max-w-xs leading-relaxed">
               {t("landing.support.tagline")}
             </p>
           </div>
@@ -607,7 +603,7 @@ function Footer({ onContact }: { onContact: (kind: ContactKind) => void }) {
             <button
               type="button"
               onClick={() => onContact("question")}
-              className="inline-flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-medium bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-stone-400 dark:hover:border-stone-500 transition-colors"
+              className="inline-flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-medium bg-surface-raised border border-line text-fg hover:border-line-strong transition-colors"
             >
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
                 <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" />
@@ -619,7 +615,7 @@ function Footer({ onContact }: { onContact: (kind: ContactKind) => void }) {
             <button
               type="button"
               onClick={() => onContact("report")}
-              className="inline-flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-medium bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:border-stone-400 dark:hover:border-stone-500 transition-colors"
+              className="inline-flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-medium bg-surface-raised border border-line text-fg hover:border-line-strong transition-colors"
             >
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
                 <path d="M8 2.5l6 11H2l6-11z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
@@ -630,9 +626,9 @@ function Footer({ onContact }: { onContact: (kind: ContactKind) => void }) {
             </button>
           </div>
         </div>
-        <div className="mt-10 pt-6 border-t border-stone-200 dark:border-stone-800 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-400">
+        <div className="mt-10 pt-6 border-t border-line flex flex-wrap items-center justify-between gap-3 text-xs text-fg-muted">
           <span>© {new Date().getFullYear()} {t("brand")}</span>
-          <Link to="/plans" className="hover:text-stone-600 dark:hover:text-stone-200 transition-colors">
+          <Link to="/plans" className="hover:text-fg transition-colors">
             {t("landing.nav.pricing")}
           </Link>
         </div>
@@ -651,7 +647,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 text-stone-950 dark:text-stone-50 font-sans antialiased">
+    <div className="min-h-screen bg-surface text-fg font-sans antialiased">
       <Nav />
       <Hero />
       <Why />

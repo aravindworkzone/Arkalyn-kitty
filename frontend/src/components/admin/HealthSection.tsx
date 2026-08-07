@@ -3,6 +3,7 @@ import { socket } from '../../socket/socket';
 import { useGetAdminHealthQuery } from '../../redux/api/admin';
 import type { SystemHealth } from '../../interface/admin';
 import { StatCard, Panel } from './adminUi';
+import Badge from '../ui/Badge';
 
 const SYSTEM_HEALTH = 'admin:system-health';
 
@@ -29,24 +30,30 @@ export default function HealthSection() {
 
     const health = live ?? initial;
     if (!health) {
-        return <div className="h-64 rounded-2xl bg-white/[0.03] border border-white/[0.05] animate-pulse" />;
+        return <div className="h-64 rounded-2xl bg-surface-raised border border-line animate-pulse" />;
     }
 
     const logs = health.recentLogs.filter((l) => l.level >= minLevel);
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center gap-2 text-[11px] text-white/35">
-                <span className={`w-2 h-2 rounded-full ${live ? 'bg-emerald-400 animate-pulse' : 'bg-white/30'}`} />
-                {live ? 'Live · updates every 5s' : 'Snapshot'}
+            {/* Status is a badge, never raw coloured text (UI_PROMPT). Both
+                indicators pair the colour with a word, so the state is still
+                readable with no colour perception at all. */}
+            <div className="flex items-center gap-2 text-theme-xs text-fg-muted">
+                <Badge tone={live ? 'success' : 'gray'}>
+                    <span className={`mr-1.5 w-1.5 h-1.5 rounded-full ${live ? 'bg-success-500 animate-pulse' : 'bg-fg-subtle'}`} />
+                    {live ? 'Live' : 'Snapshot'}
+                </Badge>
+                {live && 'updates every 5s'}
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <StatCard label="Server" value={<span className="text-emerald-300">Up</span>} sub={`uptime ${formatUptime(health.server.uptimeSec)}`} />
+                <StatCard label="Server" value={<Badge tone="success">Up</Badge>} sub={`uptime ${formatUptime(health.server.uptimeSec)}`} />
                 <StatCard label="Memory (RSS)" value={`${health.server.memoryMB} MB`} />
                 <StatCard
                     label="MongoDB"
-                    value={<span className={health.db.connected ? 'text-emerald-300' : 'text-red-300'}>{health.db.status}</span>}
+                    value={<Badge tone={health.db.connected ? 'success' : 'error'}>{health.db.status}</Badge>}
                 />
                 <StatCard label="DB response" value={health.db.responseMs != null ? `${health.db.responseMs} ms` : '—'} />
             </div>
@@ -60,8 +67,8 @@ export default function HealthSection() {
                         <button
                             key={o.l}
                             onClick={() => setMinLevel(o.l)}
-                            className={`px-3 py-1 rounded-lg text-[11px] font-semibold ${
-                                minLevel === o.l ? 'bg-violet-500/15 text-violet-200' : 'text-white/40 hover:text-white/65'
+                            className={`px-3 py-1 rounded-lg text-theme-xs font-semibold ${
+                                minLevel === o.l ? 'bg-brand-50 dark:bg-brand-500/15 text-brand-600 dark:text-brand-300' : 'text-fg-muted hover:text-fg'
                             }`}
                         >
                             {o.t}
@@ -69,20 +76,16 @@ export default function HealthSection() {
                     ))}
                 </div>
                 {logs.length === 0 ? (
-                    <p className="text-white/30 text-xs">No logs at this level — all clear.</p>
+                    <p className="text-fg-muted text-xs">No logs at this level — all clear.</p>
                 ) : (
                     <div className="space-y-1.5 max-h-80 overflow-y-auto">
                         {logs.map((l, i) => (
-                            <div key={i} className="flex items-start gap-2 text-[11px] font-mono">
-                                <span
-                                    className={`px-1.5 py-0.5 rounded shrink-0 uppercase ${
-                                        l.level >= 50 ? 'bg-red-500/15 text-red-300' : 'bg-amber-500/15 text-amber-300'
-                                    }`}
-                                >
+                            <div key={i} className="flex items-start gap-2 text-theme-xs font-mono">
+                                <Badge tone={l.level >= 50 ? 'error' : 'warning'} className="shrink-0 uppercase !rounded">
                                     {l.levelLabel}
-                                </span>
-                                <span className="text-white/30 shrink-0">{new Date(l.time).toLocaleTimeString('en-GB')}</span>
-                                <span className="text-white/60 break-all">{l.msg || '—'}</span>
+                                </Badge>
+                                <span className="text-fg-muted shrink-0">{new Date(l.time).toLocaleTimeString('en-GB')}</span>
+                                <span className="text-fg break-all">{l.msg || '—'}</span>
                             </div>
                         ))}
                     </div>

@@ -79,11 +79,11 @@ export default function BottomSheet({
 
   if (!isOpen) return null;
 
-  const accentClass = tone === "danger" ? "via-red-500/30" : "via-white/15";
+  const accentClass = tone === "danger" ? "via-error-500/30" : "via-line-strong";
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-center overflow-y-auto p-4 bg-black/75 backdrop-blur-[2px]"
+      className="fixed inset-0 z-modal flex justify-center overflow-y-auto p-4 bg-scrim backdrop-blur-[2px]"
       style={{ animation: "fadeInBackdrop 0.18s ease-out" }}
     >
       <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
@@ -94,8 +94,8 @@ export default function BottomSheet({
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         tabIndex={-1}
-        className={`relative my-auto w-full ${maxWidth} bg-[#080c14] border border-white/[0.08]
-          rounded-2xl shadow-2xl max-h-[88dvh] flex flex-col outline-none
+        className={`relative my-auto w-full ${maxWidth} bg-surface-overlay border border-line
+          rounded-2xl shadow-theme-md max-h-[88dvh] flex flex-col outline-none
           animate-[fadeUp_0.18s_ease-out]`}
       >
         {/* top accent line */}
@@ -104,16 +104,16 @@ export default function BottomSheet({
         />
 
         {!hideHeader && title && (
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] shrink-0">
-            <p id={titleId} className="text-sm font-semibold text-white/70 truncate pr-3">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-line shrink-0">
+            <p id={titleId} className="text-theme-sm font-semibold text-fg truncate pr-3">
               {title}
             </p>
             <button
               onClick={onClose}
               aria-label="Close"
               className="w-8 h-8 flex items-center justify-center rounded-lg
-                bg-white/[0.04] text-white/40 hover:text-white/70 hover:bg-white/[0.08]
-                active:bg-white/[0.08] transition-colors"
+                bg-surface-hover text-fg-muted hover:text-fg hover:bg-line
+                active:bg-line transition-colors"
             >
               <svg width="12" height="12" viewBox="0 0 10 10" fill="none">
                 <path d="M2 2l6 6M8 2L2 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -125,7 +125,7 @@ export default function BottomSheet({
         <div className="overflow-y-auto px-5 py-4 flex-1">{children}</div>
 
         {footer && (
-          <div className="border-t border-white/[0.06] px-5 py-3 shrink-0 bg-[#080c14] rounded-b-2xl">
+          <div className="border-t border-line px-5 py-3 shrink-0 bg-surface-overlay rounded-b-2xl">
             {footer}
           </div>
         )}

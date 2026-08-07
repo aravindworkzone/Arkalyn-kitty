@@ -67,13 +67,27 @@ const hideWrapper: React.CSSProperties = {
   transform: "translate(-200vw, 0)",
 };
 
+/* ── EVERY colour below is an explicit literal, on purpose ────────────────────
+   This card is rasterized to PNG by html-to-image. It must NOT inherit the
+   theme: an exported image has no theme, and a card that renders light-on-light
+   because the user happened to be in light mode is an unreadable export. So no
+   tokens, no Tailwind classes, no `currentColor` — the shared image looks the
+   same whoever exports it.
+
+   The values are still the design system's: they are the resolved hex of
+   gray-950/brand-950 (canvas), success-400 and error-400 (amounts). Keep them
+   in step with src/index.css by hand if the palette moves.
+   ────────────────────────────────────────────────────────────────────────── */
+const SHARE_SUCCESS = "#32d583"; // success-400
+const SHARE_ERROR   = "#f97066"; // error-400
+
 const card: React.CSSProperties = {
   position: "relative",
   width: "1080px",
   minHeight: "1350px",
   padding: "72px 64px",
-  background: "linear-gradient(160deg, #14102a 0%, #0a0817 60%, #050410 100%)",
-  color: "#f0eeff",
+  background: "linear-gradient(160deg, #161950 0%, #0c111d 60%, #05070f 100%)",
+  color: "#f2f4f7",
   fontFamily:
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   display: "flex",
@@ -98,7 +112,7 @@ const brandText: React.CSSProperties = {
   fontSize: "28px",
   fontWeight: 700,
   letterSpacing: "-0.02em",
-  color: "#f0eeff",
+  color: "#f2f4f7",
 };
 
 const groupLine: React.CSSProperties = {
@@ -123,7 +137,7 @@ const heroAmount = (positive: boolean): React.CSSProperties => ({
   fontWeight: 700,
   lineHeight: 1,
   letterSpacing: "-0.03em",
-  color: positive ? "#4ade80" : "#f87171",
+  color: positive ? SHARE_SUCCESS : SHARE_ERROR,
 });
 
 const heroTitle: React.CSSProperties = {
@@ -325,7 +339,7 @@ const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>((props, ref) => {
 
       <div style={rowsWrap}>
         <Row label="Type">
-          <span style={chip("#34d399")}>CREDIT</span>
+          <span style={chip(SHARE_SUCCESS)}>CREDIT</span>
         </Row>
         <Row label="Contributed by">
           <div>
