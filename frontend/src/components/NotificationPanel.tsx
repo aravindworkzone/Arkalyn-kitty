@@ -130,7 +130,7 @@ export default function NotificationPanel() {
         </svg>
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-1 rounded-full
-            bg-brand-500 text-theme-2xs font-bold text-on-accent flex items-center justify-center
+            bg-brand-500 text-theme-2xs font-bold text-white flex items-center justify-center
             shadow-theme-xs" translate="no">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
@@ -215,7 +215,7 @@ export default function NotificationPanel() {
                             <button
                               onClick={(e) => { e.stopPropagation(); setActionError(""); setContribution(""); setAcceptingId(n._id); }}
                               className="px-3 py-1 rounded-lg text-theme-xs font-semibold
-                                bg-brand-500 border border-brand-500 text-on-accent
+                                bg-brand-500 border border-brand-500 text-white
                                 hover:bg-brand-600 active:bg-brand-600 transition-colors"
                             >
                               {t("notifications.accept")}
@@ -242,23 +242,23 @@ export default function NotificationPanel() {
                                   no size below 42px; it has `sm` now, so this is
                                   the primitive. */}
                               <div className="relative flex-1">
-                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-muted text-theme-xs z-10">₹</span>
-                                <Input
-                                  size="sm"
-                                  className="pl-6"
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-subtle text-xs">₹</span>
+                                <input
                                   autoFocus
                                   value={contribution}
                                   onChange={(e) => setContribution(sanitizeAmount(e.target.value))}
                                   placeholder="0"
                                   inputMode="decimal"
-                                  aria-label={t("notifications.contributionLabel")}
+                                  className="w-full bg-white dark:bg-gray-900 border border-line-strong rounded-lg pl-6 pr-2.5 py-1.5
+                                    text-xs text-gray-800 dark:text-white/90 placeholder:text-gray-400 outline-none
+                                    focus:border-brand-300 focus:ring-2 focus:ring-brand-500/10 transition-all"
                                 />
                               </div>
                               <button
                                 onClick={() => handleAccept(inviteId)}
                                 disabled={isAccepting}
                                 className="px-3 py-1.5 rounded-lg text-theme-xs font-semibold
-                                  bg-brand-500 text-on-accent hover:bg-brand-600 active:bg-brand-600 disabled:opacity-40 transition-colors"
+                                  bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-600 disabled:opacity-40 transition-colors"
                               >
                                 {t("notifications.confirm")}
                               </button>
@@ -282,7 +282,7 @@ export default function NotificationPanel() {
                         onClick={(e) => { e.stopPropagation(); handleDelete(n._id); }}
                         aria-label={t("notifications.delete")}
                         className="shrink-0 -mt-0.5 -mr-1 w-6 h-6 flex items-center justify-center rounded-md
-                          text-fg-muted hover:text-error-600 hover:bg-error-500/10 dark:hover:text-error-400 transition-colors"
+                          text-fg-subtle hover:text-error-600 hover:bg-error-500/10 dark:hover:text-error-400 transition-colors"
                       >
                         <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
                           <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

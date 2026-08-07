@@ -53,7 +53,7 @@ const Header = () => {
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-skip-link
-          focus:px-3 focus:py-2 focus:rounded-lg focus:bg-brand-500 focus:text-on-accent focus:text-theme-sm focus:font-semibold focus:shadow-theme-md"
+          focus:px-3 focus:py-2 focus:rounded-lg focus:bg-brand-500 focus:text-white focus:text-theme-sm focus:font-semibold focus:shadow-theme-md"
       >
         {t("nav.skipToContent", "Skip to main content")}
       </a>
@@ -88,7 +88,7 @@ const Header = () => {
               className={`${iconButton} gap-2 pl-1 pr-2.5 py-1 ${open ? "text-fg" : ""}`}
             >
               <div className="w-[26px] h-[26px] rounded-md bg-gradient-to-br from-brand-500 to-brand-700
-                flex items-center justify-center text-theme-xs font-bold text-on-accent shadow-theme-xs">
+                flex items-center justify-center text-theme-xs font-bold text-white shadow-theme-xs">
                 <span translate="no">{initials}</span>
               </div>
               <span className="text-theme-xs font-medium max-w-[80px] truncate" translate="no">
@@ -114,7 +114,7 @@ const Header = () => {
                 <div className="px-3.5 py-3 border-b border-line">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700
-                      flex items-center justify-center text-theme-xs font-bold text-on-accent shrink-0">
+                      flex items-center justify-center text-theme-xs font-bold text-white shrink-0">
                       <span translate="no">{initials}</span>
                     </div>
                     <div className="min-w-0">
@@ -135,7 +135,7 @@ const Header = () => {
                     text-theme-xs font-medium text-fg-muted hover:text-fg hover:bg-surface-hover
                     active:text-fg active:bg-surface-hover transition-all duration-100 group">
                     <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"
-                      className="text-fg-muted group-hover:text-fg-muted transition-colors">
+                      className="text-fg-subtle group-hover:text-fg-muted transition-colors">
                       <circle cx="6.5" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.2" />
                       <path d="M1.5 11.5c0-2.761 2.239-4 5-4s5 1.239 5 4"
                         stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
@@ -152,7 +152,7 @@ const Header = () => {
                   >
                     <span className="flex items-center gap-2.5">
                       <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"
-                        className="text-fg-muted group-hover:text-fg-muted transition-colors">
+                        className="text-fg-subtle group-hover:text-fg-muted transition-colors">
                         <path d="M1.5 4.5h10M3 1.5h7a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0110 11.5H3A1.5 1.5 0 011.5 10V3A1.5 1.5 0 013 1.5z"
                           stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>

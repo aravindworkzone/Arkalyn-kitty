@@ -28,12 +28,10 @@
          order in src/hooks/useTheme.ts — an explicit stored choice wins,
          otherwise follow the OS.
 
-         Phase 6 turned on the two things phase 1 held back: `color-scheme` (so
-         scrollbars, form controls and the caret match) and the theme-color meta
-         (so mobile browser chrome matches). Both were unsafe while the screens
-         were still hardcoded dark; now that they follow the tokens, the chrome
-         and the page always agree. The values MUST track --surface in
-         src/index.css — light #f9fafb (gray-50), dark #080c14. -->
+         Deliberately does NOT touch `color-scheme` or the theme-color meta yet.
+         While the app's own styling is still hardcoded dark (pre-phase-5), an
+         OS-light visitor would otherwise get light scrollbars and a white
+         browser chrome around a dark page. Enable both in phase 6. -->
     <script>
       (function () {
         try {
@@ -42,9 +40,6 @@
             ? stored === 'dark'
             : window.matchMedia('(prefers-color-scheme: dark)').matches;
           document.documentElement.classList.toggle('dark', dark);
-          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-          var meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.setAttribute('content', dark ? '#080c14' : '#f9fafb');
         } catch (e) {
           /* Storage can throw in private/embedded contexts — fall through to
              whatever the markup already renders rather than breaking boot. */
