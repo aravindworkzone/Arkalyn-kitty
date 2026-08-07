@@ -1,4 +1,5 @@
 import { useState, useCallback, lazy, Suspense } from 'react'
+import { Analytics } from '@vercel/analytics/react';
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { Login, Registration } from './page/Authentication'
 import ForgotPasswordPage from './page/ForgotPasswordPage'
@@ -38,6 +39,7 @@ function App() {
   const location = useLocation()
 
   return (
+    <>
     <ErrorBoundary>
       <TopProgressBar />
       <UseSocket />
@@ -86,6 +88,8 @@ function App() {
       </Routes>
       </div>
     </ErrorBoundary>
+    <Analytics />
+    </>
   )
 }
 
