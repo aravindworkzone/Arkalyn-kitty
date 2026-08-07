@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Badge, Button, Card, DataList, DatePicker, FormField, Input, Label, Select } from "../../components/ui";
+import { ActionButton, Badge, Button, Card, Chip, ColorPicker, DataList, DatePicker, FormField, Input, Label, Select, Switch } from "../../components/ui";
 import type { BadgeTone, ButtonVariant, SelectOption } from "../../components/ui";
+import { CATEGORICAL } from "../../helpers/chartPalette";
 import useTheme from "../../hooks/useTheme";
 
 /**
@@ -51,6 +52,8 @@ export default function Showcase() {
     const [date, setDate] = useState("");
     const [rangeStart, setRangeStart] = useState("");
     const [listPage, setListPage] = useState(3);
+    const [switchOn, setSwitchOn] = useState(true);
+    const [swatch, setSwatch] = useState<string>(CATEGORICAL[0]);
 
     return (
         <div className="min-h-screen bg-surface px-6 py-10 text-fg">
@@ -260,6 +263,43 @@ export default function Showcase() {
                     </div>
                 </Section>
 
+                <Section title="Chip · Switch · ActionButton · ColorPicker">
+                    <Card>
+                        <div className="space-y-5">
+                            <div className="flex flex-wrap gap-2">
+                                <Chip selected>Selected</Chip>
+                                <Chip>Unselected</Chip>
+                                <Chip selected accentColor={CATEGORICAL[3]}>Category accent</Chip>
+                                <Chip accentColor={CATEGORICAL[3]}>Category, off</Chip>
+                                <Chip dashed>+ Add</Chip>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                                <Switch checked={switchOn} onChange={setSwitchOn} ariaLabel="Demo switch" />
+                                <span className="text-theme-sm text-fg-muted">
+                                    {switchOn ? "on" : "off"}
+                                </span>
+                                <Switch checked disabled onChange={() => {}} ariaLabel="Disabled switch" />
+                            </div>
+
+                            <div className="grid gap-2 sm:grid-cols-5">
+                                <ActionButton tone="brand">Brand</ActionButton>
+                                <ActionButton tone="success">Success</ActionButton>
+                                <ActionButton tone="warning">Warning</ActionButton>
+                                <ActionButton tone="error">Error</ActionButton>
+                                <ActionButton tone="neutral">Neutral</ActionButton>
+                            </div>
+
+                            <ColorPicker
+                                options={CATEGORICAL}
+                                value={swatch}
+                                onChange={setSwatch}
+                                customLabel="Custom colour"
+                            />
+                        </div>
+                    </Card>
+                </Section>
+
                 <Section title="Semantic surface tokens">
                     <Card padded={false}>
                         <div className="grid grid-cols-2 gap-px bg-line sm:grid-cols-3">
@@ -270,9 +310,14 @@ export default function Showcase() {
                                 ["bg-surface-hover", "bg-surface-hover"],
                                 ["text-fg", "bg-surface-raised text-fg"],
                                 ["text-fg-muted", "bg-surface-raised text-fg-muted"],
+                                // Still listed even though screens must not use
+                                // it for real text — placeholders do, and the
+                                // inventory has to stay complete.
                                 ["text-fg-subtle", "bg-surface-raised text-fg-subtle"],
                                 ["border-line", "bg-surface-raised"],
                                 ["border-line-strong", "bg-surface-raised"],
+                                ["bg-scrim", "bg-scrim text-on-accent"],
+                                ["text-on-accent", "bg-brand-500 text-on-accent"],
                             ].map(([name, cls]) => (
                                 <div key={name} className={`${cls} p-4 text-theme-xs`}>
                                     {name}

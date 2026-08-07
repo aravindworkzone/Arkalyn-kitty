@@ -5,13 +5,12 @@ import { cn } from "../../helpers/cn";
 /**
  * Light/dark switch for the header.
  *
- * GATING — read before making this unconditional. Most screens are still
- * hardcoded dark (`bg-[#080c14]`, `text-white/45`), so switching to light today
- * produces white-on-white content. Shipping a control that visibly breaks the
- * app is worse than not shipping it yet, so it renders in dev only. Phase 6
- * flips ENABLED to `true` once phase 5 has migrated the screens.
+ * This was DEV-gated through phases 1–5: every screen was still hardcoded dark,
+ * so switching to light produced white-on-white content. Phase 6 removed the
+ * gate once the migration landed and the mechanical checks came back clean, so
+ * it now ships to everyone. If a screen ever regresses to hardcoded colours the
+ * fix is that screen, not re-gating this.
  */
-const ENABLED = import.meta.env.DEV;
 
 interface ThemeToggleProps {
     className?: string;
@@ -20,8 +19,6 @@ interface ThemeToggleProps {
 export default function ThemeToggle({ className }: ThemeToggleProps) {
     const { isDark, toggle } = useTheme();
     const { t } = useTranslation();
-
-    if (!ENABLED) return null;
 
     return (
         <button

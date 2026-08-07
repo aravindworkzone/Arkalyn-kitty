@@ -16,16 +16,27 @@ import { cn } from "../../helpers/cn";
  * is narrower than the shared surface scale. One primitive, one place.
  */
 
+export type InputSize = "sm" | "md";
+
 interface InputProps extends Omit<ComponentPropsWithRef<"input">, "size"> {
     /** Force the invalid style. Inside a FormField the error state is inherited. */
     invalid?: boolean;
     /** Skip the leading-space strip / trim-on-blur (machine-format values). */
     rawValue?: boolean;
+    /** `sm` is the compact inline variant — narrow amount fields inside a list
+     *  row, where the default 42px control is taller than the row itself. */
+    size?: InputSize;
 }
+
+const sizeClass: Record<InputSize, string> = {
+    sm: "px-2.5 py-1.5 text-theme-xs",
+    md: "px-4 py-2.5 text-theme-sm",
+};
 
 export default function Input({
     invalid,
     rawValue = false,
+    size = "md",
     className,
     onChange,
     onBlur,
@@ -68,7 +79,8 @@ export default function Input({
             onChange={handleChange}
             onBlur={handleBlur}
             className={cn(
-                "w-full rounded-lg border px-4 py-2.5 text-theme-sm shadow-theme-xs transition",
+                "w-full rounded-lg border shadow-theme-xs transition",
+                sizeClass[size],
                 "bg-white text-gray-800 placeholder:text-gray-400",
                 "dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-gray-500",
                 "focus:outline-none focus:ring-2",
