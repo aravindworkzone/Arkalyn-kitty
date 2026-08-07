@@ -39,8 +39,8 @@ export default function MobileNav() {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 pb-safe
-        bg-[#080c14]/90 backdrop-blur-xl border-t border-white/[0.08]"
+      className="md:hidden fixed bottom-0 inset-x-0 z-bottom-nav pb-safe
+        bg-surface/90 backdrop-blur-xl border-t border-line"
       aria-label="Primary navigation"
     >
       <div className="grid grid-cols-3 h-14">
@@ -97,11 +97,13 @@ interface NavItemProps {
 }
 
 function NavItem({ label, active, onClick, icon, highlight, disabled }: NavItemProps) {
+  // The middle "add" action is the primary one, so it carries brand colour at
+  // rest; the side tabs only take it once active.
   const color = disabled
-    ? "text-white/15"
+    ? "text-fg-subtle opacity-50"
     : active
-      ? highlight ? "text-violet-300" : "text-cyan-300"
-      : highlight ? "text-violet-400/80" : "text-white/45";
+      ? "text-brand-500 dark:text-brand-400"
+      : highlight ? "text-brand-500/80 dark:text-brand-400/80" : "text-fg-muted";
 
   return (
     <button
@@ -109,10 +111,10 @@ function NavItem({ label, active, onClick, icon, highlight, disabled }: NavItemP
       onClick={onClick}
       disabled={disabled}
       className={`flex flex-col items-center justify-center gap-0.5 min-h-touch transition-colors
-        ${color} ${disabled ? "" : "active:bg-white/[0.04]"}`}
+        ${color} ${disabled ? "" : "active:bg-surface-hover"}`}
     >
       <span aria-hidden="true">{icon}</span>
-      <span className="text-[10px] font-semibold leading-none truncate max-w-[80px] px-1">{label}</span>
+      <span className="text-theme-xs font-semibold leading-none truncate max-w-[80px] px-1">{label}</span>
     </button>
   );
 }

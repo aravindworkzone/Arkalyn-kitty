@@ -1,5 +1,195 @@
 @import 'tailwindcss';
 
+/* ==========================================================================
+   DESIGN TOKENS — the foundation every component inherits from.
+   Source of truth: UI_PROMPT.md at the repo root.
+
+   This project is Tailwind 4, which is CSS-first: there is NO tailwind.config.js
+   and adding one would be silently ignored. UI_PROMPT's `theme.extend` block
+   maps onto the `@theme` rules below.
+   ========================================================================== */
+
+/* Tailwind 4's `dark:` variant defaults to the prefers-color-scheme media query.
+   UI_PROMPT specifies a class-based toggle, so re-point the variant at a `.dark`
+   class on <html>. The theme bootstrap in index.html sets that class before
+   first paint; hooks/useTheme.ts owns it thereafter. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* --- Type ------------------------------------------------------------- */
+  --font-sans: 'Outfit Variable', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* Custom text scale. Tailwind's own text-xs..text-9xl stay available; these
+     are the named steps the design system actually specifies. */
+  --text-title-md: 36px;
+  --text-title-md--line-height: 44px;
+  --text-title-sm: 30px;
+  --text-title-sm--line-height: 38px;
+  --text-theme-xl: 20px;
+  --text-theme-xl--line-height: 30px;
+  --text-theme-sm: 14px;
+  --text-theme-sm--line-height: 20px;
+  --text-theme-xs: 12px;
+  --text-theme-xs--line-height: 18px;
+  /* Beyond UI_PROMPT's scale. Count bubbles and status chips genuinely need to
+     sit under 12px; without this they get written as arbitrary text-[9px] /
+     text-[10px], which is what the scale exists to prevent. */
+  --text-theme-2xs: 10px;
+  --text-theme-2xs--line-height: 14px;
+
+  /* --- Brand ------------------------------------------------------------ */
+  --color-brand-25: #f2f7ff;
+  --color-brand-50: #ecf3ff;
+  --color-brand-100: #dde9ff;
+  --color-brand-200: #c2d6ff;
+  --color-brand-300: #9cb9ff;
+  --color-brand-400: #7592ff;
+  --color-brand-500: #465fff;
+  --color-brand-600: #3641f5;
+  --color-brand-700: #2a31d8;
+  --color-brand-800: #252dae;
+  --color-brand-900: #262e89;
+  --color-brand-950: #161950;
+
+  /* --- Gray (overrides Tailwind's default gray shades) ------------------- */
+  --color-gray-25: #fcfcfd;
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f2f4f7;
+  --color-gray-200: #e4e7ec;
+  --color-gray-300: #d0d5dd;
+  --color-gray-400: #98a2b3;
+  --color-gray-500: #667085;
+  --color-gray-600: #475467;
+  --color-gray-700: #344054;
+  --color-gray-800: #1d2939;
+  --color-gray-900: #101828;
+  --color-gray-950: #0c111d;
+  --color-gray-dark: #1a2231;
+
+  /* --- Success / Warning / Error ---------------------------------------- */
+  --color-success-25: #f6fef9;
+  --color-success-50: #ecfdf3;
+  --color-success-100: #d1fadf;
+  --color-success-200: #a6f4c5;
+  --color-success-300: #6ce9a6;
+  --color-success-400: #32d583;
+  --color-success-500: #12b76a;
+  --color-success-600: #039855;
+  --color-success-700: #027a48;
+  --color-success-800: #05603a;
+  --color-success-900: #054f31;
+  --color-success-950: #053321;
+
+  --color-warning-25: #fffcf5;
+  --color-warning-50: #fffaeb;
+  --color-warning-100: #fef0c7;
+  --color-warning-200: #fedf89;
+  --color-warning-300: #fec84b;
+  --color-warning-400: #fdb022;
+  --color-warning-500: #f79009;
+  --color-warning-600: #dc6803;
+  --color-warning-700: #b54708;
+  --color-warning-800: #93370d;
+  --color-warning-900: #7a2e0e;
+  --color-warning-950: #4e1d09;
+
+  --color-error-25: #fffbfa;
+  --color-error-50: #fef3f2;
+  --color-error-100: #fee4e2;
+  --color-error-200: #fecdca;
+  --color-error-300: #fda29b;
+  --color-error-400: #f97066;
+  --color-error-500: #f04438;
+  --color-error-600: #d92d20;
+  --color-error-700: #b42318;
+  --color-error-800: #912018;
+  --color-error-900: #7a271a;
+  --color-error-950: #55160c;
+
+  --color-blue-light-500: #0ba5ec;
+  --color-blue-light-600: #0086c9;
+
+  /* --- Shadows (soft/neutral; the only colored one is the focus ring) ---- */
+  --shadow-theme-xs: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
+  --shadow-theme-sm: 0px 1px 3px 0px rgba(16, 24, 40, 0.1),
+    0px 1px 2px 0px rgba(16, 24, 40, 0.06);
+  --shadow-theme-md: 0px 4px 8px -2px rgba(16, 24, 40, 0.1),
+    0px 2px 4px -2px rgba(16, 24, 40, 0.06);
+  --shadow-focus-ring: 0px 0px 0px 4px rgba(70, 95, 255, 0.12);
+
+  /* --- Breakpoints ------------------------------------------------------
+     sm/md/lg/xl/2xl already match Tailwind's defaults; these are additions. */
+  --breakpoint-2xsm: 375px;
+  --breakpoint-xsm: 425px;
+  --breakpoint-3xl: 2000px;
+}
+
+/* --------------------------------------------------------------------------
+   SEMANTIC ALIASES
+
+   `@theme inline` (not plain `@theme`) is required here. Plain @theme resolves
+   `var(--surface)` once, in :root, so a `.dark` override would never be seen.
+   `inline` substitutes the reference into the utility itself, so it resolves at
+   the element and the .dark override wins.
+
+   Prefer these over hand-writing `bg-white dark:bg-gray-dark` pairs — one class
+   instead of two, and the light/dark mapping stays in one place. Reach for the
+   raw scales above when a color is genuinely fixed across themes.
+   -------------------------------------------------------------------------- */
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-hover: var(--surface-hover);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+}
+
+:root {
+  --surface: #f9fafb; /* gray-50  — page background */
+  --surface-raised: #ffffff; /* cards, panels               */
+  --surface-overlay: #ffffff; /* dropdowns, modals, sheets   */
+  --surface-hover: #f2f4f7; /* gray-100 — hover/active fill */
+  --line: #e4e7ec; /* gray-200 */
+  --line-strong: #d0d5dd; /* gray-300 — inputs, dividers  */
+  --fg: #344054; /* gray-700 — body text          */
+  --fg-muted: #667085; /* gray-500 — secondary          */
+  /* Decorative only — 2.58:1 on white, below AA. Never use for text that
+     carries information (hints, errors, values); reach for fg-muted there. */
+  --fg-subtle: #98a2b3; /* gray-400 — placeholders       */
+}
+
+.dark {
+  /* Deliberately the app's established canvas, NOT gray-900. UI_PROMPT pins the
+     sidebar (black) and cards (white/3%) but never specifies a page background,
+     so this is free — and choosing #080c14 means the tokenised shell sits flush
+     on the screens that haven't been migrated yet, and `surface-raised` lands
+     exactly on the `bg-white/[0.03]` those screens already use. */
+  --surface: #080c14;
+  /* Cards are a ~3% white overlay, never a flat dark fill — UI_PROMPT is
+     explicit about this. Overlays (dropdowns/modals) must stay opaque, so they
+     use gray-dark instead of an alpha wash. */
+  --surface-raised: rgba(255, 255, 255, 0.03);
+  --surface-overlay: #1a2231; /* gray-dark */
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --line: #1d2939; /* gray-800 */
+  --line-strong: #344054; /* gray-700 */
+  /* gray-300, per UI_PROMPT's base body pair (gray-700 / gray-300). Inputs use
+     a brighter white/90 in dark, but that is specific to .form-input and lives
+     in the Input primitive, not in the shared body-text token. */
+  --fg: #d0d5dd;
+  --fg-muted: #98a2b3; /* gray-400 */
+  --fg-subtle: #667085; /* gray-500 */
+}
+
+/* ==========================================================================
+   BASE
+   ========================================================================== */
+
 /* Global guard against horizontal overflow on small screens. Scoped to <body>
    ONLY (never <html>): while the root element's overflow stays `visible`, the
    body's overflow propagates to the viewport — that prevents sideways scroll
@@ -7,8 +197,13 @@
    Putting overflow on <html> would make <html> the propagating root and
    silently disable that lock. `clip` (not `hidden`) avoids creating a scroll
    container, so the sticky header keeps working. */
+/* Typeface only. Deliberately NOT setting a base font-size here: dropping the
+   root to theme-sm (14px) would silently shrink every element that doesn't
+   carry an explicit size class. Components opt into `text-theme-sm` from
+   phase 2 onward instead. */
 body {
   overflow-x: clip;
+  font-family: var(--font-sans);
 }
 
 @keyframes fadeSlideIn {
@@ -44,6 +239,29 @@ body {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+
+/* ==========================================================================
+   Z-INDEX SCALE
+
+   One documented ladder, replacing the ad-hoc z-10/20/30/40/50/[60]/[100]/[999]
+   spread. The numbers matter far less than the ordering being written down
+   once; UI_PROMPT's literal 9999/99999/999999 buys nothing here.
+
+   Careful when changing these: the header is `sticky` WITH a z-index, so it
+   forms a stacking context and its dropdowns are trapped inside it — a child's
+   z-index cannot lift it above a sibling of the header. That is why dropdowns
+   and modals currently coexist at 50 without visibly fighting.
+
+   Applied to the shell in phase 3. Screens and modals still use raw z-*
+   utilities; phase 5 migrates them onto this scale.
+   ========================================================================== */
+@utility z-sticky     { z-index: 20; }  /* in-page sticky sub-headers, filters */
+@utility z-header     { z-index: 30; }  /* app header                          */
+@utility z-bottom-nav { z-index: 40; }  /* fixed mobile nav                    */
+@utility z-dropdown   { z-index: 50; }  /* menus, popovers, notification panel */
+@utility z-modal      { z-index: 60; }  /* dialogs, bottom sheets, backdrops   */
+@utility z-toast      { z-index: 70; }  /* progress bar, transient messages    */
+@utility z-skip-link  { z-index: 80; }  /* must beat everything when focused   */
 
 @layer utilities {
   .pb-safe   { padding-bottom: max(env(safe-area-inset-bottom), 0px); }

@@ -7,11 +7,16 @@ export const INPUT_CLASS_LG =
 export const FIELD_LABEL =
   "block text-[10px] font-semibold text-white/40 mb-2 uppercase tracking-widest";
 
-// Makes a native <input type="date"> blend with the dark UI: `color-scheme: dark`
-// gives the picker popup a dark theme and lightens the calendar icon; the rest
-// tints the icon and makes it feel interactive.
+// Makes a native <input type="date"> blend in: `color-scheme` gives the picker
+// popup and the calendar glyph the right theme; the rest tints the icon and
+// makes it feel interactive.
+//
+// Was pinned to `[color-scheme:dark]` unconditionally. Now follows the theme,
+// so the two remaining legacy date inputs (CreateExpense, CategoryReportPage)
+// behave correctly once phase 5 migrates their screens. No visible change
+// today — dark still resolves to dark.
 export const DATE_INPUT_EXTRA =
-  "[color-scheme:dark] " +
+  "[color-scheme:light] dark:[color-scheme:dark] " +
   "[&::-webkit-calendar-picker-indicator]:cursor-pointer " +
   "[&::-webkit-calendar-picker-indicator]:opacity-50 " +
   "[&::-webkit-calendar-picker-indicator]:transition-opacity " +

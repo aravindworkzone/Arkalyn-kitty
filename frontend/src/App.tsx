@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, lazy, Suspense } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { Login, Registration } from './page/Authentication'
 import ForgotPasswordPage from './page/ForgotPasswordPage'
@@ -25,6 +25,11 @@ import NotFoundPage from './page/NotFoundPage'
 import ShortcutHelp from './components/ShortcutHelp'
 import UseSocket from './hooks/socket'
 import useGlobalShortcuts from './hooks/useGlobalShortcuts'
+
+// Design-system isolation harness. `import.meta.env.DEV` is statically replaced
+// at build time, so the whole branch — and the dynamic import with it — is
+// dead-code-eliminated from the production bundle.
+const Showcase = import.meta.env.DEV ? lazy(() => import('./page/dev/Showcase')) : null
 
 function App() {
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
@@ -65,6 +70,17 @@ function App() {
             <Route path="/admin" element={<AdminDashboard />} />
           </Route>
         </Route>
+
+        {Showcase && (
+          <Route
+            path="/dev/showcase"
+            element={
+              <Suspense fallback={null}>
+                <Showcase />
+              </Suspense>
+            }
+          />
+        )}
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

@@ -14,12 +14,12 @@ export default function LanguageToggle() {
     <button
       onClick={toggle}
       title={isTamil ? "Switch to English" : "தமிழுக்கு மாறுக"}
-      className="flex items-center gap-1 px-2.5 py-1 rounded-lg
-        bg-white/[0.04] border border-white/[0.07]
-        hover:bg-white/[0.08] hover:border-white/[0.12]
-        active:scale-[0.95] transition-all duration-150"
+      className="flex h-8 items-center gap-1 px-2.5 rounded-lg
+        bg-surface-hover border border-line text-fg-muted
+        hover:text-fg active:scale-[0.95] transition-all duration-150
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
     >
-      <span className="text-[11px] font-semibold text-white/55">
+      <span className="text-theme-xs font-semibold">
         {isTamil ? "EN" : "தமிழ்"}
       </span>
     </button>
