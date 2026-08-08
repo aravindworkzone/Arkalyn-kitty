@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header";
 import { useGetCategoriesQuery, useGetCreditCategoriesQuery } from "../redux/api/category";
@@ -130,7 +130,7 @@ export default function CreateExpensePage() {
     if (dupData.tier === 2 && dupData.match && categoryId) {
       setDupModalOpen(true);
     }
-  }, [dupData]);
+  }, [dupData, categoryId]);
 
   const handleDupConfirm = () => {
     setDupModalOpen(false);
