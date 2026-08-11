@@ -28,7 +28,7 @@ type Member = { name: string; initials: string; avatar: string };
 
 const MEMBERS: Member[] = [
   { name: "Aravind", initials: "A", avatar: "bg-brand-500" },
-  { name: "Priyamvatha", initials: "H", avatar: "bg-success-500" },
+  { name: "Priyamvatha", initials: "P", avatar: "bg-success-500" },
   { name: "Karthik", initials: "K", avatar: "bg-warning-500" },
 ];
 
