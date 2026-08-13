@@ -17,6 +17,11 @@ export interface ICategory extends Document {
     // the per-member paid/spent breakdown and surfaced as their own bucket.
     // Expense-only concept.
     isSpecial?: boolean;
+    // Optional soft spend cap for the whole group, in cents — the same unit the
+    // expense `amount` is stored in. It is a lifetime total for this category
+    // (not per month) and purely advisory: crossing it warns, never blocks.
+    // `null` = no limit. Expense-only concept.
+    limitCents?: number | null;
     isDeleted?: boolean;
     createdAt?: Date;
     updatedAt?: Date;
@@ -28,6 +33,7 @@ const categorySchema = new Schema<ICategory>({
     color: { type: String, default: "#f97316" },
     type: { type: String, enum: CATEGORY_TYPES, default: "EXPENSE" },
     isSpecial: { type: Boolean, default: false },
+    limitCents: { type: Number, default: null, min: 0 },
     isDeleted: { type: Boolean, default: false }
 }, {timestamps: true});
 

@@ -8,6 +8,11 @@ export interface CategoryBreakdownRow {
     totalCents: number;
     expenseCount: number;
     sharePct: number;
+    // Soft spend cap and the group's lifetime spend against it. The cap is a
+    // running total for the group, so lifetimeSpentCents ignores the report's
+    // date range (unlike totalCents above). Both null when no cap is set.
+    limitCents: number | null;
+    lifetimeSpentCents: number | null;
 }
 
 export interface CategoryBreakdown {

@@ -8,18 +8,21 @@ export type CategoryField = "name";
 
 export const useCategoryHandlers = (groupId: string | undefined, type: CategoryType = "EXPENSE") => {
   const [createCategory, { isLoading: isCreating }] = useCreateCategoryMutation();
-  const [updateCategory, { isLoading: isUpdatingColor }] = useUpdateCategoryMutation();
+  const [updateCategory, { isLoading: isUpdating }] = useUpdateCategoryMutation();
   const [deleteCategory, { isLoading: isDeleting }] = useDeleteCategoryMutation();
 
   const handleAdd = async (
     name: string,
     color: string,
+    // Soft spend cap in cents; null = no limit.
+    limitCents: number | null,
     categories: Category[],
     setFieldError: SetFieldError<CategoryField>,
     setApiError:   React.Dispatch<React.SetStateAction<string>>,
     setCategories: React.Dispatch<React.SetStateAction<Category[]>>,
     setName:       React.Dispatch<React.SetStateAction<string>>,
     setColor:      React.Dispatch<React.SetStateAction<string>>,
+    setLimit:      React.Dispatch<React.SetStateAction<string>>,
     defaultColor:  string
   ) => {
     const nameV = validateCategoryName(name);
@@ -37,8 +40,11 @@ export const useCategoryHandlers = (groupId: string | undefined, type: CategoryT
 
     if (!groupId) { setApiError("No group selected"); return; }
 
+    // Only expense categories carry a spend limit.
+    const limit = type === "CREDIT" ? null : limitCents;
+
     try {
-      await createCategory({ name: cleanName, groupId, color, type }).unwrap();
+      await createCategory({ name: cleanName, groupId, color, type, limitCents: limit }).unwrap();
     } catch (error: unknown) {
       setApiError(getApiErrorMessage(error, "Failed to create category"));
       return;
@@ -46,29 +52,49 @@ export const useCategoryHandlers = (groupId: string | undefined, type: CategoryT
 
     setCategories((prev) => [
       ...prev,
-      { _id: Date.now().toString(), name: cleanName, color, type, expenseCount: 0 },
+      { _id: Date.now().toString(), name: cleanName, color, type, expenseCount: 0, limitCents: limit, spentCents: 0 },
     ]);
     setName("");
     setColor(defaultColor);
+    setLimit("");
   };
 
-  const handleChangeColor = async (
+  // Saves the inline row editor — colour and/or spend limit in one request.
+  // `limitCents` of null clears the limit; undefined leaves it untouched.
+  const handleEditCategory = async (
     category: Category,
-    color: string,
+    edits: { color?: string; limitCents?: number | null },
     setApiError:   React.Dispatch<React.SetStateAction<string>>,
     setCategories: React.Dispatch<React.SetStateAction<Category[]>>,
     onDone:        () => void
   ) => {
     if (!groupId) { setApiError("No group selected"); return; }
-    // No-op when the colour is unchanged.
-    if (color === category.color) { onDone(); return; }
+
+    const color = edits.color !== undefined && edits.color !== category.color ? edits.color : undefined;
+    const limitCents =
+      edits.limitCents !== undefined && edits.limitCents !== (category.limitCents ?? null)
+        ? edits.limitCents
+        : undefined;
+
+    // No-op when nothing actually changed.
+    if (color === undefined && limitCents === undefined) { onDone(); return; }
 
     try {
-      await updateCategory({ id: category._id, groupId, color }).unwrap();
-      setCategories((prev) => prev.map((c) => (c._id === category._id ? { ...c, color } : c)));
+      await updateCategory({ id: category._id, groupId, color, limitCents }).unwrap();
+      setCategories((prev) =>
+        prev.map((c) =>
+          c._id === category._id
+            ? {
+                ...c,
+                ...(color !== undefined ? { color } : {}),
+                ...(limitCents !== undefined ? { limitCents } : {}),
+              }
+            : c
+        )
+      );
       onDone();
     } catch (error: unknown) {
-      setApiError(getApiErrorMessage(error, "Failed to update colour"));
+      setApiError(getApiErrorMessage(error, "Failed to update category"));
     }
   };
 
@@ -107,5 +133,5 @@ export const useCategoryHandlers = (groupId: string | undefined, type: CategoryT
     }
   };
 
-  return { handleAdd, handleChangeColor, handleToggleSpecial, handleDelete, isCreating, isUpdatingColor, isDeleting };
+  return { handleAdd, handleEditCategory, handleToggleSpecial, handleDelete, isCreating, isUpdating, isDeleting };
 };

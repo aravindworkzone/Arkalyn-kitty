@@ -38,16 +38,26 @@ export const getOrCreateOtherCreditCategory = async (
     return category;
 };
 
+// A spend limit only means something on the expense side, and 0 is how the
+// client says "no limit" — normalise both to null.
+const normaliseLimit = (limitCents: number | null | undefined, type: CategoryType) => {
+    if (limitCents === undefined) return undefined;
+    if (type === 'CREDIT') return null;
+    return limitCents && limitCents > 0 ? Math.round(limitCents) : null;
+};
+
 export const createCategoryService = async (data: {
     name: string;
     groupId: mongoose.Types.ObjectId;
     userId: mongoose.Types.ObjectId;
     color?: string;
     type?: CategoryType;
+    limitCents?: number | null;
 }) => {
     const { groupId, userId, name, color } = data;
     const type: CategoryType = data.type === 'CREDIT' ? 'CREDIT' : 'EXPENSE';
     const typeFilter = type === 'CREDIT' ? { type: 'CREDIT' } : EXPENSE_CATEGORY_FILTER;
+    const limitCents = normaliseLimit(data.limitCents, type) ?? null;
 
     // Collapse internal whitespace so "test  name" and "test name" can't both
     // exist — the { groupId, type, name } unique index only catches exact matches.
@@ -70,7 +80,7 @@ export const createCategoryService = async (data: {
             `This group has reached its ${ownerPlan.config.name}-plan category limit (${ownerPlan.limits.maxCategoriesPerGroup}). The group owner can upgrade to add more.`
         );
 
-        const categorySave = new Category({ name: cleanName, groupId, color, type });
+        const categorySave = new Category({ name: cleanName, groupId, color, type, limitCents });
         await categorySave.save({ session });
 
         const event = await GroupEvent.create(
@@ -78,7 +88,12 @@ export const createCategoryService = async (data: {
                 groupId,
                 performedBy: userId,
                 eventType: "MANAGE_CATEGORY",
-                metadata: { userId, note: `Created category: ${cleanName}` },
+                metadata: {
+                    userId,
+                    note: limitCents
+                        ? `Created category: ${cleanName} (limit ₹${limitCents / 100})`
+                        : `Created category: ${cleanName}`,
+                },
                 referenceId: categorySave._id,
                 referenceModel: "Category",
             }],
@@ -101,6 +116,7 @@ export const updateCategoryService = async (data: {
     userId: mongoose.Types.ObjectId;
     color?: string;
     isSpecial?: boolean;
+    limitCents?: number | null;
 }) => {
     const { categoryId, groupId, userId, color, isSpecial } = data;
 
@@ -119,6 +135,15 @@ export const updateCategoryService = async (data: {
         if (isSpecial !== undefined && isSpecial !== Boolean(category.isSpecial)) {
             changes.push(isSpecial ? "marked collective" : "unmarked collective");
             category.isSpecial = isSpecial;
+        }
+        const limitCents = normaliseLimit(data.limitCents, (category.type ?? 'EXPENSE') as CategoryType);
+        if (limitCents !== undefined && limitCents !== (category.limitCents ?? null)) {
+            changes.push(
+                limitCents === null
+                    ? 'removed spend limit'
+                    : `spend limit → ₹${limitCents / 100}`
+            );
+            category.limitCents = limitCents;
         }
 
         await category.save({ session });
@@ -194,7 +219,7 @@ export const getCategoryDetailsService = async (
     const typeFilter = isCredit ? { type: 'CREDIT' } : EXPENSE_CATEGORY_FILTER;
 
     const categories = await Category.find({ groupId, ...typeFilter, isDeleted: false })
-        .select('_id name color isSpecial type')
+        .select('_id name color isSpecial type limitCents')
         .sort({ createdAt: -1 })
         .lean();
 
@@ -202,6 +227,9 @@ export const getCategoryDetailsService = async (
 
     // Usage count = expenses (EXPENSE) or credit transactions (CREDIT) that
     // reference the category. Drives the delete-blocked state on the client.
+    // The expense side also totals the spend so the client can show it against
+    // the category's limit — aggregation skips Mongoose getters, so the sum is
+    // genuinely in cents.
     const counts = isCredit
         ? await GroupTransaction.aggregate([
               { $match: { category: { $in: ids }, action: 'CREDIT', isDeleted: false } },
@@ -209,11 +237,14 @@ export const getCategoryDetailsService = async (
           ])
         : await Expense.aggregate([
               { $match: { category: { $in: ids }, isDeleted: false } },
-              { $group: { _id: '$category', count: { $sum: 1 } } },
+              { $group: { _id: '$category', count: { $sum: 1 }, spentCents: { $sum: '$amount' } } },
           ]);
 
     const countMap = new Map<string, number>(
         counts.map((c) => [c._id.toString(), c.count])
+    );
+    const spentMap = new Map<string, number>(
+        counts.map((c) => [c._id.toString(), c.spentCents ?? 0])
     );
 
     return categories
@@ -226,6 +257,10 @@ export const getCategoryDetailsService = async (
             // `expenseCount` is the generic usage count (credits, for credit
             // categories) — kept under this name so the client stays uniform.
             expenseCount: countMap.get(c._id.toString()) ?? 0,
+            // Lifetime spend in this category, against the optional soft limit.
+            // Credit categories carry neither.
+            spentCents: isCredit ? 0 : spentMap.get(c._id.toString()) ?? 0,
+            limitCents: isCredit ? null : c.limitCents ?? null,
         }))
         .sort((a, b) => b.expenseCount - a.expenseCount);
 };

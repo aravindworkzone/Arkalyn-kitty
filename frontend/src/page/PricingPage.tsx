@@ -70,7 +70,7 @@ const featureLines = (tier: PlanTier, cfg: PlanConfig): string[] => {
         `${fmtLimit(l.maxCategoriesPerGroup)} categories per group`,
         `${fmtDays(l.transactionLogRetentionDays)} transaction history`,
         `${fmtDays(l.eventLogRetentionDays)} activity history`,
-        cfg.features.advancedReportRange ? 'All-time & custom reports' : 'This & last month reports',
+        cfg.features.advancedReportRange ? 'Custom-range reports' : 'Month & all-time reports',
     ];
     if (cfg.features.cloneGroup) lines.push('Clone groups in one click');
     if (tier === 'PREMIUM') lines.push('Everything unlimited');

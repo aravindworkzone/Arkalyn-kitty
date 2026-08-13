@@ -353,7 +353,12 @@
     "left": "₹{{amount}} left",
     "over": "₹{{amount}} over",
     "save": "Save Expense",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "limitFor": "{{name}} limit",
+    "limitIncludesThis": "Includes this {{amount}} · {{spent}} spent so far",
+    "overLimitHeading": "Over the {{name}} limit",
+    "overLimitLine": "This takes {{name}} to {{projected}} against a {{limit}} limit — {{over}} over.",
+    "overLimitHint": "You can still save it — this is only a heads-up."
   },
   "createCategory": {
     "back": "Back",
@@ -386,7 +391,14 @@
     "creditCount_one": "{{count}} credit",
     "creditCount_other": "{{count}} credits",
     "noCredits": "No credits",
-    "hasActiveCredits": "Has credits — remove them first"
+    "hasActiveCredits": "Has credits — remove them first",
+    "limitLabel": "Spend limit",
+    "optional": "Optional",
+    "limitPlaceholder": "e.g. 1500",
+    "limitHint": "Total for this group. Crossing it only shows a warning — expenses are never blocked.",
+    "limitClearHint": "Leave empty for no limit",
+    "editCategory": "Edit colour & spend limit",
+    "saveChanges": "Save"
   },
   "allExpenses": {
     "label": "All Expenses",
@@ -567,7 +579,24 @@
     "emptyHint": "Widen the range or add an expense to see the breakdown.",
     "collective": "Shared / collective",
     "collectiveHint": "Collective — not split per member",
-    "errorLoading": "Couldn't load the report. Try again."
+    "errorLoading": "Couldn't load the report. Try again.",
+    "limitLabel": "All-time vs limit"
+  },
+  "reports": {
+    "label": "Insights",
+    "title": "Spending Reports",
+    "description": "See how your group spends — by category, by member, and over time.",
+    "upgradeRange": "Custom date ranges need Pro",
+    "tab": {
+      "category": "Category",
+      "member": "By member",
+      "trend": "Trend"
+    },
+    "granularity": {
+      "day": "Daily",
+      "week": "Weekly",
+      "month": "Monthly"
+    }
   },
   "profile": {
     "title": "Profile",
@@ -695,5 +724,10 @@
     "reinviteLabel": "Send them a fresh invite",
     "reinviteHint": "They'll get a new invitation and can accept again with a different contribution.",
     "reinviteFailed": "Declined, but the new invite couldn't be sent"
+  },
+  "categoryLimit": {
+    "left": "{{amount}} left",
+    "over": "Over by {{amount}}",
+    "progressLabel": "Spend against limit"
   }
 }

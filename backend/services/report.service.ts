@@ -30,6 +30,7 @@ const resolveRange = (
         return { start, end, preset: 'last_month' };
     }
     if (effective === 'all_time') {
+        console.log('Start:', groupCreatedAt, 'End:', now, 'Preset:', effective);
         return { start: groupCreatedAt, end: now, preset: 'all_time' };
     }
     return {
@@ -47,6 +48,12 @@ interface CategoryRow {
     totalCents: number;
     expenseCount: number;
     sharePct: number;
+    // Optional soft spend cap, and the group's lifetime spend measured against
+    // it. The cap is a running total for the whole group, so it is deliberately
+    // NOT scoped to the report's date range — `totalCents` above is. Both are
+    // null when the category has no cap: there is nothing to measure against.
+    limitCents: number | null;
+    lifetimeSpentCents: number | null;
 }
 
 export interface CategoryBreakdownResult {
@@ -64,12 +71,12 @@ interface AggRow {
 
 export const categoryBreakdownService = async (data: {
     groupId: mongoose.Types.ObjectId;
-    groupCreatedAt: Date;
     preset?: ReportPreset;
     startDate?: string;
     endDate?: string;
 }): Promise<CategoryBreakdownResult> => {
-    const range = resolveRange(data.preset, data.startDate, data.endDate, data.groupCreatedAt);
+    const firstTrascation = await Expense.findOne({ groupId: data.groupId, isDeleted: false, date: { $lte: new Date() } }).sort({ date: 1 }).lean();
+    const range = resolveRange(data.preset, data.startDate, data.endDate, firstTrascation?.date ?? new Date());
 
     const agg = await Expense.aggregate<AggRow>([
         {
@@ -105,10 +112,28 @@ export const categoryBreakdownService = async (data: {
 
     const categories = await Category
         .find({ _id: { $in: agg.map((r) => r._id) } })
-        .select('_id name color isDeleted')
+        .select('_id name color isDeleted limitCents')
         .lean();
 
     const catMap = new Map(categories.map((c) => [String(c._id), c]));
+
+    // Categories carrying a limit need their all-time total, not the in-range
+    // one — the cap counts every expense the group ever logged there. Skipped
+    // entirely when nothing in this range has a limit.
+    const limitedIds = categories.filter((c) => c.limitCents).map((c) => c._id);
+    const lifetimeAgg = limitedIds.length
+        ? await Expense.aggregate<{ _id: mongoose.Types.ObjectId; totalCents: number }>([
+              {
+                  $match: {
+                      groupId: data.groupId,
+                      isDeleted: false,
+                      category: { $in: limitedIds },
+                  },
+              },
+              { $group: { _id: '$category', totalCents: { $sum: '$amount' } } },
+          ])
+        : [];
+    const lifetimeMap = new Map(lifetimeAgg.map((r) => [String(r._id), r.totalCents]));
 
     const totalSpendCents = agg.reduce((s, r) => s + r.totalCents, 0);
     const expenseCount = agg.reduce((s, r) => s + r.expenseCount, 0);
@@ -123,6 +148,10 @@ export const categoryBreakdownService = async (data: {
             totalCents: r.totalCents,
             expenseCount: r.expenseCount,
             sharePct: Math.round((r.totalCents / totalSpendCents) * 1000) / 10,
+            limitCents: cat?.limitCents ?? null,
+            // Every category in this list has spend in range, so a capped one
+            // always has a lifetime total — the fallback is belt-and-braces.
+            lifetimeSpentCents: cat?.limitCents ? lifetimeMap.get(String(r._id)) ?? r.totalCents : null,
         };
     });
 

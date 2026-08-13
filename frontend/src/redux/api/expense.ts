@@ -45,8 +45,12 @@ export const expense = api.injectEndpoints({
                 method: 'POST',
                 body: credentials
             }),
+            // Category is invalidated too: the category list carries each
+            // category's usage count and spend-against-limit, both of which a
+            // new expense moves.
             invalidatesTags: (_result, _error, arg) => [
-                { type: "Expense", id: arg.groupId }
+                { type: "Expense", id: arg.groupId },
+                { type: "Category", id: arg.groupId }
             ]
         }),
         updateExpense: builder.mutation<ApiSuccess<{ expense: Expense }>, CreateExpenseRequest & { expenseId: string }>({
@@ -58,6 +62,7 @@ export const expense = api.injectEndpoints({
             invalidatesTags: (_result, _error, arg) => [
                 { type: "Expense", id: arg.groupId },
                 { type: "Expense", id: arg.expenseId },
+                { type: "Category", id: arg.groupId },
                 { type: "Group", id: arg.groupId }
             ]
         }),
@@ -129,6 +134,7 @@ export const expense = api.injectEndpoints({
             }),
             invalidatesTags: (_result, _error, arg) => [
                 { type: "Expense", id: arg.groupId },
+                { type: "Category", id: arg.groupId },
                 { type: "Group", id: arg.groupId }
             ]
         }),

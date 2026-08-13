@@ -104,7 +104,9 @@ export interface PlanLimits {
 }
 
 export interface PlanFeatures {
-    advancedReportRange: boolean; // all_time / custom report ranges
+    // Custom (hand-picked) report date ranges. The named presets, all_time
+    // included, are free — the flag name predates that split.
+    advancedReportRange: boolean;
     cloneGroup: boolean;
 }
 

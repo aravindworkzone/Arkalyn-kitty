@@ -35,8 +35,8 @@ const COMPARISON: { label: string; value: (t: PlanTier) => string }[] = [
     { label: 'Categories per group', value: (t) => fmtLimit(PUBLIC_PLANS[t].limits.maxCategoriesPerGroup) },
     { label: 'Transaction history', value: (t) => fmtDays(PUBLIC_PLANS[t].limits.transactionLogRetentionDays) },
     { label: 'Activity log history', value: (t) => fmtDays(PUBLIC_PLANS[t].limits.eventLogRetentionDays) },
-    { label: 'This & last month reports', value: () => 'Yes' },
-    { label: 'All-time & custom-range reports', value: (t) => (PUBLIC_PLANS[t].features.advancedReportRange ? 'Yes' : '—') },
+    { label: 'Month & all-time reports', value: () => 'Yes' },
+    { label: 'Custom-range reports', value: (t) => (PUBLIC_PLANS[t].features.advancedReportRange ? 'Yes' : '—') },
     { label: 'One-click group clone', value: (t) => (PUBLIC_PLANS[t].features.cloneGroup ? 'Yes' : '—') },
 ];
 

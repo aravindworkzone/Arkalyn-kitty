@@ -21,6 +21,8 @@ export default function ExpenseListener() {
             dispatch(
                 api.util.invalidateTags([
                     { type: "Expense", id: groupId },
+                    // Category rows carry usage counts and spend-vs-limit.
+                    { type: "Category", id: groupId },
                     "Group"
                 ])
             );
@@ -31,6 +33,8 @@ export default function ExpenseListener() {
             dispatch(
                 api.util.invalidateTags([
                     { type: "Expense", id: groupId },
+                    // Category rows carry usage counts and spend-vs-limit.
+                    { type: "Category", id: groupId },
                     "Group"
                 ])
             );

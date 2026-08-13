@@ -11,6 +11,7 @@ export { default as Badge } from "./Badge";
 export { default as Chip } from "./Chip";
 export { default as Switch } from "./Switch";
 export { default as ColorPicker } from "./ColorPicker";
+export { default as LimitMeter } from "./LimitMeter";
 export type { BadgeTone } from "./Badge";
 export { default as ThemeToggle } from "./ThemeToggle";
 export { default as Select } from "./Select";

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Header from '../components/header';
@@ -13,16 +13,18 @@ import {
     PageHeader,
     StatCard,
     SegmentedToggle,
+    LimitMeter,
     INPUT_CLASS,
     DATE_INPUT_EXTRA,
 } from '../components/ui';
+import { formatCents } from '../helpers/money';
 import type { ReportPreset, CategoryBreakdownRow, TrendGranularity, MemberBy } from '../interface/report';
 import { MIN_DATE, todayISODate, blockDateTyping } from '../helpers/validators';
 import { seriesColor } from '../helpers/chartPalette';
 import { usePlan } from '../hooks/usePlan';
 import { useGetGroupByIdQuery } from '../redux/api/group';
 
-const PRESETS: ReportPreset[] = ['this_month', 'last_month', 'all_time', 'custom'];
+const PRESETS: ReportPreset[] = ['all_time', 'this_month', 'last_month', 'custom'];
 // A closed group is frozen in time, so relative ranges (this/last month) are
 // meaningless — only the absolute ranges remain.
 const CLOSED_PRESETS: ReportPreset[] = ['all_time', 'custom'];
@@ -45,13 +47,6 @@ const GRANULARITY_LABEL: Record<TrendGranularity, string> = {
 // by rank. seriesColor assigns in fixed order and does NOT cycle — a 9th member
 // gets the neutral "Other" grey rather than reusing hue 1, which would read as
 // "same person as the first row".
-
-const formatCents = (cents: number, locale: string) =>
-    new Intl.NumberFormat(locale === 'ta' ? 'ta-IN' : 'en-IN', {
-        style: 'currency',
-        currency: 'INR',
-        maximumFractionDigits: 0,
-    }).format(cents / 100);
 
 const formatDate = (iso: string, locale: string) =>
     new Intl.DateTimeFormat(locale === 'ta' ? 'ta-IN' : 'en-IN', {
@@ -101,7 +96,12 @@ function Donut({ rows, totalCents }: DonutProps) {
     // separable without relying on their colours differing enough.
     const GAP = 2;
 
-    let offset = 0;
+    // Each arc starts where every earlier arc ended. The running total is
+    // computed up front rather than accumulated inside the map — a variable
+    // mutated during render carries across renders.
+    const lengths = rows.map((row) => (row.totalCents / totalCents) * c);
+    const offsets = lengths.map((_, i) => lengths.slice(0, i).reduce((sum, l) => sum + l, 0));
+
     return (
         <svg
             width={size}
@@ -122,13 +122,9 @@ function Donut({ rows, totalCents }: DonutProps) {
                 stroke="currentColor"
                 strokeWidth={stroke}
             />
-            {rows.map((row) => {
-                const length = (row.totalCents / totalCents) * c;
+            {rows.map((row, i) => {
                 // Never let the gap eat a sliver segment entirely.
-                const drawn = Math.max(length - GAP, 1);
-                const dasharray = `${drawn} ${c - drawn}`;
-                const dashoffset = -offset;
-                offset += length;
+                const drawn = Math.max(lengths[i] - GAP, 1);
                 return (
                     <circle
                         key={row.categoryId}
@@ -138,8 +134,8 @@ function Donut({ rows, totalCents }: DonutProps) {
                         fill="none"
                         stroke={row.color}
                         strokeWidth={stroke}
-                        strokeDasharray={dasharray}
-                        strokeDashoffset={dashoffset}
+                        strokeDasharray={`${drawn} ${c - drawn}`}
+                        strokeDashoffset={-offsets[i]}
                         opacity={row.isDeleted ? 0.4 : 1}
                     />
                 );
@@ -158,16 +154,21 @@ export default function CategoryReportPage() {
 
     const { data: group } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
     const isClosed = group?.status === 'CLOSED';
-    // Closed groups are read-only history: the advanced ranges are always
-    // available regardless of the frozen tier (no dead-end), and the relative
-    // presets are dropped entirely.
-    const canAdvancedRange = isClosed || features.advancedReportRange;
+    // Only the custom range is paid; every named preset, all_time included, is
+    // free. Closed groups are read-only history, so they get the custom range
+    // regardless of the frozen tier and drop the relative presets entirely.
+    const canCustomRange = isClosed || features.advancedReportRange;
     const presets = isClosed ? CLOSED_PRESETS : PRESETS;
 
     const [view, setView] = useState<ReportView>('category');
     // Member tab: attribute by who paid, or who the spend was for (split shares).
     const [memberBy, setMemberBy] = useState<MemberBy>('spent');
-    const [preset, setPreset] = useState<ReportPreset>('this_month');
+    // Null until the viewer picks a range; their pick then wins over All time,
+    // which every tier can open. The pick is dropped if this group doesn't offer
+    // it — an explicit this_month does not survive the group being closed.
+    const [pickedPreset, setPickedPreset] = useState<ReportPreset | null>(null);
+    const preset = pickedPreset && presets.includes(pickedPreset) ? pickedPreset : 'all_time';
+
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(new Set());
@@ -180,13 +181,6 @@ export default function CategoryReportPage() {
             return next;
         });
     };
-
-    // A closed group has no this/last-month view — default such groups to All time.
-    useEffect(() => {
-        if (isClosed && (preset === 'this_month' || preset === 'last_month')) {
-            setPreset('all_time');
-        }
-    }, [isClosed, preset]);
 
     const args = useMemo(
         () => ({
@@ -274,12 +268,12 @@ export default function CategoryReportPage() {
                 <div className="bg-surface-raised border border-line rounded-xl p-3 space-y-3">
                     <div className="flex flex-wrap gap-2">
                         {presets.map((p) => {
-                            const locked = !canAdvancedRange && (p === 'all_time' || p === 'custom');
+                            const locked = !canCustomRange && p === 'custom';
                             return (
                             <button
                                 key={p}
-                                onClick={() => (locked ? navigate('/pricing') : setPreset(p))}
-                                title={locked ? t('reports.upgradeRange', 'All-time & custom ranges need Pro') : undefined}
+                                onClick={() => (locked ? navigate('/pricing') : setPickedPreset(p))}
+                                title={locked ? t('reports.upgradeRange', 'Custom date ranges need Pro') : undefined}
                                 aria-pressed={!locked && preset === p}
                                 className={`px-3 py-1.5 rounded-lg text-theme-xs font-semibold border transition-colors inline-flex items-center gap-1
                                     focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
@@ -445,7 +439,7 @@ export default function CategoryReportPage() {
                                     key={row.categoryId}
                                     onClick={() => goToExpenses({ categoryId: row.categoryId, label: row.name })}
                                     className="w-full bg-surface-raised border border-line rounded-xl px-4 py-3.5 shadow-theme-xs
-                                        flex items-center justify-between hover:bg-surface-hover hover:border-line-strong transition-colors text-left
+                                        hover:bg-surface-hover hover:border-line-strong transition-colors text-left
                                         focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
                                     style={{
                                         animation: 'fadeSlideIn 0.22s ease forwards',
@@ -453,6 +447,7 @@ export default function CategoryReportPage() {
                                         opacity: 0,
                                     }}
                                 >
+                                    <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3 min-w-0">
                                         <span
                                             className="w-3 h-3 rounded-full shrink-0"
@@ -484,6 +479,20 @@ export default function CategoryReportPage() {
                                     >
                                         {formatCents(row.totalCents, locale)}
                                     </p>
+                                    </div>
+
+                                    {/* Spend against the category's limit. The
+                                        limit is a running group total, so this
+                                        bar is all-time even when the report is
+                                        narrowed to a range — hence the label. */}
+                                    {row.limitCents ? (
+                                        <LimitMeter
+                                            className="mt-2.5"
+                                            label={t('categoryReport.limitLabel', 'All-time vs limit')}
+                                            spentCents={row.lifetimeSpentCents}
+                                            limitCents={row.limitCents}
+                                        />
+                                    ) : null}
                                 </button>
                             ))}
                         </div>

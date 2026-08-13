@@ -29,12 +29,14 @@ import {
   Input,
   Label,
   Switch,
+  LimitMeter,
   INPUT_CLASS,
   DATE_INPUT_EXTRA,
 } from "../components/ui";
 import DuplicateNoticeBar from "../components/ui/DuplicateNoticeBar";
 import DuplicateExpenseModal from "../components/ui/DuplicateExpenseModal";
 import { sanitizeAmount, MIN_DATE, todayISODate } from "../helpers/validators";
+import { formatCents, limitStatus } from "../helpers/money";
 import { useFieldError } from "../hooks/useFieldError";
 import { useTranslation } from "react-i18next";
 
@@ -46,7 +48,7 @@ export default function CreateExpensePage() {
   const { groupId, expenseId } = useParams<{ groupId: string; expenseId?: string }>();
   const isEdit = !!expenseId;
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { userId } = useCurrentUser();
   const currentUserId = userId ?? undefined;
   const { data: paymentTypes = [], isLoading: pmLoading } = useGetPaymentMethodQuery();
@@ -159,6 +161,24 @@ export default function CreateExpensePage() {
 
   // Categories sorted by most used
   const sortedCategories = [...categories].sort((a, b) => b.expenseCount - a.expenseCount);
+
+  // ── Category spend limit ──────────────────────────────────────────
+  // A soft, group-wide cap on the chosen category. Crossing it warns and
+  // nothing more — the submit path is untouched.
+  const selectedCategory = categories.find((c) => c._id === categoryId);
+  // When editing, this expense's own amount is already inside the category's
+  // spent total, so take it back out before adding the new amount — otherwise
+  // an untouched edit reads as double the spend. Only applies while the expense
+  // stays in the category it was filed under.
+  const editingSameCategory = isEdit && editExpense?.category?._id === categoryId;
+  const alreadySpentCents = Math.max(
+    (selectedCategory?.spentCents ?? 0) - (editingSameCategory ? Math.round(editOldAmount * 100) : 0),
+    0
+  );
+  const projectedSpentCents = alreadySpentCents + Math.round(totalAmount * 100);
+  const categoryLimitCents = selectedCategory?.limitCents ?? null;
+  const limitInfo = limitStatus(projectedSpentCents, categoryLimitCents);
+  const overLimit = limitInfo?.state === "over";
 
   // "All members in split" flag for Add All / Clear All
   const allMembersInSplit =
@@ -393,6 +413,25 @@ export default function CreateExpensePage() {
               }
             </div>
             {fieldErrors.category && <div className="mt-2"><ErrorMessage error={fieldErrors.category} /></div>}
+
+            {/* Spend limit for the chosen category, projected to include the
+                amount being typed — so the bar turns amber/red as you type. */}
+            {selectedCategory && categoryLimitCents ? (
+              <div className="mt-3 rounded-xl border border-line bg-surface-raised px-3.5 py-3">
+                <p className="text-theme-2xs font-medium text-fg-muted mb-1.5">
+                  {t("createExpense.limitFor", "{{name}} limit", { name: selectedCategory.name })}
+                </p>
+                <LimitMeter spentCents={projectedSpentCents} limitCents={categoryLimitCents} />
+                {totalAmount > 0 && (
+                  <p className="mt-1.5 text-theme-2xs text-fg-muted" translate="no">
+                    {t("createExpense.limitIncludesThis", "Includes this {{amount}} · {{spent}} spent so far", {
+                      amount: formatCents(Math.round(totalAmount * 100), i18n.language),
+                      spent: formatCents(alreadySpentCents, i18n.language),
+                    })}
+                  </p>
+                )}
+              </div>
+            ) : null}
           </div>
 
           {creditCategories.length > 0 && (
@@ -434,6 +473,49 @@ export default function CreateExpensePage() {
             </div>
           </div>
         </FormSection>
+
+        {/* Soft over-limit warning — advisory only, the form still submits. */}
+        {overLimit && selectedCategory && limitInfo && (
+          <div
+            className="w-full bg-warning-50 border border-warning-200 dark:bg-warning-500/10 dark:border-warning-500/20 rounded-xl px-4 py-3"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex items-start gap-2.5">
+              <svg
+                className="w-4 h-4 mt-0.5 shrink-0 text-warning-600 dark:text-warning-400"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <div className="min-w-0 flex-1">
+                <p className="text-theme-xs font-semibold text-warning-800 dark:text-warning-300">
+                  {t("createExpense.overLimitHeading", "Over the {{name}} limit", {
+                    name: selectedCategory.name,
+                  })}
+                </p>
+                <p className="text-theme-2xs text-warning-700 dark:text-warning-200/70 mt-0.5" translate="no">
+                  {t(
+                    "createExpense.overLimitLine",
+                    "This takes {{name}} to {{projected}} against a {{limit}} limit — {{over}} over.",
+                    {
+                      name: selectedCategory.name,
+                      projected: formatCents(projectedSpentCents, i18n.language),
+                      limit: formatCents(limitInfo.limitCents, i18n.language),
+                      over: formatCents(Math.abs(limitInfo.remainingCents), i18n.language),
+                    }
+                  )}
+                </p>
+                <p className="text-theme-2xs text-warning-700/80 dark:text-warning-100/50 mt-1">
+                  {t("createExpense.overLimitHint", "You can still save it — this is only a heads-up.")}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── 03 Paid by ── */}
         <FormSection step="03" title={t("createExpense.paidBy")}>
