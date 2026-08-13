@@ -3,10 +3,11 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../helpers/AppError';
 import { getGroupOwnerPlan, assertFeature } from '../helpers/planLimits';
 
-// Gates the "all time" and "custom" report ranges behind the group owner's plan.
-// The month presets (this_month / last_month) are free for everyone. Mirrors the
-// preset-resolution logic in report.service.ts: absent preset + a date param
-// implies "custom"; absent preset + no dates implies "all_time".
+// Gates the "custom" report range behind the group owner's plan. The presets —
+// this_month, last_month and all_time — are free for everyone; only a
+// hand-picked date range is paid. Mirrors the preset-resolution logic in
+// report.service.ts: absent preset + a date param implies "custom"; absent
+// preset + no dates implies "all_time".
 // Must run after loadGroup so req.group is populated.
 export const requireAdvancedReportRange = asyncHandler(
     async (req: Request, _res: Response, next: NextFunction) => {
@@ -16,7 +17,24 @@ export const requireAdvancedReportRange = asyncHandler(
         const hasDates = Boolean(req.query.startDate || req.query.endDate);
         const effective = preset ?? (hasDates ? 'custom' : 'all_time');
 
-        if (effective === 'this_month' || effective === 'last_month') {
+        // Allowlist rather than "not custom": resolveRange treats any preset it
+        // doesn't recognise as a custom range, so naming the free ones keeps this
+        // gate correct even if that fallthrough or the validator's enum drifts.
+        if (
+            effective === 'this_month' ||
+            effective === 'last_month' ||
+            effective === 'all_time'
+        ) {
+            next();
+            return;
+        }
+
+        // A closed group is frozen history that takes no new expenses, so the
+        // month presets are meaningless on it and the UI offers only all_time and
+        // custom. Leaving it with all_time alone would make a frozen group the one
+        // place the range picker does nothing, so closed groups are exempt
+        // regardless of the owner's tier.
+        if (req.group.status === 'CLOSED') {
             next();
             return;
         }
@@ -25,7 +43,7 @@ export const requireAdvancedReportRange = asyncHandler(
         assertFeature(
             ownerPlan,
             'advancedReportRange',
-            'All-time and custom report ranges require a Pro or Premium plan.'
+            'Custom report date ranges require a Pro or Premium plan.'
         );
         next();
     }

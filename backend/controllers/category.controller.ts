@@ -18,6 +18,7 @@ export const createCategory = asyncHandler(async (req, res) => {
         userId: req.user._id,
         color: req.body.color,
         type,
+        limitCents: req.body.limitCents,
     });
 
     emitToGroup(req.group.displayId.toString(), SOCKET_EVENTS.CATEGORY_CREATED);
@@ -35,6 +36,9 @@ export const updateCategory = asyncHandler(async (req, res) => {
         userId: req.user._id,
         color: typeof req.body.color === 'string' ? req.body.color : undefined,
         isSpecial: typeof req.body.isSpecial === 'boolean' ? req.body.isSpecial : undefined,
+        // Validated by zod: a number sets the cap, `null` clears it, and an
+        // absent key leaves it alone.
+        limitCents: req.body.limitCents,
     });
 
     emitToGroup(req.group.displayId.toString(), SOCKET_EVENTS.CATEGORY_UPDATED);

@@ -11,6 +11,7 @@ import { useFieldError } from "../hooks/useFieldError";
 import type { CategoryField } from "../handlers/useCategoryHandlers";
 import {
   ActionButton,
+  AmountInput,
   Button,
   ColorPicker,
   ErrorMessage,
@@ -18,10 +19,12 @@ import {
   FormSection,
   INPUT_CLASS,
   Label,
+  LimitMeter,
   PageBackground,
   PageHeader,
   SegmentedToggle,
 } from "../components/ui";
+import { centsToRupeeInput, rupeesToCents } from "../helpers/money";
 import { useTranslation } from "react-i18next";
 
 export default function CategoryPage() {
@@ -33,7 +36,7 @@ export default function CategoryPage() {
   const [categoryType, setCategoryType] = useState<CategoryType>("EXPENSE");
   const isCredit = categoryType === "CREDIT";
 
-  const { handleAdd, handleChangeColor, handleToggleSpecial, handleDelete, isCreating, isUpdatingColor, isDeleting } = useCategoryHandlers(groupId, categoryType);
+  const { handleAdd, handleEditCategory, handleToggleSpecial, handleDelete, isCreating, isUpdating, isDeleting } = useCategoryHandlers(groupId, categoryType);
   const { data: expenseData, isLoading: expenseLoading } = useGetCategoriesQuery(groupId!);
   const { data: creditData, isLoading: creditLoading } = useGetCreditCategoriesQuery(groupId!);
   const data = isCredit ? creditData : expenseData;
@@ -41,6 +44,8 @@ export default function CategoryPage() {
 
   const [name, setName]   = useState("");
   const [color, setColor] = useState(colorOptions[0]);
+  // Optional soft spend limit, in rupees as typed. Expense categories only.
+  const [limit, setLimit] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
 
   const { fieldErrors, setFieldError, clearFieldError } = useFieldError<CategoryField>();
@@ -49,24 +54,26 @@ export default function CategoryPage() {
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory]     = useState<Category | null>(null);
 
-  // Inline per-row colour editor (section 02).
-  const [editingColorId, setEditingColorId] = useState<string | null>(null);
-  const [editColor, setEditColor]           = useState<string>(colorOptions[0]);
-  const [colorError, setColorError]         = useState("");
+  // Inline per-row editor (section 02) — colour and spend limit.
+  const [editingId, setEditingId]   = useState<string | null>(null);
+  const [editColor, setEditColor]   = useState<string>(colorOptions[0]);
+  const [editLimit, setEditLimit]   = useState("");
+  const [editError, setEditError]   = useState("");
 
-  const openColorEditor = (cat: Category) => {
-    setEditingColorId(cat._id);
+  const openEditor = (cat: Category) => {
+    setEditingId(cat._id);
     setEditColor(cat.color);
-    setColorError("");
+    setEditLimit(centsToRupeeInput(cat.limitCents));
+    setEditError("");
   };
-  const closeColorEditor = () => { setEditingColorId(null); setColorError(""); };
+  const closeEditor = () => { setEditingId(null); setEditError(""); };
 
   useEffect(() => {
     setCategories(data ?? []);
   }, [data, categoryType]);
 
   const doAdd = () =>
-    handleAdd(name, color, categories, setFieldError, setApiError, setCategories, setName, setColor, colorOptions[0]);
+    handleAdd(name, color, rupeesToCents(limit), categories, setFieldError, setApiError, setCategories, setName, setColor, setLimit, colorOptions[0]);
 
   return (
     <>
@@ -124,7 +131,13 @@ export default function CategoryPage() {
               { value: "CREDIT",  label: t("createCategory.creditType", "Credit") },
             ]}
             value={categoryType}
-            onChange={(v) => { setCategoryType(v as CategoryType); setApiError(""); clearFieldError("name"); }}
+            onChange={(v) => {
+              setCategoryType(v as CategoryType);
+              setApiError("");
+              clearFieldError("name");
+              // The open row editor belongs to the list we're leaving.
+              closeEditor();
+            }}
             ariaLabel={t("createCategory.label")}
           />
         </div>
@@ -162,6 +175,32 @@ export default function CategoryPage() {
               </div>
               {apiError && <div className="mt-1.5"><ErrorMessage error={apiError} /></div>}
             </div>
+
+            {/* Spend limit — expense categories only; credits are money coming
+                in, so a cap on them means nothing. */}
+            {!isCredit && (
+              <div>
+                <Label>
+                  {t("createCategory.limitLabel", "Spend limit")}
+                  <span className="ml-2 text-theme-2xs font-normal text-fg-muted">
+                    {t("createCategory.optional", "Optional")}
+                  </span>
+                </Label>
+                <AmountInput
+                  size="md"
+                  value={limit}
+                  onChange={setLimit}
+                  placeholder={t("createCategory.limitPlaceholder", "e.g. 1500")}
+                  inputClassName={INPUT_CLASS}
+                />
+                <p className="mt-1 text-theme-2xs text-fg-muted">
+                  {t(
+                    "createCategory.limitHint",
+                    "Total for this group. Crossing it only shows a warning — expenses are never blocked."
+                  )}
+                </p>
+              </div>
+            )}
 
             <div>
               <Label>{t("createCategory.colorLabel")}</Label>
@@ -285,12 +324,14 @@ export default function CategoryPage() {
                   )}
                   <button
                     type="button"
-                    onClick={() => (editingColorId === cat._id ? closeColorEditor() : openColorEditor(cat))}
-                    title={t("createCategory.changeColor", "Change colour")}
-                    aria-expanded={editingColorId === cat._id}
+                    onClick={() => (editingId === cat._id ? closeEditor() : openEditor(cat))}
+                    title={isCredit
+                      ? t("createCategory.changeColor", "Change colour")
+                      : t("createCategory.editCategory", "Edit colour & spend limit")}
+                    aria-expanded={editingId === cat._id}
                     className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150
                       focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
-                      editingColorId === cat._id
+                      editingId === cat._id
                         ? "text-brand-700 bg-brand-50 dark:text-brand-300 dark:bg-brand-500/15"
                         : "text-fg-muted hover:text-brand-700 hover:bg-brand-50 dark:hover:text-brand-300 dark:hover:bg-brand-500/10"
                     }`}
@@ -331,34 +372,80 @@ export default function CategoryPage() {
                   </div>
                   </div>
 
-                  {editingColorId === cat._id && (
-                    <div className="mt-3 pt-3 border-t border-line space-y-3">
-                      <ColorPicker
-                        options={colorOptions}
-                        value={editColor}
-                        onChange={setEditColor}
-                        customLabel={t("createCategory.customColor")}
-                      />
+                  {/* Spend against the limit — only for categories that set one. */}
+                  {!isCredit && cat.limitCents ? (
+                    <LimitMeter
+                      className="mt-2.5"
+                      spentCents={cat.spentCents}
+                      limitCents={cat.limitCents}
+                    />
+                  ) : null}
 
-                      {colorError && <ErrorMessage error={colorError} />}
+                  {editingId === cat._id && (
+                    <div className="mt-3 pt-3 border-t border-line space-y-3">
+                      <div>
+                        <Label>{t("createCategory.colorLabel")}</Label>
+                        <ColorPicker
+                          options={colorOptions}
+                          value={editColor}
+                          onChange={setEditColor}
+                          customLabel={t("createCategory.customColor")}
+                        />
+                      </div>
+
+                      {!isCredit && (
+                        <div>
+                          <Label>
+                            {t("createCategory.limitLabel", "Spend limit")}
+                            <span className="ml-2 text-theme-2xs font-normal text-fg-muted">
+                              {t("createCategory.limitClearHint", "Leave empty for no limit")}
+                            </span>
+                          </Label>
+                          <AmountInput
+                            size="md"
+                            value={editLimit}
+                            onChange={setEditLimit}
+                            placeholder={t("createCategory.limitPlaceholder", "e.g. 1500")}
+                            inputClassName={INPUT_CLASS}
+                          />
+                        </div>
+                      )}
+
+                      {editError && <ErrorMessage error={editError} />}
 
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           size="sm"
                           variant="secondary"
-                          onClick={closeColorEditor}
-                          disabled={isUpdatingColor}
+                          onClick={closeEditor}
+                          disabled={isUpdating}
                         >
                           {t("createCategory.cancel", "Cancel")}
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => handleChangeColor(cat, editColor, setColorError, setCategories, closeColorEditor)}
-                          loading={isUpdatingColor}
+                          onClick={() =>
+                            handleEditCategory(
+                              cat,
+                              {
+                                color: editColor,
+                                // Credit categories never carry a limit, so don't
+                                // send one for them.
+                                ...(isCredit ? {} : { limitCents: rupeesToCents(editLimit) }),
+                              },
+                              setEditError,
+                              setCategories,
+                              closeEditor
+                            )
+                          }
+                          loading={isUpdating}
                           loadingLabel={t("createCategory.saving", "Saving…")}
-                          disabled={editColor === cat.color}
+                          disabled={
+                            editColor === cat.color &&
+                            (isCredit || rupeesToCents(editLimit) === (cat.limitCents ?? null))
+                          }
                         >
-                          {t("createCategory.saveColor", "Save colour")}
+                          {t("createCategory.saveChanges", "Save")}
                         </Button>
                       </div>
                     </div>

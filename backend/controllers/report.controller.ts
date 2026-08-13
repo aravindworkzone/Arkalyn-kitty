@@ -20,7 +20,6 @@ export const categoryBreakdown = asyncHandler(async (req, res) => {
 
     const result = await categoryBreakdownService({
         groupId: req.group._id,
-        groupCreatedAt: req.group.createdAt ?? new Date(),
         preset: query.preset,
         startDate: query.startDate,
         endDate: query.endDate,

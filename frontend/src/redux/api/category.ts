@@ -2,8 +2,9 @@ import {api} from "./base";
 import type { Category, CategoryType } from "../../interface/category";
 import type { ApiSuccess } from "../../interface/api";
 
-interface CreateCategoryRequest { groupId: string; name: string; color?: string; type?: CategoryType }
-interface UpdateCategoryRequest { id: string; groupId: string; color?: string; isSpecial?: boolean }
+// limitCents: soft spend cap in cents. `null` clears it; omit to leave as-is.
+interface CreateCategoryRequest { groupId: string; name: string; color?: string; type?: CategoryType; limitCents?: number | null }
+interface UpdateCategoryRequest { id: string; groupId: string; color?: string; isSpecial?: boolean; limitCents?: number | null }
 interface DeleteCategoryRequest { id: string; groupId: string }
 
 export const category = api.injectEndpoints({
@@ -19,10 +20,15 @@ export const category = api.injectEndpoints({
             ]
         }),
         updateCategory: builder.mutation<ApiSuccess<{ category: Category }>, UpdateCategoryRequest>({
-            query: ({ id, groupId, color, isSpecial }) => ({
+            query: ({ id, groupId, color, isSpecial, limitCents }) => ({
                 url: `/category/update/${id}`,
                 method: 'PATCH',
-                body: { groupId, ...(color !== undefined ? { color } : {}), ...(isSpecial !== undefined ? { isSpecial } : {}) }
+                body: {
+                    groupId,
+                    ...(color !== undefined ? { color } : {}),
+                    ...(isSpecial !== undefined ? { isSpecial } : {}),
+                    ...(limitCents !== undefined ? { limitCents } : {}),
+                }
             }),
             invalidatesTags: (_result, _error, arg) => [
                 { type: "Category", id: arg.groupId }
