@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import Header from "../components/header";
 import { useNavigate } from "react-router-dom";
 import type { CreateGroupMember } from "../interface/member";
 import { useGroupHandlers, removeMember, updateContribution } from "../handlers/useGroupHandlers";
@@ -80,7 +79,6 @@ export default function CreateGroupPage() {
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
 
-      <Header />
 
       <form onSubmit={(e) => handleSubmit(e, groupName, members, currentUser?._id ?? "", setFieldError, setApiError, purpose)} className="relative max-w-xl mx-auto px-4 pt-8 pb-18">
         <button

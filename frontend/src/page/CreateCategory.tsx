@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import Header from "../components/header";
 import { useGetCategoriesQuery, useGetCreditCategoriesQuery } from "../redux/api/category";
 import { useCategoryHandlers } from "../handlers/useCategoryHandlers";
 import DeleteConfirmModal from "../components/deleteModel";
@@ -92,7 +91,6 @@ export default function CategoryPage() {
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
 
-      <Header />
 
       <div className="relative max-w-xl mx-auto px-4 pt-8 pb-18 space-y-3">
 

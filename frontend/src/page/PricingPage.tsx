@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from '../components/header';
 import { PageBackground } from '../components/ui';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import {
@@ -195,7 +194,6 @@ export default function PricingPage() {
     return (
         <div className="min-h-screen bg-surface text-fg">
             <PageBackground />
-            <Header />
 
             <main className="max-w-5xl mx-auto px-4 pt-10 pb-28">
                 {/* Hero */}

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import Header from '../components/header';
 import {
     useGetCategoryBreakdownQuery,
     useGetMemberBreakdownQuery,
@@ -232,7 +231,6 @@ export default function CategoryReportPage() {
     return (
         <div className="min-h-screen bg-surface text-fg">
             <PageBackground />
-            <Header />
 
             <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-5">
                 <div className="inline-block">

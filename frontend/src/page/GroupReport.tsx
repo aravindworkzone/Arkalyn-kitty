@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import Header from "../components/header";
 import { useGetTransactionQuery, useGetBasicTransactionQuery, useGetEventQuery } from "../redux/api/group";
 import DetailModal from "../components/DetailModal";
 import { actionTone, eventConfig } from "../helpers/constants";
@@ -54,7 +53,6 @@ export default function ReportPage() {
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
 
-      <Header />
 
       <div className="relative max-w-2xl mx-auto px-4 pt-8 pb-18 space-y-4">
 

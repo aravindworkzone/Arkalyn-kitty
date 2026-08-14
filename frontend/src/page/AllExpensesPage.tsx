@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import Header from "../components/header";
 import { useGetAllExpensesInfiniteQuery } from "../redux/api/expense";
 import { useGetGroupByIdQuery } from "../redux/api/group";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
@@ -81,7 +80,6 @@ export default function AllExpensesPage() {
   return (
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
-      <Header />
 
       <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-5">
         <BackButton />

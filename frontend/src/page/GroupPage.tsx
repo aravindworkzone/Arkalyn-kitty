@@ -1,12 +1,10 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useGetUserGroupsQuery } from "../redux/api/user";
-import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useToggleFavoriteMutation } from "../redux/api/group";
-import Header from "../components/header";
 import EmptyState from "../components/EmptyList";
 import GroupCard from "../components/GroupCard";
-import { ActionButton, PageBackground, SearchInput } from "../components/ui";
+import { PageBackground } from "../components/ui";
 import { useTranslation } from "react-i18next";
 import type { RootState } from "../redux/store";
 import { useDispatch, useSelector } from "react-redux";
@@ -16,17 +14,28 @@ import { clearGroupId } from "../redux/slice/group.slice";
 const GroupPage = () => {
   const navigate = useNavigate();
   const { data, isLoading } = useGetUserGroupsQuery();
-  const { isAppOwner: isOwner } = useCurrentUser();
   const groups = data?.data?.groups || [];
-  const [search, setSearch] = useState("");
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const groupId = useSelector((state: RootState) => state.group);
   const [toggleFavorite, { isLoading: isTogglingFavorite, originalArgs }] = useToggleFavoriteMutation();
 
-  const filtered = groups.filter((g: any) =>
-    g.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  // Search and the Active/Closed/Manage filter are driven by the sidebar, which
+  // writes them as URL params. Reading them here rather than holding local state
+  // is what lets one control filter a list it does not render — and it keeps a
+  // filtered view linkable and refresh-safe.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get("q") ?? "";
+  const filter = searchParams.get("filter");
+
+  const filtered = groups.filter((g) => {
+    if (filter === "active" && g.status === "CLOSED") return false;
+    if (filter === "closed" && g.status !== "CLOSED") return false;
+    if (filter === "manage" && (g.role === "MEMBER" || g.status === "CLOSED")) return false;
+    return g.name?.toLowerCase().includes(search.toLowerCase());
+  });
+
+  const clearFilters = () => setSearchParams({}, { replace: true });
 
   useEffect(() => {
       if (!groupId) return;
@@ -38,7 +47,6 @@ const GroupPage = () => {
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
 
-      <Header />
 
       <main className="max-w-2xl mx-auto px-4 pt-6 pb-24">
         <div className="flex items-center justify-between mb-8">
@@ -50,82 +58,29 @@ const GroupPage = () => {
               {t("groups.yourGroups")}
             </h1>
           </div>
-          <div className="flex items-center gap-2">
-          {isOwner && (
-            <ActionButton
-              tone="warning"
-              fullWidth={false}
-              onClick={() => navigate("/admin")}
-              className="inline-flex items-center gap-2 px-4"
-            >
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                <path d="M2 4.5h10M3.5 1.5h7a1.5 1.5 0 011.5 1.5v8a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 012 11V3a1.5 1.5 0 011.5-1.5z"
-                  stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Admin Dashboard
-            </ActionButton>
-          )}
-          <ActionButton
-            tone="brand"
-            fullWidth={false}
-            onClick={() => navigate("/groups/new")}
-            className="hidden sm:inline-flex group items-center gap-2 px-4"
-          >
-            <span className="flex items-center justify-center w-4 h-4 rounded-full bg-brand-500/30 group-hover:bg-brand-500/50 transition-colors">
-              <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
-                <path d="M4 1v6M1 4h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </span>
-            {t("groups.newGroup")}
-          </ActionButton>
-          </div>
         </div>
 
-        {!isLoading && groups.length > 0 && (() => {
-          // Closed groups are frozen — they're surfaced separately and never
-          // counted as something you actively manage.
-          const closedCount = groups.filter((g: any) => g.status === "CLOSED").length;
-          const activeCount = groups.length - closedCount;
-          const manageCount = groups.filter(
-            (g: any) => g.role !== "MEMBER" && g.status !== "CLOSED"
-          ).length;
-
-          // Only render a box when its category actually has groups.
-          const stats = [
-            { key: "active", label: t("groups.activeGroups", "Active Groups"), value: activeCount },
-            { key: "closed", label: t("groups.closedGroups", "Closed Groups"), value: closedCount },
-            { key: "manage", label: t("groups.youManage"), value: manageCount },
-          ].filter((s) => s.value > 0);
-
-          if (stats.length === 0) return null;
-
-          const gridCols =
-            stats.length === 1 ? "grid-cols-1" : stats.length === 2 ? "grid-cols-2" : "grid-cols-3";
-
-          return (
-            <div className={`grid ${gridCols} gap-3 mb-5`}>
-              {stats.map((stat) => (
-                <div
-                  key={stat.key}
-                  className="rounded-xl bg-surface-raised border border-line px-4 py-3 shadow-theme-xs"
-                >
-                  <p className="text-theme-2xs uppercase tracking-widest text-fg-muted mb-1">
-                    {stat.label}
-                  </p>
-                  <p className="text-theme-xl font-semibold text-fg" translate="no">{stat.value}</p>
-                </div>
-              ))}
-            </div>
-          );
-        })()}
-
-        {!isLoading && groups.length > 0 && (
-          <div className="mb-5">
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder={t("groups.searchPlaceholder")}
-            />
+        {/* The counts, the search box, "New Group" and "Admin Dashboard" all
+            live in the sidebar now. What remains here is the active filter
+            readout, so a narrowed list always says why and offers a way out. */}
+        {(search || filter) && (
+          <div className="flex items-center justify-between gap-3 mb-5 rounded-xl
+            bg-surface-raised border border-line px-4 py-2.5 shadow-theme-xs">
+            <p className="text-theme-xs text-fg-muted truncate">
+              {filter
+                ? t(`groups.${filter === "manage" ? "youManage" : filter === "closed" ? "closedGroups" : "activeGroups"}`)
+                : t("allExpenses.filterActive", "Filtered")}
+              {search && <span className="text-fg"> · “{search}”</span>}
+              <span className="text-fg-subtle" translate="no"> · {filtered.length}</span>
+            </p>
+            <button
+              onClick={clearFilters}
+              className="shrink-0 text-theme-xs font-medium text-brand-600 dark:text-brand-400
+                hover:text-brand-700 dark:hover:text-brand-300 transition-colors
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 rounded-md"
+            >
+              {t("allExpenses.clearFilter", "Clear filter")}
+            </button>
           </div>
         )}
 
@@ -139,11 +94,15 @@ const GroupPage = () => {
               />
             ))}
           </div>
-        ) : filtered.length === 0 && search ? (
+        ) : filtered.length === 0 && (search || filter) ? (
           <div className="text-center py-16">
-            <p className="text-fg-muted text-theme-sm">{t("groups.noMatch", { search })}</p>
+            <p className="text-fg-muted text-theme-sm">
+              {search
+                ? t("groups.noMatch", { search })
+                : t("groups.noFilterMatch", "No groups match this filter")}
+            </p>
             <button
-              onClick={() => setSearch("")}
+              onClick={clearFilters}
               className="mt-2 text-brand-600 dark:text-brand-400 text-theme-xs hover:text-brand-700 dark:hover:text-brand-300 active:text-brand-700 transition-colors"
             >
               {t("groups.clearSearch")}
