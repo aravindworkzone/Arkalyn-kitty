@@ -20,7 +20,6 @@ import { api } from "../redux/api/base";
 import type { AppDispatch } from "../redux/store";
 import type { PlanTier, PaymentStatus } from "../interface/subscription";
 import { socket } from "../socket/socket";
-import Header from "../components/header";
 import { PageBackground, BackButton } from "../components/ui";
 
 // The /user/me payload — only the slice this page renders.
@@ -317,7 +316,6 @@ export default function ProfilePage() {
   return (
     <div className="relative min-h-screen bg-surface text-fg">
       <PageBackground />
-      <Header />
 
       <main className="relative mx-auto w-full max-w-md space-y-6 px-4 pb-24 pt-6">
         <BackButton />

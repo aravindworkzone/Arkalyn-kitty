@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import Header from "../components/header";
+import { useNavigate, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import DeleteConfirmModal from "../components/deleteModel";
 import NotFoundPage from "./NotFoundPage";
 import CloseGroupModal from "../components/CloseGroupModal";
 import CloneGroupModal from "../components/CloneGroupModal";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import { useGetExpenseReportQuery } from "../redux/api/expense";
-import { useGetCategoriesQuery } from "../redux/api/category";
 import {
   useGetGroupMembersQuery,
   useGetGroupByIdQuery,
@@ -20,7 +18,8 @@ import type { SettingsTab } from "../interface/group";
 import { ActionButton, PageBackground } from "../components/ui";
 import GroupSummaryCard from "../components/groupDetail/GroupSummaryCard";
 import GroupBanners from "../components/groupDetail/GroupBanners";
-import GroupActionBar from "../components/groupDetail/GroupActionBar";
+import QuickAccessButton from "../components/groupDetail/QuickAccessButton";
+import type { AppLayoutContext } from "../components/AppLayout";
 import GroupMembersPanel from "../components/groupDetail/GroupMembersPanel";
 import TodayExpenseFeed from "../components/groupDetail/TodayExpenseFeed";
 import GroupSettingsSheet from "../components/groupDetail/GroupSettingsSheet";
@@ -49,6 +48,7 @@ import { type Group } from "../interface/group";
 export default function GroupDetailPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
+  const { openSidebar, canOpenSidebar } = useOutletContext<AppLayoutContext>();
   const { t } = useTranslation();
   const dispatch = useDispatch();
 
@@ -61,6 +61,7 @@ export default function GroupDetailPage() {
 
   }, [groupId]);
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tab, setTab]                   = useState<SettingsTab>("addMember");
   const [deleteMemberTarget, setDeleteMemberTarget] = useState<{ id: string; name: string } | null>(null);
@@ -78,13 +79,6 @@ export default function GroupDetailPage() {
 
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
 
-  // Freeze background scroll while the settings modal is open.
-  useEffect(() => {
-    if (!settingsOpen) return;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, [settingsOpen]);
-
   const { data: GroupDetails, isLoading: groupLoading, isError: groupError } =
     useGetGroupByIdQuery(groupId!, { skip: !groupId });
   const { data: TodayExpenses } =
@@ -93,8 +87,6 @@ export default function GroupDetailPage() {
     useGetGroupMembersQuery(groupId!, { skip: !groupId });
   const { data: LeftContributors } =
     useGetLeftContributorsQuery(groupId!, { skip: !groupId });
-  const { data: categories = [], isLoading: catLoading } =
-    useGetCategoriesQuery(groupId!, { skip: !groupId });
   const { userId: currentUserId } = useCurrentUser();
 
   const {
@@ -166,14 +158,54 @@ export default function GroupDetailPage() {
   const isAdmin     = role === "SUPER_ADMIN" || role === "ADMIN";
   const isSuperAdmin = role === "SUPER_ADMIN";
 
-  const switchTab = (t: SettingsTab) => { setTab(t); setMsg(null); };
+  /**
+   * `?settings=<tab>` opens the panel straight onto a tab — what makes the
+   * sidebar's Group Management row, and its pending-requests badge, a real link
+   * rather than a number you have to go hunting for.
+   *
+   * Derived during render rather than copied into state by an effect: an effect
+   * that calls setState is the cascading-render pattern the React Compiler lint
+   * rule rejects, and deriving keeps the URL truthful while the panel is open,
+   * so the view stays shareable and survives a refresh.
+   */
+  const settingsParam = searchParams.get("settings");
 
-  const openSettings = () => {
-    setSettingsOpen(true);
-    setMsg(null);
-    // Members only see the Danger tab (leave group); admins land on Add Member.
-    setTab(isAdmin ? "addMember" : "danger");
+  const allowedTabs: SettingsTab[] = isSuperAdmin
+    ? ["addMember", "changeRole", "contribution", "settlement", "requests", "danger"]
+    : isAdmin
+      ? ["addMember", "contribution", "settlement", "requests", "danger"]
+      : ["danger"];
+
+  // A member deep-linking to an admin tab falls back to what they can see, so
+  // the URL can never open a panel the role isn't allowed to act on.
+  const paramTab: SettingsTab | null = settingsParam
+    ? (allowedTabs.includes(settingsParam as SettingsTab) ? (settingsParam as SettingsTab) : allowedTabs[0])
+    : null;
+
+  const isSettingsOpen = settingsOpen || !!paramTab;
+  const activeTab = paramTab ?? tab;
+
+  const clearSettingsParam = () => {
+    if (!settingsParam) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("settings");
+    setSearchParams(next, { replace: true });
   };
+
+  // Picking a tab by hand has to win over the one in the URL, so the param is
+  // dropped at the same time the local tab is set.
+  const switchTab = (t: SettingsTab) => { setSettingsOpen(true); setTab(t); setMsg(null); clearSettingsParam(); };
+
+  const closeSettings = () => { setSettingsOpen(false); setMsg(null); clearSettingsParam(); };
+
+  // Freeze background scroll while the settings modal is open. Declared after
+  // isSettingsOpen — a `const` in the dep array above its own declaration is a
+  // temporal-dead-zone throw at render time, not a lint nit.
+  useEffect(() => {
+    if (!isSettingsOpen) return;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, [isSettingsOpen]);
 
   const settingsTabs: { id: SettingsTab; label: string; show: boolean }[] = [
     { id: "addMember",    label: t("groupDetail.tabAddMember"),    show: isAdmin },
@@ -203,7 +235,6 @@ export default function GroupDetailPage() {
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
 
-      <Header />
 
       <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-3">
 
@@ -231,14 +262,7 @@ export default function GroupDetailPage() {
           groupClosed={groupClosedBanner || GroupDetails?.status === "CLOSED"}
         />
 
-        <GroupActionBar
-          groupId={groupId}
-          isAdmin={isAdmin}
-          hasRole={!!role}
-          showAddExpense={catLoading || categories.length > 0}
-          navigate={navigate}
-          onOpenSettings={openSettings}
-        />
+        <QuickAccessButton onOpenSidebar={openSidebar} show={canOpenSidebar} />
 
         <GroupMembersPanel
           members={GroupMembers}
@@ -260,14 +284,14 @@ export default function GroupDetailPage() {
       </main>
 
       <GroupSettingsSheet
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+        open={isSettingsOpen}
+        onClose={closeSettings}
         tabs={settingsTabs}
-        activeTab={tab}
+        activeTab={activeTab}
         onSwitchTab={switchTab}
         message={msg}
       >
-        {tab === "addMember" && (
+        {activeTab === "addMember" && (
           <SettingsAddMember
             isVerifying={isVerifying}
             isInvitingMember={isInvitingMember}
@@ -276,7 +300,7 @@ export default function GroupDetailPage() {
           />
         )}
 
-        {tab === "changeRole" && (
+        {activeTab === "changeRole" && (
           <SettingsChangeRole
             members={GroupMembers}
             isChangingRole={isChangingRole}
@@ -284,7 +308,7 @@ export default function GroupDetailPage() {
           />
         )}
 
-        {tab === "contribution" && (
+        {activeTab === "contribution" && (
           <SettingsContribution
             groupId={groupId}
             members={GroupMembers}
@@ -293,7 +317,7 @@ export default function GroupDetailPage() {
           />
         )}
 
-        {tab === "settlement" && (
+        {activeTab === "settlement" && (
           <SettingsSettlement
             members={GroupMembers}
             isSettling={isSettling}
@@ -301,7 +325,7 @@ export default function GroupDetailPage() {
           />
         )}
 
-        {tab === "requests" && (
+        {activeTab === "requests" && (
           <div className="space-y-6">
             <div className="space-y-2">
               <p className="text-theme-2xs font-semibold uppercase tracking-[0.14em] text-fg-muted">
@@ -337,7 +361,7 @@ export default function GroupDetailPage() {
           </div>
         )}
 
-        {tab === "danger" && (
+        {activeTab === "danger" && (
           <div className="space-y-3">
             {/* Cloning stays available on closed groups — it copies the
                 frozen structure into a fresh active group. The modal gates

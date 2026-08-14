@@ -3,7 +3,14 @@
   "brandFull": "Arkalyn - Fin",
   "nav": {
     "profile": "சுயவிவரம்",
-    "signOut": "வெளியேறு"
+    "signOut": "வெளியேறு",
+    "skipToContent": "முதன்மை உள்ளடக்கத்திற்குச் செல்",
+    "mainContent": "முதன்மை உள்ளடக்கம்",
+    "profileMenu": "சுயவிவர மெனுவைத் திற",
+    "plans": "திட்டங்கள் & கட்டணம்",
+    "themeLight": "வெளிர் தீமுக்கு மாறு",
+    "themeDark": "இருள் தீமுக்கு மாறு",
+    "inbox": "உள்பெட்டி"
   },
   "notFound": {
     "title": "பக்கம் கிடைக்கவில்லை",
@@ -239,7 +246,8 @@
     "youManage": "நிர்வகிக்கும் குழுக்கள்",
     "searchPlaceholder": "குழுக்களை தேடுக...",
     "noMatch": "\"{{search}}\" க்கு பொருந்தும் குழுக்கள் இல்லை",
-    "clearSearch": "தேடலை அழி"
+    "clearSearch": "தேடலை அழி",
+    "noFilterMatch": "இந்த வடிகட்டிக்கு பொருந்தும் குழுக்கள் இல்லை"
   },
   "groupCard": {
     "balance": "இருப்பு",
@@ -321,7 +329,8 @@
       "JOIN_APPROVAL_REQUESTED": "{{actor}} {{group}} அழைப்பை ஏற்றுள்ளார், அனுமதி தேவை",
       "JOIN_APPROVED": "{{group}} குழுவில் சேர உங்களுக்கு அனுமதி வழங்கப்பட்டது",
       "JOIN_DECLINED": "{{group}} குழுவில் சேரும் உங்கள் கோரிக்கை நிராகரிக்கப்பட்டது"
-    }
+    },
+    "unreadAria": "அறிவிப்புகள், {{count}} படிக்கப்படாதவை"
   },
   "createExpense": {
     "label": "புதிய செலவு",
@@ -721,5 +730,39 @@
     "left": "{{amount}} மீதம்",
     "over": "{{amount}} அதிகம்",
     "progressLabel": "வரம்புக்கு எதிரான செலவு"
+  },
+  "sidebar": {
+    "label": "பக்கப்பட்டி",
+    "home": "உங்கள் குழுக்களுக்குச் செல்",
+    "open": "வழிசெலுத்தலைத் திற",
+    "expand": "பக்கப்பட்டியை விரிவாக்கு",
+    "collapse": "பக்கப்பட்டியைச் சுருக்கு",
+    "adminDashboard": "நிர்வாக டாஷ்போர்டு",
+    "recent": "சமீபத்தியவை",
+    "favorites": "பிடித்தவை",
+    "allGroups": "அனைத்து குழுக்கள்",
+    "noGroups": "இதுவரை குழுக்கள் இல்லை",
+    "overview": "மேலோட்டம்",
+    "credits": "வரவுகள்",
+    "expenses": "செலவுகள்",
+    "categories": "வகைகள்",
+    "activity": "செயல்பாடு",
+    "report": "அற்க்கை",
+    "groupManagement": "குழு நிர்வாகம்",
+    "filters": "வடிகட்டிகள்",
+    "byCategory": "வகை வாரியாக",
+    "byMember": "உறுப்பினர் வாரியாக",
+    "byDate": "தேதி வாரியாக",
+    "last7": "7 நாட்கள்",
+    "last30": "30 நாட்கள்",
+    "addExpenseTo": "{{group}} இல் செலவு சேர்",
+    "groupOptions": "{{group}} விருப்பங்கள்",
+    "favorite": "பிடித்தவைகளில் சேர்",
+    "unfavorite": "பிடித்தவைகளிலிருந்து நீக்கு",
+    "groupSettings": "குழு அமைப்புகள்",
+    "leavePending": "வெளியேறும் கோரிக்கை"
+  },
+  "quickAccess": {
+    "title": "விரைவு அணுகல்"
   }
 }

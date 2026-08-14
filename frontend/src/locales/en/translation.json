@@ -3,7 +3,14 @@
   "brandFull": "Arkalyn - Fin",
   "nav": {
     "profile": "Profile",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "skipToContent": "Skip to main content",
+    "mainContent": "Main content",
+    "profileMenu": "Open profile menu",
+    "plans": "Plans & Billing",
+    "themeLight": "Switch to light theme",
+    "themeDark": "Switch to dark theme",
+    "inbox": "Inbox"
   },
   "notFound": {
     "title": "Page not found",
@@ -239,7 +246,8 @@
     "youManage": "Manage Groups",
     "searchPlaceholder": "Search groups...",
     "noMatch": "No groups match \"{{search}}\"",
-    "clearSearch": "Clear search"
+    "clearSearch": "Clear search",
+    "noFilterMatch": "No groups match this filter"
   },
   "groupCard": {
     "balance": "Balance",
@@ -321,7 +329,8 @@
       "JOIN_APPROVAL_REQUESTED": "{{actor}} accepted an invite to {{group}} and needs approval",
       "JOIN_APPROVED": "You were approved to join {{group}}",
       "JOIN_DECLINED": "Your request to join {{group}} was declined"
-    }
+    },
+    "unreadAria": "Notifications, {{count}} unread"
   },
   "createExpense": {
     "label": "New Expense",
@@ -729,5 +738,39 @@
     "left": "{{amount}} left",
     "over": "Over by {{amount}}",
     "progressLabel": "Spend against limit"
+  },
+  "sidebar": {
+    "label": "Sidebar",
+    "home": "Go to your groups",
+    "open": "Open navigation",
+    "expand": "Expand sidebar",
+    "collapse": "Collapse sidebar",
+    "adminDashboard": "Admin Dashboard",
+    "recent": "Recent",
+    "favorites": "Favorites",
+    "allGroups": "All groups",
+    "noGroups": "No groups yet",
+    "overview": "Overview",
+    "credits": "Credits",
+    "expenses": "Expenses",
+    "categories": "Categories",
+    "activity": "Activity",
+    "report": "Report",
+    "groupManagement": "Group Management",
+    "filters": "Filters",
+    "byCategory": "By category",
+    "byMember": "By member",
+    "byDate": "By date",
+    "last7": "7 days",
+    "last30": "30 days",
+    "addExpenseTo": "Add expense to {{group}}",
+    "groupOptions": "{{group}} options",
+    "favorite": "Add to favorites",
+    "unfavorite": "Remove from favorites",
+    "groupSettings": "Group settings",
+    "leavePending": "Leave requested"
+  },
+  "quickAccess": {
+    "title": "Quick Access"
   }
 }

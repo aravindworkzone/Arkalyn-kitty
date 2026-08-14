@@ -1,11 +1,9 @@
-import Header from "../header";
 import { PageBackground } from "../ui";
 
 export default function GroupDetailSkeleton() {
   return (
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
-      <Header />
       <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-4 animate-pulse">
         <div className="h-4 w-12 bg-surface-hover rounded" />
         <div className="rounded-2xl bg-surface-raised border border-line p-5 space-y-4">

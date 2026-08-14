@@ -17,9 +17,12 @@ import CategoryReportPage from './page/CategoryReportPage'
 import PricingPage from './page/PricingPage'
 import SubscriptionPlansPage from './page/SubscriptionPlansPage'
 import ProfilePage from './page/ProfilePage'
+import NotificationsPage from './page/NotificationsPage'
 import AdminDashboard from './page/admin/AdminDashboard'
 import AdminRoute from './components/AdminRoute'
 import ProtectedRouter from './components/ProtectedRouter'
+import AppLayout from './components/AppLayout'
+import RouteFade from './components/RouteFade'
 import ErrorBoundary from './components/ErrorBoundary'
 import TopProgressBar from './components/TopProgressBar'
 import NotFoundPage from './page/NotFoundPage'
@@ -44,32 +47,40 @@ function App() {
       <TopProgressBar />
       <UseSocket />
       <ShortcutHelp isOpen={shortcutHelpOpen} onClose={() => setShortcutHelpOpen(false)} />
-      {/* Keyed by path so routed content gently fades in on each navigation. */}
-      <div key={location.pathname} className="route-fade">
+      {/* The per-navigation fade lives in RouteFade / AppLayout now, not in a
+          keyed wrapper around everything — that key remounted the whole tree,
+          and the sidebar is part of that tree. */}
       <Routes location={location}>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Registration />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/plans" element={<SubscriptionPlansPage />} />
+        <Route element={<RouteFade />}>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Registration />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/plans" element={<SubscriptionPlansPage />} />
+        </Route>
 
         <Route element={<ProtectedRouter />}>
-          <Route path="/groups" element={<GroupPage />} />
-          <Route path="/groups/new" element={<CreateGroupPage />} />
-          <Route path="/groups/:groupId" element={<GroupDetailPage />} />
-          <Route path="/groups/:groupId/expenses" element={<AllExpensesPage />} />
-          <Route path="/groups/:groupId/expenses/new" element={<CreateExpense />} />
-          <Route path="/groups/:groupId/expenses/:expenseId/edit" element={<CreateExpense />} />
-          <Route path="/groups/:groupId/categories/new" element={<CreateCategory />} />
-          <Route path="/groups/:groupId/activity" element={<Report />} />
-          <Route path="/groups/:groupId/credits" element={<AllCreditsPage />} />
-          <Route path="/groups/:groupId/reports/categories" element={<CategoryReportPage />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          {/* AppLayout owns the sidebar, the mobile header and the content
+              offset, so every authenticated screen sits inside it. */}
+          <Route element={<AppLayout />}>
+            <Route path="/groups" element={<GroupPage />} />
+            <Route path="/groups/new" element={<CreateGroupPage />} />
+            <Route path="/groups/:groupId" element={<GroupDetailPage />} />
+            <Route path="/groups/:groupId/expenses" element={<AllExpensesPage />} />
+            <Route path="/groups/:groupId/expenses/new" element={<CreateExpense />} />
+            <Route path="/groups/:groupId/expenses/:expenseId/edit" element={<CreateExpense />} />
+            <Route path="/groups/:groupId/categories/new" element={<CreateCategory />} />
+            <Route path="/groups/:groupId/activity" element={<Report />} />
+            <Route path="/groups/:groupId/credits" element={<AllCreditsPage />} />
+            <Route path="/groups/:groupId/reports/categories" element={<CategoryReportPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
 
-          <Route element={<AdminRoute />}>
-            <Route path="/admin" element={<AdminDashboard />} />
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<AdminDashboard />} />
+            </Route>
           </Route>
         </Route>
 
@@ -86,7 +97,6 @@ function App() {
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
-      </div>
     </ErrorBoundary>
     <Analytics />
     </>

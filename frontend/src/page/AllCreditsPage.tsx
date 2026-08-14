@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import Header from "../components/header";
 import { useGetAllCreditsQuery, useGetGroupByIdQuery } from "../redux/api/group";
 import CreditDetailModal from "../components/CreditDetailModal";
 import { ExpenseRowSkeleton } from "../components/expense/ExpenseRow";
@@ -60,7 +59,6 @@ export default function AllCreditsPage() {
   return (
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
-      <Header />
 
       <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-5">
         <BackButton />

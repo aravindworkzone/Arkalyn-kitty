@@ -272,7 +272,15 @@ body {
    ========================================================================== */
 @utility z-sticky     { z-index: 20; }  /* in-page sticky sub-headers, filters */
 @utility z-header     { z-index: 30; }  /* app header                          */
-@utility z-bottom-nav { z-index: 40; }  /* fixed mobile nav                    */
+@utility z-sidebar    { z-index: 35; }  /* persistent md+ sidebar              */
+/* 40 is deliberately vacant. It was the fixed bottom tab bar, removed when the
+   off-canvas sidebar took over mobile navigation — two nav surfaces disagreeing
+   about the current route is worse than one. Left as a gap rather than
+   renumbering, so the rungs below and above keep their meaning. */
+/* Off-canvas sidebar below md, and its backdrop. Above the header (30) because
+   the drawer covers it, below dropdowns (50) so the notification flyout and
+   menus opened from inside the drawer still land on top. */
+@utility z-drawer     { z-index: 45; }  /* off-canvas sidebar + backdrop       */
 @utility z-dropdown   { z-index: 50; }  /* menus, popovers, notification panel */
 @utility z-modal      { z-index: 60; }  /* dialogs, bottom sheets, backdrops   */
 @utility z-toast      { z-index: 70; }  /* progress bar, transient messages    */

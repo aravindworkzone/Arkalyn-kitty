@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import Header from '../../components/header';
 import { PageBackground } from '../../components/ui';
 import UsersSection from '../../components/admin/UsersSection';
 import PromosSection from '../../components/admin/PromosSection';
@@ -23,7 +22,6 @@ export default function AdminDashboard() {
     return (
         <div className="min-h-screen bg-surface text-fg">
             <PageBackground />
-            <Header />
 
             <main className="max-w-5xl mx-auto px-4 pt-6 pb-24">
                 <div className="mb-6">

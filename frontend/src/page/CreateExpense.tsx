@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import Header from "../components/header";
 import { useGetCategoriesQuery, useGetCreditCategoriesQuery } from "../redux/api/category";
 import {
   useGetPaymentMethodQuery,
@@ -245,7 +244,6 @@ export default function CreateExpensePage() {
   return (
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
-      <Header />
 
       <form
         ref={formRef}
