@@ -56,8 +56,8 @@ export default function Showcase() {
     const [swatch, setSwatch] = useState<string>(CATEGORICAL[0]);
 
     return (
-        <div className="min-h-screen bg-surface px-6 py-10 text-fg">
-            <div className="mx-auto max-w-4xl space-y-10">
+        <div className="min-h-screen bg-surface px-6 lg:px-8 py-12 lg:py-16 text-fg">
+            <div className="mx-auto max-w-5xl space-y-12">
                 <header className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <h1 className="text-title-sm font-semibold text-fg">Design system</h1>

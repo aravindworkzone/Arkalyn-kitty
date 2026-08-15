@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { PageBackground } from "../components/ui";
+import { PageBackground, PageContainer } from "../components/ui";
 import NotificationList from "../components/notifications/NotificationList";
 
 /**
@@ -13,18 +13,21 @@ export default function NotificationsPage() {
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
 
-      <main className="max-w-2xl mx-auto px-4 pt-6 pb-24">
-        <div className="mb-6">
-          <p className="text-theme-xs font-medium tracking-widest uppercase text-brand-600 dark:text-brand-400 mb-1">
+      {/* A notification is one line of prose plus a timestamp — stretched to
+          1150px it becomes a stripe of empty canvas, so the feed keeps the
+          narrower measure even though the shell is wider now. */}
+      <PageContainer width="form">
+        <div>
+          <p className="text-theme-xs font-medium tracking-widest uppercase text-brand-600 dark:text-brand-400 mb-1.5">
             {t("nav.inbox", "Inbox")}
           </p>
-          <h1 className="text-title-sm font-semibold text-fg tracking-tight">
+          <h1 className="text-title-sm lg:text-title-md font-semibold text-fg tracking-tight">
             {t("notifications.title")}
           </h1>
         </div>
 
         <NotificationList />
-      </main>
+      </PageContainer>
     </div>
   );
 }

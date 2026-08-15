@@ -6,13 +6,13 @@ interface Props {
 // hooks, i18n, and Redux so it still works when those are what failed.
 export default function ServerErrorPage({ onReset }: Props) {
   return (
-    <div className="min-h-screen bg-surface text-fg flex items-center justify-center px-4">
+    <div className="min-h-screen bg-surface text-fg flex items-center justify-center px-5 sm:px-6 py-16">
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10">
         <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-error-500/5 blur-[120px]" />
         <div className="absolute bottom-0 -right-60 w-[600px] h-[600px] rounded-full bg-brand-600/4 blur-[120px]" />
       </div>
 
-      <div className="relative max-w-md w-full text-center">
+      <div className="relative max-w-lg w-full text-center">
         <p className="text-title-md leading-none font-bold tracking-tight bg-gradient-to-br from-error-400/80 to-warning-400/60 bg-clip-text text-transparent select-none">
           500
         </p>

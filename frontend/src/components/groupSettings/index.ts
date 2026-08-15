@@ -5,3 +5,5 @@ export { default as SettingsSettlement }   from "./SettingsSettlement";
 export { default as SettingsJoinRequests }  from "./SettingsJoinRequests";
 export { default as SettingsLeaveRequests } from "./SettingsLeaveRequests";
 export { default as SettingsDangerZone }   from "./SettingsDangerZone";
+export { default as ManagementTabs, tabId, tabPanelId } from "./ManagementTabs";
+export type { ManagementTabDef } from "./ManagementTabs";

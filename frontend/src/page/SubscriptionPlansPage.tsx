@@ -75,7 +75,7 @@ export default function SubscriptionPlansPage() {
         <div className="min-h-screen bg-surface text-fg font-sans antialiased">
             {/* Minimal header */}
             <header className="sticky top-0 z-40 border-b border-line bg-surface-hover/85 /85 backdrop-blur-md pt-safe">
-                <div className="max-w-screen-lg mx-auto px-6 max-[767px]:px-4 h-16 flex items-center gap-3">
+                <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 h-16 flex items-center gap-3">
                     <Link to="/" className="flex items-center gap-2 font-semibold text-theme-sm tracking-tight flex-shrink-0">
                         <Logo variant="mini" className="h-9 w-9 rounded-md" />
                         <Logo variant="word" className="h-9 w-24 rounded-md" />
@@ -95,7 +95,7 @@ export default function SubscriptionPlansPage() {
 
             {/* Title */}
             <div className="border-b border-line bg-surface-raised/40">
-                <div className="max-w-screen-lg mx-auto px-6 max-[767px]:px-4 py-14 max-[767px]:py-10">
+                <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-12">
                     <p className="text-xs font-semibold uppercase tracking-wider text-brand-500 mb-3">Plans & Billing</p>
                     <h1 className="text-4xl max-[767px]:text-3xl font-bold tracking-[-0.025em] mb-3">
                         Subscription plans — full details
@@ -108,7 +108,7 @@ export default function SubscriptionPlansPage() {
                 </div>
             </div>
 
-            <div className="max-w-screen-lg mx-auto px-6 max-[767px]:px-4 py-10 grid lg:grid-cols-[200px_1fr] gap-10">
+            <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-14 grid lg:grid-cols-[220px_1fr] gap-12">
                 {/* Table of contents */}
                 <aside className="hidden lg:block">
                     <nav className="sticky top-24 space-y-1">

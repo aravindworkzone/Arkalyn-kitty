@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PageBackground } from '../../components/ui';
+import { PageBackground, PageContainer } from '../../components/ui';
 import UsersSection from '../../components/admin/UsersSection';
 import PromosSection from '../../components/admin/PromosSection';
 import SubscriptionsSection from '../../components/admin/SubscriptionsSection';
@@ -23,8 +23,8 @@ export default function AdminDashboard() {
         <div className="min-h-screen bg-surface text-fg">
             <PageBackground />
 
-            <main className="max-w-5xl mx-auto px-4 pt-6 pb-24">
-                <div className="mb-6">
+            <PageContainer width="wide">
+                <div>
                     <p className="text-theme-xs font-medium tracking-widest uppercase text-warning-700 dark:text-warning-300 mb-1">
                         Owner Console
                     </p>
@@ -51,7 +51,7 @@ export default function AdminDashboard() {
                 {tab === 'subscriptions' && <SubscriptionsSection />}
                 {tab === 'analytics' && <AnalyticsSection />}
                 {tab === 'health' && <HealthSection />}
-            </main>
+            </PageContainer>
         </div>
     );
 }

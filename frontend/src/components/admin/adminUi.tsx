@@ -5,7 +5,7 @@ export const fmtINR = (n: number) => '₹' + n.toLocaleString('en-IN');
 
 export function StatCard({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
     return (
-        <div className="rounded-xl bg-surface-raised border border-line px-4 py-3.5 shadow-theme-xs">
+        <div className="rounded-xl bg-surface-raised border border-line px-5 py-4 shadow-theme-xs">
             <p className="text-theme-2xs uppercase tracking-widest text-fg-muted mb-1">{label}</p>
             <p className="text-theme-xl font-semibold text-fg" translate="no">{value}</p>
             {sub && <p className="text-theme-2xs text-fg-muted mt-0.5">{sub}</p>}

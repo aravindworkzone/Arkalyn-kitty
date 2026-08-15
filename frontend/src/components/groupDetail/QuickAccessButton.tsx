@@ -29,7 +29,7 @@ export default function QuickAccessButton({ onOpenSidebar, show = true }: QuickA
       type="button"
       onClick={onOpenSidebar}
       className={cn(
-        "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border",
+        "w-full flex items-center gap-3 px-5 py-4 rounded-xl border",
         "text-theme-sm font-semibold text-fg bg-surface-raised border-line",
         "hover:bg-surface-hover active:bg-surface-hover transition-colors duration-150",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"

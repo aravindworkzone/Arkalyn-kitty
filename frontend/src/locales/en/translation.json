@@ -504,6 +504,13 @@
     "leaveRequestSentTitle": "Leave request sent",
     "leaveRequestSentDesc": "An admin will review and settle your request before you leave."
   },
+  "groupManagement": {
+    "label": "Manage",
+    "title": "Group Management",
+    "description": "Members, contributions, settlements and requests for this group.",
+    "descriptionFor": "Members, contributions and requests for {{group}}.",
+    "backToGroup": "Back to group"
+  },
   "closeGroup": {
     "title": "Close Group",
     "dangerDesc": "Refund the remaining balance to members and lock the group. No further changes can be made after closing.",
@@ -580,6 +587,7 @@
     "whoSpent": "Who spent",
     "whoPaid": "Who paid",
     "totalSpent": "Total spent",
+    "range": "Range",
     "transactions": "Transactions",
     "expenseCount_one": "{{count}} expense",
     "expenseCount_other": "{{count}} expenses",

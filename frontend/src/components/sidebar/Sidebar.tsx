@@ -426,16 +426,16 @@ function GroupNav({
                 ))}
 
                 {/* Every role, not just admins. This is now the ONLY route into
-                    the settings panel — the group screen's action bar became a
-                    plain "open the sidebar" button — and a plain member needs it
-                    to reach the Danger tab and leave the group. The deep-link
-                    handler clamps the tab to what the role may see, so members
-                    land on Danger regardless of what the URL asks for. */}
+                    the management screen — the group screen's action bar became
+                    a plain "open the sidebar" button — and a plain member needs
+                    it to reach the Danger tab and leave the group. The page
+                    clamps the tab to what the role may see, so members land on
+                    Danger regardless of what the URL asks for. */}
                 {role && (
                     <SidebarNavItem
                         // Land on the queue when something is waiting, otherwise
                         // the default tab for the role.
-                        to={`/groups/${groupId}?settings=${
+                        to={`/groups/${groupId}/manage?tab=${
                             isAdmin ? (pendingRequestCount > 0 ? "requests" : "addMember") : "danger"
                         }`}
                         icon={<I.Settings />}

@@ -37,20 +37,20 @@ export default function Card({
             {...rest}
             className={cn(
                 "rounded-2xl border border-line bg-surface-raised shadow-theme-xs",
-                !hasHeader && padded && "p-5",
+                !hasHeader && padded && "p-5 sm:p-6",
                 hasHeader && "overflow-hidden",
                 className
             )}
         >
             {hasHeader && (
-                <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-3.5">
+                <div className="flex items-center justify-between gap-3 border-b border-line px-5 sm:px-6 py-4">
                     {title !== undefined && (
                         <h3 className="text-theme-sm font-medium text-fg">{title}</h3>
                     )}
                     {headerRight}
                 </div>
             )}
-            {hasHeader ? <div className={cn(padded && "p-5")}>{children}</div> : children}
+            {hasHeader ? <div className={cn(padded && "p-5 sm:p-6")}>{children}</div> : children}
         </div>
     );
 }

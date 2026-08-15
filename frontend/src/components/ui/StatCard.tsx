@@ -13,8 +13,8 @@ export default function StatCard({ label, value, color, currency = false }: Prop
       : value;
 
   return (
-    <div className="bg-surface-raised border border-line rounded-xl px-4 py-3 shadow-theme-xs">
-      <p className="text-theme-2xs uppercase tracking-widest text-fg-muted mb-1">{label}</p>
+    <div className="bg-surface-raised border border-line rounded-xl px-5 py-4 shadow-theme-xs">
+      <p className="text-theme-2xs uppercase tracking-widest text-fg-muted mb-1.5">{label}</p>
       <p
         className="text-theme-xl font-semibold font-mono text-fg"
         style={color ? { color } : undefined}

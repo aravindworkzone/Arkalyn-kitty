@@ -15,6 +15,7 @@ import {
   PageBackground,
   PageHeader,
   Spinner,
+  PageContainer,
 } from "../components/ui";
 import { useTranslation } from "react-i18next";
 import { useSearchUsersQuery, type UserSuggestion } from "../redux/api/user";
@@ -80,7 +81,7 @@ export default function CreateGroupPage() {
       <PageBackground />
 
 
-      <form onSubmit={(e) => handleSubmit(e, groupName, members, currentUser?._id ?? "", setFieldError, setApiError, purpose)} className="relative max-w-xl mx-auto px-4 pt-8 pb-18">
+      <PageContainer onSubmit={(e) => handleSubmit(e, groupName, members, currentUser?._id ?? "", setFieldError, setApiError, purpose)} width="form" as="form">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -330,7 +331,7 @@ export default function CreateGroupPage() {
             {t("createGroup.createGroup")}
           </Button>
         </div>
-      </form>
+      </PageContainer>
     </div>
   );
 }

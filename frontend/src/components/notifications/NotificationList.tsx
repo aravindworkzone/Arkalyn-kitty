@@ -111,7 +111,7 @@ export default function NotificationList() {
 
   return (
     <div className="rounded-2xl bg-surface-raised border border-line overflow-hidden shadow-theme-xs">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-line">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-line">
         <p className="text-theme-sm font-semibold text-fg">
           {t("notifications.title")}
           {unreadCount > 0 && (
@@ -158,7 +158,7 @@ export default function NotificationList() {
                   }
                 }}
                 aria-label={!n.read ? t("notifications.markRead", "Mark notification as read") : undefined}
-                className={`px-4 py-3.5 border-b border-line last:border-b-0 cursor-default transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40
+                className={`px-5 py-4 border-b border-line last:border-b-0 cursor-default transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40
                   ${n.read ? "" : "bg-brand-500/[0.06]"}`}
               >
                 <div className="flex items-start gap-2.5">

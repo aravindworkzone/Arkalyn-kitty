@@ -20,7 +20,7 @@ import { api } from "../redux/api/base";
 import type { AppDispatch } from "../redux/store";
 import type { PlanTier, PaymentStatus } from "../interface/subscription";
 import { socket } from "../socket/socket";
-import { PageBackground, BackButton } from "../components/ui";
+import { PageBackground, BackButton, PageContainer } from "../components/ui";
 
 // The /user/me payload — only the slice this page renders.
 type ProfileUser = {
@@ -317,7 +317,7 @@ export default function ProfilePage() {
     <div className="relative min-h-screen bg-surface text-fg">
       <PageBackground />
 
-      <main className="relative mx-auto w-full max-w-md space-y-6 px-4 pb-24 pt-6">
+      <PageContainer width="form">
         <BackButton />
 
         {/* 1–3. Avatar hero + name/email + joined date */}
@@ -762,7 +762,7 @@ export default function ProfilePage() {
             </div>
           )}
         </section>
-      </main>
+      </PageContainer>
     </div>
   );
 }

@@ -71,7 +71,7 @@ export default function DataList({
         body = (
             <div className={cn(divided && "divide-y divide-line")} aria-busy="true" aria-live="polite">
                 {Array.from({ length: loadingRows }, (_, i) => (
-                    <div key={i} className="flex items-center gap-3 px-4 py-3">
+                    <div key={i} className="flex items-center gap-3 px-5 py-3.5">
                         <div className="min-w-0 flex-1 space-y-2">
                             <div className="h-3 w-1/3 animate-pulse rounded bg-surface-hover" />
                             <div className="h-2.5 w-1/2 animate-pulse rounded bg-surface-hover" />

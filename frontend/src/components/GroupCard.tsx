@@ -31,14 +31,14 @@ const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingF
         }
       }}
       aria-label={t("groupCard.openGroup", "Open group: {{name}}", { name: group.name })}
-      className={`bg-surface-raised border rounded-2xl p-5 cursor-pointer shadow-theme-xs transition-all duration-200 group focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
+      className={`bg-surface-raised border rounded-2xl p-5 sm:p-6 cursor-pointer shadow-theme-xs transition-all duration-200 group focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${
         isClosed
           ? "border-warning-300 dark:border-warning-500/20 hover:bg-surface-hover hover:border-warning-400 dark:hover:border-warning-500/30"
           : "border-line hover:bg-surface-hover hover:border-line-strong"
       }`}
     >
       {/* Top row */}
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between gap-4 mb-5">
         <div className="flex flex-col gap-1.5 min-w-0">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className={`text-theme-sm font-semibold leading-tight truncate ${isClosed ? "text-fg-muted" : "text-fg"}`} translate="no">
@@ -100,7 +100,7 @@ const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingF
       </div>
 
       {/* Progress bar */}
-      <div className="mb-4">
+      <div className="mb-5">
         <div className="flex items-center justify-between mb-1.5">
           <p className="text-theme-2xs text-fg-muted uppercase tracking-wider">{t("groupCard.poolRemaining")}</p>
           <p className="text-theme-2xs font-mono text-fg-muted" translate="no">{group.barLength}%</p>

@@ -39,7 +39,7 @@ export default function GroupMembersPanel({
       <button
         onClick={() => setOpen((p) => !p)}
         aria-expanded={open}
-        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-surface-hover active:bg-surface-hover transition-colors
+        className="w-full flex items-center justify-between px-5 sm:px-6 py-4 hover:bg-surface-hover active:bg-surface-hover transition-colors
           focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
       >
         <div className="flex items-center gap-3">
@@ -58,7 +58,7 @@ export default function GroupMembersPanel({
 
       {open && (
         <div className="border-t border-line">
-          <div className="px-5 py-3 border-b border-line bg-surface-hover/50">
+          <div className="px-5 sm:px-6 py-3.5 border-b border-line bg-surface-hover/50">
             <div className="flex items-center justify-between mb-2.5">
               <p className="text-theme-2xs uppercase tracking-widest text-fg-muted">{t("groupDetail.contributions")}</p>
               <button
@@ -132,7 +132,7 @@ export default function GroupMembersPanel({
 
           <div className="divide-y divide-line">
             {members?.map((member) => (
-              <div key={member._id} className="flex items-center justify-between px-5 py-3 gap-3">
+              <div key={member._id} className="flex items-center justify-between px-5 sm:px-6 py-3.5 gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-8 h-8 rounded-full bg-brand-50 border border-brand-200 dark:bg-brand-500/15 dark:border-brand-500/20
                     flex items-center justify-center text-theme-xs font-bold text-brand-600 dark:text-brand-400 shrink-0" translate="no">

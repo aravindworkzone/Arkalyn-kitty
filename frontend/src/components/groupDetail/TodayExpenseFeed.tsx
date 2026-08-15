@@ -18,7 +18,7 @@ export default function TodayExpenseFeed({ expenses, onSelect, onViewAll }: Prop
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3 px-0.5">
+      <div className="flex items-center justify-between mb-4 px-0.5">
         <p className="text-theme-xs font-semibold uppercase tracking-widest text-fg-muted">{t("groupDetail.today")}</p>
         <div className="flex items-center gap-3">
           {(expenses?.length ?? 0) > 0 && (
@@ -42,7 +42,7 @@ export default function TodayExpenseFeed({ expenses, onSelect, onViewAll }: Prop
       {(expenses?.length ?? 0) === 0 ? (
         <div
           onClick={onViewAll}
-          className="text-center text-fg-muted text-theme-xs py-6 cursor-pointer hover:text-fg transition-colors"
+          className="text-center text-fg-muted text-theme-xs py-10 cursor-pointer hover:text-fg transition-colors"
         >
           {t("groupDetail.noExpensesToday")}
         </div>

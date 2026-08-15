@@ -1,12 +1,13 @@
-import { PageBackground } from "../ui";
+import { PageBackground, PageContainer } from "../ui";
 
 export default function GroupDetailSkeleton() {
   return (
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
-      <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-4 animate-pulse">
+      {/* Same shell as the real screen, so nothing jumps when data lands. */}
+      <PageContainer width="content" className="animate-pulse">
         <div className="h-4 w-12 bg-surface-hover rounded" />
-        <div className="rounded-2xl bg-surface-raised border border-line p-5 space-y-4">
+        <div className="rounded-2xl bg-surface-raised border border-line p-5 sm:p-6 space-y-4">
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <div className="h-3 w-24 bg-surface-hover rounded" />
@@ -24,10 +25,12 @@ export default function GroupDetailSkeleton() {
             ))}
           </div>
         </div>
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-14 rounded-xl bg-surface-raised border border-line" />
-        ))}
-      </main>
+        <div className="grid gap-6 lg:gap-8 lg:grid-cols-2">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="h-64 rounded-2xl bg-surface-raised border border-line" />
+          ))}
+        </div>
+      </PageContainer>
     </div>
   );
 }

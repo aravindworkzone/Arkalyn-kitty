@@ -5,7 +5,7 @@ import DetailModal from "../components/DetailModal";
 import { actionTone, eventConfig } from "../helpers/constants";
 import { toneChip, toneText } from "../helpers/tone";
 import { eventDescription } from "../helpers/formatters";
-import { ActionButton, PageBackground, PageHeader, SegmentedToggle } from "../components/ui";
+import { ActionButton, PageBackground, PageContainer, PageHeader, SegmentedToggle } from "../components/ui";
 import { useTranslation } from "react-i18next";
 
 const PAGE_STEP = 20;
@@ -54,11 +54,11 @@ export default function ReportPage() {
       <PageBackground />
 
 
-      <div className="relative max-w-2xl mx-auto px-4 pt-8 pb-18 space-y-4">
+      <PageContainer width="content" as="div">
 
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-fg-muted hover:text-fg active:text-fg text-theme-xs font-medium transition-colors mb-4
+          className="flex items-center gap-2 text-fg-muted hover:text-fg active:text-fg text-theme-xs font-medium transition-colors
             focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 rounded-md"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -67,7 +67,7 @@ export default function ReportPage() {
           {t("report.back")}
         </button>
 
-        <div className="flex justify-end -mb-4">
+        <div className="flex justify-end -mt-2">
           <ActionButton
             tone="brand"
             fullWidth={false}
@@ -96,14 +96,14 @@ export default function ReportPage() {
 
         {/* Three totals, each a single headline number — a stat tile, not a
             chart. Tones are the reserved status colours, not series colours. */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-4">
           {[
             { label: t("report.totalIn"),  value: totalCredit, tone: "success" as const },
             { label: t("report.totalOut"), value: totalDebit,  tone: "error"   as const },
             { label: t("report.refunds"),  value: totalRefund, tone: "warning" as const },
           ].map((stat) => (
-            <div key={stat.label} className="bg-surface-raised border border-line rounded-xl px-4 py-3 shadow-theme-xs">
-              <p className="text-theme-2xs uppercase tracking-widest text-fg-muted mb-1">{stat.label}</p>
+            <div key={stat.label} className="bg-surface-raised border border-line rounded-xl px-5 py-4 shadow-theme-xs">
+              <p className="text-theme-2xs uppercase tracking-widest text-fg-muted mb-1.5">{stat.label}</p>
               <p className={`text-theme-xl font-semibold font-mono ${toneText[stat.tone]}`} translate="no">
                 ₹{stat.value.toLocaleString("en-IN")}
               </p>
@@ -113,7 +113,8 @@ export default function ReportPage() {
 
         {/* Sticks below the global header so the Transactions/Activity switch
             stays reachable while scrolling a long list. */}
-        <div className="sticky top-14 lg:top-16 z-sticky -mx-4 px-4 py-2 bg-surface/95 backdrop-blur-md">
+        <div className="sticky top-14 lg:top-16 z-sticky py-3 bg-surface/95 backdrop-blur-md
+            -mx-5 sm:-mx-6 lg:-mx-8 xl:-mx-10 px-5 sm:px-6 lg:px-8 xl:px-10">
           <SegmentedToggle
             className="w-full [&>button]:flex-1"
             options={[
@@ -297,7 +298,7 @@ export default function ReportPage() {
           </div>
         )}
 
-      </div>
+      </PageContainer>
 
       {/* ── Transaction detail modal ── */}
       {selectedTx && (() => {

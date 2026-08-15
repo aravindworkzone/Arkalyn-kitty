@@ -22,6 +22,7 @@ import {
   PageBackground,
   PageHeader,
   SegmentedToggle,
+  PageContainer,
 } from "../components/ui";
 import { centsToRupeeInput, rupeesToCents } from "../helpers/money";
 import { useTranslation } from "react-i18next";
@@ -92,12 +93,12 @@ export default function CategoryPage() {
       <PageBackground />
 
 
-      <div className="relative max-w-xl mx-auto px-4 pt-8 pb-18 space-y-3">
+      <PageContainer width="form" as="div">
 
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-fg-muted hover:text-fg active:text-fg text-theme-xs font-medium transition-colors mb-6
+          className="flex items-center gap-2 text-fg-muted hover:text-fg active:text-fg text-theme-xs font-medium transition-colors
             focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 rounded-md"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -453,7 +454,7 @@ export default function CategoryPage() {
             </div>
           )}
         </FormSection>
-      </div>
+      </PageContainer>
     </div>
     </>
   );

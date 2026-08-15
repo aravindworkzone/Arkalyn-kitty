@@ -1,44 +1,23 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useOutletContext, useParams, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import DeleteConfirmModal from "../components/deleteModel";
 import NotFoundPage from "./NotFoundPage";
-import CloseGroupModal from "../components/CloseGroupModal";
-import CloneGroupModal from "../components/CloneGroupModal";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import { useGetExpenseReportQuery } from "../redux/api/expense";
 import {
   useGetGroupMembersQuery,
   useGetGroupByIdQuery,
   useGetLeftContributorsQuery,
-  useInviteMemberMutation,
 } from "../redux/api/group";
-import { useCurrentUser } from "../hooks/useCurrentUser";
 import { useGroupDetailHandlers } from "../handlers/useGroupDetailHandlers";
-import type { SettingsTab } from "../interface/group";
-import { ActionButton, PageBackground } from "../components/ui";
+import { PageBackground, PageContainer } from "../components/ui";
 import GroupSummaryCard from "../components/groupDetail/GroupSummaryCard";
 import GroupBanners from "../components/groupDetail/GroupBanners";
 import QuickAccessButton from "../components/groupDetail/QuickAccessButton";
 import type { AppLayoutContext } from "../components/AppLayout";
 import GroupMembersPanel from "../components/groupDetail/GroupMembersPanel";
 import TodayExpenseFeed from "../components/groupDetail/TodayExpenseFeed";
-import GroupSettingsSheet from "../components/groupDetail/GroupSettingsSheet";
 import GroupDetailSkeleton from "../components/groupDetail/GroupDetailSkeleton";
-import {
-  SettingsAddMember,
-  SettingsChangeRole,
-  SettingsContribution,
-  SettingsSettlement,
-  SettingsJoinRequests,
-  SettingsLeaveRequests,
-  SettingsDangerZone,
-} from "../components/groupSettings";
-import type { DeclineJoinArgs } from "../components/groupSettings/SettingsJoinRequests";
-import {
-  useGetPendingJoinRequestsQuery,
-  useApproveJoinMutation,
-  useDeclineJoinMutation,
-} from "../redux/api/invite";
 import { useTranslation } from "react-i18next";
 import { joinGroup } from "../socket/emiter/group.emit";
 import { setGroupId } from "../redux/slice/group.slice";
@@ -62,20 +41,8 @@ export default function GroupDetailPage() {
   }, [groupId]);
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [tab, setTab]                   = useState<SettingsTab>("addMember");
   const [deleteMemberTarget, setDeleteMemberTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleteMemberError,  setDeleteMemberError]  = useState("");
-  const [deleteGroupOpen,  setDeleteGroupOpen]  = useState(false);
-  const [deleteGroupError, setDeleteGroupError] = useState("");
-  const [leaveGroupOpen,   setLeaveGroupOpen]   = useState(false);
-  const [leaveGroupError,  setLeaveGroupError]  = useState("");
-  const [leaveRequestSent, setLeaveRequestSent] = useState(false);
-  const [forfeitLeaveOpen,  setForfeitLeaveOpen]  = useState(false);
-  const [forfeitLeaveError, setForfeitLeaveError] = useState("");
-  const [closeGroupOpen,   setCloseGroupOpen]   = useState(false);
-  const [cloneGroupOpen,   setCloneGroupOpen]   = useState(false);
-  const [groupClosedBanner, setGroupClosedBanner] = useState(false);
 
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
 
@@ -87,140 +54,35 @@ export default function GroupDetailPage() {
     useGetGroupMembersQuery(groupId!, { skip: !groupId });
   const { data: LeftContributors } =
     useGetLeftContributorsQuery(groupId!, { skip: !groupId });
-  const { userId: currentUserId } = useCurrentUser();
 
-  const {
-    msg, setMsg,
-    isVerifying, isInvitingMember, isChangingRole,
-    isAddingContrib, isSettling, isDeletingGroup, isRemovingMember, isLeavingGroup,
-    isApprovingLeave, isRejectingLeave, isCancellingOwnLeave,
-    handleVerifyUser, handleInviteMember, handleChangeRole,
-    handleAddContribution, handleSettlement, handleDeleteMember, handleDeleteGroup, handleLeaveGroup,
-    handleApproveLeave, handleRejectLeave, handleCancelOwnLeave,
-  } = useGroupDetailHandlers(groupId);
-
-  const myMember = GroupMembers?.find((m) => m.userId._id === currentUserId);
-  const hasPendingLeave = !!myMember?.leaveRequestedAt;
-
-  const pendingLeaveCount = GroupMembers?.filter((m) => m.leaveRequestedAt).length ?? 0;
-
-  // Join approvals are admin-only; skip the fetch entirely for plain members.
-  const canReviewJoins = GroupDetails?.role === "SUPER_ADMIN" || GroupDetails?.role === "ADMIN";
-  const { data: joinRequests } = useGetPendingJoinRequestsQuery(groupId!, {
-    skip: !groupId || !canReviewJoins,
-  });
-  const [approveJoin, { isLoading: isApprovingJoin }] = useApproveJoinMutation();
-  const [declineJoin, { isLoading: isDecliningJoin }] = useDeclineJoinMutation();
-  // Used only for the "decline, then re-invite" path in the requests queue.
-  const [inviteMember, { isLoading: isReinviting }] = useInviteMemberMutation();
-  const [joinReviewError, setJoinReviewError] = useState("");
-
-  const pendingJoinCount = joinRequests?.length ?? 0;
-  // The tab badge counts both queues it now holds.
-  const pendingRequestCount = pendingLeaveCount + pendingJoinCount;
-
-  const handleApproveJoin = async (inviteId: string) => {
-    setJoinReviewError("");
-    try {
-      await approveJoin({ groupId: groupId!, inviteId }).unwrap();
-    } catch (err: any) {
-      setJoinReviewError(err?.data?.message || t("joinRequests.actionFailed"));
-    }
-  };
-
-  const handleDeclineJoin = async ({ inviteId, invitedUserId, reinvite }: DeclineJoinArgs) => {
-    setJoinReviewError("");
-    try {
-      await declineJoin({ groupId: groupId!, inviteId }).unwrap();
-    } catch (err: any) {
-      setJoinReviewError(err?.data?.message || t("joinRequests.actionFailed"));
-      return;
-    }
-
-    if (!reinvite) return;
-    // Order matters: the server refuses a second invite while one is still
-    // PENDING/PENDING_APPROVAL, so this only works once the decline has landed.
-    // The decline is already committed, so a failure here costs only the
-    // re-invite — hence its own message rather than the generic one.
-    try {
-      await inviteMember({ groupId: groupId!, invitedUser: invitedUserId }).unwrap();
-    } catch (err: any) {
-      setJoinReviewError(
-        err?.data?.error || err?.data?.message || t("joinRequests.reinviteFailed")
-      );
-    }
-  };
+  const { isRemovingMember, handleDeleteMember } = useGroupDetailHandlers(groupId);
 
   const memberNames   = GroupMembers?.map((m) => m.userId.name) ?? [];
   const totalContrib  = GroupDetails?.totalContribution ?? 0;
 
-  const role        = GroupDetails?.role as Group["role"];
-  const isAdmin     = role === "SUPER_ADMIN" || role === "ADMIN";
-  const isSuperAdmin = role === "SUPER_ADMIN";
+  const role = GroupDetails?.role as Group["role"];
+  const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
 
   /**
-   * `?settings=<tab>` opens the panel straight onto a tab — what makes the
-   * sidebar's Group Management row, and its pending-requests badge, a real link
-   * rather than a number you have to go hunting for.
-   *
-   * Derived during render rather than copied into state by an effect: an effect
-   * that calls setState is the cascading-render pattern the React Compiler lint
-   * rule rejects, and deriving keeps the URL truthful while the panel is open,
-   * so the view stays shareable and survives a refresh.
+   * Group Management used to be a dialog over this screen, opened by
+   * `?settings=<tab>`. It is page/GroupManagementPage.tsx now, so any link still
+   * carrying that param — a bookmark, a stale notification — is forwarded rather
+   * than silently dropping the user on the overview.
    */
   const settingsParam = searchParams.get("settings");
+  if (settingsParam) {
+    return <Navigate to={`/groups/${groupId}/manage?tab=${settingsParam}`} replace />;
+  }
 
-  const allowedTabs: SettingsTab[] = isSuperAdmin
-    ? ["addMember", "changeRole", "contribution", "settlement", "requests", "danger"]
-    : isAdmin
-      ? ["addMember", "contribution", "settlement", "requests", "danger"]
-      : ["danger"];
+  // Set by the leave flow on the management page, which navigates back here so
+  // the notice lands on the screen the user stays on.
+  const leaveRequestSent = searchParams.get("leaveRequested") === "1";
 
-  // A member deep-linking to an admin tab falls back to what they can see, so
-  // the URL can never open a panel the role isn't allowed to act on.
-  const paramTab: SettingsTab | null = settingsParam
-    ? (allowedTabs.includes(settingsParam as SettingsTab) ? (settingsParam as SettingsTab) : allowedTabs[0])
-    : null;
-
-  const isSettingsOpen = settingsOpen || !!paramTab;
-  const activeTab = paramTab ?? tab;
-
-  const clearSettingsParam = () => {
-    if (!settingsParam) return;
+  const dismissLeaveRequest = () => {
     const next = new URLSearchParams(searchParams);
-    next.delete("settings");
+    next.delete("leaveRequested");
     setSearchParams(next, { replace: true });
   };
-
-  // Picking a tab by hand has to win over the one in the URL, so the param is
-  // dropped at the same time the local tab is set.
-  const switchTab = (t: SettingsTab) => { setSettingsOpen(true); setTab(t); setMsg(null); clearSettingsParam(); };
-
-  const closeSettings = () => { setSettingsOpen(false); setMsg(null); clearSettingsParam(); };
-
-  // Freeze background scroll while the settings modal is open. Declared after
-  // isSettingsOpen — a `const` in the dep array above its own declaration is a
-  // temporal-dead-zone throw at render time, not a lint nit.
-  useEffect(() => {
-    if (!isSettingsOpen) return;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, [isSettingsOpen]);
-
-  const settingsTabs: { id: SettingsTab; label: string; show: boolean }[] = [
-    { id: "addMember",    label: t("groupDetail.tabAddMember"),    show: isAdmin },
-    { id: "changeRole",   label: t("groupDetail.tabChangeRole"),   show: isSuperAdmin },
-    { id: "contribution", label: t("groupDetail.tabContribution"), show: isAdmin },
-    { id: "settlement",   label: t("groupDetail.tabSettlement"),   show: isAdmin },
-    {
-      id: "requests",
-      label: pendingRequestCount > 0
-        ? `${t("groupDetail.tabRequests")} (${pendingRequestCount})`
-        : t("groupDetail.tabRequests"),
-      show: isAdmin,
-    },
-    { id: "danger",       label: t("groupDetail.tabDanger"),       show: !!role },
-  ];
 
   // Non-members (403) and unknown groups (404) both land here.
   if (groupError) {
@@ -236,11 +98,11 @@ export default function GroupDetailPage() {
       <PageBackground />
 
 
-      <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-3">
+      <PageContainer width="content">
 
         <button
           onClick={() => navigate("/groups")}
-          className="flex items-center gap-2 text-fg-muted hover:text-fg active:text-fg text-theme-xs font-medium transition-colors mb-2
+          className="flex items-center gap-2 text-fg-muted hover:text-fg active:text-fg text-theme-xs font-medium transition-colors
             focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 rounded-md"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -258,150 +120,36 @@ export default function GroupDetailPage() {
 
         <GroupBanners
           leaveRequestSent={leaveRequestSent}
-          onDismissLeaveRequest={() => setLeaveRequestSent(false)}
-          groupClosed={groupClosedBanner || GroupDetails?.status === "CLOSED"}
+          onDismissLeaveRequest={dismissLeaveRequest}
+          groupClosed={GroupDetails?.status === "CLOSED"}
         />
 
         <QuickAccessButton onOpenSidebar={openSidebar} show={canOpenSidebar} />
 
-        <GroupMembersPanel
-          members={GroupMembers}
-          leftContributors={LeftContributors}
-          memberNames={memberNames}
-          totalContribution={totalContrib}
-          groupName={GroupDetails?.name}
-          isAdmin={isAdmin}
-          onViewCredits={() => navigate(`/groups/${groupId}/credits`)}
-          onRemoveMember={setDeleteMemberTarget}
-        />
-
-        <TodayExpenseFeed
-          expenses={TodayExpenses}
-          onSelect={setSelectedExpense}
-          onViewAll={() => navigate(`/groups/${groupId}/expenses`)}
-        />
-
-      </main>
-
-      <GroupSettingsSheet
-        open={isSettingsOpen}
-        onClose={closeSettings}
-        tabs={settingsTabs}
-        activeTab={activeTab}
-        onSwitchTab={switchTab}
-        message={msg}
-      >
-        {activeTab === "addMember" && (
-          <SettingsAddMember
-            isVerifying={isVerifying}
-            isInvitingMember={isInvitingMember}
-            handleVerifyUser={handleVerifyUser}
-            handleInviteMember={handleInviteMember}
-          />
-        )}
-
-        {activeTab === "changeRole" && (
-          <SettingsChangeRole
+        {/* Roster and today's feed sit side by side once there is room for two
+            columns. They answer different questions — who is in this group, and
+            what happened today — so neither has to be scrolled past to reach
+            the other. */}
+        <div className="grid gap-6 lg:gap-8 items-start lg:grid-cols-2">
+          <GroupMembersPanel
             members={GroupMembers}
-            isChangingRole={isChangingRole}
-            handleChangeRole={handleChangeRole}
+            leftContributors={LeftContributors}
+            memberNames={memberNames}
+            totalContribution={totalContrib}
+            groupName={GroupDetails?.name}
+            isAdmin={isAdmin}
+            onViewCredits={() => navigate(`/groups/${groupId}/credits`)}
+            onRemoveMember={setDeleteMemberTarget}
           />
-        )}
 
-        {activeTab === "contribution" && (
-          <SettingsContribution
-            groupId={groupId}
-            members={GroupMembers}
-            isAddingContrib={isAddingContrib}
-            handleAddContribution={handleAddContribution}
+          <TodayExpenseFeed
+            expenses={TodayExpenses}
+            onSelect={setSelectedExpense}
+            onViewAll={() => navigate(`/groups/${groupId}/expenses`)}
           />
-        )}
+        </div>
 
-        {activeTab === "settlement" && (
-          <SettingsSettlement
-            members={GroupMembers}
-            isSettling={isSettling}
-            handleSettlement={handleSettlement}
-          />
-        )}
-
-        {activeTab === "requests" && (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <p className="text-theme-2xs font-semibold uppercase tracking-[0.14em] text-fg-muted">
-                {t("joinRequests.heading")}
-                {pendingJoinCount > 0 ? ` (${pendingJoinCount})` : ""}
-              </p>
-              <SettingsJoinRequests
-                requests={joinRequests}
-                onApprove={handleApproveJoin}
-                onDecline={handleDeclineJoin}
-                isApproving={isApprovingJoin}
-                // The re-invite runs inside the decline action, so it
-                // keeps the same button spinning.
-                isDeclining={isDecliningJoin || isReinviting}
-                error={joinReviewError}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-theme-2xs font-semibold uppercase tracking-[0.14em] text-fg-muted">
-                {t("leaveRequests.heading")}
-                {pendingLeaveCount > 0 ? ` (${pendingLeaveCount})` : ""}
-              </p>
-              <SettingsLeaveRequests
-                members={GroupMembers}
-                isSuperAdmin={isSuperAdmin}
-                isApprovingLeave={isApprovingLeave}
-                isRejectingLeave={isRejectingLeave}
-                handleApproveLeave={handleApproveLeave}
-                handleRejectLeave={handleRejectLeave}
-              />
-            </div>
-          </div>
-        )}
-
-        {activeTab === "danger" && (
-          <div className="space-y-3">
-            {/* Cloning stays available on closed groups — it copies the
-                frozen structure into a fresh active group. The modal gates
-                allow/block on the group's frozen plan. */}
-            {isSuperAdmin && (
-              <div className="bg-brand-50 border border-brand-200 dark:bg-brand-500/[0.06] dark:border-brand-500/15 rounded-xl px-4 py-4">
-                <p className="text-theme-xs font-semibold text-brand-700 dark:text-brand-300 mb-1">
-                  {t("cloneGroup.title", "Clone this group")}
-                </p>
-                <p className="text-theme-xs text-fg-muted mb-3">
-                  {t(
-                    "cloneGroup.settingsDesc",
-                    "Create a new group with the same categories and re-invite the current members. The balance starts empty — no expenses or contributions are copied."
-                  )}
-                </p>
-                <ActionButton
-                  tone="brand"
-                  onClick={() => { setSettingsOpen(false); setCloneGroupOpen(true); }}
-                >
-                  {t("cloneGroup.confirm", "Clone group")}
-                </ActionButton>
-              </div>
-            )}
-            <SettingsDangerZone
-              isSuperAdmin={isSuperAdmin}
-              onRequestDeleteGroup={() => { setSettingsOpen(false); setDeleteGroupOpen(true); }}
-              onRequestLeaveGroup={() => { setSettingsOpen(false); setLeaveGroupOpen(true); }}
-              onRequestForfeitLeave={() => { setSettingsOpen(false); setForfeitLeaveOpen(true); }}
-              onRequestCloseGroup={
-                isSuperAdmin && GroupDetails?.status !== "CLOSED"
-                  ? () => { setSettingsOpen(false); setCloseGroupOpen(true); }
-                  : undefined
-              }
-              hasPendingLeave={hasPendingLeave}
-              onCancelOwnLeave={handleCancelOwnLeave}
-              isCancellingOwnLeave={isCancellingOwnLeave}
-            />
-          </div>
-        )}
-      </GroupSettingsSheet>
+      </PageContainer>
 
       {/* ── Delete Member modal ── */}
       <DeleteConfirmModal
@@ -419,92 +167,6 @@ export default function GroupDetailPage() {
           {t("groupDetail.removeMemberConfirm")}
         </p>
       </DeleteConfirmModal>
-
-      {/* ── Delete Group modal ── */}
-      <DeleteConfirmModal
-        isOpen={deleteGroupOpen}
-        onClose={() => { setDeleteGroupOpen(false); setDeleteGroupError(""); }}
-        onConfirm={() => handleDeleteGroup(setDeleteGroupError)}
-        label={t("groupDetail.deleteGroup")}
-        confirmText="DELETE"
-        isLoading={isDeletingGroup}
-        error={deleteGroupError}
-      >
-        <p className="text-theme-sm text-fg-muted">
-          <span className="text-fg font-medium" translate="no">{GroupDetails?.name}</span> —{" "}
-          {t("groupDetail.deleteGroupConfirm")}
-        </p>
-      </DeleteConfirmModal>
-
-      {/* ── Leave Group modal ── */}
-      <DeleteConfirmModal
-        isOpen={leaveGroupOpen}
-        onClose={() => { setLeaveGroupOpen(false); setLeaveGroupError(""); }}
-        onConfirm={async () => {
-          const result = await handleLeaveGroup(setLeaveGroupError);
-          if (result === "requested") {
-            setLeaveGroupOpen(false);
-            setLeaveGroupError("");
-            setLeaveRequestSent(true);
-          }
-        }}
-        label={t("groupDetail.leaveGroup", "Leave Group")}
-        confirmText="LEAVE"
-        isLoading={isLeavingGroup}
-        error={leaveGroupError}
-      >
-        <p className="text-theme-sm text-fg-muted">
-          <span className="text-fg font-medium" translate="no">{GroupDetails?.name}</span> —{" "}
-          {t(
-            "groupDetail.leaveGroupConfirm",
-            "You will lose access to this group's expenses and activity. This cannot be undone by you."
-          )}
-        </p>
-      </DeleteConfirmModal>
-
-      {/* ── Leave Without Settlement (forfeit) modal ── */}
-      <DeleteConfirmModal
-        isOpen={forfeitLeaveOpen}
-        onClose={() => { setForfeitLeaveOpen(false); setForfeitLeaveError(""); }}
-        onConfirm={() => handleLeaveGroup(setForfeitLeaveError, "forfeit")}
-        label={t("groupDetail.leaveWithoutSettlement", "Leave without settlement")}
-        confirmText="FORFEIT"
-        isLoading={isLeavingGroup}
-        error={forfeitLeaveError}
-      >
-        <p className="text-theme-sm text-fg-muted">
-          <span className="text-fg font-medium" translate="no">{GroupDetails?.name}</span> —{" "}
-          {t(
-            "groupDetail.leaveWithoutSettlementConfirm",
-            "Your contribution stays in the group pool and will not be refunded. You leave instantly without admin approval. This cannot be undone."
-          )}
-        </p>
-      </DeleteConfirmModal>
-
-      {/* ── Close Group modal ── */}
-      {groupId && (
-        <CloseGroupModal
-          isOpen={closeGroupOpen}
-          groupId={groupId}
-          onClose={() => setCloseGroupOpen(false)}
-          onClosed={() => {
-            setCloseGroupOpen(false);
-            setGroupClosedBanner(true);
-          }}
-        />
-      )}
-
-      {/* ── Clone Group modal ── */}
-      {groupId && (
-        <CloneGroupModal
-          isOpen={cloneGroupOpen}
-          sourceGroupId={groupId}
-          sourceName={GroupDetails?.name ?? ""}
-          sourceStatus={GroupDetails?.status}
-          sourcePlanTier={GroupDetails?.planSnapshot?.tier}
-          onClose={() => setCloneGroupOpen(false)}
-        />
-      )}
 
       {/* ── Expense detail modal ── */}
       <ExpenseDetailModal expense={selectedExpense} onClose={() => setSelectedExpense(null)} role={role} groupId={groupId} group={GroupDetails} />

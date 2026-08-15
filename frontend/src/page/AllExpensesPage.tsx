@@ -7,13 +7,26 @@ import ExpenseRow, { ExpenseRowSkeleton } from "../components/expense/ExpenseRow
 import { dateLabel } from "../helpers/formatters";
 import {
   PageBackground,
+  PageContainer,
   BackButton,
   PageHeader,
   StatCard,
   SearchInput,
 } from "../components/ui";
+
 import { useTranslation } from "react-i18next";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
+
+/**
+ * Wide layout: the ledger keeps the main column, the meta (totals, active
+ * filter) moves into a rail that stays put while the list scrolls.
+ *
+ * A single 1152px-wide column of expense rows puts the title at the far left
+ * and the amount at the far right with a void between them, which is harder to
+ * read than the old 672px version was — width has to be spent on a second
+ * column, not on stretching one.
+ */
+const SPLIT = "grid items-start gap-6 lg:gap-8 lg:grid-cols-[minmax(0,1fr)_300px]";
 
 export default function AllExpensesPage() {
   const { groupId } = useParams();
@@ -81,7 +94,7 @@ export default function AllExpensesPage() {
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
 
-      <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-5">
+      <PageContainer width="content">
         <BackButton />
 
         <PageHeader
@@ -96,47 +109,55 @@ export default function AllExpensesPage() {
           description={t("allExpenses.description")}
         />
 
-        {hasFilter && (
-          <div className="flex items-center justify-between gap-3 bg-brand-50 border border-brand-200 dark:bg-brand-500/[0.08] dark:border-brand-400/20 rounded-xl px-3.5 py-2.5">
-            <div className="flex items-center gap-2 min-w-0">
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="shrink-0 text-brand-600 dark:text-brand-300" aria-hidden="true">
-                <path
-                  d="M1.5 2.5h11l-4.3 5v3.7l-2.4 1.3V7.5l-4.3-5Z"
-                  stroke="currentColor"
-                  strokeWidth="1.3"
-                  strokeLinejoin="round"
+        <div className={SPLIT}>
+          {/* DOM order is rail-then-list so the totals and the active filter
+              still come first when the grid collapses to one column on mobile.
+              `order` only swaps them once there are two columns to swap. */}
+          <aside className="space-y-3 min-w-0 lg:order-2 lg:sticky lg:top-10">
+            {hasFilter && (
+              <div className="flex items-center justify-between gap-3 bg-brand-50 border border-brand-200 dark:bg-brand-500/[0.08] dark:border-brand-400/20 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="shrink-0 text-brand-600 dark:text-brand-300" aria-hidden="true">
+                    <path
+                      d="M1.5 2.5h11l-4.3 5v3.7l-2.4 1.3V7.5l-4.3-5Z"
+                      stroke="currentColor"
+                      strokeWidth="1.3"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <span className="text-theme-xs text-brand-800 dark:text-brand-100/80 truncate" translate="no">
+                    {filterLabel ?? t("allExpenses.filterActive", "Filtered")}
+                  </span>
+                </div>
+                <button
+                  onClick={clearFilter}
+                  className="text-theme-xs font-semibold text-brand-600 dark:text-brand-300 hover:text-brand-700 dark:hover:text-brand-200 shrink-0 transition-colors"
+                >
+                  {t("allExpenses.clearFilter", "Clear filter")}
+                </button>
+              </div>
+            )}
+
+            {!isLoading && (
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
+                <StatCard label={t("allExpenses.totalSpent")} value={total} currency />
+                <StatCard
+                  label={t("allExpenses.transactions")}
+                  value={search ? filtered.length : totalCount}
                 />
-              </svg>
-              <span className="text-theme-xs text-brand-800 dark:text-brand-100/80 truncate" translate="no">
-                {filterLabel ?? t("allExpenses.filterActive", "Filtered")}
-              </span>
-            </div>
-            <button
-              onClick={clearFilter}
-              className="text-theme-xs font-semibold text-brand-600 dark:text-brand-300 hover:text-brand-700 dark:hover:text-brand-200 shrink-0 transition-colors"
-            >
-              {t("allExpenses.clearFilter", "Clear filter")}
-            </button>
-          </div>
-        )}
+              </div>
+            )}
 
-        {!isLoading && (
-          <div className="grid grid-cols-2 gap-2">
-            <StatCard label={t("allExpenses.totalSpent")} value={total} currency />
-            <StatCard
-              label={t("allExpenses.transactions")}
-              value={search ? filtered.length : totalCount}
-            />
-          </div>
-        )}
+            {!isLoading && (expenses?.length ?? 0) > 0 && (
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder={t("allExpenses.searchPlaceholder")}
+              />
+            )}
+          </aside>
 
-        {!isLoading && (expenses?.length ?? 0) > 0 && (
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder={t("allExpenses.searchPlaceholder")}
-          />
-        )}
+          <div className="space-y-6 min-w-0 lg:order-1">
 
         {isLoading && (
           <div className="space-y-4">
@@ -231,7 +252,9 @@ export default function AllExpensesPage() {
             </p>
           </div>
         )}
-      </main>
+          </div>
+        </div>
+      </PageContainer>
 
       <ExpenseDetailModal
         expense={selectedExpense}

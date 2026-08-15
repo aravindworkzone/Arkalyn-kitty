@@ -38,7 +38,7 @@ function LeaveRequestRow({ member, isSuperAdmin, isApprovingLeave, isRejectingLe
   const locked = member.role === "ADMIN" && !isSuperAdmin;
 
   return (
-    <div className="bg-surface-raised border border-line rounded-xl px-4 py-3.5 space-y-3">
+    <div className="bg-surface-raised border border-line rounded-xl px-5 py-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-theme-sm font-medium text-fg truncate" translate="no">

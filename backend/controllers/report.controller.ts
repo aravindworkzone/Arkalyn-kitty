@@ -36,7 +36,6 @@ export const memberBreakdown = asyncHandler(async (req, res) => {
 
     const result = await memberBreakdownService({
         groupId: req.group._id,
-        groupCreatedAt: req.group.createdAt ?? new Date(),
         preset: query.preset,
         startDate: query.startDate,
         endDate: query.endDate,
@@ -54,7 +53,6 @@ export const spendTrend = asyncHandler(async (req, res) => {
 
     const result = await spendTrendService({
         groupId: req.group._id,
-        groupCreatedAt: req.group.createdAt ?? new Date(),
         preset: query.preset,
         startDate: query.startDate,
         endDate: query.endDate,

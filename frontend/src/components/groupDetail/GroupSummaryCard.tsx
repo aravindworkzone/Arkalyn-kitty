@@ -18,7 +18,7 @@ export default function GroupSummaryCard({ group, role, memberNames, totalContri
   const barTone = bar > 60 ? "bg-brand-500" : bar > 30 ? "bg-warning-500" : "bg-error-500";
 
   return (
-    <div className="bg-surface-raised border border-line rounded-2xl p-5 shadow-theme-xs">
+    <div className="bg-surface-raised border border-line rounded-2xl p-5 sm:p-6 shadow-theme-xs">
       <div className="flex items-start justify-between mb-4">
         <div className="space-y-1.5">
           <h1 className="text-theme-xl font-semibold text-fg leading-tight" translate="no">

@@ -31,6 +31,7 @@ import {
   LimitMeter,
   INPUT_CLASS,
   DATE_INPUT_EXTRA,
+  PageContainer,
 } from "../components/ui";
 import DuplicateNoticeBar from "../components/ui/DuplicateNoticeBar";
 import DuplicateExpenseModal from "../components/ui/DuplicateExpenseModal";
@@ -245,7 +246,7 @@ export default function CreateExpensePage() {
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
 
-      <form
+      <PageContainer
         ref={formRef}
         onSubmit={(e) => {
           if (dupTier === 2 && dupMatch && !dupBypassRef.current) {
@@ -260,7 +261,8 @@ export default function CreateExpensePage() {
             date, paymentType, setFieldError, setApiError,
           });
         }}
-        className="relative max-w-xl mx-auto px-4 pt-8 pb-18 space-y-3"
+        width="form"
+        as="form"
       >
         <BackButton />
 
@@ -712,7 +714,7 @@ export default function CreateExpensePage() {
           submitLabel={isEdit ? t("editExpense.save", "Save changes") : t("createExpense.save")}
           loadingLabel={t("createExpense.saving")}
         />
-      </form>
+      </PageContainer>
 
       {dupMatch && (
         <DuplicateExpenseModal
