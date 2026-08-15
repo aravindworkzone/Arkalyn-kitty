@@ -8,7 +8,9 @@
   "scripts": {
     "dev": "nodemon --watch . --ext ts --exec ts-node ./main.ts",
     "build": "tsc",
-    "start": "node dist/main.js"
+    "start": "node dist/main.js",
+    "seed:users": "ts-node ./scripts/seedTestUsers.ts",
+    "seed:data": "ts-node ./scripts/seedTestData.ts"
   },
   "keywords": [],
   "author": "",
