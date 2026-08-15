@@ -26,6 +26,7 @@ const PURPOSE_OPTIONS: { value: string; label: string; hint: string }[] = [
   { value: "FRIENDS",   label: "Friends",   hint: "Outings & trips" },
   { value: "ROOMMATES", label: "Roommates", hint: "Rent & utilities" },
   { value: "TEAM",      label: "Team",      hint: "Work & events" },
+  { value: "RESERVE",   label: "Reserve",      hint: "Funds kept for the main group" },
   { value: "OTHER",     label: "Other",     hint: "Start blank" },
 ];
 
