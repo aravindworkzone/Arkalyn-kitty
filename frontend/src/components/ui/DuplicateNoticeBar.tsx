@@ -21,7 +21,7 @@ export default function DuplicateNoticeBar({ match }: DuplicateNoticeBarProps) {
 
   return (
     <div
-      className="w-full bg-warning-50 border border-warning-200 dark:bg-warning-500/10 dark:border-warning-500/20 rounded-xl px-4 py-3"
+      className="w-full bg-warning-50 border border-warning-200 dark:bg-warning-500/10 dark:border-warning-500/20 rounded-xl px-5 py-3.5"
       role="status"
       aria-live="polite"
     >

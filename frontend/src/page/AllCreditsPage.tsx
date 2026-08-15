@@ -6,13 +6,19 @@ import { ExpenseRowSkeleton } from "../components/expense/ExpenseRow";
 import { dateLabel, timeLabel } from "../helpers/formatters";
 import {
   PageBackground,
+  PageContainer,
   BackButton,
   PageHeader,
   StatCard,
   SearchInput,
 } from "../components/ui";
+
 import { useTranslation } from "react-i18next";
 import type { GroupCredit } from "../interface/transaction";
+
+// Same split as page/AllExpensesPage.tsx — ledger left, totals and search in a
+// rail that holds position while the list scrolls.
+const SPLIT = "grid items-start gap-6 lg:gap-8 lg:grid-cols-[minmax(0,1fr)_300px]";
 
 const PAGE_STEP = 20;
 const MAX_LIMIT = 200;
@@ -60,7 +66,7 @@ export default function AllCreditsPage() {
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
 
-      <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-5">
+      <PageContainer width="content">
         <BackButton />
 
         <PageHeader
@@ -75,20 +81,27 @@ export default function AllCreditsPage() {
           description={t("allCredits.description", "Every contribution credited to this group's wallet.")}
         />
 
-        {!isLoading && (
-          <div className="grid grid-cols-2 gap-2">
-            <StatCard label={t("allCredits.totalCredited", "Total credited")} value={total} currency />
-            <StatCard label={t("allCredits.transactions", "Transactions")} value={search ? filtered.length : totalCount} />
-          </div>
-        )}
+        <div className={SPLIT}>
+          {/* Rail first in the DOM so it stays above the list when the grid
+              collapses to a single column. */}
+          <aside className="space-y-3 min-w-0 lg:order-2 lg:sticky lg:top-10">
+            {!isLoading && (
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
+                <StatCard label={t("allCredits.totalCredited", "Total credited")} value={total} currency />
+                <StatCard label={t("allCredits.transactions", "Transactions")} value={search ? filtered.length : totalCount} />
+              </div>
+            )}
 
-        {!isLoading && (credits?.length ?? 0) > 0 && (
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder={t("allCredits.searchPlaceholder", "Search by description or member")}
-          />
-        )}
+            {!isLoading && (credits?.length ?? 0) > 0 && (
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder={t("allCredits.searchPlaceholder", "Search by description or member")}
+              />
+            )}
+          </aside>
+
+          <div className="space-y-6 min-w-0 lg:order-1">
 
         {isLoading && (
           <div className="space-y-4">
@@ -145,7 +158,7 @@ export default function AllCreditsPage() {
                   }
                 }}
                 aria-label={t("allCredits.openCredit", "Open credit details")}
-                className="bg-surface-raised border border-line rounded-xl px-4 py-3.5 shadow-theme-xs
+                className="bg-surface-raised border border-line rounded-xl px-5 py-4 shadow-theme-xs
                   flex items-center justify-between cursor-pointer transition-colors
                   hover:bg-surface-hover hover:border-line-strong
                   focus:outline-none focus-visible:ring-2 focus-visible:ring-success-500/40"
@@ -208,7 +221,9 @@ export default function AllCreditsPage() {
             </p>
           </div>
         )}
-      </main>
+          </div>
+        </div>
+      </PageContainer>
 
       <CreditDetailModal
         credit={selectedCredit}

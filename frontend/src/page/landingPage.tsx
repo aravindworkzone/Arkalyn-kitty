@@ -191,7 +191,7 @@ function Hero() {
       />
 
       <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 relative">
-        <div className="grid lg:grid-cols-[1fr_1fr] gap-16 max-[1023px]:gap-10 items-center py-20 lg:py-28 max-[767px]:py-12">
+        <div className="grid lg:grid-cols-[1fr_1fr] gap-16 max-[1023px]:gap-10 items-center py-24 lg:py-32 max-[767px]:py-14">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-surface-raised border border-line rounded-full text-xs font-medium text-fg-muted shadow-sm mb-5">
               <span
@@ -259,7 +259,7 @@ function Why() {
 
   return (
     <section id="why" className="border-b border-line">
-      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14">
+      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-24 max-[767px]:py-16">
         <SectionHeader
           kicker={t("landing.why.kicker")}
           title={t("landing.why.title")}
@@ -288,7 +288,7 @@ function HowItWorks() {
 
   return (
     <section id="how" className="border-b border-line bg-surface-raised/40">
-      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14">
+      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-24 max-[767px]:py-16">
         <div className="flex items-start justify-between gap-6 flex-wrap">
           <SectionHeader
             kicker={t("landing.howItWorks.kicker")}
@@ -333,7 +333,7 @@ function WhoFor() {
 
   return (
     <section id="who" className="border-b border-line">
-      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14">
+      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-24 max-[767px]:py-16">
         <SectionHeader
           kicker={t("landing.whoFor.kicker")}
           title={t("landing.whoFor.title")}
@@ -363,7 +363,7 @@ function Features() {
 
   return (
     <section id="features" className="border-b border-line bg-surface-raised/40">
-      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14">
+      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-24 max-[767px]:py-16">
         <div className="flex items-start justify-between gap-6 flex-wrap">
           <SectionHeader kicker={t("landing.features.kicker")} title={t("landing.features.title")} />
           <SegmentedToggle
@@ -420,7 +420,7 @@ function Pricing() {
 
   return (
     <section id="pricing" className="border-b border-line">
-      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14">
+      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-24 max-[767px]:py-16">
         <SectionHeader
           kicker={t("landing.pricing.kicker")}
           title={t("landing.pricing.title")}
@@ -541,7 +541,7 @@ function FAQ() {
 
   return (
     <section id="faq" className="border-b border-line">
-      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14">
+      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-24 max-[767px]:py-16">
         <SectionHeader kicker={t("landing.faq.kicker")} title={t("landing.faq.title")} />
         <div className="max-w-3xl divide-y divide-line border-y border-line">
           {items.map((f) => (
@@ -568,7 +568,7 @@ function FinalCTA() {
 
   return (
     <section className="bg-surface-raised/40">
-      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-20 max-[767px]:py-14 text-center">
+      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-24 max-[767px]:py-16 text-center">
         <h2 className="text-4xl max-[767px]:text-3xl font-bold tracking-[-0.02em] text-fg mb-3">
           {t("landing.finalCTA.title")}
         </h2>
@@ -591,7 +591,7 @@ function Footer({ onContact }: { onContact: (kind: ContactKind) => void }) {
 
   return (
     <footer className="border-t border-line bg-surface">
-      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-14 max-[767px]:py-10">
+      <div className="max-w-screen-xl mx-auto px-8 max-[767px]:px-5 py-16 max-[767px]:py-12">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
           <div>
             <Logo variant="word" className="h-9 w-28 rounded-md mb-3" />

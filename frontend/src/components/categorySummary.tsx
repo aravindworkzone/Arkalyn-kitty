@@ -5,7 +5,7 @@ export default function CategoryDeleteSummary({ category, unit = "expense" }: { 
 
   return (
     <div className="space-y-2.5">
-      <div className="flex items-center gap-3 rounded-xl border border-line bg-surface-raised px-4 py-3">
+      <div className="flex items-center gap-3 rounded-xl border border-line bg-surface-raised px-5 py-3.5">
         {/* The category's own stored colour — user data, so it stays inline. */}
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
@@ -24,7 +24,7 @@ export default function CategoryDeleteSummary({ category, unit = "expense" }: { 
       </div>
 
       {isBlocked ? (
-        <div className="flex items-start gap-2.5 rounded-xl border border-warning-200 bg-warning-50 dark:border-warning-500/15 dark:bg-warning-500/[0.06] px-4 py-3">
+        <div className="flex items-start gap-2.5 rounded-xl border border-warning-200 bg-warning-50 dark:border-warning-500/15 dark:bg-warning-500/[0.06] px-5 py-3.5">
           <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning-600 dark:text-warning-400" viewBox="0 0 14 14" fill="none" aria-hidden="true">
             <path d="M7 1.5L13 12.5H1L7 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
             <path d="M7 5.5v3M7 10h.01" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />

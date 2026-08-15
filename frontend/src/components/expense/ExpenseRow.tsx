@@ -38,7 +38,7 @@ export default function ExpenseRow({ expense, onSelect, ariaLabel, meta, style }
                 }
             }}
             aria-label={ariaLabel}
-            className="bg-surface-raised border border-line rounded-xl px-4 py-3.5 shadow-theme-xs
+            className="bg-surface-raised border border-line rounded-xl px-5 py-4 shadow-theme-xs
                 flex items-center justify-between cursor-pointer transition-colors
                 hover:bg-surface-hover hover:border-line-strong
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
@@ -81,7 +81,7 @@ export default function ExpenseRow({ expense, onSelect, ariaLabel, meta, style }
 /** Loading placeholder matching ExpenseRow's height and rhythm. */
 export function ExpenseRowSkeleton() {
     return (
-        <div className="bg-surface-raised border border-line rounded-xl px-4 py-3.5 flex items-center justify-between gap-3">
+        <div className="bg-surface-raised border border-line rounded-xl px-5 py-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 flex-1">
                 <div className="w-2 h-8 rounded-full bg-line animate-pulse shrink-0" />
                 <div className="space-y-1.5 flex-1">

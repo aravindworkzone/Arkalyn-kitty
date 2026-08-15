@@ -4,12 +4,18 @@ import { useGetUserGroupsQuery } from "../redux/api/user";
 import { useToggleFavoriteMutation } from "../redux/api/group";
 import EmptyState from "../components/EmptyList";
 import GroupCard from "../components/GroupCard";
-import { PageBackground } from "../components/ui";
+import { PageBackground, PageContainer } from "../components/ui";
 import { useTranslation } from "react-i18next";
 import type { RootState } from "../redux/store";
 import { useDispatch, useSelector } from "react-redux";
 import { leaveGroup } from "../socket/emiter/group.emit";
 import { clearGroupId } from "../redux/slice/group.slice";
+
+// The card list became a grid when the page went wide: at 1152px a single
+// column of 88px-tall cards is a thin ribbon with a field of empty canvas
+// beside it. Each card carries its own balance, pool bar and member row, so it
+// reads perfectly well at a third of the width.
+const GRID = "grid gap-4 sm:grid-cols-2 xl:grid-cols-3 items-start";
 
 const GroupPage = () => {
   const navigate = useNavigate();
@@ -48,13 +54,13 @@ const GroupPage = () => {
       <PageBackground />
 
 
-      <main className="max-w-2xl mx-auto px-4 pt-6 pb-24">
-        <div className="flex items-center justify-between mb-8">
+      <PageContainer width="content">
+        <div className="flex items-center justify-between">
           <div>
-            <p className="text-theme-xs font-medium tracking-widest uppercase text-brand-600 dark:text-brand-400 mb-1">
+            <p className="text-theme-xs font-medium tracking-widest uppercase text-brand-600 dark:text-brand-400 mb-1.5">
               {t("groups.dashboard")}
             </p>
-            <h1 className="text-title-sm font-semibold text-fg tracking-tight">
+            <h1 className="text-title-sm lg:text-title-md font-semibold text-fg tracking-tight">
               {t("groups.yourGroups")}
             </h1>
           </div>
@@ -64,8 +70,8 @@ const GroupPage = () => {
             live in the sidebar now. What remains here is the active filter
             readout, so a narrowed list always says why and offers a way out. */}
         {(search || filter) && (
-          <div className="flex items-center justify-between gap-3 mb-5 rounded-xl
-            bg-surface-raised border border-line px-4 py-2.5 shadow-theme-xs">
+          <div className="flex items-center justify-between gap-3 rounded-xl
+            bg-surface-raised border border-line px-5 py-3 shadow-theme-xs">
             <p className="text-theme-xs text-fg-muted truncate">
               {filter
                 ? t(`groups.${filter === "manage" ? "youManage" : filter === "closed" ? "closedGroups" : "activeGroups"}`)
@@ -85,17 +91,17 @@ const GroupPage = () => {
         )}
 
         {isLoading ? (
-          <div className="flex flex-col gap-3">
-            {[...Array(3)].map((_, i) => (
+          <div className={GRID}>
+            {[...Array(6)].map((_, i) => (
               <div
                 key={i}
-                className="h-[88px] rounded-2xl bg-surface-raised border border-line animate-pulse"
+                className="h-[188px] rounded-2xl bg-surface-raised border border-line animate-pulse"
                 style={{ animationDelay: `${i * 120}ms` }}
               />
             ))}
           </div>
         ) : filtered.length === 0 && (search || filter) ? (
-          <div className="text-center py-16">
+          <div className="text-center py-24">
             <p className="text-fg-muted text-theme-sm">
               {search
                 ? t("groups.noMatch", { search })
@@ -111,7 +117,7 @@ const GroupPage = () => {
         ) : groups.length === 0 ? (
           <EmptyState onClick={() => navigate("/groups/new")} />
         ) : (
-          <div className="flex flex-col gap-2.5">
+          <div className={GRID}>
             {filtered.map((group: any, i: number) => (
               <div
                 key={group._id}
@@ -135,7 +141,7 @@ const GroupPage = () => {
             ))}
           </div>
         )}
-      </main>
+      </PageContainer>
     </div>
   );
 };

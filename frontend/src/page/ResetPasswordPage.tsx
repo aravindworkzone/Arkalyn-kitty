@@ -10,12 +10,12 @@ const buttonClass =
   "mt-1 w-full min-h-touch py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-on-accent font-semibold text-sm tracking-tight disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:opacity-90 active:scale-[0.98] transition-all cursor-pointer";
 
 const Shell = ({ children }: { children: ReactNode }) => (
-  <div className="min-h-screen flex flex-col items-center justify-center bg-surface relative overflow-hidden px-3 sm:px-4 py-6 pt-safe pb-safe">
+  <div className="min-h-screen flex flex-col items-center justify-center bg-surface relative overflow-hidden px-5 sm:px-6 py-10 sm:py-14 pt-safe pb-safe">
     <div className="absolute top-[-100px] left-[-100px] w-[500px] h-[500px] rounded-full bg-line blur-3xl pointer-events-none" />
     <div className="absolute top-[-100px] right-[-100px] w-[500px] h-[500px] rounded-full bg-line blur-3xl pointer-events-none" />
     <div className="absolute bottom-[-80px] right-[-80px] w-[400px] h-[400px] rounded-full bg-line blur-3xl pointer-events-none" />
     <div className="absolute bottom-[-80px] left-[-80px] w-[400px] h-[400px] rounded-full bg-line blur-3xl pointer-events-none" />
-    <div className="relative z-10 w-full max-w-md p-5 sm:p-10 rounded-2xl bg-surface-hover border border-line shadow-2xl backdrop-blur-xl">
+    <div className="relative z-10 w-full max-w-lg p-6 sm:p-10 rounded-2xl bg-surface-hover border border-line shadow-2xl backdrop-blur-xl">
       <div className="flex items-center justify-center mb-6 gap-3">
         <Logo variant="mini" className="h-12 w-12 sm:h-16 sm:w-16 rounded-md" />
         <Logo variant="word" className="h-14 sm:h-18 w-32 sm:w-42 rounded-md" />

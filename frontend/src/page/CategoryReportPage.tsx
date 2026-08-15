@@ -8,6 +8,7 @@ import {
 } from '../redux/api/report';
 import {
     PageBackground,
+    PageContainer,
     BackButton,
     PageHeader,
     StatCard,
@@ -16,6 +17,10 @@ import {
     INPUT_CLASS,
     DATE_INPUT_EXTRA,
 } from '../components/ui';
+
+// The sticky toolbar bleeds to the page edge, so it has to cancel exactly the
+// gutters PageContainer applies — hence the matching negative margins.
+const BLEED = '-mx-5 sm:-mx-6 lg:-mx-8 xl:-mx-10 px-5 sm:px-6 lg:px-8 xl:px-10';
 import { formatCents } from '../helpers/money';
 import type { ReportPreset, CategoryBreakdownRow, TrendGranularity, MemberBy } from '../interface/report';
 import { MIN_DATE, todayISODate, blockDateTyping } from '../helpers/validators';
@@ -232,7 +237,7 @@ export default function CategoryReportPage() {
         <div className="min-h-screen bg-surface text-fg">
             <PageBackground />
 
-            <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-5">
+            <PageContainer width="content">
                 <div className="inline-block">
                     <BackButton />
                 </div>
@@ -253,7 +258,7 @@ export default function CategoryReportPage() {
                 {/* view tabs + date range — sticks below the global header so
                     the view switch and the preset range stay reachable while
                     scrolling. */}
-                <div className="sticky top-14 lg:top-16 z-sticky -mx-4 px-4 py-2 bg-surface/95 backdrop-blur-md space-y-3">
+                <div className={`sticky top-14 lg:top-16 z-sticky ${BLEED} py-3 bg-surface/95 backdrop-blur-md space-y-3`}>
                 <SegmentedToggle
                     className="w-full [&>button]:flex-1"
                     options={VIEWS.map((v) => ({ value: v, label: t(`reports.tab.${v}`, VIEW_LABEL[v]) }))}
@@ -334,8 +339,11 @@ export default function CategoryReportPage() {
                 </div>
                 </div>
 
+                {/* Totals and the resolved range read as one band. The range
+                    used to trail underneath as loose text; as a third tile it
+                    balances the row at the wider column. */}
                 {activeData && (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         <StatCard
                             label={t('categoryReport.totalSpent')}
                             value={activeData.totalSpendCents / 100}
@@ -345,14 +353,16 @@ export default function CategoryReportPage() {
                             label={t('categoryReport.transactions')}
                             value={activeData.expenseCount}
                         />
+                        <div className="col-span-2 sm:col-span-1 bg-surface-raised border border-line rounded-xl px-5 py-4 shadow-theme-xs">
+                            <p className="text-theme-2xs uppercase tracking-widest text-fg-muted mb-1.5">
+                                {t('categoryReport.range', 'Range')}
+                            </p>
+                            <p className="text-theme-sm font-medium text-fg leading-snug" translate="no">
+                                {formatDate(activeData.range.start, locale)} —{' '}
+                                {formatDate(activeData.range.end, locale)}
+                            </p>
+                        </div>
                     </div>
-                )}
-
-                {activeData && (
-                    <p className="text-theme-xs text-fg-muted px-0.5">
-                        {formatDate(activeData.range.start, locale)} —{' '}
-                        {formatDate(activeData.range.end, locale)}
-                    </p>
                 )}
 
                 {(isLoading || isFetching) && !activeData && (
@@ -362,7 +372,7 @@ export default function CategoryReportPage() {
                             {[...Array(4)].map((_, i) => (
                                 <div
                                     key={i}
-                                    className="bg-surface-raised border border-line rounded-xl px-4 py-3.5 flex items-center justify-between"
+                                    className="bg-surface-raised border border-line rounded-xl px-5 py-4 flex items-center justify-between"
                                 >
                                     <div className="flex items-center gap-3 flex-1">
                                         <div className="w-3 h-3 rounded-full bg-line animate-pulse" />
@@ -383,16 +393,18 @@ export default function CategoryReportPage() {
 
                 {activeData && activeData.totalSpendCents === 0 &&
                     !(view === 'member' && memberQ.data && memberQ.data.specialCategories.length > 0) && (
-                    <div className="text-center py-16 space-y-2">
+                    <div className="text-center py-24 space-y-2">
                         <p className="text-fg text-theme-sm font-medium">{t('categoryReport.emptyTitle')}</p>
                         <p className="text-fg-muted text-theme-xs">{t('categoryReport.emptyHint')}</p>
                     </div>
                 )}
 
-                {/* CATEGORY view */}
+                {/* CATEGORY view — donut beside the breakdown at lg+. Stacked,
+                    the chart pushed the list it explains below the fold; side
+                    by side you can read a slice and its row together. */}
                 {view === 'category' && categoryQ.data && categoryQ.data.totalSpendCents > 0 && (
-                    <>
-                        <div className="bg-surface-raised border border-line rounded-2xl p-6 flex flex-col items-center shadow-theme-xs">
+                    <div className="grid gap-6 items-start lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]">
+                        <div className="bg-surface-raised border border-line rounded-2xl p-6 sm:p-7 flex flex-col items-center shadow-theme-xs">
                             <Donut rows={visibleRows} totalCents={visibleTotalCents || 1} />
                             <p className="text-theme-xs uppercase tracking-widest text-fg-muted mt-4">
                                 {t('categoryReport.totalSpent')}
@@ -431,12 +443,12 @@ export default function CategoryReportPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                             {categoryQ.data.categories.map((row, i) => (
                                 <button
                                     key={row.categoryId}
                                     onClick={() => goToExpenses({ categoryId: row.categoryId, label: row.name })}
-                                    className="w-full bg-surface-raised border border-line rounded-xl px-4 py-3.5 shadow-theme-xs
+                                    className="w-full bg-surface-raised border border-line rounded-xl px-5 py-4 shadow-theme-xs
                                         hover:bg-surface-hover hover:border-line-strong transition-colors text-left
                                         focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
                                     style={{
@@ -494,7 +506,7 @@ export default function CategoryReportPage() {
                                 </button>
                             ))}
                         </div>
-                    </>
+                    </div>
                 )}
 
                 {/* MEMBER view: paid vs spent toggle */}
@@ -513,7 +525,7 @@ export default function CategoryReportPage() {
 
                 {/* MEMBER view */}
                 {view === 'member' && memberQ.data && memberQ.data.totalSpendCents > 0 && (
-                    <div className="space-y-2">
+                    <div className="grid gap-3 xl:grid-cols-2">
                         {memberQ.data.members.map((m, i) => {
                             const color = seriesColor(i);
                             return (
@@ -526,7 +538,7 @@ export default function CategoryReportPage() {
                                                 : { spender: m.userId, label: m.name }
                                         )
                                     }
-                                    className="w-full text-left bg-surface-raised border border-line rounded-xl px-4 py-3.5 shadow-theme-xs
+                                    className="w-full text-left bg-surface-raised border border-line rounded-xl px-5 py-4 shadow-theme-xs
                                         hover:bg-surface-hover hover:border-line-strong transition-colors
                                         focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
                                     style={{
@@ -579,7 +591,7 @@ export default function CategoryReportPage() {
 
                 {/* MEMBER view — collective / special categories (not attributed per member) */}
                 {view === 'member' && memberQ.data && memberQ.data.specialCategories.length > 0 && (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         <div className="flex items-center justify-between px-1 pt-1">
                             <p className="text-theme-2xs font-semibold uppercase tracking-widest text-fg-muted">
                                 {t('categoryReport.collective', 'Shared / collective')}
@@ -618,7 +630,7 @@ export default function CategoryReportPage() {
                 {/* TREND view */}
                 {view === 'trend' && trendData && trendData.totalSpendCents > 0 && (
                     <>
-                        <div className="bg-surface-raised border border-line rounded-2xl p-5 shadow-theme-xs">
+                        <div className="bg-surface-raised border border-line rounded-2xl p-5 sm:p-6 shadow-theme-xs">
                             <p className="text-theme-2xs uppercase tracking-widest text-fg-muted mb-3">
                                 {t(
                                     `reports.granularity.${trendData.granularity}`,
@@ -629,7 +641,7 @@ export default function CategoryReportPage() {
                                 names it. Flat brand fill rather than a gradient:
                                 a fading bar reads as a value that trails off.
                                 Rounded top only, anchored to the baseline. */}
-                            <div className="flex items-end gap-1.5 h-40">
+                            <div className="flex items-end gap-1.5 h-40 lg:h-56">
                                 {trendData.points.map((p) => {
                                     const h = Math.max((p.totalCents / maxTrendCents) * 100, 4);
                                     return (
@@ -648,7 +660,7 @@ export default function CategoryReportPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                             {[...trendData.points].reverse().map((p, i) => (
                                 <button
                                     key={p.periodStart}
@@ -687,7 +699,7 @@ export default function CategoryReportPage() {
                         </div>
                     </>
                 )}
-            </main>
+            </PageContainer>
 
             <style>{`
                 @keyframes fadeSlideIn {

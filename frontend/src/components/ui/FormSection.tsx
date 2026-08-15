@@ -18,12 +18,12 @@ export default function FormSection({
   title,
   children,
   headerRight,
-  contentClass = "px-5 py-4",
+  contentClass = "px-5 sm:px-6 py-5",
 }: Props) {
   return (
     <div className="bg-surface-raised border border-line rounded-2xl overflow-hidden shadow-theme-xs">
       <div
-        className={`flex items-center gap-3 px-5 py-3.5 border-b border-line ${
+        className={`flex items-center gap-3 px-5 sm:px-6 py-4 border-b border-line ${
           headerRight ? "justify-between" : ""
         }`}
       >

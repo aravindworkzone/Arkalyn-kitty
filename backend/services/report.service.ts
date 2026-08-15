@@ -206,14 +206,14 @@ interface MemberAggRow {
 
 export const memberBreakdownService = async (data: {
     groupId: mongoose.Types.ObjectId;
-    groupCreatedAt: Date;
     preset?: ReportPreset;
     startDate?: string;
     endDate?: string;
     /** 'paid' = grouped by payer; 'spent' = consumption (split shares + unsplit charged to payer). */
     by?: 'paid' | 'spent';
 }): Promise<MemberBreakdownResult> => {
-    const range = resolveRange(data.preset, data.startDate, data.endDate, data.groupCreatedAt);
+    const firstTrascation = await Expense.findOne({ groupId: data.groupId, isDeleted: false, date: { $lte: new Date() } }).sort({ date: 1 }).lean();
+    const range = resolveRange(data.preset, data.startDate, data.endDate, firstTrascation?.date ?? new Date());
     const by = data.by ?? 'spent';
 
     // Special / "collective" categories are kept out of per-member attribution
@@ -394,12 +394,12 @@ interface TrendAggRow {
 
 export const spendTrendService = async (data: {
     groupId: mongoose.Types.ObjectId;
-    groupCreatedAt: Date;
     preset?: ReportPreset;
     startDate?: string;
     endDate?: string;
 }): Promise<SpendTrendResult> => {
-    const range = resolveRange(data.preset, data.startDate, data.endDate, data.groupCreatedAt);
+    const firstTrascation = await Expense.findOne({ groupId: data.groupId, isDeleted: false, date: { $lte: new Date() } }).sort({ date: 1 }).lean();
+    const range = resolveRange(data.preset, data.startDate, data.endDate, firstTrascation?.date ?? new Date());
 
     // Pick a bucket size that keeps the chart readable for the chosen span.
     const spanDays = (range.end.getTime() - range.start.getTime()) / 86_400_000;

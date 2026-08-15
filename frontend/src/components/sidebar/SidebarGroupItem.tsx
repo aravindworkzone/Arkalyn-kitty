@@ -221,8 +221,8 @@ export default function SidebarGroupItem({
 
                             {isAdmin && !isClosed && (
                                 <MenuItem
-                                    onClick={() => go(`/groups/${group.displayId}?settings=addMember`)}
-                                    label={t("sidebar.groupSettings", "Group settings")}
+                                    onClick={() => go(`/groups/${group.displayId}/manage?tab=addMember`)}
+                                    label={t("sidebar.groupManagement", "Group Management")}
                                     icon={
                                         <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                                             <circle cx="7" cy="7" r="2" stroke="currentColor" strokeWidth="1.2" />

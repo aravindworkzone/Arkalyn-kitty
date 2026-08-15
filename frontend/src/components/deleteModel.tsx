@@ -114,7 +114,7 @@ export default function DeleteConfirmModal({
         <div className="mb-4">{children}</div>
 
         {error && (
-          <div className="mb-4 flex items-center gap-2 rounded-xl border border-error-200 bg-error-50 dark:border-error-500/15 dark:bg-error-500/[0.06] px-3.5 py-2.5">
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-error-200 bg-error-50 dark:border-error-500/15 dark:bg-error-500/[0.06] px-4 py-3">
             <svg className="h-3.5 w-3.5 shrink-0 text-error-600 dark:text-error-400" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.2" />
               <path d="M7 4.5v3M7 9h.01" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />

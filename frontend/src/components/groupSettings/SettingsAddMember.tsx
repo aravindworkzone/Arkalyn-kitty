@@ -71,7 +71,7 @@ export default function SettingsAddMember({ isVerifying, isInvitingMember, handl
                 <li
                   key={s._id}
                   onMouseDown={(e) => { e.preventDefault(); onSuggestionSelect(s); }}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-surface-hover cursor-pointer transition-colors"
+                  className="flex items-center gap-3 px-5 py-3.5 hover:bg-surface-hover cursor-pointer transition-colors"
                 >
                   <div className="w-7 h-7 rounded-full bg-brand-50 dark:bg-brand-500/15 border border-brand-200 dark:border-brand-500/20 flex items-center justify-center shrink-0">
                     <span className="text-theme-2xs font-bold text-brand-600 dark:text-brand-300" translate="no">
@@ -102,7 +102,7 @@ export default function SettingsAddMember({ isVerifying, isInvitingMember, handl
 
       {foundUser && (
         <>
-          <div className="flex items-center gap-3 px-4 py-3 bg-surface-raised border border-line rounded-xl">
+          <div className="flex items-center gap-3 px-5 py-3.5 bg-surface-raised border border-line rounded-xl">
             <div
               className="w-8 h-8 rounded-full bg-brand-50 dark:bg-brand-500/15 border border-brand-200 dark:border-brand-500/20
                 flex items-center justify-center text-theme-xs font-bold text-brand-600 dark:text-brand-300 shrink-0"

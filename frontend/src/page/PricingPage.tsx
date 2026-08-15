@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PageBackground } from '../components/ui';
+import { PageBackground, PageContainer } from '../components/ui';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import {
     useGetPlansQuery,
@@ -195,9 +195,9 @@ export default function PricingPage() {
         <div className="min-h-screen bg-surface text-fg">
             <PageBackground />
 
-            <main className="max-w-5xl mx-auto px-4 pt-10 pb-28">
+            <PageContainer width="wide" gap="none">
                 {/* Hero */}
-                <div className="text-center max-w-xl mx-auto mb-8">
+                <div className="text-center max-w-2xl mx-auto mb-12">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-500/25 bg-brand-500/10 mb-4">
                         <span className="w-1.5 h-1.5 rounded-full bg-brand-400" />
                         <span className="text-theme-2xs font-semibold uppercase tracking-widest text-brand-300/80">Plans & Billing</span>
@@ -222,7 +222,7 @@ export default function PricingPage() {
                 </div>
 
                 {/* promo code — directly below the current plan */}
-                <div className="mb-8 max-w-md mx-auto rounded-2xl border border-line bg-surface-raised p-5">
+                <div className="mb-12 max-w-lg mx-auto rounded-2xl border border-line bg-surface-raised p-6">
                     <div className="flex items-center gap-2 mb-1">
                         <svg className="w-4 h-4 text-brand-300" viewBox="0 0 16 16" fill="none">
                             <path d="M2 6.5l5-4 7 3-1 7-7 1-4-5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
@@ -292,7 +292,7 @@ export default function PricingPage() {
 
                 {msg && (
                     <div
-                        className={`max-w-md mx-auto mb-8 rounded-xl px-4 py-3 text-sm border text-center ${
+                        className={`max-w-lg mx-auto mb-8 rounded-xl px-5 py-3.5 text-sm border text-center ${
                             msg.ok
                                 ? 'bg-success-500/[0.06] border-success-500/20 text-success-300'
                                 : 'bg-error-500/[0.06] border-error-500/15 text-error-300'
@@ -304,13 +304,13 @@ export default function PricingPage() {
 
                 {/* Tier cards */}
                 {plansLoading || !plansData ? (
-                    <div className="grid sm:grid-cols-3 gap-4">
+                    <div className="grid sm:grid-cols-3 gap-6">
                         {[...Array(3)].map((_, i) => (
                             <div key={i} className="h-[520px] rounded-3xl bg-surface-raised border border-line animate-pulse" />
                         ))}
                     </div>
                 ) : (
-                    <div className="grid sm:grid-cols-3 gap-4 items-start">
+                    <div className="grid sm:grid-cols-3 gap-6 items-start">
                         {TIER_ORDER.map((tier) => {
                             const cfg = plansData[tier];
                             const theme = TIER_THEME[tier];
@@ -429,7 +429,7 @@ export default function PricingPage() {
                         ← Back to groups
                     </button>
                 </div>
-            </main>
+            </PageContainer>
         </div>
     );
 }

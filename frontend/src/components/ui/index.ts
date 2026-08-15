@@ -24,6 +24,8 @@ export type { FormFieldA11y } from "./formFieldContext";
 
 /* ── Legacy — dark-only, hardcoded colours. Being replaced screen by screen in
    phase 5; do not build anything new on these. ───────────────────────────── */
+export { default as PageContainer }  from "./PageContainer";
+export type { PageWidth, PageGap }   from "./PageContainer";
 export { default as PageBackground } from "./PageBackground";
 export { default as BackButton }     from "./BackButton";
 export { default as PageHeader }     from "./PageHeader";

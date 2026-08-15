@@ -8,6 +8,7 @@ import LandingPage from './page/landingPage'
 import GroupPage from './page/GroupPage'
 import CreateGroupPage from './page/CreateGroupPage'
 import GroupDetailPage from './page/GroupDetailPage'
+import GroupManagementPage from './page/GroupManagementPage'
 import CreateCategory from './page/CreateCategory'
 import CreateExpense from './page/CreateExpense'
 import Report from './page/GroupReport'
@@ -67,6 +68,7 @@ function App() {
             <Route path="/groups" element={<GroupPage />} />
             <Route path="/groups/new" element={<CreateGroupPage />} />
             <Route path="/groups/:groupId" element={<GroupDetailPage />} />
+            <Route path="/groups/:groupId/manage" element={<GroupManagementPage />} />
             <Route path="/groups/:groupId/expenses" element={<AllExpensesPage />} />
             <Route path="/groups/:groupId/expenses/new" element={<CreateExpense />} />
             <Route path="/groups/:groupId/expenses/:expenseId/edit" element={<CreateExpense />} />
