@@ -75,10 +75,7 @@ export default function PageContainer<E extends HTMLElement = HTMLElement>({
                 WIDTH[width],
                 // Gutters grow with the viewport; the safe-area insets keep the
                 // column clear of a notch in landscape.
-                "px-5 sm:px-6 lg:px-8 xl:px-10 pl-safe pr-safe",
-                // Generous head room, and enough tail that the last row never
-                // sits flush against the bottom edge.
-                "pt-6 sm:pt-8 lg:pt-10 pb-24 lg:pb-28",
+                "px-4 py-8",
                 GAP[gap],
                 className
             )}
