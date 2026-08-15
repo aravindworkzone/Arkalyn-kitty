@@ -8,11 +8,12 @@ import {
     expenseReportService,
     getAllExpensesService,
     checkDuplicateExpenseService,
+    getTitleSuggestionsService,
 } from '../services/expense.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess, sendCreated, sendPaginated } from '../utils/response';
 import { AppError } from '../helpers/AppError';
-import { allExpensesQuerySchema } from '../validators/expense.validator';
+import { allExpensesQuerySchema, titleSuggestionsQuerySchema } from '../validators/expense.validator';
 import { emitToGroup, SOCKET_EVENTS } from "../sockets/index";
 
 export const createExpense = asyncHandler(async (req, res) => {
@@ -99,12 +100,13 @@ export const expenseReport = asyncHandler(async (req, res) => {
 export const getAllExpenses = asyncHandler(async (req, res) => {
     if (!req.group?._id) throw new AppError('Group not found', 400);
 
-    const { page = 1, limit = 20, categoryId, paidBy, spender, startDate, endDate } =
+    const { page = 1, limit = 20, categoryId, paidBy, spender, fundedBy, startDate, endDate } =
         allExpensesQuerySchema.parse(req.query);
     const { items, total } = await getAllExpensesService(req.group._id, page, limit, {
         categoryId,
         paidBy,
         spender,
+        fundedBy,
         startDate,
         endDate,
     });
@@ -129,4 +131,16 @@ export const checkDuplicateExpense = asyncHandler(async (req, res) => {
         excludeExpenseId,
     );
     sendSuccess(res, result, 'Duplicate check complete');
+});
+
+export const getTitleSuggestions = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    // Parsed again here rather than read off req.query: the schema applies the
+    // default limit and the numeric coercion, which the middleware validates
+    // but does not write back.
+    const { q, limit } = titleSuggestionsQuerySchema.parse(req.query);
+
+    const suggestions = await getTitleSuggestionsService(req.group._id, q, limit);
+    sendSuccess(res, { suggestions }, 'Title suggestions');
 });

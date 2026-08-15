@@ -34,21 +34,36 @@ export const setAllSplits = (
   setSplits(members.map((m) => ({ userId: m._id, name: m.name, amount: 0 })));
 };
 
+/**
+ * Even division of `totalAmount` across `splits`, to the paise.
+ *
+ * Pure, and exported as well as the setter-based `splitEqually` below, because
+ * callers that keep an equal split in step with a changing amount need to
+ * re-divide an array they have just derived (a member was added, say) rather
+ * than the array currently in state. Two copies of the rounding rule is how
+ * money drifts, so there is one.
+ *
+ * A zero or negative total zeroes the amounts instead of leaving the old ones
+ * behind — clearing the amount field should not leave a stale split standing.
+ */
+export const equalSplitAmounts = (splits: SplitEntry[], totalAmount: number): SplitEntry[] => {
+  const n = splits.length;
+  if (n === 0) return splits;
+  if (totalAmount <= 0) return splits.map((s) => ({ ...s, amount: 0 }));
+  const totalPaise = Math.round(totalAmount * 100);
+  const basePaise  = Math.floor(totalPaise / n);
+  const remainder  = totalPaise - basePaise * n;
+  return splits.map((s, i) => ({
+    ...s,
+    amount: parseFloat(((i === 0 ? basePaise + remainder : basePaise) / 100).toFixed(2)),
+  }));
+};
+
 export const splitEqually = (
   setSplits: React.Dispatch<React.SetStateAction<SplitEntry[]>>,
   totalAmount: number
 ) => {
-  setSplits((prev) => {
-    const n = prev.length;
-    if (n === 0 || totalAmount <= 0) return prev;
-    const totalPaise = Math.round(totalAmount * 100);
-    const basePaise  = Math.floor(totalPaise / n);
-    const remainder  = totalPaise - basePaise * n;
-    return prev.map((s, i) => ({
-      ...s,
-      amount: parseFloat(((i === 0 ? basePaise + remainder : basePaise) / 100).toFixed(2)),
-    }));
-  });
+  setSplits((prev) => (totalAmount <= 0 ? prev : equalSplitAmounts(prev, totalAmount)));
 };
 
 export const useExpenseHandlers = (groupId: string | undefined, expenseId?: string) => {
@@ -60,9 +75,9 @@ export const useExpenseHandlers = (groupId: string | undefined, expenseId?: stri
   const handleSubmit = async (
     e: React.FormEvent,
     {
-      title, description, totalAmount, maxAmount, categoryId, creditCategoryId, paidBy,
+      title, description, totalAmount, maxAmount, categoryId, creditCategoryId, fundedByGroup, paidBy,
       splits, splitValid, splitEnabled, date, paymentType,
-      setFieldError, setApiError,
+      setFieldError, setApiError, onSaved,
     }: {
       title: string;
       description?: string;
@@ -70,6 +85,9 @@ export const useExpenseHandlers = (groupId: string | undefined, expenseId?: stri
       maxAmount?: number;
       categoryId: string;
       creditCategoryId?: string;
+      /** Connected group this spend is attributed to. Attribution only — the
+       *  money was transferred into this group's wallet beforehand. */
+      fundedByGroup?: string;
       paidBy: string;
       splits: SplitEntry[];
       splitValid: boolean;
@@ -78,6 +96,8 @@ export const useExpenseHandlers = (groupId: string | undefined, expenseId?: stri
       paymentType: string;
       setFieldError: SetFieldError<ExpenseField>;
       setApiError:   React.Dispatch<React.SetStateAction<string>>;
+      /** Runs only after the server has accepted the expense, before navigating. */
+      onSaved?: () => void;
     }
   ) => {
     e.preventDefault();
@@ -111,6 +131,7 @@ export const useExpenseHandlers = (groupId: string | undefined, expenseId?: stri
       date,
       category: categoryId,
       ...(creditCategoryId ? { creditCategory: creditCategoryId } : {}),
+      ...(fundedByGroup ? { fundedByGroup } : {}),
       paymentType,
       paidBy,
       splitBetween: splits.map((s) => ({ userId: s.userId, amount: s.amount })),
@@ -122,6 +143,7 @@ export const useExpenseHandlers = (groupId: string | undefined, expenseId?: stri
       } else {
         await createExpense(payload).unwrap();
       }
+      onSaved?.();
       navigate(-1);
     } catch (error: any) {
       setApiError(error.data?.message || (isEdit ? "Failed to update expense" : "Failed to create expense"));

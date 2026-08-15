@@ -50,7 +50,10 @@ export default function DuplicateExpenseModal({
         {detailRow(t("duplicateModal.date", "Date"), formattedDate)}
         {detailRow(t("duplicateModal.amount", "Amount"), `₹${formattedAmount}`)}
         {detailRow(t("duplicateModal.category", "Category"), match.category.name)}
-        {detailRow(t("duplicateModal.title", "Title"), match.title)}
+        {/* Its own key: `duplicateModal.title` is the sheet's heading, so
+            reusing it here meant translating "Duplicate Expense Detected" and
+            the row label "Title" as one string. */}
+        {detailRow(t("duplicateModal.titleRow", "Title"), match.title)}
         {detailRow(t("duplicateModal.addedBy", "Added by"), match.createdBy.name)}
       </div>
 
