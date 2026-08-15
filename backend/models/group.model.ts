@@ -8,7 +8,7 @@ export interface IGroupPlanSnapshot {
     snapshotAt: Date;
 }
 
-export const GROUP_PURPOSES = ["FAMILY", "FRIENDS", "ROOMMATES", "TEAM", "OTHER"] as const;
+export const GROUP_PURPOSES = ["FAMILY", "FRIENDS", "ROOMMATES", "TEAM", "RESERVE", "OTHER"] as const;
 export type GroupPurpose = typeof GROUP_PURPOSES[number];
 
 export interface IGroup extends Document {
@@ -53,6 +53,22 @@ groupSchema.pre("findOneAndDelete", async function() {
         await mongoose.model("GroupMember").deleteMany({ groupId });
         await mongoose.model("GroupEvent").updateMany({ groupId }, { $set: { isDeleted: true } });
         await mongoose.model("GroupTransaction").updateMany({ groupId }, { $set: { isDeleted: true } });
+        // Funding links point both ways, so match either end. Soft-deleted like
+        // the ledgers rather than dropped: the surviving group's history still
+        // refers to money that moved.
+        await mongoose.model("GroupLink").updateMany(
+            { $or: [{ hostGroupId: groupId }, { sourceGroupId: groupId }] },
+            { $set: { isDeleted: true, status: "REVOKED" } }
+        );
+        await mongoose.model("GroupJoinLink").deleteMany({ groupId });
+        // Expenses in OTHER groups may still be attributed to this one. Clear the
+        // reference so they don't point at a group that no longer exists — the
+        // expense itself and its debit are unaffected, since the tag never drove
+        // any balance.
+        await mongoose.model("Expense").updateMany(
+            { fundedByGroup: groupId },
+            { $unset: { fundedByGroup: "" } }
+        );
     } catch (error) {
         if(error instanceof Error) throw new Error(error.message);
         throw new Error("An unknown error occurred");

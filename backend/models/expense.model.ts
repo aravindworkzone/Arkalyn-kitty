@@ -9,6 +9,10 @@ export interface IExpense extends Document {
     category: mongoose.Types.ObjectId;
     // Which credit category (pool) this expense is drawn from. Optional.
     creditCategory?: mongoose.Types.ObjectId;
+    // Which connected group's money this expense is attributed to. Optional,
+    // and purely attributional — the money was already transferred into this
+    // group's wallet, so the debit still hits `groupId` like any other expense.
+    fundedByGroup?: mongoose.Types.ObjectId;
     title: string;
     description?: string;
     amount: number;
@@ -28,6 +32,7 @@ const expenseSchema = new Schema<IExpense>({
     groupId: {type: mongoose.Types.ObjectId, ref: "Group", required: true},
     category: {type: mongoose.Types.ObjectId, ref: "Category", required: true},
     creditCategory: {type: mongoose.Types.ObjectId, ref: "Category"},
+    fundedByGroup: {type: mongoose.Types.ObjectId, ref: "Group"},
     title: {type: String, required: true, trim: true, minlength: 3, maxlength: 100},
     description: {type: String, trim: true, maxlength: 500},
     amount: {type: Number, required: true, min: 1, set:toDBAmount, get:fromDBAmount},
@@ -48,6 +53,9 @@ const expenseSchema = new Schema<IExpense>({
 expenseSchema.index({ groupId: 1, isDeleted: 1, date: -1 });
 expenseSchema.index({ groupId: 1, category: 1, isDeleted: 1 });
 expenseSchema.index({ paidBy: 1, isDeleted: 1 });
+// Serves the per-link "how much of the source group's money has been spent"
+// rollup on the connections page. Sparse: most expenses carry no funding group.
+expenseSchema.index({ groupId: 1, fundedByGroup: 1, isDeleted: 1 }, { sparse: true });
 
 expenseSchema.path("splitBetween").validate(function (value: any[]) {
     if (!value || value.length === 0) return true;

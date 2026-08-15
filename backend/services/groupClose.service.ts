@@ -5,6 +5,8 @@ import GroupMember from '../models/group_member.model';
 import Category from '../models/category.model';
 import Expense from '../models/expense.model';
 import GroupEvent from '../models/group_event.model';
+import GroupLink from '../models/group_link.model';
+import GroupJoinLink from '../models/group_join_link.model';
 import { getGroupOwnerPlan } from '../helpers/planLimits';
 
 const CLOSURE_CATEGORY_NAME = 'Group Closure';
@@ -227,6 +229,28 @@ export const executeGroupCloseService = async (data: {
         if (!flipped) {
             throw new AppError('Group was closed by another request', 409);
         }
+
+        // A closed group can neither send nor receive funding, so any link at
+        // either end is torn down here. Money already transferred stays where it
+        // is — it was a contribution, and the refund above has already dealt
+        // with this group's remaining balance.
+        await GroupLink.updateMany(
+            {
+                $or: [{ hostGroupId: groupId }, { sourceGroupId: groupId }],
+                status: { $in: ['PENDING', 'ACTIVE'] },
+                isDeleted: false,
+            },
+            { $set: { status: 'REVOKED' } },
+            { session }
+        );
+
+        // Likewise a shared join link: joinViaLinkService already refuses a
+        // closed group, but leaving a live link advertising it is misleading.
+        await GroupJoinLink.updateMany(
+            { groupId, isActive: true },
+            { $set: { isActive: false } },
+            { session }
+        );
 
         const closeEvent = new GroupEvent({
             groupId,

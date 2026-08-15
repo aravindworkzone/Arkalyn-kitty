@@ -45,7 +45,7 @@ Financial correctness is enforced at the data layer, not the UI:
 - **One place for balance mutations** — `helpers/balanceOps` owns every `$inc` against a balance. Two rules that are easy to get wrong live there and nowhere else: update operators receive **raw rupees** (Mongoose re-runs the setter), while query filters receive `toDBAmount(x)` (filters do *not* run setters). Services never hand-write balance arithmetic.
 - **Append-only ledger** — every balance change is recorded in `group_transaction` as a `CREDIT`, `DEBIT`, or `REFUND` entry, with polymorphic references (`refPath`) back to the source document and soft-delete (`isDeleted`) instead of hard deletes.
 - **Atomic overspend guard** — debits run as a single conditional `findOneAndUpdate({ _id, balance: { $gte: amount } })`. If the balance is insufficient the update matches nothing and the caller throws — the check and the write cannot interleave.
-- **Multi-document transactions** — expense create/edit/delete, settlement, and group close all run inside a `mongoose` session so the balance, ledger entry, and audit event commit or abort together.
+- **Multi-document transactions** — expense create/edit/delete, settlement, group close, and group-to-group funding all run inside a `mongoose` session so the balance, ledger entry, and audit event commit or abort together. A funding transfer spans two groups' wallets and ledgers in one session.
 
 ---
 
@@ -56,7 +56,8 @@ Financial correctness is enforced at the data layer, not the UI:
 3. Editing an expense adjusts the pool by the **delta only**, then writes a field-level before→after diff to the event log.
 4. Deleting an expense soft-deletes it and refunds the pool with a `REFUND` entry.
 5. The system enforces a hard constraint: expenses cannot exceed available balance.
-6. All mutations are logged — there is no silent state change.
+6. A connected group can top the wallet up too — an admin of the funding group pushes money across, and it credits the pool like any other contribution.
+7. All mutations are logged — there is no silent state change.
 
 ---
 
@@ -73,6 +74,8 @@ The schema is normalized across focused collections rather than embedded blobs:
 - `group` — group metadata, purpose, status, balance, plan snapshot
 - `group_member` — join collection (user ↔ group) carrying role, contribution total, and settlement state
 - `group_invite` — invitations with a two-step lifecycle (invitee responds, then an admin approves)
+- `group_join_link` — shareable "ask to join" tokens, one active per group, revocable and rotatable
+- `group_link` — group ↔ group funding links (source bankrolls host) with a running contributed total
 - `group_event` — per-group audit/event stream
 
 **Money**
@@ -93,9 +96,32 @@ The schema is normalized across focused collections rather than embedded blobs:
 ## Groups & Membership Lifecycle
 
 - **Invite → accept → approve.** An invite targets an existing account. The invitee accepts and declares a contribution, which is held on the invite row until an admin approves — only then does it credit the group balance. `REJECTED` (invitee said no) and `DECLINED` (admin said no) are kept distinct so the audit trail records who refused.
+- **Join links.** An admin can share a link (`/join/<token>`) that lets anyone with it *ask* to join. Clicking it is the acceptance, so the request is written straight to `PENDING_APPROVAL` — the same state an emailed invite reaches once answered, and therefore the same approval queue, the same member-cap check, the same balance credit. A link is a second entry point, not a second path to membership: nobody joins unreviewed. Tokens are stored in plaintext deliberately, since a token grants only the right to ask; one link is active per group, and rotating or revoking kills the old one immediately.
 - **Leaving.** A member either files a leave request for admin approval (settlement path) or exits instantly via **forfeit**, leaving their contribution in the pool. `leftMode` records which happened.
 - **Settlement.** An admin settles a member for an amount up to the available balance; the payout debits the pool and writes a ledger entry. Members cannot be removed unsettled.
 - **Close & clone.** A group can be previewed and then closed, freezing the owner's plan tier into `planSnapshot` so later plan changes never rewrite history. Closed groups reject all further writes (`ensureGroupActive`) and stop consuming the owner's group limit. Paid tiers can clone a group's structure into a fresh one.
+
+---
+
+## Connected Groups
+
+One group can bankroll another — a household group funding a trip group, say. The link is consented to on both sides: an admin of the **host** (the group that wants funding) requests it, and an admin of the **source** (the group whose money it is) approves. Direction is never inferred and never reversed.
+
+Funding is **pre-paid, not pulled**. An admin of the source pushes a lump sum, exactly like a member topping up a wallet; the host then spends it through the ordinary expense flow. Only the source can move its own money — a host can request a link and spend what it has been given, but it can never reach into the funder's wallet.
+
+A single transfer runs in one session across two wallets:
+
+```
+debitGroupBalance(source)    → DEBIT  on source, referenceModel 'Group'
+creditGroupBalance(host)     → CREDIT on host,   referenceModel 'Group'
+$inc link.contribution
+```
+
+The atomic overspend guard applies to the source, so a transfer larger than its balance matches nothing and aborts the whole session.
+
+Expenses in the host can optionally record `fundedByGroup`. That is **attribution only** — the money was already transferred in, so the debit still targets the host like any other expense, and the invariant that *an expense debits exactly the group it belongs to* holds everywhere. Because funding is pre-paid, a host can tag more spend to a funder than that funder ever sent; the UI warns and still saves, matching how category spend limits behave.
+
+Money sent is a **contribution, not a loan**. There is no inter-group debt and no settle-up: removing a link stops further funding and further attribution, and leaves what has already moved where it is. Closing or deleting either group revokes the link.
 
 ---
 
@@ -122,7 +148,7 @@ Permissions are enforced at the middleware level, not just the UI. `loadGroup` r
 | Role | Capabilities |
 |---|---|
 | `MEMBER` | Add expenses, edit their own expenses, view balance/reports/history, request to leave |
-| `ADMIN` | All member actions + manage categories, invite and manage members, add contributions, settle members, edit or delete any expense |
+| `ADMIN` | All member actions + manage categories, invite and manage members, share/revoke the join link, approve join requests, manage group connections and send funds, add contributions, settle members, edit or delete any expense |
 | `SUPER_ADMIN` | All admin actions + manage admin roles, close/clone/delete the group |
 | `APP_OWNER` | Application-level administration across all accounts (see `admin.router`) |
 
@@ -144,6 +170,7 @@ Three tiers, priced in INR. `null` means unlimited.
 | Transaction log retention | 30 days | 100 days | Unlimited |
 | Custom report date ranges | — | ✓ | ✓ |
 | Clone group | — | ✓ | ✓ |
+| Connect groups (fund another group) | — | ✓ | ✓ |
 
 - **Razorpay** order creation and **HMAC signature verification** on callback.
 - **Idempotent** payment recording — a replayed callback does not double-credit.
@@ -163,14 +190,21 @@ Three group-scoped report endpoints under `/api/groupreport`, all available to a
 - **Member breakdown** — attribution per member: expenses they shared in, plus unsplit expenses they paid for.
 - **Spend trend** — spend over time.
 
-Report cards deep-link into a pre-filtered expense list, and the list's server-side filters (category, payer, spender, date range) mirror the report's attribution so the drill-through always reconciles with the chart.
+Report cards deep-link into a pre-filtered expense list, and the list's server-side filters (category, payer, spender, funding group, date range) mirror the report's attribution so the drill-through always reconciles with the chart.
+
+The **funded-by** filter has three states rather than two: unset, a connected group, or the literal `own` for expenses drawn from the group's own wallet. The sentinel exists because "not funded by anyone" is a question the id-only form can't ask — and because `{ fundedByGroup: null }` also matches expenses written before the field existed. The connections page's "tagged to expenses" total links straight into this filtered view.
+
+An `all_time` range starts at the group's **first expense**, not its creation date, so a group set up months before anyone spent anything doesn't open on a run of empty leading buckets.
+
+Attribution stays user-keyed: a connected group that funds this one is a contributor, not a member, and never appears in the member breakdown.
 
 ---
 
 ## Realtime & Notifications
 
-- **socket.io** server (`backend/sockets`) and `socket.io-client` on the frontend push live updates for expenses, categories, balance, membership, roles, contributions, settlements, leave requests, and activity events.
-- **In-app notifications** cover the membership lifecycle — invites, join approvals, leave requests, role changes, departures, and group deletion — delivered over the socket and persisted with read state.
+- **socket.io** server (`backend/sockets`) and `socket.io-client` on the frontend push live updates for expenses, categories, balance, membership, roles, contributions, settlements, leave requests, group connections, and activity events.
+- **In-app notifications** cover the membership lifecycle — invites, join requests (emailed or via a join link), join approvals, leave requests, role changes, departures, and group deletion — plus the connection lifecycle: requested, approved, rejected, revoked, and funded.
+- A funding transfer changes two wallets, so `group:link:updated` is emitted to **both** group rooms; whichever side is on screen refetches.
 - **Transactional email** via Resend for password reset and the public contact form. Optional: without an API key the app still boots and email degrades to a logged warning.
 
 ---
@@ -215,6 +249,7 @@ Writes go through the same services as the web app, so balance updates, ledger e
 - `helmet` and tiered `express-rate-limit` (global, auth, contact form) on the request pipeline
 - A hand-rolled `sanitizeMongoOperators` middleware strips `$`-prefixed and dotted keys from request bodies to block operator injection
 - Request-level validation (Zod) in addition to schema-level (Mongoose)
+- Join-link tokens are 192-bit url-safe randoms and are **not** credentials — they buy only the right to ask, and an admin still approves every request. A revoked link and an invented one return the same error, so the token space can't be probed for which groups exist
 - Consistent error envelope: `{ success, message, data }`
 
 ---
@@ -229,6 +264,8 @@ RESTful routers mounted under `/api`:
 | `/api/user` | profile, account deletion, user search, API key generation/revocation |
 | `/api/group` | create, close, clone, members, roles, contributions, settlement, leave flow, transactions, events, credits |
 | `/api/invite` | send, accept, reject, approve, decline, pending queue |
+| `/api/joinlink` | create/rotate, revoke, read the group's link; preview a token and request to join |
+| `/api/grouplink` | request, approve, reject, revoke a funding link; send funds; list both directions |
 | `/api/expense` | create, edit, delete, list with filters, duplicate detection, payment methods |
 | `/api/category` | create, update, delete, list (expense + credit) |
 | `/api/groupreport` | category breakdown, member breakdown, spend trend |
@@ -302,6 +339,8 @@ Stated plainly, so the scope is honest:
 - **Splitting supports equal and exact amounts only** — no percentage, shares, or multiple payers.
 - **Expense text search is client-side** over the loaded page; the server-side filters are the ones that scale.
 - **`groupType: "SPLIT"`** exists in the schema but is unimplemented — `POOL` is the only live mode.
+- **No repayment between connected groups.** Funding is a one-way contribution by design; there is no inter-group debt or settle-up, and over-attributing spend to a funder warns rather than blocks.
+- **The MCP `add_expense` tool can't set a funding group** — the field is optional, so the tool keeps working, but attribution has to be set from the web app.
 
 ---
 

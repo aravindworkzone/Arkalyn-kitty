@@ -24,7 +24,7 @@ export const PUBLIC_PLANS: Record<PlanTier, PlanConfig> = {
             eventLogRetentionDays: 15,
             transactionLogRetentionDays: 30,
         },
-        features: { advancedReportRange: false, cloneGroup: false },
+        features: { advancedReportRange: false, cloneGroup: false, linkGroups: false },
     },
     PRO: {
         name: 'Pro',
@@ -37,7 +37,7 @@ export const PUBLIC_PLANS: Record<PlanTier, PlanConfig> = {
             eventLogRetentionDays: 60,
             transactionLogRetentionDays: 100,
         },
-        features: { advancedReportRange: true, cloneGroup: true },
+        features: { advancedReportRange: true, cloneGroup: true, linkGroups: true },
     },
     PREMIUM: {
         name: 'Premium',
@@ -50,7 +50,7 @@ export const PUBLIC_PLANS: Record<PlanTier, PlanConfig> = {
             eventLogRetentionDays: null,
             transactionLogRetentionDays: null,
         },
-        features: { advancedReportRange: true, cloneGroup: true },
+        features: { advancedReportRange: true, cloneGroup: true, linkGroups: true },
     },
 };
 
@@ -75,6 +75,7 @@ export const planFeatureLines = (tier: PlanTier, cfg: PlanConfig): string[] => {
         cfg.features.advancedReportRange ? 'Custom-range reports' : 'Month & all-time reports',
     ];
     if (cfg.features.cloneGroup) lines.push('Clone groups in one click');
+    if (cfg.features.linkGroups) lines.push('Connect groups to fund each other');
     if (tier === 'PREMIUM') lines.push('Everything unlimited');
     return lines;
 };

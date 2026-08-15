@@ -15,6 +15,7 @@ export const SOCKET_EVENTS = {
     GROUP_CONTRIBUTION_ADDED: "group:contribution:added",
     GROUP_SETTLEMENT_COMPLETED: "group:settlement:completed",
     GROUP_LEAVE_REQUEST_UPDATED: "group:leave:request:updated",
+    GROUP_LINK_UPDATED: "group:link:updated",
     GROUP_DELETED: "group:deleted",
 
     NOTIFICATION_NEW: "notification:new",

@@ -377,12 +377,14 @@ function GroupNav({
         { to: `/groups/${groupId}`, icon: <I.Home />, label: t("sidebar.overview", "Overview"), end: true },
         { to: `/groups/${groupId}/credits`, icon: <I.Wallet />, label: t("sidebar.credits", "Credits") },
         { to: `/groups/${groupId}/expenses`, icon: <I.Receipt />, label: t("sidebar.expenses", "Expenses") },
-        // The categories screen IS /categories/new — it holds the create form
-        // and the existing-category list. There is no separate list route.
         { to: `/groups/${groupId}/categories/new`, icon: <I.Tag />, label: t("sidebar.categories", "Categories") },
         { to: `/groups/${groupId}/activity`, icon: <I.Activity />, label: t("sidebar.activity", "Activity") },
-        { to: `/groups/${groupId}/reports/categories`, icon: <I.Chart />, label: t("sidebar.report", "Report") },
+        { to: `/groups/${groupId}/reports/categories`, icon: <I.Chart />, label: t("sidebar.report", "Report") }
     ];
+
+    if(isAdmin){
+        items.push({ to: `/groups/${groupId}/connections`, icon: <I.Link />, label: t("sidebar.connections", "Connections") });
+    }
 
     return (
         <>

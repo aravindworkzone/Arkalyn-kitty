@@ -31,6 +31,7 @@ import {
   tabId,
   tabPanelId,
   SettingsAddMember,
+  SettingsJoinLink,
   SettingsChangeRole,
   SettingsContribution,
   SettingsSettlement,
@@ -264,12 +265,20 @@ export default function GroupManagementPage() {
           <StatusBanner status={msg ? (msg.ok ? "ok" : "err") : null} text={msg?.text ?? ""} />
 
           {activeTab === "addMember" && (
-            <SettingsAddMember
-              isVerifying={isVerifying}
-              isInvitingMember={isInvitingMember}
-              handleVerifyUser={handleVerifyUser}
-              handleInviteMember={handleInviteMember}
-            />
+            <div className="space-y-6">
+              <SettingsAddMember
+                isVerifying={isVerifying}
+                isInvitingMember={isInvitingMember}
+                handleVerifyUser={handleVerifyUser}
+                handleInviteMember={handleInviteMember}
+              />
+              {/* Same tab because it's the same job — adding people. Inviting by
+                  email targets one known account; the link reaches whoever it's
+                  shared with. Both queue for approval. */}
+              <div className="pt-4 border-t border-line">
+                <SettingsJoinLink groupId={groupId} />
+              </div>
+            </div>
           )}
 
           {activeTab === "changeRole" && (

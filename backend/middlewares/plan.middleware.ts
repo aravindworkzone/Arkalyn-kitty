@@ -48,3 +48,21 @@ export const requireAdvancedReportRange = asyncHandler(
         next();
     }
 );
+
+// Gates group-to-group funding links behind the plan of the owner of whichever
+// group is acting. Applied to the write routes only — reading the connections
+// list stays free so a lapsed plan can still see, and unwind, existing links.
+// Must run after loadGroup.
+export const requireGroupLinking = asyncHandler(
+    async (req: Request, _res: Response, next: NextFunction) => {
+        if (!req.group?._id) throw new AppError('Group not found', 400);
+
+        const ownerPlan = await getGroupOwnerPlan(req.group._id);
+        assertFeature(
+            ownerPlan,
+            'linkGroups',
+            'Connecting groups requires a Pro or Premium plan.'
+        );
+        next();
+    }
+);

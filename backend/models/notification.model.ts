@@ -12,7 +12,12 @@ export type NotificationType =
     | 'LEAVE_REJECTED'
     | 'ROLE_CHANGED'
     | 'MEMBER_LEFT'
-    | 'GROUP_DELETED';
+    | 'GROUP_DELETED'
+    | 'GROUP_LINK_REQUESTED'
+    | 'GROUP_LINK_APPROVED'
+    | 'GROUP_LINK_REJECTED'
+    | 'GROUP_LINK_REVOKED'
+    | 'GROUP_LINK_FUNDED';
 
 export const NOTIFICATION_TYPES: NotificationType[] = [
     'GROUP_INVITE',
@@ -27,6 +32,11 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
     'ROLE_CHANGED',
     'MEMBER_LEFT',
     'GROUP_DELETED',
+    'GROUP_LINK_REQUESTED',
+    'GROUP_LINK_APPROVED',
+    'GROUP_LINK_REJECTED',
+    'GROUP_LINK_REVOKED',
+    'GROUP_LINK_FUNDED',
 ];
 
 export interface INotification extends Document {
