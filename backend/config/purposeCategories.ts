@@ -6,11 +6,6 @@ export interface DefaultCategory {
     isSpecial?: boolean;
 }
 
-// Default categories seeded into a new group based on its chosen purpose.
-// Colours are drawn from the app's category palette (helpers/constants.tsx
-// `colorOptions`). Only FAMILY carries a special "collective" category — the
-// place a shared obligation like a house-loan EMI is logged so it shows
-// separately from per-member spending. OTHER seeds nothing.
 export const PURPOSE_DEFAULT_CATEGORIES: Record<GroupPurpose, DefaultCategory[]> = {
     FAMILY: [
         { name: "Family", color: "#6366f1", isSpecial: true },
@@ -38,6 +33,14 @@ export const PURPOSE_DEFAULT_CATEGORIES: Record<GroupPurpose, DefaultCategory[]>
         { name: "Travel", color: "#06b6d4" },
         { name: "Supplies", color: "#10b981" },
         { name: "Events", color: "#ec4899" },
+    ],
+    RESERVE: [
+        { name: "Personal Funds", color: "#f97316" },
+        { name: "Savings", color: "#06b6d4" },
+        { name: "Emergency Fund", color: "#ef4444" },
+        { name: "Family Funds", color: "#8b5cf6" },
+        { name: "Business Funds", color: "#10b981" },
+        { name: "Shared Fund", color: "#ec4899" },
     ],
     OTHER: [],
 };

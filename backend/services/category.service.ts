@@ -227,13 +227,13 @@ export const getCategoryDetailsService = async (
 
     // Usage count = expenses (EXPENSE) or credit transactions (CREDIT) that
     // reference the category. Drives the delete-blocked state on the client.
-    // The expense side also totals the spend so the client can show it against
-    // the category's limit — aggregation skips Mongoose getters, so the sum is
-    // genuinely in cents.
+    // Both sides also total the money that flowed through the category, so every
+    // row can show an amount and not just a count — aggregation skips Mongoose
+    // getters, so the sums are genuinely in cents.
     const counts = isCredit
         ? await GroupTransaction.aggregate([
               { $match: { category: { $in: ids }, action: 'CREDIT', isDeleted: false } },
-              { $group: { _id: '$category', count: { $sum: 1 } } },
+              { $group: { _id: '$category', count: { $sum: 1 }, spentCents: { $sum: '$amount' } } },
           ])
         : await Expense.aggregate([
               { $match: { category: { $in: ids }, isDeleted: false } },
@@ -257,9 +257,11 @@ export const getCategoryDetailsService = async (
             // `expenseCount` is the generic usage count (credits, for credit
             // categories) — kept under this name so the client stays uniform.
             expenseCount: countMap.get(c._id.toString()) ?? 0,
-            // Lifetime spend in this category, against the optional soft limit.
-            // Credit categories carry neither.
-            spentCents: isCredit ? 0 : spentMap.get(c._id.toString()) ?? 0,
+            // Lifetime money through this category — spend for EXPENSE, credited
+            // total for CREDIT. Same naming compromise as `expenseCount` above,
+            // so the client renders both lists from one shape.
+            spentCents: spentMap.get(c._id.toString()) ?? 0,
+            // Soft limits are expense-only; a credit category caps nothing.
             limitCents: isCredit ? null : c.limitCents ?? null,
         }))
         .sort((a, b) => b.expenseCount - a.expenseCount);

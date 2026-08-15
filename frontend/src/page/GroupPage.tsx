@@ -4,7 +4,7 @@ import { useGetUserGroupsQuery } from "../redux/api/user";
 import { useToggleFavoriteMutation } from "../redux/api/group";
 import EmptyState from "../components/EmptyList";
 import GroupCard from "../components/GroupCard";
-import { PageBackground, PageContainer } from "../components/ui";
+import { Button, PageBackground, PageContainer } from "../components/ui";
 import { useTranslation } from "react-i18next";
 import type { RootState } from "../redux/store";
 import { useDispatch, useSelector } from "react-redux";
@@ -33,15 +33,32 @@ const GroupPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get("q") ?? "";
   const filter = searchParams.get("filter");
+  // A closed group is finished business: it stays out of the default list until
+  // asked for. Kept in the URL like the other view state so a revealed list
+  // survives a refresh and stays linkable.
+  const showClosed = searchParams.get("closed") === "1";
+
+  const closedCount = groups.filter((g) => g.status === "CLOSED").length;
 
   const filtered = groups.filter((g) => {
     if (filter === "active" && g.status === "CLOSED") return false;
     if (filter === "closed" && g.status !== "CLOSED") return false;
     if (filter === "manage" && (g.role === "MEMBER" || g.status === "CLOSED")) return false;
+    // Only the unfiltered view hides them — the sidebar filters above have
+    // already said what they want, "Closed" included.
+    if (!filter && !showClosed && g.status === "CLOSED") return false;
     return g.name?.toLowerCase().includes(search.toLowerCase());
   });
 
   const clearFilters = () => setSearchParams({}, { replace: true });
+
+  // Merged, not replaced: the reveal has to survive alongside an active search.
+  const toggleClosed = () => {
+    const next = new URLSearchParams(searchParams);
+    if (showClosed) next.delete("closed");
+    else next.set("closed", "1");
+    setSearchParams(next, { replace: true });
+  };
 
   useEffect(() => {
       if (!groupId) return;
@@ -55,8 +72,13 @@ const GroupPage = () => {
 
 
       <PageContainer width="content">
-        <div className="flex items-center justify-between">
-          <div>
+        {/* Wraps rather than overflows: at 320px the Tamil title and the Tamil
+            "show closed" label together exceed the row's min-content width, so
+            a nowrap row pushes the button off-screen and gives the page a
+            horizontal scrollbar. Below that threshold the button drops to its
+            own line instead. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="min-w-0">
             <p className="text-theme-xs font-medium tracking-widest uppercase text-brand-600 dark:text-brand-400 mb-1.5">
               {t("groups.dashboard")}
             </p>
@@ -64,6 +86,22 @@ const GroupPage = () => {
               {t("groups.yourGroups")}
             </h1>
           </div>
+
+          {/* Nothing to reveal when the sidebar is already filtering, or when
+              the user has no closed groups at all. */}
+          {!filter && closedCount > 0 && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={toggleClosed}
+              aria-pressed={showClosed}
+              className="shrink-0"
+            >
+              {showClosed
+                ? t("groups.hideClosed", "Hide closed")
+                : t("groups.showClosed", "Show closed ({{closed}})", { closed: closedCount })}
+            </Button>
+          )}
         </div>
 
         {/* The counts, the search box, "New Group" and "Admin Dashboard" all
@@ -100,22 +138,29 @@ const GroupPage = () => {
               />
             ))}
           </div>
-        ) : filtered.length === 0 && (search || filter) ? (
+        ) : groups.length === 0 ? (
+          <EmptyState onClick={() => navigate("/groups/new")} />
+        ) : filtered.length === 0 ? (
+          // Reached with no search and no filter when every group is closed:
+          // the list is empty only because they are hidden, so the way out is
+          // the reveal rather than "clear filter".
           <div className="text-center py-24">
             <p className="text-fg-muted text-theme-sm">
               {search
                 ? t("groups.noMatch", { search })
-                : t("groups.noFilterMatch", "No groups match this filter")}
+                : filter
+                ? t("groups.noFilterMatch", "No groups match this filter")
+                : t("groups.allClosed", "All your groups are closed")}
             </p>
             <button
-              onClick={clearFilters}
+              onClick={search || filter ? clearFilters : toggleClosed}
               className="mt-2 text-brand-600 dark:text-brand-400 text-theme-xs hover:text-brand-700 dark:hover:text-brand-300 active:text-brand-700 transition-colors"
             >
-              {t("groups.clearSearch")}
+              {search || filter
+                ? t("groups.clearSearch")
+                : t("groups.showClosed", "Show closed ({{closed}})", { closed: closedCount })}
             </button>
           </div>
-        ) : groups.length === 0 ? (
-          <EmptyState onClick={() => navigate("/groups/new")} />
         ) : (
           <div className={GRID}>
             {filtered.map((group: any, i: number) => (

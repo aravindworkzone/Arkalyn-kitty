@@ -1,4 +1,5 @@
 export { default as SettingsAddMember }    from "./SettingsAddMember";
+export { default as SettingsJoinLink }     from "./SettingsJoinLink";
 export { default as SettingsChangeRole }   from "./SettingsChangeRole";
 export { default as SettingsContribution } from "./SettingsContribution";
 export { default as SettingsSettlement }   from "./SettingsSettlement";

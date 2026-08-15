@@ -15,7 +15,7 @@ const FREE_VIEW: PlanView = {
         eventLogRetentionDays: 15,
         transactionLogRetentionDays: 30,
     },
-    features: { advancedReportRange: false, cloneGroup: false },
+    features: { advancedReportRange: false, cloneGroup: false, linkGroups: false },
 };
 
 // Reads the current user's effective plan from the cached /user/me query so any

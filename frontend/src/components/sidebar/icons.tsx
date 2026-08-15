@@ -63,6 +63,14 @@ export const Wallet = () => (
     </svg>
 );
 
+export const Link = () => (
+    <svg {...S}>
+        <path d="M6.4 9.6l3.2-3.2" {...stroke} />
+        <path d="M5.6 4l.8-.8a2.83 2.83 0 014 4l-.8.8" {...stroke} />
+        <path d="M10.4 12l-.8.8a2.83 2.83 0 01-4-4l.8-.8" {...stroke} />
+    </svg>
+);
+
 export const Tag = () => (
     <svg {...S}>
         <path d="M2.8 8.4V3.4a.6.6 0 01.6-.6h5l5.2 5.2a.8.8 0 010 1.2l-4.4 4.4a.8.8 0 01-1.2 0L2.8 8.4z" {...stroke} />

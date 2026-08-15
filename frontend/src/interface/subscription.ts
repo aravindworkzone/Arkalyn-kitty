@@ -16,6 +16,7 @@ export interface PlanLimits {
 export interface PlanFeatures {
     advancedReportRange: boolean;
     cloneGroup: boolean;
+    linkGroups: boolean;
 }
 
 export interface PlanConfig {

@@ -9,6 +9,7 @@ import {
     expenseReport,
     getAllExpenses,
     checkDuplicateExpense,
+    getTitleSuggestions,
 } from '../controllers/expense.controller';
 import { verifyToken, authorizeRole, loadGroup, ensureGroupActive } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
@@ -22,6 +23,7 @@ import {
     groupIdOnlyParamsSchema,
     allExpensesQuerySchema,
     duplicateCheckQuerySchema,
+    titleSuggestionsQuerySchema,
 } from '../validators/expense.validator';
 
 const router = express.Router();
@@ -82,6 +84,15 @@ router.get(
     loadGroup,
     authorizeRole('MEMBER', 'ADMIN', 'SUPER_ADMIN'),
     checkDuplicateExpense
+);
+
+router.get(
+    '/title-suggestions/:groupId',
+    validate({ params: groupIdOnlyParamsSchema, query: titleSuggestionsQuerySchema }),
+    verifyToken,
+    loadGroup,
+    authorizeRole('MEMBER', 'ADMIN', 'SUPER_ADMIN'),
+    getTitleSuggestions
 );
 
 router.get('/paymentMethods', verifyToken, paymentMethods);

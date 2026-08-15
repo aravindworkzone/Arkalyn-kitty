@@ -9,6 +9,8 @@ import GroupPage from './page/GroupPage'
 import CreateGroupPage from './page/CreateGroupPage'
 import GroupDetailPage from './page/GroupDetailPage'
 import GroupManagementPage from './page/GroupManagementPage'
+import GroupConnectionsPage from './page/GroupConnectionsPage'
+import JoinGroupPage from './page/JoinGroupPage'
 import CreateCategory from './page/CreateCategory'
 import CreateExpense from './page/CreateExpense'
 import Report from './page/GroupReport'
@@ -65,10 +67,15 @@ function App() {
           {/* AppLayout owns the sidebar, the mobile header and the content
               offset, so every authenticated screen sits inside it. */}
           <Route element={<AppLayout />}>
+            {/* Sits inside the auth guard so a signed-out visitor is sent to
+                /login and returned here afterwards, carrying a real account
+                into the request. */}
+            <Route path="/join/:token" element={<JoinGroupPage />} />
             <Route path="/groups" element={<GroupPage />} />
             <Route path="/groups/new" element={<CreateGroupPage />} />
             <Route path="/groups/:groupId" element={<GroupDetailPage />} />
             <Route path="/groups/:groupId/manage" element={<GroupManagementPage />} />
+            <Route path="/groups/:groupId/connections" element={<GroupConnectionsPage />} />
             <Route path="/groups/:groupId/expenses" element={<AllExpensesPage />} />
             <Route path="/groups/:groupId/expenses/new" element={<CreateExpense />} />
             <Route path="/groups/:groupId/expenses/:expenseId/edit" element={<CreateExpense />} />

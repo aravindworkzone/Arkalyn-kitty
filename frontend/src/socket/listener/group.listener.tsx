@@ -38,6 +38,9 @@ export default function GroupListener() {
             SOCKET_EVENTS.GROUP_CONTRIBUTION_ADDED,
             SOCKET_EVENTS.GROUP_SETTLEMENT_COMPLETED,
             SOCKET_EVENTS.GROUP_LEAVE_REQUEST_UPDATED,
+            // A funding link change moves both groups' balances, and the server
+            // emits to both rooms — so whichever side is open refetches.
+            SOCKET_EVENTS.GROUP_LINK_UPDATED,
         ];
 
         refreshEvents.forEach((e) => socket.on(e, refreshGroup));

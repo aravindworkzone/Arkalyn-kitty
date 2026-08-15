@@ -24,13 +24,13 @@ import {
   SegmentedToggle,
   PageContainer,
 } from "../components/ui";
-import { centsToRupeeInput, rupeesToCents } from "../helpers/money";
+import { centsToRupeeInput, rupeesToCents, formatCents } from "../helpers/money";
 import { useTranslation } from "react-i18next";
 
 export default function CategoryPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // Manage both expense and credit categories from this page via a toggle.
   const [categoryType, setCategoryType] = useState<CategoryType>("EXPENSE");
@@ -290,6 +290,18 @@ export default function CategoryPage() {
                           : (cat.expenseCount > 0
                               ? t("createCategory.expense", { count: cat.expenseCount })
                               : t("createCategory.noExpenses"))}
+                        {/* The amount rides on the count line only when no meter
+                            follows — a limited category already reads its total
+                            as "₹8,400 / ₹10,000" below, and printing it twice
+                            makes the row noisier, not more informative. */}
+                        {!cat.limitCents && (cat.spentCents ?? 0) > 0 && (
+                          <>
+                            <span className="mx-1.5 text-fg-subtle">·</span>
+                            <span className="text-fg font-medium font-mono">
+                              {formatCents(cat.spentCents ?? 0, i18n.language)}
+                            </span>
+                          </>
+                        )}
                       </p>
                     </div>
                     {!isCredit && (

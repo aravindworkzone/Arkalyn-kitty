@@ -17,6 +17,18 @@ export interface CreateExpenseRequest {
 
 export interface DuplicateCheckParams {
     groupId: string;
+    /**
+     * RUPEES — display units. Do not pre-convert to paise.
+     *
+     * The endpoint compares this against `Expense.amount`, which stores paise,
+     * but it does so with an EQUALITY filter and Mongoose runs the schema's
+     * `set: toDBAmount` on those. Sending paise gets converted a second time
+     * and matches nothing.
+     *
+     * The `$gte` caveat in Backend/helpers/balanceOps.ts does not apply here:
+     * setters run on `{ amount: 250 }` but not on `{ amount: { $gte: 250 } }`,
+     * which is why that file converts by hand and this one must not.
+     */
     amount: number;
     date: string;
     category?: string;
@@ -35,6 +47,13 @@ export interface DuplicateMatch {
 export interface DuplicateCheckResponse {
     tier: 1 | 2 | null;
     match: DuplicateMatch | null;
+}
+
+export interface TitleSuggestion {
+    title: string;
+    count: number;
+    /** The category this title is usually filed under — picking one picks both. */
+    categoryId: string | null;
 }
 
 export const expense = api.injectEndpoints({
@@ -97,6 +116,8 @@ export const expense = api.injectEndpoints({
                 categoryId?: string;
                 paidBy?: string;
                 spender?: string;
+                /** A connected group's id, or 'own' for this group's own wallet. */
+                fundedBy?: string;
                 startDate?: string;
                 endDate?: string;
             },
@@ -110,13 +131,14 @@ export const expense = api.injectEndpoints({
                 },
             },
             query: ({ queryArg, pageParam }) => {
-                const { groupId, categoryId, paidBy, spender, startDate, endDate } = queryArg;
+                const { groupId, categoryId, paidBy, spender, fundedBy, startDate, endDate } = queryArg;
                 const params = new URLSearchParams();
                 params.set("page", String(pageParam));
                 params.set("limit", "20");
                 if (categoryId) params.set("categoryId", categoryId);
                 if (paidBy) params.set("paidBy", paidBy);
                 if (spender) params.set("spender", spender);
+                if (fundedBy) params.set("fundedBy", fundedBy);
                 if (startDate) params.set("startDate", startDate);
                 if (endDate) params.set("endDate", endDate);
                 return `/expense/allexpenses/${groupId}?${params.toString()}`;
@@ -147,6 +169,9 @@ export const expense = api.injectEndpoints({
                 if (excludeExpenseId) params.set('excludeExpenseId', excludeExpenseId);
                 return `/expense/duplicate-check/${groupId}?${params.toString()}`;
             },
+            // `.lean()` on the server bypasses the schema's `get: fromDBAmount`,
+            // so the match comes back in paise and is converted here. The
+            // request goes out in paise too — see DuplicateCheckParams.amount.
             transformResponse: (res: { data: DuplicateCheckResponse }) => {
                 const { tier, match } = res.data;
                 if (!match) return { tier, match: null };
@@ -155,6 +180,17 @@ export const expense = api.injectEndpoints({
                     match: { ...match, amount: match.amount / 100 },
                 };
             },
+        }),
+        getTitleSuggestions: builder.query<TitleSuggestion[], { groupId: string; limit?: number }>({
+            query: ({ groupId, limit = 6 }) =>
+                `/expense/title-suggestions/${groupId}?limit=${limit}`,
+            transformResponse: (res: { data: { suggestions: TitleSuggestion[] } }) =>
+                res.data.suggestions,
+            // Tagged on the group so the existing create/update/delete
+            // invalidation refreshes the ranking without extra wiring.
+            providesTags: (_result, _error, arg) => [
+                { type: "Expense", id: arg.groupId }
+            ],
         }),
     })
 });
@@ -169,4 +205,5 @@ export const {
     useGetAllExpensesInfiniteQuery,
     useDeleteExpenseMutation,
     useLazyCheckDuplicateQuery,
+    useGetTitleSuggestionsQuery,
 } = expense;

@@ -108,6 +108,9 @@ export interface PlanFeatures {
     // included, are free — the flag name predates that split.
     advancedReportRange: boolean;
     cloneGroup: boolean;
+    // Group-to-group funding links. Gates the write paths only — an expired
+    // plan can still read its existing connections.
+    linkGroups: boolean;
 }
 
 export interface PlanConfig {
@@ -130,7 +133,7 @@ export const PLANS: Record<Plan, PlanConfig> = {
             eventLogRetentionDays: 15,
             transactionLogRetentionDays: 30,
         },
-        features: { advancedReportRange: false, cloneGroup: false },
+        features: { advancedReportRange: false, cloneGroup: false, linkGroups: false },
     },
     PRO: {
         name: 'Pro',
@@ -143,7 +146,7 @@ export const PLANS: Record<Plan, PlanConfig> = {
             eventLogRetentionDays: 60,
             transactionLogRetentionDays: 100,
         },
-        features: { advancedReportRange: true, cloneGroup: true },
+        features: { advancedReportRange: true, cloneGroup: true, linkGroups: true },
     },
     PREMIUM: {
         name: 'Premium',
@@ -156,6 +159,6 @@ export const PLANS: Record<Plan, PlanConfig> = {
             eventLogRetentionDays: null,
             transactionLogRetentionDays: null,
         },
-        features: { advancedReportRange: true, cloneGroup: true },
+        features: { advancedReportRange: true, cloneGroup: true, linkGroups: true },
     },
 };

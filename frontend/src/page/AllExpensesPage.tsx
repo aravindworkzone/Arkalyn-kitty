@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useGetAllExpensesInfiniteQuery } from "../redux/api/expense";
 import { useGetGroupByIdQuery } from "../redux/api/group";
+import { useGetGroupLinksQuery } from "../redux/api/groupLink";
 import ExpenseDetailModal from "../components/ExpenseDetailModal";
 import ExpenseRow, { ExpenseRowSkeleton } from "../components/expense/ExpenseRow";
 import { dateLabel } from "../helpers/formatters";
@@ -12,6 +13,7 @@ import {
   PageHeader,
   StatCard,
   SearchInput,
+  Chip,
 } from "../components/ui";
 
 import { useTranslation } from "react-i18next";
@@ -38,16 +40,43 @@ export default function AllExpensesPage() {
   const spender = searchParams.get("spender") ?? undefined;
   const startDate = searchParams.get("startDate") ?? undefined;
   const endDate = searchParams.get("endDate") ?? undefined;
+  // A connected group's id, or the literal "own" for this group's own wallet.
+  const fundedBy = searchParams.get("fundedBy") ?? undefined;
   const filterLabel = searchParams.get("label") ?? undefined;
-  const hasFilter = Boolean(categoryId || paidBy || spender || startDate || endDate);
+  const hasFilter = Boolean(categoryId || paidBy || spender || fundedBy || startDate || endDate);
 
   // A changed filter changes the query arg, so RTK Query starts a fresh
   // page set automatically — no manual reset needed.
   const { data, isLoading, isFetching, hasNextPage, fetchNextPage } =
     useGetAllExpensesInfiniteQuery(
-      { groupId: groupId!, categoryId, paidBy, spender, startDate, endDate },
+      { groupId: groupId!, categoryId, paidBy, spender, fundedBy, startDate, endDate },
       { skip: !groupId }
     );
+  // Only groups that actually fund this one can appear in the picker, so the
+  // control stays hidden entirely for the majority of groups that have none.
+  const { data: groupLinks } = useGetGroupLinksQuery(groupId!, { skip: !groupId });
+  const funders = (groupLinks?.incoming ?? [])
+    .filter((l) => l.status === "ACTIVE")
+    .map((l) => {
+      const src = l.sourceGroupId;
+      return typeof src === "string"
+        ? { id: src, name: src }
+        : { id: src._id, name: src.name };
+    });
+
+  /**
+   * Params are merged, never replaced — funded-by has to compose with a
+   * category or date filter the user arrived with, and clearing it must not
+   * silently drop the rest. The stale `label` is dropped because it described
+   * whichever filter set the URL originally.
+   */
+  const setFundedBy = (value?: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("label");
+    if (value) next.set("fundedBy", value);
+    else next.delete("fundedBy");
+    setSearchParams(next, { replace: true });
+  };
   const { data: GroupDetails } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
   const [search, setSearch] = useState("");
@@ -135,6 +164,33 @@ export default function AllExpensesPage() {
                 >
                   {t("allExpenses.clearFilter", "Clear filter")}
                 </button>
+              </div>
+            )}
+
+            {/* Only meaningful once another group funds this one, so it stays
+                out of the way entirely for groups with no connections. */}
+            {funders.length > 0 && (
+              <div className="rounded-xl border border-line bg-surface-raised px-4 py-3">
+                <p className="text-theme-2xs font-semibold uppercase tracking-[0.14em] text-fg-muted mb-2">
+                  {t("allExpenses.fundedByFilter", "Funded by")}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Chip selected={!fundedBy} onClick={() => setFundedBy(undefined)}>
+                    {t("allExpenses.fundedByAll", "All")}
+                  </Chip>
+                  <Chip selected={fundedBy === "own"} onClick={() => setFundedBy("own")}>
+                    {t("allExpenses.fundedByOwn", "Own wallet")}
+                  </Chip>
+                  {funders.map((f) => (
+                    <Chip
+                      key={f.id}
+                      selected={fundedBy === f.id}
+                      onClick={() => setFundedBy(f.id)}
+                    >
+                      <span translate="no">{f.name}</span>
+                    </Chip>
+                  ))}
+                </div>
               </div>
             )}
 

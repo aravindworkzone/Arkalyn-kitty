@@ -41,31 +41,14 @@ export const env = {
     REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET as string,
     ACCESS_TOKEN_EXPIRES_IN: process.env.ACCESS_TOKEN_EXPIRES_IN?.trim() || '15m',
     REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN?.trim() || '7d',
-    // Trailing slashes silently break CORS — browsers send `Origin` without one.
-    // Empty string when unset; validateEnv() rejects that before the app serves.
     FRONTEND_URL: (process.env.FRONTEND_URL ?? '').replace(/\/+$/, ''),
     FRONTEND_DASHBOARD_URL: (process.env.FRONTEND_DASHBOARD_URL ?? '').replace(/\/+$/, ''),
-    // Resend HTTP API for transactional email (password reset). Optional — the
-    // app boots without a key; email simply degrades to a logged warning.
-    // RESEND_FROM defaults to onboarding@resend.dev (no domain verification
-    // needed) — override once you've verified your own sending domain.
     RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
     RESEND_FROM: process.env.RESEND_FROM ?? '',
-    // Inbox that receives "Ask a question" / "Report a problem" submissions from
-    // the public contact form. Defaults to the app owner's address. NOTE: with the
-    // default onboarding@resend.dev sender, Resend only delivers to the Resend
-    // account owner's verified email — set CONTACT_EMAIL to that address (or verify
-    // a domain) for delivery to work outside local dev.
     CONTACT_EMAIL: process.env.CONTACT_EMAIL ?? 'aravind.workzone@gmail.com',
-    // Razorpay (subscription billing). Optional — the app boots without keys;
-    // order creation degrades to a clean 503 and the rest of the app is
-    // unaffected. KEY_ID is the public identifier (also shipped to the browser
-    // as VITE_RAZORPAY_KEY_ID); KEY_SECRET and WEBHOOK_SECRET stay server-only.
     RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID ?? '',
     RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET ?? '',
     RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET ?? '',
-    // The auth/token endpoints are pinned constants (config/constants.ts) — only
-    // the app's own credentials and callback URL are environment-specific.
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? '',
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? '',
     GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI ?? '',

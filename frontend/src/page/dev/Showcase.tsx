@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActionButton, Badge, Button, Card, Chip, ColorPicker, DataList, DatePicker, FormField, Input, Label, Select, Switch } from "../../components/ui";
+import { ActionButton, Badge, Button, Card, Chip, ChoiceGroup, ColorPicker, DataList, DatePicker, Disclosure, FormField, Input, Label, Note, Select, Switch, Textarea } from "../../components/ui";
 import type { BadgeTone, ButtonVariant, SelectOption } from "../../components/ui";
 import { CATEGORICAL } from "../../helpers/chartPalette";
 import useTheme from "../../hooks/useTheme";
@@ -54,6 +54,8 @@ export default function Showcase() {
     const [listPage, setListPage] = useState(3);
     const [switchOn, setSwitchOn] = useState(true);
     const [swatch, setSwatch] = useState<string>(CATEGORICAL[0]);
+    const [discOpen, setDiscOpen] = useState(false);
+    const [discErrOpen, setDiscErrOpen] = useState(false);
 
     return (
         <div className="min-h-screen bg-surface px-6 lg:px-8 py-12 lg:py-16 text-fg">
@@ -297,6 +299,107 @@ export default function Showcase() {
                                 customLabel="Custom colour"
                             />
                         </div>
+                    </Card>
+                </Section>
+
+                <Section title="Chip variants">
+                    <Card>
+                        <div className="space-y-5">
+                            <p className="text-theme-xs text-fg-muted">
+                                <code>pill</code> is the dense filter chip and keeps its original
+                                geometry. The form variants are 44px touch targets and mark
+                                selection with a check, not colour alone.
+                            </p>
+
+                            <ChoiceGroup label="choice">
+                                <Chip variant="choice" selected accentColor={CATEGORICAL[1]}>Food</Chip>
+                                <Chip variant="choice" accentColor={CATEGORICAL[2]}>Travel</Chip>
+                                <Chip variant="choice" accentColor={CATEGORICAL[4]}>Rent</Chip>
+                                <Chip variant="choice" dashed>+ Add</Chip>
+                            </ChoiceGroup>
+
+                            <ChoiceGroup label="tile" layout="grid" itemsClass="grid-cols-2 xsm:grid-cols-4">
+                                <Chip variant="tile" selected>Cash</Chip>
+                                <Chip variant="tile">UPI</Chip>
+                                <Chip variant="tile">Card</Chip>
+                                <Chip variant="tile">Bank</Chip>
+                            </ChoiceGroup>
+
+                            <ChoiceGroup label="avatar">
+                                {["Asha", "Ravi", "Meera"].map((n, i) => (
+                                    <Chip key={n} variant="avatar" selected={i === 0}>
+                                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-hover text-theme-2xs font-bold text-fg-muted">
+                                            {n.slice(0, 2).toUpperCase()}
+                                        </span>
+                                        {n}
+                                    </Chip>
+                                ))}
+                            </ChoiceGroup>
+
+                            <p className="text-theme-2xs text-fg-muted">
+                                Each ChoiceGroup above is one tab stop — arrows move within it.
+                            </p>
+                        </div>
+                    </Card>
+                </Section>
+
+                <Section title="Note">
+                    <Card>
+                        <div className="space-y-3">
+                            <Note tone="neutral">Neutral — a plain aside.</Note>
+                            <Note tone="info">Info — context the user did not ask for.</Note>
+                            <Note tone="warning">
+                                Warning — worth reading, but nothing is blocked.
+                            </Note>
+                            <Note tone="error">
+                                Error — the only tone that gets a panel.
+                            </Note>
+                            <Note
+                                tone="warning"
+                                action={
+                                    <button type="button" className="shrink-0 font-semibold underline underline-offset-2">
+                                        Fix it
+                                    </button>
+                                }
+                            >
+                                With a one-tap fix in the action slot.
+                            </Note>
+                        </div>
+                    </Card>
+                </Section>
+
+                <Section title="Disclosure">
+                    <div className="space-y-3">
+                        <Disclosure
+                            title="Payment"
+                            summary="Cash · paid by you"
+                            open={discOpen}
+                            onOpenChange={setDiscOpen}
+                        >
+                            <p className="text-theme-sm text-fg-muted">
+                                The summary shows only while closed, so a collapsed section still
+                                says what it will submit.
+                            </p>
+                        </Disclosure>
+                        <Disclosure
+                            title="With an error"
+                            summary="Needs attention"
+                            error
+                            open={discErrOpen}
+                            onOpenChange={setDiscErrOpen}
+                        >
+                            <p className="text-theme-sm text-fg-muted">
+                                Collapsed content is <code>inert</code>, so it is not tabbable.
+                            </p>
+                        </Disclosure>
+                    </div>
+                </Section>
+
+                <Section title="Textarea">
+                    <Card>
+                        <FormField label="Description" hint="Wired to FormField like Input is.">
+                            <Textarea rows={3} placeholder="Add a note…" />
+                        </FormField>
                     </Card>
                 </Section>
 

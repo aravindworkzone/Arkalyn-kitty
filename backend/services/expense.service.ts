@@ -9,6 +9,7 @@ import Category from "../models/category.model";
 import GroupMembers from "../models/group_member.model";
 import { PAYMENT_TYPES, PaymentType } from "../models/expense.model";
 import { debitGroupBalance, refundGroupBalance } from "../helpers/balanceOps";
+import { findActiveFunderLink } from "./groupLink.service";
 
 interface ExpenseData {
     user: string;
@@ -19,6 +20,8 @@ interface ExpenseData {
     category: string;
     // Optional credit category (pool) the expense is drawn from.
     creditCategory?: string;
+    // Optional connected group whose money this expense is attributed to.
+    fundedByGroup?: string;
     title: string;
     description?: string;
     amount: number;
@@ -49,6 +52,25 @@ const resolveCreditCategory = async (
     }).session(session);
     if (!found) throw new AppError("Invalid credit category", 400);
     return found._id;
+};
+
+// Validate an optional funding group: must be a group with an ACTIVE link
+// funding THIS group. Attribution only — the money was transferred into this
+// group's wallet beforehand, so the debit below still targets this group.
+const resolveFundedByGroup = async (
+    groupId: string,
+    fundedByGroup: string | undefined,
+    session: mongoose.ClientSession
+) => {
+    const ref = fundedByGroup?.trim();
+    if (!ref) return undefined;
+    const link = await findActiveFunderLink(
+        new mongoose.Types.ObjectId(groupId),
+        ref,
+        session
+    );
+    if (!link) throw new AppError("That group does not fund this group", 400);
+    return link.sourceGroupId;
 };
 
 export const createExpenseService = async (data: ExpenseData) => {
@@ -108,11 +130,13 @@ export const createExpenseService = async (data: ExpenseData) => {
     try {
         session.startTransaction();
         const creditCategoryId = await resolveCreditCategory(groupData._id, data.creditCategory, session);
+        const fundedByGroupId = await resolveFundedByGroup(groupData._id, data.fundedByGroup, session);
 
         const expense: {
             groupId: string;
             category: string;
             creditCategory?: mongoose.Types.ObjectId;
+            fundedByGroup?: mongoose.Types.ObjectId;
             title: string;
             description?: string;
             amount: number;
@@ -131,6 +155,7 @@ export const createExpenseService = async (data: ExpenseData) => {
             splitBetween: [],
         };
         if (creditCategoryId) expense.creditCategory = creditCategoryId;
+        if (fundedByGroupId) expense.fundedByGroup = fundedByGroupId as mongoose.Types.ObjectId;
         if (data.description?.trim()) expense.description = data.description.trim();
 
         if (splitBetween.length > 0) {
@@ -356,6 +381,7 @@ export const updateExpenseService = async (data: ExpenseData & { expenseId: stri
 
         // Mutate + save the document so the model's split-sum/unique validator runs.
         const creditCategoryId = await resolveCreditCategory(groupId, data.creditCategory, session);
+        const fundedByGroupId = await resolveFundedByGroup(groupId, data.fundedByGroup, session);
 
         expense.title = title;
         expense.description = data.description?.trim() || undefined;
@@ -363,6 +389,7 @@ export const updateExpenseService = async (data: ExpenseData & { expenseId: stri
         expense.paidBy = new mongoose.Types.ObjectId(paidBy);
         expense.category = new mongoose.Types.ObjectId(category);
         expense.creditCategory = creditCategoryId;
+        expense.fundedByGroup = fundedByGroupId as mongoose.Types.ObjectId | undefined;
         expense.paymentType = paymentType;
         expense.date = expenseDate;
         expense.splitBetween =
@@ -434,6 +461,7 @@ export const getExpenseByIdService = async (groupId: mongoose.Types.ObjectId, ex
         .populate("paidBy")
         .populate("category")
         .populate("creditCategory")
+        .populate("fundedByGroup", "name displayId")
         .populate("splitBetween.userId", "name email");
     if (!expense) throw new AppError("Expense not found", 404);
     return expense;
@@ -477,6 +505,8 @@ interface ExpenseListFilters {
     categoryId?: string;
     paidBy?: string;
     spender?: string;
+    /** A connected group's id, or 'own' for expenses drawn from this group's own wallet. */
+    fundedBy?: string;
     startDate?: Date;
     endDate?: Date;
 }
@@ -512,6 +542,15 @@ export const getAllExpensesService = async (
                 .lean();
             if (specialIds.length) query.category = { $nin: specialIds.map((c) => c._id) };
         }
+        // Funding attribution. `null` is the whole point of the 'own' branch:
+        // in Mongo `{ field: null }` matches documents where the field is null
+        // AND where it is missing, so it covers both expenses saved before this
+        // field existed and ones deliberately left on the group's own wallet.
+        if (filters.fundedBy === 'own') {
+            query.fundedByGroup = null;
+        } else if (filters.fundedBy) {
+            query.fundedByGroup = filters.fundedBy;
+        }
         if (filters.startDate || filters.endDate) {
             const dateRange: Record<string, Date> = {};
             if (filters.startDate) dateRange.$gte = filters.startDate;
@@ -523,6 +562,7 @@ export const getAllExpensesService = async (
             Expense.find(query)
                 .populate("paidBy")
                 .populate("category")
+                .populate("fundedByGroup", "name displayId")
                 .populate("splitBetween.userId", "name email")
                 .sort({ date: -1 })
                 .skip((page - 1) * limit)
@@ -534,6 +574,66 @@ export const getAllExpensesService = async (
         throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }
 }
+
+export interface TitleSuggestion {
+    title: string;
+    count: number;
+    /** The category this title is usually filed under, when it has one. */
+    categoryId: string | null;
+}
+
+// Regex-escape: `q` is user input and goes into a $regex.
+const escapeRegex = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * The titles this group actually uses, most-used first.
+ *
+ * Rent, groceries and the weekly team lunch get retyped verbatim every time.
+ * Grouping is case-insensitive so "Team Lunch" and "team lunch" are one
+ * suggestion, but the label shown back is the casing from the most recent
+ * occurrence rather than a lowercased version — `$sort date: -1` before
+ * `$group` is what makes `$first` mean "most recent".
+ *
+ * `categoryId` rides along so picking a suggestion can also pick the category
+ * the user files it under, which is the actual time saved.
+ *
+ * Covered by the existing { groupId, isDeleted, date } index.
+ */
+export const getTitleSuggestionsService = async (
+    groupId: mongoose.Types.ObjectId,
+    q: string | undefined,
+    limit: number
+): Promise<TitleSuggestion[]> => {
+    if (!mongoose.Types.ObjectId.isValid(groupId)) {
+        throw new AppError("Invalid group ID format", 400);
+    }
+
+    const match: Record<string, unknown> = { groupId, isDeleted: false };
+    if (q) match.title = { $regex: escapeRegex(q), $options: "i" };
+
+    const rows = await Expense.aggregate<{ _id: string; title: string; count: number; categoryId: mongoose.Types.ObjectId | null }>([
+        { $match: match },
+        { $sort: { date: -1 } },
+        {
+            $group: {
+                _id: { $toLower: "$title" },
+                title: { $first: "$title" },
+                categoryId: { $first: "$category" },
+                count: { $sum: 1 },
+                lastUsedAt: { $first: "$date" },
+            },
+        },
+        { $sort: { count: -1, lastUsedAt: -1 } },
+        { $limit: limit },
+        { $project: { _id: 0, title: 1, count: 1, categoryId: 1 } },
+    ]);
+
+    return rows.map((r) => ({
+        title: r.title,
+        count: r.count,
+        categoryId: r.categoryId ? r.categoryId.toString() : null,
+    }));
+};
 
 export interface DuplicateCheckResult {
     tier: 1 | 2 | null;
