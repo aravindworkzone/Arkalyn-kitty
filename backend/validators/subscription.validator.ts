@@ -5,9 +5,13 @@ import { objectIdSchema, groupIdParamSchema } from './common';
 // `groupId` names the group being upgraded — plans are bought per group, never
 // per account. It must survive parsing because loadGroup reads it off the body
 // to resolve and authorize the target.
+//
+// PREMIUM is deliberately absent: it is a legacy stored value, not a purchasable
+// tier, so a checkout naming it is rejected at the door rather than deeper in
+// the service. ORG is its replacement at the same entitlements.
 export const createOrderBodySchema = z.object({
     groupId: groupIdParamSchema,
-    plan: z.enum(['PRO', 'PREMIUM']),
+    plan: z.enum(['PRO', 'ORG']),
     cycle: z.enum(BILLING_CYCLES),
 });
 

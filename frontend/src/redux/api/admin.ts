@@ -8,6 +8,7 @@ import type {
     PromoCode,
     PromoRedemption,
     Analytics,
+    Demand,
     SystemHealth,
 } from "../../interface/admin";
 import type { PlanTier, BillingCycle, PlanView } from "../../interface/subscription";
@@ -125,6 +126,12 @@ export const admin = api.injectEndpoints({
             transformResponse: (res: { data: Analytics }) => res.data,
             providesTags: ['Admin'],
         }),
+        // Paywall hits — the demand signal that drives pricing decisions.
+        getDemand: builder.query<Demand, { days?: number }>({
+            query: ({ days = 30 } = {}) => ({ url: '/admin/demand', params: { days } }),
+            transformResponse: (res: { data: Demand }) => res.data,
+            providesTags: ['Admin'],
+        }),
         getAdminHealth: builder.query<SystemHealth, void>({
             query: () => '/admin/health',
             transformResponse: (res: { data: SystemHealth }) => res.data,
@@ -146,5 +153,6 @@ export const {
     useDeactivatePromoMutation,
     useGetPromoRedemptionsQuery,
     useGetAnalyticsQuery,
+    useGetDemandQuery,
     useGetAdminHealthQuery,
 } = admin;

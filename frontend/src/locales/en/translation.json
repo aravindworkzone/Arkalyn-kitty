@@ -30,13 +30,13 @@
       "pricing": "Pricing"
     },
     "hero": {
-      "eyebrow": "Group expenses, without the math",
-      "title": "Share a wallet. Spend together. Settle never.",
-      "sub": "Arkalyn-Kitty replaces circular IOUs with a shared wallet. Everyone chips in, every expense debits the wallet, and the receipts speak for themselves.",
-      "ctaPrimary": "Create a group",
+      "eyebrow": "Pooled money, with a record that holds up",
+      "title": "The books your committee can actually show.",
+      "sub": "Arkalyn-Kitty runs the shared fund your society, trust or committee already collects — every contribution, every rupee spent, every approval, on an audit trail nobody can quietly edit. Export it the day the auditor asks.",
+      "ctaPrimary": "Start free",
       "ctaSecondary": "See how it works",
       "badges": [
-        "Free to try",
+        "Free for small groups",
         "No card required",
         "Built in India"
       ],
@@ -45,51 +45,51 @@
     },
     "why": {
       "kicker": "Why this exists",
-      "title": "Splitting bills is a broken pattern.",
-      "sub": "Every group expense app we tried treats the symptom — debt — instead of the cause. Arkalyn-Kitty removes the debt entirely by making the wallet shared.",
+      "title": "A shared fund is somebody's accountability.",
+      "sub": "Whoever holds the money answers for it — to a committee, a trustee board, or forty families on a WhatsApp group. Arkalyn-Kitty exists so that answer is a record, not a memory.",
       "points": [
         {
-          "title": "IOUs don't scale past three people",
-          "body": "Four roommates, six expenses, two reimbursements — and suddenly everyone's confused about who owes whom. A shared wallet collapses the math into one number."
+          "title": "The treasurer carries all the risk",
+          "body": "One person collects, one person spends, and one person gets asked where it went. A ledger every member can read the whole year removes the suspicion before it starts."
         },
         {
-          "title": "Money disagreements are friendship taxes",
-          "body": "Most splits start as 'I'll pay this one, you get the next.' Most end as silent resentment. A transparent ledger removes the guesswork."
+          "title": "A spreadsheet has no memory of who changed it",
+          "body": "Rows get edited, totals get overwritten, and nobody can say when. Every change here is logged before-and-after, and nothing is ever silently deleted."
         },
         {
-          "title": "Spreadsheets are not a financial system",
-          "body": "A shared sheet is a workaround. Arkalyn-Kitty is purpose-built: contributions, expenses, roles, settlements — all auditable."
+          "title": "Audit season shouldn't take a fortnight",
+          "body": "Contributions, expenses and settlements reconcile continuously — not the week the auditor arrives. Export the ledger, the expenses and the member register as CSV and hand it over."
         }
       ]
     },
     "whoFor": {
       "kicker": "Who it's for",
-      "title": "Any group that shares a wallet.",
-      "sub": "If two or more people regularly spend out of a shared wallet, Arkalyn-Kitty is built for you.",
+      "title": "Anyone who holds money for other people.",
+      "sub": "If you collect from a group and spend on their behalf — and someone can ask you to account for it — this is built for you.",
       "audiences": [
         {
-          "title": "Households & roommates",
-          "body": "Rent, groceries, utility bills, the cleaner — chip in monthly and stop chasing each other on payday."
+          "title": "Housing societies & RWAs",
+          "body": "Maintenance, repairs, security, the water tanker. Every flat sees what came in and what went out, so the AGM is about decisions, not accusations."
         },
         {
-          "title": "Trip groups",
-          "body": "Goa, Manali, Europe — one pot for cabs, stays, food. Nobody floats the whole bill anymore."
+          "title": "Trusts, NGOs & temple committees",
+          "body": "Donations in, disbursements out, an unbroken audit trail between them. Export the whole year for your auditor or your 12A filing in one click."
         },
         {
-          "title": "Families",
-          "body": "Joint expenses for parents, kids' school, festivals. A clean shared record without awkward Venmos."
+          "title": "Event & festival committees",
+          "body": "Pongal, the college fest, a wedding fund. Dozens of contributors, one pot, and a public record that closes cleanly when the event does."
         },
         {
-          "title": "Friend circles & clubs",
-          "body": "Monthly dinners, gifts, weekend plans. Everyone chips in once, the wallet handles the rest."
+          "title": "Hostel messes & PGs",
+          "body": "Monthly mess dues and daily provisioning. Residents watch the balance live instead of asking the warden for a total."
         },
         {
-          "title": "Small teams & offsites",
-          "body": "Team lunches, coffee runs, offsite expenses. Roles let an admin approve while members watch live."
+          "title": "Small businesses & petty cash",
+          "body": "Office float, site expenses, team spend. Roles keep entry open to staff while approval and settlement stay with the person accountable."
         },
         {
-          "title": "Hostel & college groups",
-          "body": "Mess money, project supplies, snack runs. No more chai-stall mental math."
+          "title": "Households, trips & friend circles",
+          "body": "Rent, groceries, a Goa fund. Free for up to five people, and always will be — this is where most people meet the app."
         }
       ]
     },
@@ -107,21 +107,25 @@
         },
         {
           "q": "Can I edit an expense if I made a mistake?",
-          "a": "No. Expenses are immutable on purpose — it keeps the ledger honest. You can delete an incorrect expense (with a reason) and create the right one."
+          "a": "Yes — an admin or the original payer can edit it. The wallet adjusts by the difference only, and a before-and-after record of every field you changed is written to the activity log. Deleting works the same way: the entry is marked reversed rather than erased, and the pool is refunded. Nothing disappears quietly."
         },
         {
           "q": "Is my money actually stored in Arkalyn-Kitty?",
-          "a": "No. We don't hold funds. The wallet is a ledger — you collect contributions however your group prefers (UPI, bank transfer, cash) and record them here."
+          "a": "No, and that is deliberate — we are not a wallet or a payment institution and hold no funds. Your group collects however it already does (UPI, bank transfer, cash) and records it here. What we keep is the record, which is the part that is hard to get right."
         },
         {
-          "q": "Does it cost anything?",
-          "a": "Free to try while we're in early development. No card, no trial timer."
+          "q": "Can I get our records out?",
+          "a": "Yes. On the Organization plan an admin can export the ledger, the expense list and the member register as CSV, or all three as a single audit pack. Export keeps working even if the plan lapses — they are your records, and we won't hold them hostage to a renewal."
+        },
+        {
+          "q": "What does it cost?",
+          "a": "Free for up to 5 members, with no card and no trial timer — that stays free. Pro is ₹199/month for larger groups. Organization is ₹999/month and adds unlimited members, unlimited history, CSV and audit-pack export, and priority support. Plans are bought per group, so a paid society fund and a free flat kitty can sit in the same account."
         }
       ]
     },
     "finalCTA": {
-      "title": "Stop chasing each other for money.",
-      "sub": "Create your first group in under a minute.",
+      "title": "Put the fund on the record.",
+      "sub": "Set up your group in under a minute. Free for up to five members.",
       "cta": "Get started — it's free"
     },
     "howItWorks": {
@@ -201,7 +205,7 @@
       "sub": "Every group starts free, no card needed. Upgrade just the group that outgrows it with a one-time payment — never an auto-renewal surprise.",
       "monthly": "Monthly",
       "yearly": "Yearly",
-      "save": "SAVE 20%",
+      "save": "2 MONTHS FREE",
       "perYear": "/year",
       "perMonth": "/month",
       "freeForever": "Free forever",

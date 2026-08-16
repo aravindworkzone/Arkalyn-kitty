@@ -165,20 +165,42 @@ and every limit and feature below applies to that group alone; a user can own a
 Premium group and a Free one at the same time, and any `SUPER_ADMIN`/`ADMIN` of a
 group can pay to lift its limits for everyone in it. Accounts hold no tier.
 
-Three tiers, priced in INR. `null` means unlimited.
+Three sellable tiers, priced in INR. `null` means unlimited.
 
-| | Free | Pro | Premium |
+| | Free | Pro | Organization |
 |---|---|---|---|
-| Price (monthly / yearly) | ₹0 | ₹69 / ₹660 | ₹119 / ₹1140 |
-| Members in the group | 5 | 10 | Unlimited |
-| Categories in the group | 10 | 20 | Unlimited |
-| Event log retention | 15 days | 60 days | Unlimited |
-| Transaction log retention | 30 days | 100 days | Unlimited |
+| Price (monthly / yearly) | ₹0 | ₹199 / ₹1,990 | ₹999 / ₹9,990 |
+| Members in the group | 5 | 25 | Unlimited |
+| Categories in the group | 10 | 50 | Unlimited |
+| Event log retention | 15 days | 180 days | Unlimited |
+| Transaction log retention | 30 days | 365 days | Unlimited |
 | Custom report date ranges | — | ✓ | ✓ |
 | Admin & member roles | — (all admins) | ✓ | ✓ |
 | Clone group | — | ✓ | ✓ |
 | Receive funding from another group | — | ✓ | ✓ |
 | Fund another group | ✓ | ✓ | ✓ |
+| CSV export & audit pack | — | — | ✓ |
+| Priority support | — | — | ✓ |
+
+Yearly is ten months' price for twelve — "2 months free" rather than a
+percentage, so the badge stays true if a price ever moves.
+
+**Who each tier is for.** Free has to be genuinely sufficient for a flatmate
+kitty, because those groups are how an organizational buyer first sees the
+product; capping it tighter would cost reach and gain nothing, since that user
+was never going to pay. Pro is the large-informal-group tier. Organization is
+the one the business is built on: audit trail, unlimited history and export, for
+committees and treasurers who answer to somebody.
+
+**`PREMIUM` is a retired tier, not a live one.** It stays in `PLAN_TIERS`,
+`PLANS` and the Mongoose enums because existing groups, plan snapshots and
+historical receipts still carry the value, and dropping it would strand that data
+behind an enum that no longer accepts it. It is absent from `SELLABLE_TIERS`, so
+checkout, promo creation and every pricing surface reject or omit it, while
+`PLAN_RANK` scores it level with `ORG` (identical entitlements) so a legacy group
+renewing onto Organization reads as a lateral move rather than a blocked
+downgrade. The app-owner override still offers it — that is the tool for
+repairing a legacy row.
 
 - **Razorpay** order creation and **HMAC signature verification** on callback.
 - **Idempotent** payment recording — a replayed callback does not double-credit.
@@ -218,6 +240,45 @@ that already has a plan, and leaves the old user fields in place so the deploy
 stays reversible.
 
 ---
+
+## Export & Audit Pack
+
+`GET /api/export/:groupId/:sheet` — `ledger`, `expenses`, `members`, or
+`audit-pack` (all three under banners in one file). Admins only, unlike the
+in-app reports any member can read: an export is the whole group's financial
+record in one portable file, so reading a chart and walking away with the roster
+are treated as different acts.
+
+- **Amounts are hydrated, never `.lean()`.** Money fields carry the rupee↔paise
+  getters; `lean()` returns raw BSON with getters bypassed, which would export
+  every amount ×100. Slower hydration is the right trade on a financial record.
+- **Reversed entries are included and flagged**, not dropped — "what was entered
+  and later reversed" is exactly what an audit asks about.
+- **CSV injection is neutralised.** A cell starting `=`, `+`, `-` or `@` is
+  formula-evaluated by Excel and Sheets, so an expense titled `=HYPERLINK(...)`
+  would become live code in the treasurer's spreadsheet. `helpers/csv` prefixes a
+  tab, and emits a BOM so Excel on Windows doesn't mangle non-ASCII names.
+- **Export outlives the subscription.** Every other gate freezes on lapse; this
+  one reads the *stored* tier via `canExportData`, so a group whose card expired
+  mid-audit can still hand a CSV to its auditor. Withholding a customer's own
+  records to force a renewal turns a billing conversation into a chargeback.
+  `helpers/plans.canExport` mirrors the rule on the client so the button doesn't
+  hide a download the API would serve.
+
+## Demand Signal (paywall analytics)
+
+Every 402 is recorded to `paywall_hit` from the global error handler — one choke
+point, so gates added later are captured with no per-call-site bookkeeping.
+Writes are fire-and-forget: instrumentation must never turn a clean 402 into a
+500 or make the user wait.
+
+This is the only place the product records *intent* rather than behaviour. A
+paywall hit is a customer stating, with their hands rather than a survey, which
+capability they wanted enough to walk into a wall for. `GET /api/admin/demand`
+aggregates it, sorted by **distinct groups** rather than raw hits: many hits from
+few groups is one loud customer retrying, while hits spread across many groups is
+a tier boundary drawn in the wrong place — and moving it is usually worth more
+than building anything new. Rows expire after two years.
 
 ## Reports
 
@@ -372,7 +433,13 @@ Stated plainly, so the scope is honest:
 - **Single currency (INR).** Not a travel/multi-currency product.
 - **No offline support or native mobile apps** — responsive web only.
 - **UPI is a payment-type label, not an integrated payment rail.** Razorpay handles subscription billing; it does not move money between members.
-- **No data import/export** beyond shareable PNG cards.
+- **No data import.** CSV *export* ships on the Organization tier (see above);
+  there is no import path.
+- **Contribution requests are catalogued but not built.** The
+  `contributionRequests` feature flag is set on Organization and rendered in the
+  pricing table; no route enforces it yet, because the collect-by-UPI flow it
+  names is not implemented. It must be built or removed from the catalogue before
+  the tier is sold on that promise.
 - **Splitting supports equal and exact amounts only** — no percentage, shares, or multiple payers.
 - **Expense text search is client-side** over the loaded page; the server-side filters are the ones that scale.
 - **`groupType: "SPLIT"`** exists in the schema but is unimplemented — `POOL` is the only live mode.

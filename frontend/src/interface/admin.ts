@@ -81,6 +81,25 @@ export interface Analytics {
     granularity: 'day' | 'week' | 'month';
 }
 
+// GET /admin/demand — what customers hit a paywall trying to do.
+//
+// `groups` is the column that matters, not `hits`: many hits from few groups is
+// one loud customer, while hits spread across many groups is a tier boundary in
+// the wrong place.
+export interface DemandGate {
+    gate: string;
+    hits: number;
+    groups: number;
+    lastAt: string;
+    sample: string;
+}
+
+export interface Demand {
+    days: number;
+    gates: DemandGate[];
+    totals: { hits: number; groups: number; users: number };
+}
+
 export interface CapturedLog {
     level: number;
     levelLabel: string;

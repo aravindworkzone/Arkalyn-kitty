@@ -77,15 +77,33 @@ export type UserStatus = typeof USER_STATUSES[number];
 export const PLAN_SOURCES = ['PAYMENT', 'PROMO', 'ADMIN'] as const;
 export type PlanSource = typeof PLAN_SOURCES[number];
 
-export const PLAN_TIERS = ['FREE', 'PRO', 'PREMIUM'] as const;
+// PREMIUM is LEGACY. It is retained in the enum — and in PLANS below — because
+// groups already carry it in `plan`, `planSnapshot.tier` and on historical
+// SubscriptionPayment rows; removing the value would strand that data behind a
+// schema enum that no longer accepts it. It is not sold: it is absent from
+// SELLABLE_TIERS, so checkout and promo creation both reject it, and the pricing
+// UI never renders it. Existing PREMIUM groups keep full ORG-equivalent
+// entitlements until they lapse, then renew onto ORG like everyone else.
+export const PLAN_TIERS = ['FREE', 'PRO', 'PREMIUM', 'ORG'] as const;
 export type Plan = typeof PLAN_TIERS[number];
+
+// The tiers a customer can actually buy today. Checkout, promo codes and the
+// public pricing table all read this rather than PLAN_TIERS, which is the
+// storage enum and still carries the legacy value.
+export const SELLABLE_TIERS = ['FREE', 'PRO', 'ORG'] as const;
+export type SellablePlan = typeof SELLABLE_TIERS[number];
+
+export const isSellablePlan = (p: Plan): p is SellablePlan =>
+    (SELLABLE_TIERS as readonly string[]).includes(p);
 
 export const AUTH_PROVIDERS = ['LOCAL', 'GOOGLE'] as const;
 export type AuthProvider = typeof AUTH_PROVIDERS[number];
 
 // Ordinal rank for comparing tiers (e.g. to block a promo from downgrading an
-// active higher plan).
-export const PLAN_RANK: Record<Plan, number> = { FREE: 0, PRO: 1, PREMIUM: 2 };
+// active higher plan). PREMIUM sits level with ORG, not below it: the two grant
+// identical entitlements, so a legacy PREMIUM group moving to ORG is a lateral
+// renewal and must not be rejected as a downgrade.
+export const PLAN_RANK: Record<Plan, number> = { FREE: 0, PRO: 1, PREMIUM: 2, ORG: 2 };
 
 export const BILLING_CYCLES = ['monthly', 'yearly'] as const;
 export type BillingCycle = typeof BILLING_CYCLES[number];
@@ -130,6 +148,22 @@ export interface PlanFeatures {
     // group-management rights to people who never had them — the same
     // freeze-don't-rewrite rule the other limits follow.
     memberRole: boolean;
+
+    // --- Organization tier ---------------------------------------------------
+    // The three below are what an institutional treasurer buys. They are
+    // deliberately absent from PRO: a flatmate kitty never needs them, and a
+    // committee that answers to an auditor cannot operate without them.
+
+    // CSV export of the ledger, expenses and member contributions, plus the
+    // combined audit pack. Read-only by nature, so a lapsed group keeps the
+    // right to pull its own data out — see EXPORT_SURVIVES_LAPSE.
+    dataExport: boolean;
+    // Admin raises a payable request against members; each gets a Razorpay
+    // payment link and settles straight into the pool with a CREDIT entry.
+    contributionRequests: boolean;
+    // Named support contact + a stated response window. No code path gates on
+    // this; it is a catalogue line the pricing table renders.
+    prioritySupport: boolean;
 }
 
 export interface PlanConfig {
@@ -140,7 +174,30 @@ export interface PlanConfig {
     features: PlanFeatures;
 }
 
+// The unlimited entitlement set, shared by ORG and its legacy PREMIUM twin so
+// the two can never drift apart while both are in the wild.
+const UNLIMITED_LIMITS: PlanLimits = {
+    maxMembersPerGroup: null,
+    maxCategoriesPerGroup: null,
+    eventLogRetentionDays: null,
+    transactionLogRetentionDays: null,
+};
+
+const ORG_FEATURES: PlanFeatures = {
+    advancedReportRange: true,
+    cloneGroup: true,
+    linkGroups: true,
+    memberRole: true,
+    dataExport: true,
+    contributionRequests: true,
+    prioritySupport: true,
+};
+
 export const PLANS: Record<Plan, PlanConfig> = {
+    // Free is the funnel, not a trial. It has to be genuinely enough for a
+    // flatmate kitty — 5 people, 10 categories — because those users are never
+    // going to pay and their groups are how the organizational buyer hears about
+    // the product in the first place.
     FREE: {
         name: 'Free',
         priceMonthly: 0,
@@ -151,30 +208,62 @@ export const PLANS: Record<Plan, PlanConfig> = {
             eventLogRetentionDays: 15,
             transactionLogRetentionDays: 30,
         },
-        features: { advancedReportRange: false, cloneGroup: false, linkGroups: false, memberRole: false },
+        features: {
+            advancedReportRange: false,
+            cloneGroup: false,
+            linkGroups: false,
+            memberRole: false,
+            dataExport: false,
+            contributionRequests: false,
+            prioritySupport: false,
+        },
     },
+    // Pro is the large-informal-group tier: a 25-person trip, a hostel mess, a
+    // team kitty. Retention is a year because "what did we spend last Diwali"
+    // is the question this tier exists to answer.
     PRO: {
         name: 'Pro',
-        priceMonthly: 49,
-        priceYearly: 449,
+        priceMonthly: 199,
+        priceYearly: 1990,
         limits: {
-            maxMembersPerGroup: 10,
-            maxCategoriesPerGroup: 20,
-            eventLogRetentionDays: 60,
-            transactionLogRetentionDays: 100,
+            maxMembersPerGroup: 25,
+            maxCategoriesPerGroup: 50,
+            eventLogRetentionDays: 180,
+            transactionLogRetentionDays: 365,
         },
-        features: { advancedReportRange: true, cloneGroup: true, linkGroups: true, memberRole: true },
+        features: {
+            advancedReportRange: true,
+            cloneGroup: true,
+            linkGroups: true,
+            memberRole: true,
+            dataExport: false,
+            contributionRequests: false,
+            prioritySupport: false,
+        },
     },
+    // LEGACY — not sellable. Kept so existing rows resolve; mirrors ORG exactly.
     PREMIUM: {
-        name: 'Premium',
+        name: 'Premium (legacy)',
         priceMonthly: 99,
         priceYearly: 899,
-        limits: {
-            maxMembersPerGroup: null,
-            maxCategoriesPerGroup: null,
-            eventLogRetentionDays: null,
-            transactionLogRetentionDays: null,
-        },
-        features: { advancedReportRange: true, cloneGroup: true, linkGroups: true, memberRole: true },
+        limits: UNLIMITED_LIMITS,
+        features: ORG_FEATURES,
+    },
+    // The tier the business is actually built on. Twenty of these covers the
+    // revenue target, which is why everything an auditor, treasurer or committee
+    // secretary needs lives here and nowhere else.
+    ORG: {
+        name: 'Organization',
+        priceMonthly: 999,
+        priceYearly: 9990,
+        limits: UNLIMITED_LIMITS,
+        features: ORG_FEATURES,
     },
 };
+
+// A group that lapses loses its paid capabilities, but never the right to take
+// its own records out — locking a treasurer out of their own ledger export is
+// hostage-taking, not a paywall, and it is the single fastest way to lose an
+// institutional customer. `dataExport` is therefore checked against the STORED
+// tier rather than the effective one (see helpers/planLimits → canExportData).
+export const EXPORT_SURVIVES_LAPSE = true;

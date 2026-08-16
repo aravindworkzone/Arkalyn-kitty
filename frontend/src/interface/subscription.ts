@@ -5,7 +5,12 @@
 // and feature below applies to that group alone. There is no account tier, so
 // nothing here hangs off the current user.
 
-export type PlanTier = 'FREE' | 'PRO' | 'PREMIUM';
+// PREMIUM is a LEGACY stored value, not a purchasable tier. It stays in the
+// union because groups and historical receipts still carry it and the UI has to
+// render them; it is absent from SELLABLE_TIERS, so no pricing card or checkout
+// path offers it. ORG replaced it at identical entitlements.
+export type PlanTier = 'FREE' | 'PRO' | 'PREMIUM' | 'ORG';
+export type SellableTier = 'FREE' | 'PRO' | 'ORG';
 export type BillingCycle = 'monthly' | 'yearly';
 export type PlanStatus = 'active' | 'grace' | 'expired';
 
@@ -23,6 +28,12 @@ export interface PlanFeatures {
     // The MEMBER role — someone who shares the pool but cannot administer the
     // group. Without it a group is flat: everyone who joins lands as ADMIN.
     memberRole: boolean;
+    // Organization tier. `dataExport` is the one flag the UI must not gate on
+    // alone: the server lets a LAPSED org group keep exporting, so the download
+    // button reads the stored tier via `canExport` in helpers/plans.
+    dataExport: boolean;
+    contributionRequests: boolean;
+    prioritySupport: boolean;
 }
 
 export interface PlanConfig {
@@ -33,11 +44,26 @@ export interface PlanConfig {
     features: PlanFeatures;
 }
 
+// The catalogue keyed by tier — carries every tier, legacy PREMIUM included, so
+// a group sitting on one can still render its own entitlements.
 export type PlansResponse = Record<PlanTier, PlanConfig>;
+
+// The full GET /subscription/plans payload. `sellable` is the ordered list the
+// pricing table draws; purchasability must never be derived from the catalogue
+// keys, or the retired tier reappears on the checkout page.
+export interface PlansEnvelope {
+    plans: PlansResponse;
+    sellable: SellableTier[];
+    paymentsEnabled: boolean;
+}
 
 // The effective subscription attached to a group.
 export interface PlanView {
     tier: PlanTier;
+    // What the group actually bought. `tier` collapses to FREE once a plan lapses
+    // past grace, which loses the information needed to tell a lapsed Pro group
+    // from a lapsed Organization one — the distinction the export rule turns on.
+    storedTier: PlanTier;
     status: PlanStatus;
     isReadOnly: boolean;
     planExpiresAt: string | null;

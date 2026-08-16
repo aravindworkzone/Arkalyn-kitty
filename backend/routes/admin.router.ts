@@ -13,6 +13,7 @@ import {
     DeactivatePromo,
     PromoRedemptions,
     Analytics,
+    Demand,
     Health,
 } from '../controllers/admin.controller';
 import { validate } from '../middlewares/validate.middleware';
@@ -25,6 +26,7 @@ import {
     createPromoBodySchema,
     overridePlanBodySchema,
     analyticsQuerySchema,
+    demandQuerySchema,
 } from '../validators/admin.validator';
 
 // verifyToken + requireAppOwner are applied at the mount point (main.ts), so
@@ -55,6 +57,7 @@ router.get('/promos/:id/redemptions', validate({ params: promoIdParamSchema }), 
 
 // Analytics + health
 router.get('/analytics', validate({ query: analyticsQuerySchema }), Analytics);
+router.get('/demand', validate({ query: demandQuerySchema }), Demand);
 router.get('/health', Health);
 
 export default router;

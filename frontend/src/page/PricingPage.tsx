@@ -10,18 +10,18 @@ import {
     useRedeemPromoCodeMutation,
 } from '../redux/api/subscription';
 import { useGetUserGroupsQuery } from '../redux/api/user';
-import { PLAN_RANK } from '../helpers/plans';
+import { PLAN_RANK, TIER_ORDER, planFeatureLines } from '../helpers/plans';
 import { loadRazorpay, openRazorpayCheckout } from '../utils/loadRazorpay';
-import type { PlanTier, BillingCycle, PlanConfig } from '../interface/subscription';
+import type { PlanTier, SellableTier, BillingCycle } from '../interface/subscription';
 
-const TIER_ORDER: PlanTier[] = ['FREE', 'PRO', 'PREMIUM'];
+// TIER_ORDER comes from helpers/plans and excludes the retired PREMIUM tier, so
+// this page renders Free / Pro / Organization only. TIER_THEME below still keys
+// every tier because a legacy PREMIUM group's badge is drawn from it.
 
-// Featured promo advertised on the pricing page — grants 3 months of Premium.
-// The code must also exist in the DB (created via the admin dashboard) to redeem.
-const FEATURED_PROMO = 'ARKALYN-KITTY-3M-PREMIUM-Y-INIT';
-
-const fmtLimit = (n: number | null) => (n === null ? 'Unlimited' : String(n));
-const fmtDays = (n: number | null) => (n === null ? 'Unlimited' : `${n} days`);
+// Featured promo advertised on the pricing page — grants 3 months of
+// Organization. The code must also exist in the DB (created via the admin
+// dashboard) to redeem.
+const FEATURED_PROMO = 'ARKALYN-KITTY-3M-ORG-Y-INIT';
 
 // Per-tier visual accent + icon.
 const TIER_THEME: Record<PlanTier, { ring: string; chip: string; cta: string; glow: string; icon: ReactNode }> = {
@@ -47,6 +47,8 @@ const TIER_THEME: Record<PlanTier, { ring: string; chip: string; cta: string; gl
             </svg>
         ),
     },
+    // LEGACY — never in TIER_ORDER, so no card renders with this theme. Retained
+    // for the badge on a group that still holds the retired tier.
     PREMIUM: {
         ring: 'border-warning-400/30',
         chip: 'bg-warning-400/15 text-warning-300',
@@ -58,35 +60,48 @@ const TIER_THEME: Record<PlanTier, { ring: string; chip: string; cta: string; gl
             </svg>
         ),
     },
+    ORG: {
+        ring: 'border-warning-400/40 ring-1 ring-warning-400/30',
+        chip: 'bg-warning-400/15 text-warning-300',
+        cta: 'bg-gradient-to-r from-warning-400/90 to-warning-500/90 border border-warning-400/40 text-[#1a1206] font-bold hover:from-warning-400 hover:to-warning-500 shadow-lg shadow-warning-900/20',
+        glow: 'from-transparent via-warning-400/50 to-transparent',
+        icon: (
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M2.5 13.5V6l5.5-3.5L13.5 6v7.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                <path d="M6.5 13.5v-4h3v4" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+            </svg>
+        ),
+    },
 };
 
-// The headline feature lines shown on each tier card. Every line describes what
-// the tier grants the ONE group it is bought for.
-const featureLines = (tier: PlanTier, cfg: PlanConfig): string[] => {
-    const l = cfg.limits;
-    const lines = [
-        `${fmtLimit(l.maxMembersPerGroup)} members`,
-        `${fmtLimit(l.maxCategoriesPerGroup)} categories`,
-        `${fmtDays(l.transactionLogRetentionDays)} transaction history`,
-        `${fmtDays(l.eventLogRetentionDays)} activity history`,
-        cfg.features.advancedReportRange ? 'Custom-range reports' : 'Month & all-time reports',
-    ];
-    lines.push(
-        cfg.features.memberRole
-            ? 'Admin & member roles'
-            : 'Everyone who joins is an admin'
-    );
-    if (cfg.features.cloneGroup) lines.push('Clone this group in one click');
-    if (cfg.features.linkGroups) lines.push('Receive funding from other groups');
-    if (tier === 'PREMIUM') lines.push('Everything unlimited');
-    return lines;
-};
+// The card's feature bullets come from helpers/plans.planFeatureLines — the same
+// function the public (logged-out) pricing surfaces use. It was duplicated here
+// before, which is exactly how the two lists drift apart.
+const featureLines = planFeatureLines;
 
 export default function PricingPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { data: plansRes, isLoading: plansLoading } = useGetPlansQuery();
     const plansData = plansRes?.plans;
+
+    // Which cards to draw, decided by the API rather than by this bundle.
+    //
+    // The frontend and backend deploy separately (Vercel in seconds, Render in
+    // minutes), so on every release there is a window where a new bundle talks to
+    // an old server. Trusting the local TIER_ORDER during that window meant
+    // indexing the catalogue for a tier the server had never heard of and
+    // dereferencing `undefined` one line later — which took the whole page down
+    // with a render error rather than degrading.
+    //
+    // So: prefer the server's own `sellable` list, fall back to TIER_ORDER for a
+    // server that predates that field, and in both cases keep only tiers the
+    // catalogue actually carries.
+    const visibleTiers = useMemo<SellableTier[]>(() => {
+        if (!plansData) return [];
+        const order = plansRes?.sellable?.length ? plansRes.sellable : TIER_ORDER;
+        return order.filter((tier) => Boolean(plansData[tier]));
+    }, [plansData, plansRes?.sellable]);
     // False when the deployment has no Razorpay keys. Checkout would 503, so the
     // buy buttons go inert and the promo path is promoted instead of letting
     // someone walk into a failing payment.
@@ -153,7 +168,9 @@ export default function PricingPage() {
         }
     };
 
-    const handleUpgrade = async (tier: PlanTier) => {
+    // Narrowed to SellableTier: the cards are built from TIER_ORDER, which never
+    // contains the retired PREMIUM, so checkout cannot be reached with it.
+    const handleUpgrade = async (tier: SellableTier) => {
         if (tier === 'FREE' || !selectedGroupId) return;
         setMsg(null);
         setProcessing(tier);
@@ -349,7 +366,7 @@ export default function PricingPage() {
                     >
                         <div className="min-w-0">
                             <p className="font-mono text-theme-xs tracking-wider text-warning-200 truncate">{FEATURED_PROMO}</p>
-                            <p className="text-theme-2xs text-warning-200/50 mt-0.5">Free Premium trial valid until December 31, 2026</p>
+                            <p className="text-theme-2xs text-warning-200/50 mt-0.5">Free Organization trial valid until December 31, 2026</p>
                         </div>
                         <span className="text-theme-2xs font-semibold text-warning-200/80 shrink-0">Tap to use</span>
                     </button>
@@ -410,7 +427,7 @@ export default function PricingPage() {
                 )}
 
                 {/* Tier cards */}
-                {plansLoading || !plansData ? (
+                {plansLoading || !visibleTiers.length ? (
                     <div className="grid sm:grid-cols-3 gap-6">
                         {[...Array(3)].map((_, i) => (
                             <div key={i} className="h-[520px] rounded-3xl bg-surface-raised border border-line animate-pulse" />
@@ -418,8 +435,10 @@ export default function PricingPage() {
                     </div>
                 ) : (
                     <div className="grid sm:grid-cols-3 gap-6 items-start">
-                        {TIER_ORDER.map((tier) => {
-                            const cfg = plansData[tier];
+                        {visibleTiers.map((tier) => {
+                            // Non-null: visibleTiers already dropped every tier the
+                            // catalogue doesn't carry.
+                            const cfg = plansData![tier];
                             const theme = TIER_THEME[tier];
                             const isCurrent = tier === currentTier;
                             // Block buying a tier strictly below the group's own. No

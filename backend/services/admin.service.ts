@@ -13,6 +13,7 @@ import SubscriptionPayment from '../models/subscription_payment.model';
 import Session from '../models/session.model';
 import PromoCode from '../models/promo_code.model';
 import PromoRedemption from '../models/promo_redemption.model';
+import PaywallHit from '../models/paywall_hit.model';
 import { AppError } from '../helpers/AppError';
 import { getEffectivePlan, toPlanView } from '../helpers/planLimits';
 import { userGroupsService } from './user.service';
@@ -539,7 +540,7 @@ export const getAnalyticsService = async (granularity: 'day' | 'week' | 'month')
     ]);
 
     // planBreakdown counts GROUPS per effective tier — the unit that holds a plan.
-    const planBreakdown: Record<Plan, number> = { FREE: 0, PRO: 0, PREMIUM: 0 };
+    const planBreakdown: Record<Plan, number> = { FREE: 0, PRO: 0, PREMIUM: 0, ORG: 0 };
     let mrr = 0;
     let payingGroups = 0;
 
@@ -577,6 +578,80 @@ export const getAnalyticsService = async (granularity: 'day' | 'week' | 'month')
         revenue: { mrr, totalRevenue: Math.round((revenueAgg[0]?.total ?? 0) / 100), currency: 'INR' },
         signups,
         granularity,
+    };
+};
+
+// ── Demand signal ────────────────────────────────────────────────────────────
+
+// What customers tried to do and were told they couldn't afford.
+//
+// This is the report that should drive pricing decisions, because it is the only
+// place the product records intent rather than behaviour. A gate with many hits
+// across FEW groups is one loud group and probably noise; a gate with hits
+// spread across MANY groups is a tier boundary drawn in the wrong place, and
+// moving it is usually worth more than building anything new.
+//
+// `groups` is therefore the column to sort on, not `hits` — which is why the
+// aggregation counts distinct groups rather than returning a raw total.
+export const getDemandService = async (days = 30) => {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const [gates, totals] = await Promise.all([
+        PaywallHit.aggregate<{
+            gate: string;
+            hits: number;
+            groups: number;
+            lastAt: Date;
+            sample: string;
+        }>([
+            { $match: { createdAt: { $gte: since } } },
+            {
+                $group: {
+                    _id: '$gate',
+                    hits: { $sum: 1 },
+                    groupIds: { $addToSet: '$groupId' },
+                    lastAt: { $max: '$createdAt' },
+                    sample: { $last: '$message' },
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    gate: '$_id',
+                    hits: 1,
+                    groups: { $size: '$groupIds' },
+                    lastAt: 1,
+                    sample: 1,
+                },
+            },
+            { $sort: { groups: -1, hits: -1 } },
+            { $limit: 20 },
+        ]),
+        PaywallHit.aggregate<{ hits: number; groups: number; users: number }>([
+            { $match: { createdAt: { $gte: since } } },
+            {
+                $group: {
+                    _id: null,
+                    hits: { $sum: 1 },
+                    groupIds: { $addToSet: '$groupId' },
+                    userIds: { $addToSet: '$userId' },
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    hits: 1,
+                    groups: { $size: '$groupIds' },
+                    users: { $size: '$userIds' },
+                },
+            },
+        ]),
+    ]);
+
+    return {
+        days,
+        gates,
+        totals: totals[0] ?? { hits: 0, groups: 0, users: 0 },
     };
 };
 
