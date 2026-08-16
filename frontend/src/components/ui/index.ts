@@ -14,6 +14,7 @@ export type { ChipVariant } from "./Chip";
 export { default as ChoiceGroup } from "./ChoiceGroup";
 export { default as Disclosure } from "./Disclosure";
 export { default as Note } from "./Note";
+export { default as UpgradeNote } from "./UpgradeNote";
 export { default as Switch } from "./Switch";
 export { default as ColorPicker } from "./ColorPicker";
 export { default as LimitMeter } from "./LimitMeter";

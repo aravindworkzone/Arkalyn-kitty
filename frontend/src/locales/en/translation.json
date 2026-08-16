@@ -197,8 +197,8 @@
     },
     "pricing": {
       "kicker": "Pricing",
-      "title": "Simple plans that grow with you",
-      "sub": "Start free, no card needed. Upgrade with a one-time payment only when your groups get bigger — never an auto-renewal surprise.",
+      "title": "Simple plans, priced per group",
+      "sub": "Every group starts free, no card needed. Upgrade just the group that outgrows it with a one-time payment — never an auto-renewal surprise.",
       "monthly": "Monthly",
       "yearly": "Yearly",
       "save": "SAVE 20%",

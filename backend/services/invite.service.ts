@@ -11,7 +11,7 @@ import { getOrCreateOtherCreditCategory } from "./category.service";
 import { emitToGroup } from "../sockets";
 import { SOCKET_EVENTS } from "../sockets/events";
 import { creditGroupBalance } from "../helpers/balanceOps";
-import { getGroupOwnerPlan, assertWithinLimit } from "../helpers/planLimits";
+import { getGroupPlan, assertWithinLimit } from "../helpers/planLimits";
 
 const markInviteNotificationsRead = async (
     recipient: mongoose.Types.ObjectId,
@@ -59,12 +59,12 @@ export const acceptInviteService = async (data: { inviteId: string; userId: mong
 
     // Subscription gate (soft check): fail early rather than queue a request the
     // group has no room for. Re-checked as a hard cap when an admin approves.
-    const ownerPlan = await getGroupOwnerPlan(invite.groupId);
+    const groupPlan = await getGroupPlan(invite.groupId);
     const memberCount = await GroupMember.countDocuments({ groupId: invite.groupId, isDeleted: false });
     assertWithinLimit(
         memberCount,
-        ownerPlan.limits.maxMembersPerGroup,
-        `This group is full (${ownerPlan.limits.maxMembersPerGroup}-member limit on the ${ownerPlan.config.name} plan). Ask the group owner to upgrade.`
+        groupPlan.limits.maxMembersPerGroup,
+        `This group is full (${groupPlan.limits.maxMembersPerGroup}-member limit on the ${groupPlan.config.name} plan). Ask a group admin to upgrade its plan.`
     );
 
     // Acceptance no longer joins the group — it parks the declared contribution
@@ -127,12 +127,12 @@ export const approveJoinService = async (data: {
     if (existingMember) throw new AppError("This user is already a member of this group", 400);
 
     // Hard cap: the group may have filled up while the request sat in the queue.
-    const ownerPlan = await getGroupOwnerPlan(groupId);
+    const groupPlan = await getGroupPlan(groupId);
     const memberCount = await GroupMember.countDocuments({ groupId, isDeleted: false });
     assertWithinLimit(
         memberCount,
-        ownerPlan.limits.maxMembersPerGroup,
-        `This group is full (${ownerPlan.limits.maxMembersPerGroup}-member limit on the ${ownerPlan.config.name} plan). Upgrade the plan to admit more members.`
+        groupPlan.limits.maxMembersPerGroup,
+        `This group is full (${groupPlan.limits.maxMembersPerGroup}-member limit on the ${groupPlan.config.name} plan). Upgrade the plan to admit more members.`
     );
 
     const session = await mongoose.startSession();

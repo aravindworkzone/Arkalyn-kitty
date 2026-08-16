@@ -1,8 +1,12 @@
 import { z } from 'zod';
 import { BILLING_CYCLES } from '../config/constants';
-import { objectIdSchema } from './common';
+import { objectIdSchema, groupIdParamSchema } from './common';
 
+// `groupId` names the group being upgraded — plans are bought per group, never
+// per account. It must survive parsing because loadGroup reads it off the body
+// to resolve and authorize the target.
 export const createOrderBodySchema = z.object({
+    groupId: groupIdParamSchema,
     plan: z.enum(['PRO', 'PREMIUM']),
     cycle: z.enum(BILLING_CYCLES),
 });
@@ -18,6 +22,7 @@ export const markPaymentFailedBodySchema = z.object({
 });
 
 export const redeemPromoBodySchema = z.object({
+    groupId: groupIdParamSchema,
     code: z
         .string({ message: 'Promo code is required' })
         .trim()

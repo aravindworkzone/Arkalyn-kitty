@@ -66,12 +66,12 @@ Financial correctness is enforced at the data layer, not the UI:
 The schema is normalized across focused collections rather than embedded blobs:
 
 **Identity & auth**
-- `user` — account, hashed password, profile, plan, app role, lifecycle status
+- `user` — account, hashed password, profile, app role, lifecycle status (no plan — see `group`)
 - `session` — issued refresh-token sessions, used for the device/session cap
 - `password_reset` — short-lived reset tokens
 
 **Groups**
-- `group` — group metadata, purpose, status, balance, plan snapshot
+- `group` — group metadata, purpose, status, balance, **its subscription** (`plan`, `planExpiresAt`, `planCycle`, `planSource`) and the plan snapshot frozen at close
 - `group_member` — join collection (user ↔ group) carrying role, contribution total, and settlement state
 - `group_invite` — invitations with a two-step lifecycle (invitee responds, then an admin approves)
 - `group_join_link` — shareable "ask to join" tokens, one active per group, revocable and rotatable
@@ -85,7 +85,7 @@ The schema is normalized across focused collections rather than embedded blobs:
 - `counter` — atomic sequence source for human-readable display IDs (`Grp-25-001`)
 
 **Billing**
-- `subscription_payment` — Razorpay order/payment records
+- `subscription_payment` — Razorpay order/payment records (`groupId` = what was upgraded, `userId` = who paid)
 - `promo_code` / `promo_redemption` — discount codes and their redemptions
 
 **Notifications**
@@ -99,7 +99,7 @@ The schema is normalized across focused collections rather than embedded blobs:
 - **Join links.** An admin can share a link (`/join/<token>`) that lets anyone with it *ask* to join. Clicking it is the acceptance, so the request is written straight to `PENDING_APPROVAL` — the same state an emailed invite reaches once answered, and therefore the same approval queue, the same member-cap check, the same balance credit. A link is a second entry point, not a second path to membership: nobody joins unreviewed. Tokens are stored in plaintext deliberately, since a token grants only the right to ask; one link is active per group, and rotating or revoking kills the old one immediately.
 - **Leaving.** A member either files a leave request for admin approval (settlement path) or exits instantly via **forfeit**, leaving their contribution in the pool. `leftMode` records which happened.
 - **Settlement.** An admin settles a member for an amount up to the available balance; the payout debits the pool and writes a ledger entry. Members cannot be removed unsettled.
-- **Close & clone.** A group can be previewed and then closed, freezing the owner's plan tier into `planSnapshot` so later plan changes never rewrite history. Closed groups reject all further writes (`ensureGroupActive`) and stop consuming the owner's group limit. Paid tiers can clone a group's structure into a fresh one.
+- **Close & clone.** A group can be previewed and then closed, freezing its plan tier into `planSnapshot` so a later purchase or lapse never rewrites history. Closed groups reject all further writes (`ensureGroupActive`) and stop counting toward the owner's group cap. Paid tiers can clone a group's structure into a fresh one.
 
 ---
 
@@ -158,14 +158,18 @@ Expense editing is authorized inside the service rather than by route middleware
 
 ## Payments & Subscriptions
 
+**Subscriptions are per GROUP, not per account.** A plan is bought for one group
+and every limit and feature below applies to that group alone; a user can own a
+Premium group and a Free one at the same time, and any `SUPER_ADMIN`/`ADMIN` of a
+group can pay to lift its limits for everyone in it. Accounts hold no tier.
+
 Three tiers, priced in INR. `null` means unlimited.
 
 | | Free | Pro | Premium |
 |---|---|---|---|
 | Price (monthly / yearly) | ₹0 | ₹69 / ₹660 | ₹119 / ₹1140 |
-| Groups owned | 3 | 8 | Unlimited |
-| Members per group | 5 | 10 | Unlimited |
-| Categories per group | 10 | 20 | Unlimited |
+| Members in the group | 5 | 10 | Unlimited |
+| Categories in the group | 10 | 20 | Unlimited |
 | Event log retention | 15 days | 60 days | Unlimited |
 | Transaction log retention | 30 days | 100 days | Unlimited |
 | Custom report date ranges | — | ✓ | ✓ |
@@ -174,11 +178,32 @@ Three tiers, priced in INR. `null` means unlimited.
 
 - **Razorpay** order creation and **HMAC signature verification** on callback.
 - **Idempotent** payment recording — a replayed callback does not double-credit.
-- **Lazy expiry** — entitlement is computed on read from `plan` + `planExpiresAt`, so no cron job is needed. After expiry a **7-day grace period** preserves full access; past that the account falls back to `FREE` and over-limit resources go read-only.
-- **Group-scoped limits follow the group owner's plan**, since subscriptions are per-account.
-- **Promo codes** with tracked redemptions, guarded against downgrading an active higher tier.
+- **Lazy expiry** — entitlement is computed on read from the group's `plan` + `planExpiresAt`, so no cron job is needed. After expiry a **7-day grace period** preserves full access; past that the group falls back to `FREE` and over-limit resources go read-only.
+- **One lookup governs every gate** — `getGroupPlan(groupId)` reads the group's own fields, so the answer is identical for every member and the UI gates on the exact plan the API will enforce (shipped on `GET /group/:id` as `subscription`).
+- **Group count is not a plan limit.** With per-group plans nothing account-level could raise it, so `MAX_ACTIVE_OWNED_GROUPS` is a flat anti-abuse cap rather than a billing lever.
+- **Promo codes** with tracked redemptions, one per group, guarded against downgrading a group already on a higher active tier.
 
 The named report presets — `this_month`, `last_month`, and `all_time` — are free on every tier; only hand-picked custom date ranges are gated. Closed groups are exempt regardless of tier, since the month presets are meaningless on frozen history.
+
+### Migrating an existing database
+
+Plans used to live on the `user` document. Deploying the per-group model against
+a database that predates it leaves every paying customer's groups on `FREE`,
+because the new gates read fields that are empty on existing group documents.
+Run once, before or immediately after the deploy:
+
+```bash
+cd Backend
+npm run migrate:group-plans            # dry run — reports, writes nothing
+npm run migrate:group-plans -- --apply
+```
+
+It copies each user's live paid tier onto every open group they own (preserving
+the original expiry dates), backfills `SubscriptionPayment.groupId` on historical
+receipts, and drops the superseded `promoCodeId_1_userId_1` unique index now that
+promo redemption is one-per-group. It is idempotent, never downgrades a group
+that already has a plan, and leaves the old user fields in place so the deploy
+stays reversible.
 
 ---
 
@@ -213,7 +238,7 @@ Attribution stays user-keyed: a connected group that funds this one is a contrib
 
 A hosted MCP server (`arkalyn-mcp/`) lets a Claude.ai user operate on their **own** Arkalyn Kitty data through a personal API key generated from their profile. Every call is scoped to the key's owner.
 
-**Read tools:** `get_my_balance`, `get_my_expenses`, `get_group_details`, `get_group_activity`, `get_my_members`, `get_my_subscription`
+**Read tools:** `get_my_balance`, `get_my_expenses`, `get_group_details`, `get_group_activity`, `get_my_members`, `get_group_subscription`
 **Write tools:** `add_expense`, `add_category`, `add_contribution`
 
 Writes go through the same services as the web app, so balance updates, ledger entries, audit events, and plan limits stay identical. Transports: **Streamable HTTP** (`/mcp`, used by Claude.ai connectors) and legacy **HTTP+SSE**. Full details in [`arkalyn-mcp/README.md`](./arkalyn-mcp/README.md).

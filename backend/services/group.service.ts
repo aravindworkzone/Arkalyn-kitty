@@ -11,7 +11,8 @@ import { PURPOSE_DEFAULT_CATEGORIES } from "../config/purposeCategories";
 import { createNotification } from "./notification.service";
 import { getOrCreateOtherCreditCategory } from "./category.service";
 import { creditGroupBalance, debitGroupBalance, reverseGroupCredit, adjustMemberContribution } from "../helpers/balanceOps";
-import { getUserPlan, getGroupOwnerPlan, assertWithinLimit, assertFeature, retentionFloor, countActiveOwnedGroups } from "../helpers/planLimits";
+import { getGroupPlan, getEffectivePlan, toPlanView, assertWithinLimit, assertFeature, retentionFloor, countActiveOwnedGroups } from "../helpers/planLimits";
+import { MAX_ACTIVE_OWNED_GROUPS } from "../config/constants";
 
 export const createGroupService = async (data: { name: string; invitees: string[]; contribution: number; superAdmin: string; purpose?: string }) => {
     const name = data.name?.trim();
@@ -37,14 +38,14 @@ export const createGroupService = async (data: { name: string; invitees: string[
         throw new AppError("Contribution cannot be negative", 400);
     }
 
-    // Subscription gate: cap the number of ACTIVE groups a user can own on their
-    // tier. Closed groups are frozen and don't count.
-    const ownerPlan = await getUserPlan(superAdmin);
+    // Anti-abuse cap, not a subscription gate: a new group is born FREE and
+    // carries its own plan, so the number of groups an account owns is no longer
+    // something a tier can raise. Closed groups are frozen and don't count.
     const ownedGroups = await countActiveOwnedGroups(superAdmin);
     assertWithinLimit(
         ownedGroups,
-        ownerPlan.limits.maxGroups,
-        `Your ${ownerPlan.config.name} plan allows up to ${ownerPlan.limits.maxGroups} active groups. Upgrade to create more.`
+        MAX_ACTIVE_OWNED_GROUPS,
+        `You can own up to ${MAX_ACTIVE_OWNED_GROUPS} active groups. Close one before creating another.`
     );
 
     // Only the creator joins on creation. Everyone else gets a pending invite —
@@ -184,22 +185,23 @@ export const cloneGroupService = async (data: { sourceGroupId: string; name: str
         throw new AppError("Source group not found", 404);
     }
 
-    // Subscription gates. The clone FEATURE is governed by the source group's
-    // plan: for a CLOSED group that resolves to its frozen planSnapshot (so a
-    // group frozen at Pro/Premium stays cloneable even after the owner
-    // downgrades, while one frozen at Free stays blocked); for an open group it
-    // resolves the live owner plan. The group-count LIMIT, by contrast, applies
-    // to the cloner's own live plan — the clone becomes a new active group on
-    // their account.
-    const sourcePlan = await getGroupOwnerPlan(sourceGroupId);
+    // Subscription gate: cloning is a paid feature of the SOURCE group — it is
+    // that group's structure being copied, and that group's plan paid for it. A
+    // CLOSED source resolves to its frozen planSnapshot (so a group frozen at
+    // Pro/Premium stays cloneable even after its plan lapses, while one frozen at
+    // Free stays blocked); an open source resolves its live plan.
+    //
+    // The CLONE, however, is born FREE like any new group — a paid plan belongs
+    // to the group that bought it and is never copied. The only count check left
+    // is the flat anti-abuse cap on the cloner's account.
+    const sourcePlan = await getGroupPlan(sourceGroupId);
     assertFeature(sourcePlan, "cloneGroup", `Cloning a group requires a Pro or Premium plan.`);
 
-    const clonerPlan = await getUserPlan(superAdmin);
     const ownedGroups = await countActiveOwnedGroups(superAdmin);
     assertWithinLimit(
         ownedGroups,
-        clonerPlan.limits.maxGroups,
-        `Your ${clonerPlan.config.name} plan allows up to ${clonerPlan.limits.maxGroups} active groups. Upgrade to create more.`
+        MAX_ACTIVE_OWNED_GROUPS,
+        `You can own up to ${MAX_ACTIVE_OWNED_GROUPS} active groups. Close one before cloning another.`
     );
 
     // Categories to copy (skip soft-deleted ones).
@@ -386,14 +388,14 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
         throw new AppError("Cannot remove the super admin", 400);
     }
 
-    // Subscription gate: cap active members per group on the owner's tier.
+    // Subscription gate: cap active members per group on the GROUP's tier.
     if (action === "add") {
-        const ownerPlan = await getGroupOwnerPlan(groupData);
+        const groupPlan = await getGroupPlan(groupData);
         const memberCount = await GroupMember.countDocuments({ groupId: groupData, isDeleted: false });
         assertWithinLimit(
             memberCount,
-            ownerPlan.limits.maxMembersPerGroup,
-            `This group has reached its ${ownerPlan.config.name}-plan member limit (${ownerPlan.limits.maxMembersPerGroup}). The group owner can upgrade to add more.`
+            groupPlan.limits.maxMembersPerGroup,
+            `This group has reached its ${groupPlan.config.name}-plan member limit (${groupPlan.limits.maxMembersPerGroup}). Upgrade this group's plan to add more.`
         );
     }
 
@@ -494,14 +496,14 @@ export const inviteMemberService = async (data: {
     const existingMember = await GroupMember.findOne({ groupId, userId: invitedUser, isDeleted: false });
     if (existingMember) throw new AppError("User is already a member of this group", 400);
 
-    // Subscription gate: don't let admins invite past the owner's member limit
+    // Subscription gate: don't let admins invite past the group's member limit
     // (the hard cap is re-checked on acceptance).
-    const ownerPlan = await getGroupOwnerPlan(groupId);
+    const groupPlan = await getGroupPlan(groupId);
     const memberCount = await GroupMember.countDocuments({ groupId, isDeleted: false });
     assertWithinLimit(
         memberCount,
-        ownerPlan.limits.maxMembersPerGroup,
-        `This group has reached its ${ownerPlan.config.name}-plan member limit (${ownerPlan.limits.maxMembersPerGroup}). The group owner can upgrade to invite more.`
+        groupPlan.limits.maxMembersPerGroup,
+        `This group has reached its ${groupPlan.config.name}-plan member limit (${groupPlan.limits.maxMembersPerGroup}). Upgrade this group's plan to invite more.`
     );
 
     // Covers both an unanswered invite and one the user accepted that is still
@@ -1086,7 +1088,20 @@ export const getGroupByIdService = async (groupId: mongoose.Types.ObjectId, user
     const barLength = group.totalContribution > 0
         ? Math.max(0, Math.min(100, Math.round((group.balance / group.totalContribution) * 100)))
         : 0;
-    const groupData = {...group.toObject(),role: currentUser.role, barLength};
+    // The group's own effective entitlement. Shipping it here is what lets the UI
+    // gate on the same plan the backend will enforce — every member of a Pro
+    // group sees Pro controls, regardless of what any of them bought elsewhere.
+    //
+    // Derived from the document already in hand rather than calling getGroupPlan,
+    // which would re-fetch the same group on the app's hottest endpoint. The
+    // closed-group branch mirrors that helper exactly: a frozen snapshot wins
+    // over the (now meaningless) expiry clock.
+    const subscription = toPlanView(
+        group.status === "CLOSED" && group.planSnapshot?.tier
+            ? getEffectivePlan({ plan: group.planSnapshot.tier, planExpiresAt: null })
+            : getEffectivePlan({ plan: group.plan, planExpiresAt: group.planExpiresAt })
+    );
+    const groupData = {...group.toObject(),role: currentUser.role, barLength, subscription};
     return groupData;
 };
 
@@ -1137,8 +1152,8 @@ export const getTransactionService = async (
 ) => {
     try {
         // Subscription gate: limit how far back the transaction log is visible.
-        const ownerPlan = await getGroupOwnerPlan(groupId);
-        const floor = retentionFloor(ownerPlan, "transaction");
+        const groupPlan = await getGroupPlan(groupId);
+        const floor = retentionFloor(groupPlan, "transaction");
         const filter = { groupId, isDeleted: false, ...(floor ? { createdAt: { $gte: floor } } : {}) };
         const [docs, total] = await Promise.all([
             GroupTransaction.find(filter)
@@ -1175,8 +1190,8 @@ export const getAllCreditsService = async (
     try {
         // Credits are CREDIT-action transactions, so they share the transaction
         // log's retention window.
-        const ownerPlan = await getGroupOwnerPlan(groupId);
-        const floor = retentionFloor(ownerPlan, "transaction");
+        const groupPlan = await getGroupPlan(groupId);
+        const floor = retentionFloor(groupPlan, "transaction");
         const filter = { groupId, action: "CREDIT", isDeleted: false, ...(floor ? { createdAt: { $gte: floor } } : {}) };
         const [items, total] = await Promise.all([
             GroupTransaction.find(filter)
@@ -1273,8 +1288,8 @@ export const removeCreditService = async (data: {
 export const getEventService = async (groupId: mongoose.Types.ObjectId) => {
     try {
         // Subscription gate: limit how far back the event log is visible.
-        const ownerPlan = await getGroupOwnerPlan(groupId);
-        const floor = retentionFloor(ownerPlan, "event");
+        const groupPlan = await getGroupPlan(groupId);
+        const floor = retentionFloor(groupPlan, "event");
         const eventFilter = { groupId, isDeleted: false, ...(floor ? { createdAt: { $gte: floor } } : {}) };
         const transactions = await GroupEvent.find(eventFilter).populate("performedBy").populate("referenceId");
         const transaction = transactions.map(t => {

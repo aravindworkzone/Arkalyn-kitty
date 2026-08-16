@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useCloneGroupMutation } from "../redux/api/group";
 import { sanitizeGroupName, validateGroupName } from "../helpers/validators";
-import { usePlan } from "../hooks/usePlan";
+import { useGroupPlan } from "../hooks/usePlan";
 
 // Clone a group's structure (categories + member invites) into a fresh group.
 // The only thing the user edits is the new group's name — everything else is
@@ -14,24 +14,23 @@ export default function CloneGroupModal({
   sourceGroupId,
   sourceName,
   sourceStatus,
-  sourcePlanTier,
 }: {
   isOpen: boolean;
   onClose: () => void;
   sourceGroupId: string;
   sourceName: string;
-  // When the source is CLOSED, cloning is gated by its frozen plan (snapshot at
-  // close) rather than the viewer's live plan — mirrors the backend.
+  // Only drives the copy below — whether an upgrade would help. The gate itself
+  // is the source group's plan, which already accounts for closure.
   sourceStatus?: "ACTIVE" | "INACTIVE" | "CLOSED";
-  sourcePlanTier?: "FREE" | "PRO" | "PREMIUM";
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { features } = usePlan();
+  // Cloning is a paid feature of the SOURCE group — it is that group's structure
+  // being copied. A closed source resolves to its frozen snapshot server-side,
+  // so this one lookup covers both cases exactly as the backend gate does.
+  const { features } = useGroupPlan(sourceGroupId);
   const isClosedSource = sourceStatus === "CLOSED";
-  const canClone = isClosedSource
-    ? sourcePlanTier === "PRO" || sourcePlanTier === "PREMIUM"
-    : features.cloneGroup;
+  const canClone = features.cloneGroup;
   const [cloneGroup, { isLoading }] = useCloneGroupMutation();
 
   const [name, setName] = useState("");
@@ -114,7 +113,7 @@ export default function CloneGroupModal({
           <p className="mt-2 text-theme-xs leading-relaxed text-fg-muted">
             {isClosedSource
               ? t("cloneGroup.frozenBody", "This group was on the Free plan when it closed. Its plan is frozen, so it can't be cloned even if you upgrade.")
-              : t("cloneGroup.upgradeBody", "Upgrade to Pro or Premium to clone a group's categories and members into a fresh group.")}
+              : t("cloneGroup.upgradeBody", "Put this group on Pro or Premium to copy its categories and members into a fresh group.")}
           </p>
           <div className="mt-5 flex gap-3">
             <button
@@ -125,7 +124,7 @@ export default function CloneGroupModal({
             </button>
             {!isClosedSource && (
               <button
-                onClick={() => { onClose(); navigate("/pricing"); }}
+                onClick={() => { onClose(); navigate(`/pricing?group=${sourceGroupId}`); }}
                 className="flex-1 rounded-xl py-2.5 text-sm font-semibold bg-brand-50 dark:bg-brand-500/80 border border-brand-200 dark:border-brand-500/50 text-fg hover:bg-brand-50 dark:bg-brand-500/90 active:bg-brand-500 transition"
               >
                 {t("cloneGroup.viewPlans", "View plans")}

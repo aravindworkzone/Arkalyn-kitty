@@ -7,7 +7,7 @@ import User from '../models/user.model';
 import GroupEvent from '../models/group_event.model';
 import GroupTransaction from '../models/group_transaction.model';
 import { AppError } from '../helpers/AppError';
-import { getEffectivePlan, getGroupOwnerPlan, retentionFloor } from '../helpers/planLimits';
+import { getEffectivePlan, getGroupPlan, retentionFloor } from '../helpers/planLimits';
 import { createExpenseService } from './expense.service';
 import { createCategoryService } from './category.service';
 import { addContributionService } from './group.service';
@@ -327,7 +327,7 @@ export const mcpGroupActivityService = async (
         );
     }
 
-    const plan = await getGroupOwnerPlan(resolved._id);
+    const plan = await getGroupPlan(resolved._id);
     const eventFloor = retentionFloor(plan, 'event');
     const transactionFloor = retentionFloor(plan, 'transaction');
 
@@ -455,18 +455,26 @@ export const mcpGroupActivityService = async (
     };
 };
 
-// The user's effective subscription tier + renewal date.
-export const mcpSubscriptionService = async (userId: mongoose.Types.ObjectId) => {
-    const user = await User.findById(userId).select('plan planExpiresAt');
-    if (!user) throw new AppError('User not found', 404);
+// A GROUP's effective subscription tier + renewal date. Plans are bought per
+// group, so this is answered per group too — and because every gate resolves the
+// same way, this is exactly what the group's limits will be enforced against.
+export const mcpSubscriptionService = async (
+    userId: mongoose.Types.ObjectId,
+    group: string
+) => {
+    const resolved = await resolveOneGroup(userId, group);
+    const eff = await getGroupPlan(resolved._id);
 
-    const eff = getEffectivePlan({ plan: user.plan, planExpiresAt: user.planExpiresAt });
     return {
+        group: resolved.name,
+        groupDisplayId: resolved.displayId,
         tier: eff.tier,
         planName: eff.config.name,
         status: eff.status, // active | grace | expired
         renewalDate: eff.planExpiresAt, // null on FREE (no renewal)
         isReadOnly: eff.isReadOnly,
+        limits: eff.limits,
+        features: eff.features,
     };
 };
 

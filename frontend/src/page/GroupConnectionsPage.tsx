@@ -11,7 +11,7 @@ import {
   useTransferToLinkMutation,
   useRevokeLinkMutation,
 } from "../redux/api/groupLink";
-import { usePlan } from "../hooks/usePlan";
+import { useGroupPlan } from "../hooks/usePlan";
 import type { Group } from "../interface/group";
 import type { GroupLink, GroupLinkStatus, LinkedGroupRef } from "../interface/groupLink";
 import {
@@ -57,7 +57,10 @@ export default function GroupConnectionsPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { features } = usePlan();
+  // This group's plan, not the viewer's — so an admin who has never paid still
+  // sees live controls in a group someone else upgraded, and nobody is shown an
+  // upsell for a group that is already Pro.
+  const { features } = useGroupPlan(groupId);
 
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [sourceRef, setSourceRef] = useState("");
@@ -260,12 +263,20 @@ export default function GroupConnectionsPage() {
         <div className="space-y-4 max-w-3xl">
           <StatusBanner status={msg ? (msg.ok ? "ok" : "err") : null} text={msg?.text ?? ""} />
 
-          {isAdmin && !features.linkGroups && (
-            <div className="text-theme-xs px-4 py-3 rounded-xl border border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-500/20 dark:bg-brand-500/10 dark:text-brand-300">
-              {t(
-                "connections.upgradeNotice",
-                "Connecting groups is a Pro feature. You can still see and remove existing connections."
-              )}
+          {isAdmin && !features.linkGroups && !isClosed && (
+            <div className="text-theme-xs px-4 py-3 rounded-xl border border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-500/20 dark:bg-brand-500/10 dark:text-brand-300 flex flex-wrap items-center justify-between gap-2">
+              <span>
+                {t(
+                  "connections.upgradeNotice",
+                  "Connecting groups is a Pro feature. You can still see and remove existing connections."
+                )}
+              </span>
+              <button
+                onClick={() => navigate(`/pricing?group=${groupId}`)}
+                className="shrink-0 font-semibold underline underline-offset-2 hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 rounded"
+              >
+                {t("connections.upgradeCta", "Upgrade this group")}
+              </button>
             </div>
           )}
 

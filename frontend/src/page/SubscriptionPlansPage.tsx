@@ -28,16 +28,17 @@ function Section({ id, title, children }: { id: string; title: string; children:
     );
 }
 
-// Each row compares a single limit/feature across all three tiers.
+// Each row compares a single limit/feature across all three tiers. Every value
+// is per group — a plan is bought for one group and applies only to it.
 const COMPARISON: { label: string; value: (t: PlanTier) => string }[] = [
-    { label: 'Active groups', value: (t) => fmtLimit(PUBLIC_PLANS[t].limits.maxGroups) },
-    { label: 'Members per group', value: (t) => fmtLimit(PUBLIC_PLANS[t].limits.maxMembersPerGroup) },
-    { label: 'Categories per group', value: (t) => fmtLimit(PUBLIC_PLANS[t].limits.maxCategoriesPerGroup) },
+    { label: 'Members in the group', value: (t) => fmtLimit(PUBLIC_PLANS[t].limits.maxMembersPerGroup) },
+    { label: 'Categories in the group', value: (t) => fmtLimit(PUBLIC_PLANS[t].limits.maxCategoriesPerGroup) },
     { label: 'Transaction history', value: (t) => fmtDays(PUBLIC_PLANS[t].limits.transactionLogRetentionDays) },
     { label: 'Activity log history', value: (t) => fmtDays(PUBLIC_PLANS[t].limits.eventLogRetentionDays) },
     { label: 'Month & all-time reports', value: () => 'Yes' },
     { label: 'Custom-range reports', value: (t) => (PUBLIC_PLANS[t].features.advancedReportRange ? 'Yes' : '—') },
     { label: 'One-click group clone', value: (t) => (PUBLIC_PLANS[t].features.cloneGroup ? 'Yes' : '—') },
+    { label: 'Connect groups for funding', value: (t) => (PUBLIC_PLANS[t].features.linkGroups ? 'Yes' : '—') },
 ];
 
 const TOC: [string, string][] = [
@@ -128,18 +129,20 @@ export default function SubscriptionPlansPage() {
                 <div className="min-w-0">
                     <Section id="overview" title="1. Overview">
                         <p>
-                            Arkalyn — Kitty is a pooled-wallet expense tracker for groups. Every account starts on the{' '}
+                            Arkalyn — Kitty is a pooled-wallet expense tracker for groups. Plans are bought{' '}
+                            <strong className="text-fg">per group</strong>, not per account: every group you create starts on the{' '}
                             <strong className="text-fg">Free</strong> plan with no time limit and no card
-                            required. As your groups get larger or you need longer history and advanced reports, two paid tiers —{' '}
+                            required, and you upgrade only the ones that outgrow it. As a group gets larger or needs longer history and
+                            advanced reports, two paid tiers —{' '}
                             <strong className="text-brand-600 dark:text-brand-400">Pro</strong> and{' '}
-                            <strong className="text-warning-600 dark:text-warning-400">Premium</strong> — raise the limits and unlock extra
-                            features.
+                            <strong className="text-warning-600 dark:text-warning-400">Premium</strong> — raise its limits and unlock extra
+                            features for everyone in it.
                         </p>
                         <p>
                             Paid plans use a <strong className="text-fg">one-time, time-boxed</strong> model:
-                            a single payment grants full access for the billing period you choose. There is{' '}
+                            a single payment grants that group full access for the billing period you choose. There is{' '}
                             <strong className="text-fg">no auto-renewal</strong> — nothing is silently charged
-                            to your card when the period ends.
+                            to your card when the period ends. Any admin of a group can pay for it, and the whole group gets the benefit.
                         </p>
                     </Section>
 
@@ -164,10 +167,10 @@ export default function SubscriptionPlansPage() {
                                         </p>
                                         <p className="mt-3 text-theme-sm text-fg-muted leading-relaxed">
                                             {tier === 'FREE'
-                                                ? 'Best for a single household or a one-off trip.'
+                                                ? 'Best for a small household or a one-off trip.'
                                                 : tier === 'PRO'
-                                                ? 'For active organisers running several groups.'
-                                                : 'For power users who want no limits at all.'}
+                                                ? 'For a busy group with a growing roster and longer history.'
+                                                : 'For a group that wants no limits at all.'}
                                         </p>
                                     </div>
                                 );
@@ -267,8 +270,8 @@ export default function SubscriptionPlansPage() {
                             page after signing in.
                         </p>
                         <ul className="list-disc pl-5 space-y-2">
-                            <li>Each code grants a specific tier for a fixed number of days, set when the code was issued.</li>
-                            <li>A promo cannot downgrade an account that is already on a higher active plan.</li>
+                            <li>Each code grants one group a specific tier for a fixed number of days, set when the code was issued.</li>
+                            <li>A code can be used once per group, and cannot downgrade a group already on a higher active plan.</li>
                             <li>Codes are case-insensitive and may be limited to a number of redemptions or an expiry date.</li>
                         </ul>
                     </Section>
@@ -295,9 +298,10 @@ export default function SubscriptionPlansPage() {
                             wallet, the immutable transaction trail, and your members all remain intact.
                         </p>
                         <p>
-                            What changes is enforcement of limits: if you are over a Free limit (for example, more than 3 active groups),
-                            those over-limit resources become read-only. You keep full visibility; you just can’t add new entries to them
-                            until you upgrade or reduce below the limit.
+                            What changes is enforcement of that group’s limits: if it is over a Free limit (for example, more than five
+                            members), those over-limit resources become read-only. You keep full visibility; you just can’t add new
+                            entries to them until the group is upgraded again or drops below the limit. Other groups are unaffected —
+                            each one’s plan stands on its own.
                         </p>
                     </Section>
 

@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../helpers/AppError';
-import { getGroupOwnerPlan, assertFeature } from '../helpers/planLimits';
+import { getGroupPlan, assertFeature } from '../helpers/planLimits';
 
 // Gates the "custom" report range behind the group owner's plan. The presets —
 // this_month, last_month and all_time — are free for everyone; only a
@@ -39,9 +39,9 @@ export const requireAdvancedReportRange = asyncHandler(
             return;
         }
 
-        const ownerPlan = await getGroupOwnerPlan(req.group._id);
+        const groupPlan = await getGroupPlan(req.group._id);
         assertFeature(
-            ownerPlan,
+            groupPlan,
             'advancedReportRange',
             'Custom report date ranges require a Pro or Premium plan.'
         );
@@ -57,9 +57,9 @@ export const requireGroupLinking = asyncHandler(
     async (req: Request, _res: Response, next: NextFunction) => {
         if (!req.group?._id) throw new AppError('Group not found', 400);
 
-        const ownerPlan = await getGroupOwnerPlan(req.group._id);
+        const groupPlan = await getGroupPlan(req.group._id);
         assertFeature(
-            ownerPlan,
+            groupPlan,
             'linkGroups',
             'Connecting groups requires a Pro or Premium plan.'
         );

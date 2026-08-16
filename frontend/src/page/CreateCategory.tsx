@@ -23,7 +23,9 @@ import {
   PageHeader,
   SegmentedToggle,
   PageContainer,
+  UpgradeNote,
 } from "../components/ui";
+import { useGroupPlan } from "../hooks/usePlan";
 import { centsToRupeeInput, rupeesToCents, formatCents } from "../helpers/money";
 import { useTranslation } from "react-i18next";
 
@@ -71,6 +73,13 @@ export default function CategoryPage() {
   useEffect(() => {
     setCategories(data ?? []);
   }, [data, categoryType]);
+
+  // Category headroom on THIS group's plan. The cap is per group across both
+  // types, so both lists count toward it — matching the backend's count.
+  const { limits: planLimits, tier: planTier } = useGroupPlan(groupId);
+  const categoryCap = planLimits.maxCategoriesPerGroup;
+  const categoryCount = (expenseData?.length ?? 0) + (creditData?.length ?? 0);
+  const categorySeatsLeft = categoryCap === null ? null : Math.max(0, categoryCap - categoryCount);
 
   const doAdd = () =>
     handleAdd(name, color, rupeesToCents(limit), categories, setFieldError, setApiError, setCategories, setName, setColor, setLimit, colorOptions[0]);
@@ -143,6 +152,29 @@ export default function CategoryPage() {
 
         {/* ── 01 Create ── */}
         <FormSection step="01" title={t("createCategory.newCategory")} contentClass="px-5 py-4 space-y-4">
+            {/* The cap counts EXPENSE and CREDIT categories together, exactly as
+                the backend does, so the warning matches the 402 that would
+                follow. */}
+            <UpgradeNote
+              show={categorySeatsLeft !== null && categorySeatsLeft <= 2}
+              groupId={groupId}
+              variant={categorySeatsLeft === 0 ? "blocked" : "hint"}
+            >
+              {categorySeatsLeft === 0
+                ? t("upgrade.categoriesFull", {
+                    defaultValue:
+                      "This group has used all {{cap}} categories its {{tier}} plan allows. Delete one, or raise the plan to add more.",
+                    tier: planTier,
+                    cap: categoryCap,
+                  })
+                : t("upgrade.categoriesNearlyFull", {
+                    defaultValue: "{{left}} of {{cap}} categories left on the {{tier}} plan.",
+                    left: categorySeatsLeft,
+                    cap: categoryCap,
+                    tier: planTier,
+                  })}
+            </UpgradeNote>
+
             <div>
               <Label>{t("createCategory.nameLabel")}</Label>
               <div className="flex items-start gap-2">

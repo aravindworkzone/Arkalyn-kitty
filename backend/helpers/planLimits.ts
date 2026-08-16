@@ -1,5 +1,4 @@
 import mongoose, { type ClientSession } from 'mongoose';
-import User from '../models/user.model';
 import Group from '../models/group.model';
 import GroupMember from '../models/group_member.model';
 import { AppError } from './AppError';
@@ -26,7 +25,8 @@ export interface EffectivePlan {
     planExpiresAt: Date | null;
 }
 
-interface PlanUserFields {
+// The stored subscription state. Lives on the Group — accounts have no tier.
+interface PlanHolderFields {
     plan?: Plan | null;
     planExpiresAt?: Date | null;
 }
@@ -37,9 +37,9 @@ interface PlanUserFields {
 //   active : now <= planExpiresAt              -> stored tier, full access
 //   grace  : planExpiresAt < now <= +GRACE     -> stored tier, full access
 //   expired: now > planExpiresAt + GRACE       -> FREE tier, read-only freeze
-export const getEffectivePlan = (user: PlanUserFields): EffectivePlan => {
-    const storedTier: Plan = user.plan ?? 'FREE';
-    const expiresAt = user.planExpiresAt ?? null;
+export const getEffectivePlan = (holder: PlanHolderFields): EffectivePlan => {
+    const storedTier: Plan = holder.plan ?? 'FREE';
+    const expiresAt = holder.planExpiresAt ?? null;
 
     let tier: Plan = storedTier;
     let status: PlanStatus = 'active';
@@ -72,42 +72,34 @@ export const getEffectivePlan = (user: PlanUserFields): EffectivePlan => {
     };
 };
 
-// Resolves a user's effective plan by id.
-export const getUserPlan = async (
-    userId: mongoose.Types.ObjectId | string,
-    session?: ClientSession
-): Promise<EffectivePlan> => {
-    const user = await User.findById(userId).select('plan planExpiresAt').session(session ?? null);
-    return getEffectivePlan({ plan: user?.plan, planExpiresAt: user?.planExpiresAt });
-};
-
-// Group-scoped entitlements (members, categories, retention, reports, clone) are
-// governed by the group OWNER's plan, since subscriptions are per-account.
+// The single entitlement lookup: every gate in the app resolves through here.
+// A group's plan is its own — bought for it, stored on it — so no membership or
+// ownership lookup is involved and the answer is identical for every member.
 //
 // Closed groups are frozen: they serve the planSnapshot captured at close time
-// (treated as non-expiring) so later upgrades/downgrades by the owner never
-// touch the historical record.
-export const getGroupOwnerPlan = async (
+// (treated as non-expiring) so a later purchase or lapse never rewrites the
+// historical record.
+export const getGroupPlan = async (
     groupId: mongoose.Types.ObjectId | string,
     session?: ClientSession
 ): Promise<EffectivePlan> => {
     const group = await Group.findById(groupId)
-        .select('status planSnapshot')
+        .select('status plan planExpiresAt planSnapshot')
         .session(session ?? null);
 
-    if (group?.status === 'CLOSED' && group.planSnapshot?.tier) {
+    if (!group) return getEffectivePlan({ plan: 'FREE', planExpiresAt: null });
+
+    if (group.status === 'CLOSED' && group.planSnapshot?.tier) {
         return getEffectivePlan({ plan: group.planSnapshot.tier, planExpiresAt: null });
     }
 
-    const owner = await GroupMember.findOne({ groupId, role: 'SUPER_ADMIN', isDeleted: false })
-        .select('userId')
-        .session(session ?? null);
-    if (!owner) return getEffectivePlan({ plan: 'FREE', planExpiresAt: null });
-    return getUserPlan(owner.userId, session);
+    return getEffectivePlan({ plan: group.plan, planExpiresAt: group.planExpiresAt });
 };
 
-// Counts groups a user owns that are NOT closed — "active" groups. Closed groups
-// are frozen and don't consume the owner's plan group limit.
+// Counts groups a user owns that are NOT closed — "active" groups. Used by the
+// flat MAX_ACTIVE_OWNED_GROUPS anti-abuse cap and by account deletion, which
+// refuses to orphan an open group. Not a billing limit: closed groups are frozen
+// and don't count either way.
 export const countActiveOwnedGroups = async (
     userId: mongoose.Types.ObjectId | string,
     session?: ClientSession

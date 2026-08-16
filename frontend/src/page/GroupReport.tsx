@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useGetTransactionQuery, useGetBasicTransactionQuery, useGetEventQuery } from "../redux/api/group";
+import { useGetTransactionQuery, useGetBasicTransactionQuery, useGetEventQuery, useGetGroupByIdQuery } from "../redux/api/group";
 import DetailModal from "../components/DetailModal";
 import { actionTone, eventConfig } from "../helpers/constants";
 import { toneChip, toneText } from "../helpers/tone";
 import { eventDescription } from "../helpers/formatters";
-import { ActionButton, PageBackground, PageContainer, PageHeader, SegmentedToggle } from "../components/ui";
+import { ActionButton, PageBackground, PageContainer, PageHeader, SegmentedToggle, UpgradeNote } from "../components/ui";
+import { useGroupPlan } from "../hooks/usePlan";
 import { useTranslation } from "react-i18next";
 
 const PAGE_STEP = 20;
@@ -41,6 +42,18 @@ export default function ReportPage() {
   const totalDB = basic?.DEBIT ?? 0;
   const totalRefund = basic?.REFUND ?? 0;
   const totalDebit = totalDB !== 0 ? totalDB - totalRefund : 0;
+
+  // How far back this group's plan lets each log be read. null = unlimited, and
+  // is the only case with nothing worth saying.
+  const { limits: planLimits, tier: planTier } = useGroupPlan(groupId);
+  const retentionDays =
+    tab === "transactions"
+      ? planLimits.transactionLogRetentionDays
+      : planLimits.eventLogRetentionDays;
+  // Only admins can buy, so only they get the CTA — a member following it would
+  // land on a checkout that doesn't list this group.
+  const { data: GroupDetails } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
+  const isAdmin = GroupDetails?.role === "SUPER_ADMIN" || GroupDetails?.role === "ADMIN";
 
   const filterLabels: Record<string, string> = {
     ALL:    t("report.filterAll"),
@@ -126,6 +139,24 @@ export default function ReportPage() {
             ariaLabel={t("report.title")}
           />
         </div>
+
+        {/* Retention is enforced server-side by silently filtering anything older
+            than the window, so without this the list just looks like the group
+            has no earlier history. The window differs per tab, so it follows the
+            selected one. */}
+        <UpgradeNote
+          show={retentionDays !== null}
+          groupId={groupId}
+          canUpgrade={isAdmin}
+          className="mb-3"
+        >
+          {t("upgrade.retention", {
+            defaultValue:
+              "Showing the last {{days}} days. The {{tier}} plan hides anything older — nothing is deleted.",
+            days: retentionDays,
+            tier: planTier,
+          })}
+        </UpgradeNote>
 
         {tab === "transactions" && (
           <div className="space-y-3">

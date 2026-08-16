@@ -30,7 +30,8 @@ export default function AnalyticsSection() {
                 <StatCard label="Total Revenue" value={fmtINR(data.revenue.totalRevenue)} sub="all payments" />
             </div>
 
-            <Panel title="Plan breakdown">
+            {/* Buckets groups, not users — plans are held by groups. */}
+            <Panel title="Plan breakdown (groups)">
                 <Bars data={planBars} />
             </Panel>
 

@@ -103,7 +103,13 @@ export const McpMembers = asyncHandler(async (req, res) => {
 
 export const McpSubscription = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
-    const data = await mcpSubscriptionService(req.user._id);
+
+    // Group-scoped: plans belong to groups, so "which subscription" needs to
+    // name one.
+    const group = trimParam(req.query.group);
+    if (!group) throw new AppError('group is required (name or group ID)', 400);
+
+    const data = await mcpSubscriptionService(req.user._id, group);
     sendSuccess(res, data, 'Subscription fetched');
 });
 
