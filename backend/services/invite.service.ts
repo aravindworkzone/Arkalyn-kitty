@@ -11,7 +11,7 @@ import { getOrCreateOtherCreditCategory } from "./category.service";
 import { emitToGroup } from "../sockets";
 import { SOCKET_EVENTS } from "../sockets/events";
 import { creditGroupBalance } from "../helpers/balanceOps";
-import { getGroupPlan, assertWithinLimit } from "../helpers/planLimits";
+import { getGroupPlan, assertWithinLimit, defaultJoinRole } from "../helpers/planLimits";
 
 const markInviteNotificationsRead = async (
     recipient: mongoose.Types.ObjectId,
@@ -144,11 +144,13 @@ export const approveJoinService = async (data: {
         invite.reviewedAt = new Date();
         await invite.save({ session });
 
+        // Flat on FREE: with no MEMBER role available the joiner lands as ADMIN.
+        // Reuses the plan already resolved for the seat check above.
         const newMember = new GroupMember({
             groupId,
             userId: joiner,
             contribution,
-            role: "MEMBER",
+            role: defaultJoinRole(groupPlan),
         });
         await newMember.save({ session });
 

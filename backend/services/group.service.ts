@@ -11,7 +11,7 @@ import { PURPOSE_DEFAULT_CATEGORIES } from "../config/purposeCategories";
 import { createNotification } from "./notification.service";
 import { getOrCreateOtherCreditCategory } from "./category.service";
 import { creditGroupBalance, debitGroupBalance, reverseGroupCredit, adjustMemberContribution } from "../helpers/balanceOps";
-import { getGroupPlan, getEffectivePlan, toPlanView, assertWithinLimit, assertFeature, retentionFloor, countActiveOwnedGroups } from "../helpers/planLimits";
+import { getGroupPlan, getEffectivePlan, toPlanView, assertWithinLimit, assertFeature, retentionFloor, countActiveOwnedGroups, defaultJoinRole } from "../helpers/planLimits";
 import { MAX_ACTIVE_OWNED_GROUPS } from "../config/constants";
 
 export const createGroupService = async (data: { name: string; invitees: string[]; contribution: number; superAdmin: string; purpose?: string }) => {
@@ -388,7 +388,10 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
         throw new AppError("Cannot remove the super admin", 400);
     }
 
-    // Subscription gate: cap active members per group on the GROUP's tier.
+    // Subscription gate: cap active members per group on the GROUP's tier. The
+    // same plan read decides what role the joiner takes, so it is resolved here
+    // rather than fetched a second time inside the transaction.
+    let joinRole: "ADMIN" | "MEMBER" = "MEMBER";
     if (action === "add") {
         const groupPlan = await getGroupPlan(groupData);
         const memberCount = await GroupMember.countDocuments({ groupId: groupData, isDeleted: false });
@@ -397,6 +400,7 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
             groupPlan.limits.maxMembersPerGroup,
             `This group has reached its ${groupPlan.config.name}-plan member limit (${groupPlan.limits.maxMembersPerGroup}). Upgrade this group's plan to add more.`
         );
+        joinRole = defaultJoinRole(groupPlan);
     }
 
     const session = await mongoose.startSession();
@@ -408,7 +412,7 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
                 groupId: groupData,
                 userId: Member,
                 contribution,
-                role: "MEMBER"
+                role: joinRole
             });
             const groupMembers = await addMember.save({ session });
 
@@ -420,7 +424,7 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
                 groupId: groupData,
                 performedBy: userId,
                 eventType: "MEMBER_ADDED",
-                metadata: { userId, note: `Added as MEMBER with ${contribution} contribution` },
+                metadata: { userId, note: `Added as ${joinRole} with ${contribution} contribution` },
                 referenceId: Member,
                 referenceModel: "User"
             });
@@ -430,7 +434,7 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
                 groupId: groupData,
                 amount: contribution,
                 action: "CREDIT",
-                description: `Added as MEMBER with ${contribution} contribution`,
+                description: `Added as ${joinRole} with ${contribution} contribution`,
                 referenceId: Member,
                 referenceModel: "User",
                 category: otherCreditCategory._id,
@@ -577,6 +581,19 @@ export const manageAdminService = async (data: { group: mongoose.Types.ObjectId,
 
     if (isMember.role !== "ADMIN" && action === "demote") {
         throw new AppError("User is not an admin", 400);
+    }
+
+    // Subscription gate: demoting is the one path that MINTS a MEMBER, and a
+    // flat group has no such role to demote into. Promotion stays free — a group
+    // must always be able to hand out admin rights, not least so a lapsed group
+    // can still be administered.
+    if (action === "demote") {
+        const groupPlan = await getGroupPlan(groupData);
+        assertFeature(
+            groupPlan,
+            "memberRole",
+            `On the ${groupPlan.config.name} plan every participant is an admin. Upgrade this group's plan to add members who can't manage it.`
+        );
     }
 
     const session = await mongoose.startSession();

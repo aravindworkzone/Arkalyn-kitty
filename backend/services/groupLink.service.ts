@@ -8,6 +8,7 @@ import Expense from '../models/expense.model';
 import { AppError } from '../helpers/AppError';
 import { creditGroupBalance, debitGroupBalance } from '../helpers/balanceOps';
 import { fromDBAmount } from '../helpers/Money';
+import { getGroupPlan } from '../helpers/planLimits';
 import { getOrCreateOtherCreditCategory } from './category.service';
 import { createNotification } from './notification.service';
 import type { NotificationType } from '../models/notification.model';
@@ -387,12 +388,27 @@ export const getGroupLinksService = async (groupId: Id) => {
         spendRows.map((r) => [String(r._id), fromDBAmount(r.cents)])
     );
 
+    // Whether each counterpart host is on a plan that can receive funding. The
+    // host pays for the connection, so on an OUTGOING link that fact belongs to
+    // the other group and the source cannot read it off its own plan — without
+    // this the UI would offer a transfer that the gate then refuses.
+    //
+    // Resolved through getGroupPlan itself rather than re-deriving the rule, so
+    // the button and the middleware can never disagree. Outgoing links per group
+    // are few, so the fan-out is bounded.
+    const hostPlans = await Promise.all(
+        outgoing.map((l) => getGroupPlan(((l.hostGroupId as any)?._id ?? l.hostGroupId) as Id))
+    );
+
     return {
         incoming: incoming.map((l) => ({
             ...l.toJSON(),
             attributedSpend: spentBySource.get(String((l.sourceGroupId as any)?._id)) ?? 0,
         })),
-        outgoing: outgoing.map((l) => l.toJSON()),
+        outgoing: outgoing.map((l, i) => ({
+            ...l.toJSON(),
+            hostCanReceive: hostPlans[i].features.linkGroups,
+        })),
     };
 };
 

@@ -99,7 +99,7 @@ export default function GroupManagementPage() {
   // Member headroom on THIS group's plan. The backend rejects the invite at the
   // cap (402), so warning here is the difference between "the form explained
   // why" and "the form failed". `null` means unlimited — never warn on Premium.
-  const { limits: planLimits, tier: planTier } = useGroupPlan(groupId);
+  const { limits: planLimits, features: planFeatures, tier: planTier } = useGroupPlan(groupId);
   const memberCap = planLimits.maxMembersPerGroup;
   const memberCount = GroupMembers?.length ?? 0;
   const memberSeatsLeft = memberCap === null ? null : Math.max(0, memberCap - memberCount);
@@ -277,6 +277,20 @@ export default function GroupManagementPage() {
 
           {activeTab === "addMember" && (
             <div className="space-y-6">
+              {/* Whoever is admitted to a flat group can administer it. That is a
+                  real consequence of inviting someone, not a feature pitch, so it
+                  is stated before the form rather than left to be discovered. */}
+              <UpgradeNote
+                show={!planFeatures.memberRole && !isClosed}
+                groupId={groupId}
+                canUpgrade={isAdmin}
+              >
+                {t(
+                  "upgrade.flatGroupInvite",
+                  "On this plan everyone admitted becomes an admin and can manage the group. Upgrade to admit people who take part without managing it."
+                )}
+              </UpgradeNote>
+
               {/* Two states, because they need different words: at the cap the
                   invite will be refused outright, while one seat left is worth
                   knowing before you go looking for a second person. */}
@@ -320,6 +334,8 @@ export default function GroupManagementPage() {
             <SettingsChangeRole
               members={GroupMembers}
               isChangingRole={isChangingRole}
+              canDemote={planFeatures.memberRole}
+              groupId={groupId}
               handleChangeRole={handleChangeRole}
             />
           )}

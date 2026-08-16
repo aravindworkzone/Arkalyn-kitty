@@ -121,6 +121,15 @@ export interface PlanFeatures {
     // Group-to-group funding links. Gates the write paths only — an expired
     // plan can still read its existing connections.
     linkGroups: boolean;
+    // The MEMBER role: a participant who takes part in the pool but cannot
+    // administer the group. A group without it is FLAT — everyone who joins
+    // lands as ADMIN, because there is no lesser role to put them in.
+    //
+    // Gates NEW role assignments only. A group that lapses keeps the MEMBERs it
+    // already has rather than silently promoting them, which would hand
+    // group-management rights to people who never had them — the same
+    // freeze-don't-rewrite rule the other limits follow.
+    memberRole: boolean;
 }
 
 export interface PlanConfig {
@@ -142,30 +151,30 @@ export const PLANS: Record<Plan, PlanConfig> = {
             eventLogRetentionDays: 15,
             transactionLogRetentionDays: 30,
         },
-        features: { advancedReportRange: false, cloneGroup: false, linkGroups: false },
+        features: { advancedReportRange: false, cloneGroup: false, linkGroups: false, memberRole: false },
     },
     PRO: {
         name: 'Pro',
-        priceMonthly: 69,
-        priceYearly: 660,
+        priceMonthly: 49,
+        priceYearly: 449,
         limits: {
             maxMembersPerGroup: 10,
             maxCategoriesPerGroup: 20,
             eventLogRetentionDays: 60,
             transactionLogRetentionDays: 100,
         },
-        features: { advancedReportRange: true, cloneGroup: true, linkGroups: true },
+        features: { advancedReportRange: true, cloneGroup: true, linkGroups: true, memberRole: true },
     },
     PREMIUM: {
         name: 'Premium',
-        priceMonthly: 119,
-        priceYearly: 1140,
+        priceMonthly: 99,
+        priceYearly: 899,
         limits: {
             maxMembersPerGroup: null,
             maxCategoriesPerGroup: null,
             eventLogRetentionDays: null,
             transactionLogRetentionDays: null,
         },
-        features: { advancedReportRange: true, cloneGroup: true, linkGroups: true },
+        features: { advancedReportRange: true, cloneGroup: true, linkGroups: true, memberRole: true },
     },
 };

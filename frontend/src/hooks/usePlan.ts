@@ -15,7 +15,7 @@ export const FREE_VIEW: PlanView = {
         eventLogRetentionDays: 15,
         transactionLogRetentionDays: 30,
     },
-    features: { advancedReportRange: false, cloneGroup: false, linkGroups: false },
+    features: { advancedReportRange: false, cloneGroup: false, linkGroups: false, memberRole: false },
 };
 
 // Reads ONE GROUP's effective plan from the cached group query, so any component

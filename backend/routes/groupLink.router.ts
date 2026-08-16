@@ -13,7 +13,7 @@ import {
     authorizeRole,
     ensureGroupActive,
 } from '../middlewares/auth.middleware';
-import { requireGroupLinking } from '../middlewares/plan.middleware';
+import { requireGroupLinking, requireLinkHostPlan } from '../middlewares/plan.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import {
     requestLinkBodySchema,
@@ -29,6 +29,15 @@ const router = express.Router();
 // asking to be funded); /approve, /reject and /transfer against the SOURCE (the
 // group whose money it is). That split is what lets the standard middleware
 // chain express this feature without touching loadGroup or authorizeRole.
+//
+// The PLAN, by contrast, is always the HOST's — the group receiving the money
+// pays for the connection, and a Free reserve group can fund others without
+// buying anything. So the gate does not follow the acting group: on /request it
+// reads the acting group because that group is the host, and on /approve and
+// /transfer it reads the host named on the link instead.
+//
+// Plan gates run AFTER authorizeRole throughout, so a caller with no rights in
+// the group learns nothing about its plan or which link ids exist.
 
 router.post(
     '/request',
@@ -36,8 +45,8 @@ router.post(
     verifyToken,
     loadGroup,
     ensureGroupActive,
-    requireGroupLinking,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
+    requireGroupLinking,
     requestLink
 );
 
@@ -47,18 +56,20 @@ router.post(
     verifyToken,
     loadGroup,
     ensureGroupActive,
-    requireGroupLinking,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
+    requireLinkHostPlan,
     approveLink
 );
 
+// Ungated by plan: refusing a request costs nothing and must stay available to
+// a Free source group, exactly like /revoke below. Saying no is never a paid
+// action.
 router.post(
     '/reject',
     validate({ body: reviewLinkBodySchema }),
     verifyToken,
     loadGroup,
     ensureGroupActive,
-    requireGroupLinking,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
     rejectLink
 );
@@ -69,8 +80,8 @@ router.post(
     verifyToken,
     loadGroup,
     ensureGroupActive,
-    requireGroupLinking,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
+    requireLinkHostPlan,
     transferToLink
 );
 
