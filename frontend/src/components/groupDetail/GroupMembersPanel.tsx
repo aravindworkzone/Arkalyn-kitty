@@ -4,28 +4,38 @@ import MemberAvatars from "../ListMember";
 import RoleBadge from "../ui/RoleBadge";
 import type { GroupMember } from "../../interface/member";
 import type { Group } from "../../interface/group";
+import type { GroupLink, LinkedGroupRef } from "../../interface/groupLink";
 
 interface Props {
   members: GroupMember[] | undefined;
   leftContributors: GroupMember[] | undefined;
+  /** Incoming funding links — the groups bankrolling this one. */
+  fundingLinks: GroupLink[] | undefined;
   memberNames: string[];
   totalContribution: number;
   groupName: string | undefined;
   isAdmin: boolean;
   onViewCredits: () => void;
+  onViewConnections: () => void;
   onRemoveMember: (target: { id: string; name: string }) => void;
 }
 
-/** Collapsible member roster: contribution shares, left contributors, and the
- *  per-member rows with their remove action. */
+/** The populated counterpart, or a bare id if population ever fails. */
+const groupRef = (v: LinkedGroupRef | string): LinkedGroupRef =>
+  typeof v === "string" ? { _id: v, name: v, displayId: "" } : v;
+
+/** Collapsible member roster: contribution shares, funding groups, left
+ *  contributors, and the per-member rows with their remove action. */
 export default function GroupMembersPanel({
   members,
   leftContributors,
+  fundingLinks,
   memberNames,
   totalContribution,
   groupName,
   isAdmin,
   onViewCredits,
+  onViewConnections,
   onRemoveMember,
 }: Props) {
   const { t } = useTranslation();
@@ -33,6 +43,18 @@ export default function GroupMembersPanel({
 
   const share = (contribution: number) =>
     totalContribution > 0 ? Math.round((contribution / totalContribution) * 100) : 0;
+
+  /**
+   * A transfer from a connected group credits this wallet through
+   * creditGroupBalance, so it lands in `totalContribution` exactly like a
+   * member's money — leaving it out of this list is what makes the member
+   * percentages quietly fail to add up. Money already sent stays with this
+   * group after a link is torn down, so a REVOKED link that funded something
+   * still belongs here; PENDING/REJECTED links have never moved a rupee.
+   */
+  const funders = (fundingLinks ?? []).filter(
+    (l) => l.status === "ACTIVE" || l.contribution > 0
+  );
 
   return (
     <div className="bg-surface-raised border border-line rounded-2xl overflow-hidden shadow-theme-xs">
@@ -91,6 +113,63 @@ export default function GroupMembersPanel({
                 );
               })}
             </div>
+
+            {funders.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-line space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-theme-2xs uppercase tracking-widest text-fg-muted">
+                    {t("groupDetail.fundingGroups", "Funding group contributions")}
+                  </p>
+                  <button
+                    onClick={onViewConnections}
+                    className="text-theme-2xs font-semibold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300
+                      transition-colors flex items-center gap-1 shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 rounded"
+                  >
+                    {t("groupDetail.viewConnections", "View connections")}
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                      <path d="M2 5h6M5.5 2.5L8 5l-2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+                {funders.map((link) => {
+                  const source = groupRef(link.sourceGroupId);
+                  const pct = share(link.contribution);
+                  // A torn-down link keeps its money but is no longer a live
+                  // funder, so it reads like a left member rather than a peer.
+                  const disconnected = link.status !== "ACTIVE";
+                  return (
+                    <div key={link._id} className="space-y-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <span
+                          className={`text-theme-xs text-fg-muted flex items-center gap-1.5 min-w-0 ${disconnected ? "italic" : ""}`}
+                          translate="no"
+                        >
+                          <span className="truncate">{source.name}</span>
+                          {source.displayId && (
+                            <span className="text-fg-muted not-italic shrink-0">· {source.displayId}</span>
+                          )}
+                          {disconnected && (
+                            <span className="text-fg-muted not-italic shrink-0">
+                              · {t("groupDetail.disconnected", "disconnected")}
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-theme-xs font-mono text-fg-muted shrink-0" translate="no">
+                          ₹{link.contribution.toLocaleString("en-IN")}
+                          <span className="text-fg-muted ml-1">({pct}%)</span>
+                        </span>
+                      </div>
+                      <div className="w-full h-[2px] bg-line rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${disconnected ? "bg-line-strong" : "bg-success-500"}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {(leftContributors?.length ?? 0) > 0 && (
               <div className="mt-4 pt-3 border-t border-line space-y-2">
