@@ -71,8 +71,13 @@ const featureLines = (tier: PlanTier, cfg: PlanConfig): string[] => {
         `${fmtDays(l.eventLogRetentionDays)} activity history`,
         cfg.features.advancedReportRange ? 'Custom-range reports' : 'Month & all-time reports',
     ];
+    lines.push(
+        cfg.features.memberRole
+            ? 'Admin & member roles'
+            : 'Everyone who joins is an admin'
+    );
     if (cfg.features.cloneGroup) lines.push('Clone this group in one click');
-    if (cfg.features.linkGroups) lines.push('Connect to other groups for funding');
+    if (cfg.features.linkGroups) lines.push('Receive funding from other groups');
     if (tier === 'PREMIUM') lines.push('Everything unlimited');
     return lines;
 };
@@ -384,7 +389,7 @@ export default function PricingPage() {
                                 {c === 'monthly' ? 'Monthly' : 'Yearly'}
                                 {c === 'yearly' && (
                                     <span className="ml-2 text-theme-2xs font-bold px-1.5 py-0.5 rounded bg-success-500/20 text-success-300 align-middle">
-                                        SAVE 20%
+                                        SAVE 24%
                                     </span>
                                 )}
                             </button>

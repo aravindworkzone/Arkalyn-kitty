@@ -20,6 +20,9 @@ export interface PlanFeatures {
     advancedReportRange: boolean;
     cloneGroup: boolean;
     linkGroups: boolean;
+    // The MEMBER role — someone who shares the pool but cannot administer the
+    // group. Without it a group is flat: everyone who joins lands as ADMIN.
+    memberRole: boolean;
 }
 
 export interface PlanConfig {

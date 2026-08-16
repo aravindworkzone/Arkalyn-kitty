@@ -86,8 +86,19 @@ export default function GroupConnectionsPage() {
   const role = group?.role as Group["role"];
   const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
   const isClosed = group?.status === "CLOSED";
-  // Reads are ungated; every write needs the paid feature and an open group.
-  const canWrite = isAdmin && features.linkGroups && !isClosed;
+  // Reads are ungated. Writes split by DIRECTION, because the group receiving
+  // the money is the one that pays for the connection:
+  //
+  //  • Incoming — this group would be the host, so asking to be funded is gated
+  //    on its own plan.
+  //  • Outgoing — this group is the source, free to fund whoever it likes. What
+  //    gates approving and sending is the COUNTERPART host's plan, which only
+  //    the API can tell us (`hostCanReceive`, per link).
+  //
+  // Declining and removing are never gated at all: saying no, and unwinding
+  // something already agreed, must work on any plan.
+  const canRequestFunding = isAdmin && features.linkGroups && !isClosed;
+  const canActOnOutgoing = isAdmin && !isClosed;
 
   const run = async (fn: () => Promise<unknown>, okText: string) => {
     setMsg(null);
@@ -268,7 +279,7 @@ export default function GroupConnectionsPage() {
               <span>
                 {t(
                   "connections.upgradeNotice",
-                  "Connecting groups is a Pro feature. You can still see and remove existing connections."
+                  "This group can't receive funding on the Free plan. It can still fund other groups, and you can see and remove existing connections."
                 )}
               </span>
               <button
@@ -320,8 +331,9 @@ export default function GroupConnectionsPage() {
               </div>
             )}
 
-            {/* Asking another group to fund this one. */}
-            {canWrite && (
+            {/* Asking another group to fund this one — this group would be the
+                host, so its own plan is what gates it. */}
+            {canRequestFunding && (
               <div className="mt-4 pt-4 border-t border-line space-y-2">
                 <p className="text-theme-xs text-fg-muted">
                   {t(
@@ -366,15 +378,30 @@ export default function GroupConnectionsPage() {
                 {outgoing.map((link) => {
                   const counterpart = ref(link.hostGroupId);
                   const isOpen = fundingLinkId === link._id;
+                  // The host pays for the connection, so a Free counterpart
+                  // blocks accepting and sending — nothing this group can fix by
+                  // upgrading itself, which is why the notice names them.
+                  const hostBlocked =
+                    link.hostCanReceive === false &&
+                    (link.status === "PENDING" || link.status === "ACTIVE");
                   return (
                     <Row key={link._id} link={link} counterpart={counterpart}>
+                      {hostBlocked && isAdmin && (
+                        <p className="text-theme-xs px-3 py-2 rounded-lg border border-warning-200 bg-warning-50 text-warning-800 dark:border-warning-500/25 dark:bg-warning-500/10 dark:text-warning-300">
+                          {t("connections.hostNeedsPlan", {
+                            defaultValue:
+                              "{{name}} is on the Free plan and can't receive group funding. They need to upgrade — your group's plan isn't the blocker.",
+                            name: counterpart.name,
+                          })}
+                        </p>
+                      )}
                       {/* A request they made of us: ours to answer. */}
                       {link.status === "PENDING" && isAdmin && (
                         <div className="flex flex-wrap gap-2">
                           <Button
                             size="sm"
                             loading={isApproving}
-                            disabled={!canWrite}
+                            disabled={!canActOnOutgoing || !link.hostCanReceive}
                             onClick={() =>
                               run(
                                 () =>
@@ -389,7 +416,7 @@ export default function GroupConnectionsPage() {
                             variant="secondary"
                             size="sm"
                             loading={isRejecting}
-                            disabled={!canWrite}
+                            disabled={!canActOnOutgoing}
                             onClick={() =>
                               run(
                                 () => rejectLink({ groupId: groupId!, linkId: link._id }).unwrap(),
@@ -408,7 +435,7 @@ export default function GroupConnectionsPage() {
                             <div className="flex flex-wrap gap-2">
                               <Button
                                 size="sm"
-                                disabled={!canWrite}
+                                disabled={!canActOnOutgoing || !link.hostCanReceive}
                                 onClick={() => {
                                   setFundingLinkId(link._id);
                                   setAmount("");

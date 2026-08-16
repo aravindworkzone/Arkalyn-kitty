@@ -35,10 +35,15 @@ const COMPARISON: { label: string; value: (t: PlanTier) => string }[] = [
     { label: 'Categories in the group', value: (t) => fmtLimit(PUBLIC_PLANS[t].limits.maxCategoriesPerGroup) },
     { label: 'Transaction history', value: (t) => fmtDays(PUBLIC_PLANS[t].limits.transactionLogRetentionDays) },
     { label: 'Activity log history', value: (t) => fmtDays(PUBLIC_PLANS[t].limits.eventLogRetentionDays) },
+    {
+        label: 'Admin & member roles',
+        value: (t) => (PUBLIC_PLANS[t].features.memberRole ? 'Yes' : 'All admins'),
+    },
     { label: 'Month & all-time reports', value: () => 'Yes' },
     { label: 'Custom-range reports', value: (t) => (PUBLIC_PLANS[t].features.advancedReportRange ? 'Yes' : '—') },
     { label: 'One-click group clone', value: (t) => (PUBLIC_PLANS[t].features.cloneGroup ? 'Yes' : '—') },
-    { label: 'Connect groups for funding', value: (t) => (PUBLIC_PLANS[t].features.linkGroups ? 'Yes' : '—') },
+    { label: 'Receive funding from other groups', value: (t) => (PUBLIC_PLANS[t].features.linkGroups ? 'Yes' : '—') },
+    { label: 'Fund another group', value: () => 'Yes' },
 ];
 
 const TOC: [string, string][] = [

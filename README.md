@@ -123,6 +123,8 @@ Expenses in the host can optionally record `fundedByGroup`. That is **attributio
 
 Money sent is a **contribution, not a loan**. There is no inter-group debt and no settle-up: removing a link stops further funding and further attribution, and leaves what has already moved where it is. Closing or deleting either group revokes the link.
 
+**The host pays for the connection, never the source.** A reserve group can sit on Free and bankroll as many groups as it likes — it is giving money away, and charging for that would be charging for generosity. What the `linkGroups` feature buys is the right to *be* funded: the host's wallet grows, its ledger carries the incoming credits, and its expenses gain funder attribution. So the plan gate does not follow the acting group. On `/request` the actor is the host and its own plan is read; on `/approve` and `/transfer` the actor is the source, so the host is recovered from the link and gated instead (`requireLinkHostPlan`). `/reject` and `/revoke` are ungated on both sides — refusing, and unwinding something already agreed, must work on any plan.
+
 ---
 
 ## Categories & Spend Limits
@@ -173,8 +175,10 @@ Three tiers, priced in INR. `null` means unlimited.
 | Event log retention | 15 days | 60 days | Unlimited |
 | Transaction log retention | 30 days | 100 days | Unlimited |
 | Custom report date ranges | — | ✓ | ✓ |
+| Admin & member roles | — (all admins) | ✓ | ✓ |
 | Clone group | — | ✓ | ✓ |
-| Connect groups (fund another group) | — | ✓ | ✓ |
+| Receive funding from another group | — | ✓ | ✓ |
+| Fund another group | ✓ | ✓ | ✓ |
 
 - **Razorpay** order creation and **HMAC signature verification** on callback.
 - **Idempotent** payment recording — a replayed callback does not double-credit.
@@ -182,6 +186,14 @@ Three tiers, priced in INR. `null` means unlimited.
 - **One lookup governs every gate** — `getGroupPlan(groupId)` reads the group's own fields, so the answer is identical for every member and the UI gates on the exact plan the API will enforce (shipped on `GET /group/:id` as `subscription`).
 - **Group count is not a plan limit.** With per-group plans nothing account-level could raise it, so `MAX_ACTIVE_OWNED_GROUPS` is a flat anti-abuse cap rather than a billing lever.
 - **Promo codes** with tracked redemptions, one per group, guarded against downgrading a group already on a higher active tier.
+
+A group without the **member role** is *flat*: it has no role below ADMIN, so
+everyone admitted lands as `ADMIN` and can manage it. Demotion is the only path
+that mints a `MEMBER`, so that is where the gate sits; promotion stays free on
+every tier, or a lapsed group could end up with nobody able to administer it.
+A group that lapses keeps the `MEMBER`s it already has rather than silently
+promoting them — handing out management rights on expiry would be the one
+downgrade that *adds* privilege.
 
 The named report presets — `this_month`, `last_month`, and `all_time` — are free on every tier; only hand-picked custom date ranges are gated. Closed groups are exempt regardless of tier, since the month presets are meaningless on frozen history.
 

@@ -26,6 +26,13 @@ export interface GroupLink {
      * `contribution`, which is what the advisory over-draw warning is for.
      */
     attributedSpend?: number;
+    /**
+     * Outgoing links only: whether the counterpart HOST is on a plan that can
+     * receive funding. The host pays for the connection, so a source group
+     * cannot answer this from its own plan — the API resolves it per link with
+     * the same helper the server-side gate uses.
+     */
+    hostCanReceive?: boolean;
 }
 
 export interface GroupLinks {

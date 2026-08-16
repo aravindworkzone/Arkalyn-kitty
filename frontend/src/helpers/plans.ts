@@ -26,31 +26,31 @@ export const PUBLIC_PLANS: Record<PlanTier, PlanConfig> = {
             eventLogRetentionDays: 15,
             transactionLogRetentionDays: 30,
         },
-        features: { advancedReportRange: false, cloneGroup: false, linkGroups: false },
+        features: { advancedReportRange: false, cloneGroup: false, linkGroups: false, memberRole: false },
     },
     PRO: {
         name: 'Pro',
-        priceMonthly: 69,
-        priceYearly: 660,
+        priceMonthly: 49,
+        priceYearly: 449,
         limits: {
             maxMembersPerGroup: 10,
             maxCategoriesPerGroup: 20,
             eventLogRetentionDays: 60,
             transactionLogRetentionDays: 100,
         },
-        features: { advancedReportRange: true, cloneGroup: true, linkGroups: true },
+        features: { advancedReportRange: true, cloneGroup: true, linkGroups: true, memberRole: true },
     },
     PREMIUM: {
         name: 'Premium',
-        priceMonthly: 119,
-        priceYearly: 1140,
+        priceMonthly: 99,
+        priceYearly: 899,
         limits: {
             maxMembersPerGroup: null,
             maxCategoriesPerGroup: null,
             eventLogRetentionDays: null,
             transactionLogRetentionDays: null,
         },
-        features: { advancedReportRange: true, cloneGroup: true, linkGroups: true },
+        features: { advancedReportRange: true, cloneGroup: true, linkGroups: true, memberRole: true },
     },
 };
 
@@ -74,8 +74,13 @@ export const planFeatureLines = (tier: PlanTier, cfg: PlanConfig): string[] => {
         `${fmtDays(l.eventLogRetentionDays)} activity history`,
         cfg.features.advancedReportRange ? 'Custom-range reports' : 'Month & all-time reports',
     ];
+    lines.push(
+        cfg.features.memberRole
+            ? 'Admin & member roles'
+            : 'Everyone who joins is an admin'
+    );
     if (cfg.features.cloneGroup) lines.push('Clone this group in one click');
-    if (cfg.features.linkGroups) lines.push('Connect to other groups for funding');
+    if (cfg.features.linkGroups) lines.push('Receive funding from other groups');
     if (tier === 'PREMIUM') lines.push('Everything unlimited');
     return lines;
 };

@@ -1,6 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../helpers/AppError';
+import GroupLink from '../models/group_link.model';
 import { getGroupPlan, assertFeature } from '../helpers/planLimits';
 
 // Gates the "custom" report range behind the group owner's plan. The presets —
@@ -49,10 +51,22 @@ export const requireAdvancedReportRange = asyncHandler(
     }
 );
 
-// Gates group-to-group funding links behind the plan of the owner of whichever
-// group is acting. Applied to the write routes only — reading the connections
-// list stays free so a lapsed plan can still see, and unwind, existing links.
-// Must run after loadGroup.
+// Funding links are paid for by the group RECEIVING the money, never by the one
+// sending it. A reserve group can sit on Free and still bankroll others — it is
+// giving money away, and charging for that would be charging for generosity.
+// What costs money is being funded: the host's wallet grows, its ledger carries
+// the incoming credits, and its expenses gain the funder attribution.
+//
+// Two middlewares because the host is identified differently depending on the
+// route. On /request the acting group IS the host, so its plan is the one to
+// read. On /approve and /transfer the acting group is the SOURCE, so the host
+// has to be recovered from the link.
+//
+// Both must run after loadGroup, and after authorizeRole — a plan check that
+// ran first would answer "is that group paid?" (and, below, "does that link
+// exist?") for anyone who could guess an id.
+
+// /request — the acting group is asking to be funded, so it is the host.
 export const requireGroupLinking = asyncHandler(
     async (req: Request, _res: Response, next: NextFunction) => {
         if (!req.group?._id) throw new AppError('Group not found', 400);
@@ -61,7 +75,33 @@ export const requireGroupLinking = asyncHandler(
         assertFeature(
             groupPlan,
             'linkGroups',
-            'Connecting groups requires a Pro or Premium plan.'
+            'Receiving funding from another group requires a Pro or Premium plan.'
+        );
+        next();
+    }
+);
+
+// /approve and /transfer — the acting group is the source, so the plan that
+// matters belongs to the counterpart named on the link.
+//
+// This is a plan check only. Whether the acting group is really the link's
+// source stays with the service, which is the security boundary; loading the
+// link here is just how the host is found.
+export const requireLinkHostPlan = asyncHandler(
+    async (req: Request, _res: Response, next: NextFunction) => {
+        const linkId = req.body?.linkId;
+        if (!linkId || !mongoose.isValidObjectId(linkId)) {
+            throw new AppError('Connection not found', 404);
+        }
+
+        const link = await GroupLink.findOne({ _id: linkId, isDeleted: false }).select('hostGroupId');
+        if (!link) throw new AppError('Connection not found', 404);
+
+        const hostPlan = await getGroupPlan(link.hostGroupId);
+        assertFeature(
+            hostPlan,
+            'linkGroups',
+            "The group being funded is on the Free plan. It needs Pro or Premium to receive funding from another group."
         );
         next();
     }

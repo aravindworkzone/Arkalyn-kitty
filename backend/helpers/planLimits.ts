@@ -143,6 +143,16 @@ export const toPlanView = (eff: EffectivePlan) => ({
     features: eff.features,
 });
 
+// The role a newly admitted participant takes in this group.
+//
+// The MEMBER role — someone who shares the pool but cannot administer it — is a
+// paid capability. A group without it has no lesser role to put anyone in, so it
+// is FLAT: everyone who joins can administer. Every membership-creating path
+// resolves the role through here rather than hardcoding "MEMBER", which is what
+// keeps the join, invite-approval and admin-add paths from drifting apart.
+export const defaultJoinRole = (eff: EffectivePlan): 'ADMIN' | 'MEMBER' =>
+    eff.features.memberRole ? 'MEMBER' : 'ADMIN';
+
 // Throws 402 when a premium feature is not available on the effective plan.
 export const assertFeature = (
     eff: EffectivePlan,
