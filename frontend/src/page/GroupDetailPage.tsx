@@ -9,6 +9,7 @@ import {
   useGetGroupByIdQuery,
   useGetLeftContributorsQuery,
 } from "../redux/api/group";
+import { useGetGroupLinksQuery } from "../redux/api/groupLink";
 import { useGroupDetailHandlers } from "../handlers/useGroupDetailHandlers";
 import { PageBackground, PageContainer } from "../components/ui";
 import GroupSummaryCard from "../components/groupDetail/GroupSummaryCard";
@@ -54,6 +55,10 @@ export default function GroupDetailPage() {
     useGetGroupMembersQuery(groupId!, { skip: !groupId });
   const { data: LeftContributors } =
     useGetLeftContributorsQuery(groupId!, { skip: !groupId });
+  // Reading links is ungated by plan and open to every member, so the roster
+  // can list funding groups alongside the people who paid in.
+  const { data: GroupLinks } =
+    useGetGroupLinksQuery(groupId!, { skip: !groupId });
 
   const { isRemovingMember, handleDeleteMember } = useGroupDetailHandlers(groupId);
 
@@ -134,11 +139,13 @@ export default function GroupDetailPage() {
           <GroupMembersPanel
             members={GroupMembers}
             leftContributors={LeftContributors}
+            fundingLinks={GroupLinks?.incoming}
             memberNames={memberNames}
             totalContribution={totalContrib}
             groupName={GroupDetails?.name}
             isAdmin={isAdmin}
             onViewCredits={() => navigate(`/groups/${groupId}/credits`)}
+            onViewConnections={() => navigate(`/groups/${groupId}/connections`)}
             onRemoveMember={setDeleteMemberTarget}
           />
 
