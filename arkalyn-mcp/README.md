@@ -17,7 +17,7 @@ backend before applying — so a key can never reach another user's data.
 | `get_group_details` | `{ group: string }` | `GET /api/mcp/group?group=…` |
 | `get_group_activity` | `{ group: string, limit?: number (omit for the whole window), from?: ISO date, to?: ISO date, kind?: enum }` | `GET /api/mcp/group/activity?group=…&limit=…&from=…&to=…&kind=…` |
 | `get_my_members` | — | `GET /api/mcp/members` |
-| `get_my_subscription` | — | `GET /api/mcp/subscription` |
+| `get_group_subscription` | `{ group: string }` | `GET /api/mcp/subscription?group=…` |
 
 `get_group_details` returns identity, status, created date/creator, balance,
 totalContribution and the roster with roles. There is no group description field

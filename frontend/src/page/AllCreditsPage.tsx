@@ -11,7 +11,9 @@ import {
   PageHeader,
   StatCard,
   SearchInput,
+  UpgradeNote,
 } from "../components/ui";
+import { useGroupPlan } from "../hooks/usePlan";
 
 import { useTranslation } from "react-i18next";
 import type { GroupCredit } from "../interface/transaction";
@@ -40,6 +42,12 @@ export default function AllCreditsPage() {
   const canLoadMore = credits.length < totalCount && limit < MAX_LIMIT;
 
   const role = GroupDetails?.role as string | undefined;
+
+  const { limits: planLimits, tier: planTier } = useGroupPlan(groupId);
+  const retentionDays = planLimits.transactionLogRetentionDays;
+  // Only admins can buy, so only they get the CTA — a member following it would
+  // land on a checkout that doesn't list this group.
+  const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
 
   const filtered: GroupCredit[] = credits?.filter((c) => {
     const q = search.toLowerCase();
@@ -80,6 +88,23 @@ export default function AllCreditsPage() {
           title={t("allCredits.title", "All Credits")}
           description={t("allCredits.description", "Every contribution credited to this group's wallet.")}
         />
+
+        {/* Credits are CREDIT-action transactions, so they share the transaction
+            log's retention window — an older contribution is filtered out
+            server-side and would otherwise look simply absent. */}
+        <UpgradeNote
+          show={retentionDays !== null}
+          groupId={groupId}
+          canUpgrade={isAdmin}
+          className="mb-3"
+        >
+          {t("upgrade.retention", {
+            defaultValue:
+              "Showing the last {{days}} days. The {{tier}} plan hides anything older — nothing is deleted.",
+            days: retentionDays,
+            tier: planTier,
+          })}
+        </UpgradeNote>
 
         <div className={SPLIT}>
           {/* Rail first in the DOM so it stays above the list when the grid

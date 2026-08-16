@@ -14,9 +14,9 @@ export interface IPromoCode extends Document {
     updatedAt?: Date;
 }
 
-// Promo codes grant a plan for free, bypassing the payment gateway. One
-// redemption per user (enforced by the unique index on PromoRedemption);
-// `maxRedemptions` caps the total across all users. Codes are created directly
+// Promo codes grant a plan to a GROUP for free, bypassing the payment gateway.
+// One redemption per group (enforced by the unique index on PromoRedemption);
+// `maxRedemptions` caps the total across all groups. Codes are created directly
 // in the DB (no admin UI yet), e.g.:
 //   db.promocodes.insertOne({ code: "LAUNCH2026", plan: "PRO", periodDays: 365,
 //     maxRedemptions: 100, redemptionCount: 0, expiresAt: null, isActive: true })

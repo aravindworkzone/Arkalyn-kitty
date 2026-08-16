@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, type ReactNode } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageBackground, PageContainer } from '../components/ui';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import {
@@ -9,7 +9,7 @@ import {
     useMarkSubscriptionPaymentFailedMutation,
     useRedeemPromoCodeMutation,
 } from '../redux/api/subscription';
-import { usePlan } from '../hooks/usePlan';
+import { useGetUserGroupsQuery } from '../redux/api/user';
 import { PLAN_RANK } from '../helpers/plans';
 import { loadRazorpay, openRazorpayCheckout } from '../utils/loadRazorpay';
 import type { PlanTier, BillingCycle, PlanConfig } from '../interface/subscription';
@@ -60,27 +60,57 @@ const TIER_THEME: Record<PlanTier, { ring: string; chip: string; cta: string; gl
     },
 };
 
-// The headline feature lines shown on each tier card.
+// The headline feature lines shown on each tier card. Every line describes what
+// the tier grants the ONE group it is bought for.
 const featureLines = (tier: PlanTier, cfg: PlanConfig): string[] => {
     const l = cfg.limits;
     const lines = [
-        `${fmtLimit(l.maxGroups)} active groups`,
-        `${fmtLimit(l.maxMembersPerGroup)} members per group`,
-        `${fmtLimit(l.maxCategoriesPerGroup)} categories per group`,
+        `${fmtLimit(l.maxMembersPerGroup)} members`,
+        `${fmtLimit(l.maxCategoriesPerGroup)} categories`,
         `${fmtDays(l.transactionLogRetentionDays)} transaction history`,
         `${fmtDays(l.eventLogRetentionDays)} activity history`,
         cfg.features.advancedReportRange ? 'Custom-range reports' : 'Month & all-time reports',
     ];
-    if (cfg.features.cloneGroup) lines.push('Clone groups in one click');
+    if (cfg.features.cloneGroup) lines.push('Clone this group in one click');
+    if (cfg.features.linkGroups) lines.push('Connect to other groups for funding');
     if (tier === 'PREMIUM') lines.push('Everything unlimited');
     return lines;
 };
 
 export default function PricingPage() {
     const navigate = useNavigate();
-    const { data: plansData, isLoading: plansLoading } = useGetPlansQuery();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const { data: plansRes, isLoading: plansLoading } = useGetPlansQuery();
+    const plansData = plansRes?.plans;
+    // False when the deployment has no Razorpay keys. Checkout would 503, so the
+    // buy buttons go inert and the promo path is promoted instead of letting
+    // someone walk into a failing payment.
+    const paymentsEnabled = plansRes?.paymentsEnabled ?? true;
     const { user } = useCurrentUser();
-    const { tier: currentTier, status, plan } = usePlan();
+    const { data: groupsRes, isLoading: groupsLoading } = useGetUserGroupsQuery();
+
+    // Plans attach to groups, so checkout needs a target. Only groups the user
+    // administers are offered — the backend enforces the same rule — and closed
+    // groups are excluded because their plan is frozen.
+    const adminGroups = useMemo(
+        () =>
+            (groupsRes?.data?.groups ?? []).filter(
+                (g) => (g.role === 'SUPER_ADMIN' || g.role === 'ADMIN') && g.status !== 'CLOSED'
+            ),
+        [groupsRes]
+    );
+
+    // `?group=` lets an upsell elsewhere in the app deep-link straight to the
+    // right group's checkout; otherwise fall back to the first one.
+    const requestedGroupId = searchParams.get('group');
+    const selectedGroup =
+        adminGroups.find((g) => g._id === requestedGroupId) ?? adminGroups[0] ?? null;
+    const selectedGroupId = selectedGroup?._id ?? null;
+
+    // Effective tier of the SELECTED group — already collapsed to FREE by the
+    // server if its plan lapsed past grace, which is why no separate expired
+    // check is needed below.
+    const currentTier: PlanTier = selectedGroup?.planTier ?? 'FREE';
 
     const [createOrder] = useCreateSubscriptionOrderMutation();
     const [verifyPayment] = useVerifySubscriptionPaymentMutation();
@@ -91,17 +121,25 @@ export default function PricingPage() {
     const [processing, setProcessing] = useState<PlanTier | null>(null);
     const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+    // Switching groups clears any result banner — it referred to the old one.
+    const selectGroup = (id: string) => {
+        const next = new URLSearchParams(searchParams);
+        next.set('group', id);
+        setSearchParams(next, { replace: true });
+        setMsg(null);
+    };
+
     const [promoCode, setPromoCode] = useState('');
     const [redeeming, setRedeeming] = useState(false);
 
     const handleRedeem = async () => {
         const code = promoCode.trim();
-        if (!code) return;
+        if (!code || !selectedGroupId) return;
         setMsg(null);
         setRedeeming(true);
         try {
-            const granted = await redeemPromo({ code }).unwrap();
-            setMsg({ ok: true, text: `Promo applied — you're now on ${granted.tier}!` });
+            const granted = await redeemPromo({ groupId: selectedGroupId, code }).unwrap();
+            setMsg({ ok: true, text: `Promo applied — ${selectedGroup?.name} is now on ${granted.tier}!` });
             setPromoCode('');
         } catch (e: any) {
             setMsg({ ok: false, text: e?.data?.message || 'Could not apply that promo code.' });
@@ -111,11 +149,11 @@ export default function PricingPage() {
     };
 
     const handleUpgrade = async (tier: PlanTier) => {
-        if (tier === 'FREE') return;
+        if (tier === 'FREE' || !selectedGroupId) return;
         setMsg(null);
         setProcessing(tier);
         try {
-            const order = await createOrder({ plan: tier, cycle }).unwrap();
+            const order = await createOrder({ groupId: selectedGroupId, plan: tier, cycle }).unwrap();
 
             const ready = await loadRazorpay();
             if (!ready) {
@@ -135,7 +173,7 @@ export default function PricingPage() {
                     amount: order.amount,
                     currency: order.currency,
                     name: 'Arkalyn — Kitty',
-                    description: `${tier} plan (${cycle})`,
+                    description: `${tier} plan (${cycle}) · ${order.groupName}`,
                     order_id: order.orderId,
                     prefill: { name: user?.name, email: user?.email },
                     theme: { color: '#7c3aed' },
@@ -143,11 +181,12 @@ export default function PricingPage() {
                         settled.current = true;
                         try {
                             await verifyPayment({
+                                groupId: order.groupId,
                                 razorpay_order_id: res.razorpay_order_id,
                                 razorpay_payment_id: res.razorpay_payment_id,
                                 razorpay_signature: res.razorpay_signature,
                             }).unwrap();
-                            setMsg({ ok: true, text: `You're now on ${tier}. Enjoy your new features!` });
+                            setMsg({ ok: true, text: `${order.groupName} is now on ${tier}. Enjoy the new headroom!` });
                         } catch {
                             // Don't mark failed — Razorpay may have captured it; the
                             // webhook is the source of truth.
@@ -181,14 +220,20 @@ export default function PricingPage() {
                 setProcessing(null);
             }
         } catch (e: any) {
-            setMsg({ ok: false, text: e?.data?.message || 'Could not start the payment. Try again.' });
+            // 503 is specifically "this deployment has no payment gateway", which
+            // retrying will never fix — say that instead of "try again".
+            const text =
+                e?.status === 503
+                    ? "Card payments aren't available on this deployment. Use a promo code to upgrade this group."
+                    : e?.data?.message || 'Could not start the payment. Try again.';
+            setMsg({ ok: false, text });
             setProcessing(null);
         }
     };
 
     const expiryLabel =
-        plan.planExpiresAt && currentTier !== 'FREE'
-            ? new Date(plan.planExpiresAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+        selectedGroup?.planExpiresAt && currentTier !== 'FREE'
+            ? new Date(selectedGroup.planExpiresAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
             : null;
 
     return (
@@ -203,23 +248,79 @@ export default function PricingPage() {
                         <span className="text-theme-2xs font-semibold uppercase tracking-widest text-brand-300/80">Plans & Billing</span>
                     </div>
                     <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#f0eeff]">
-                        Do more with your groups
+                        Do more with this group
                     </h1>
                     <p className="text-fg-muted text-sm mt-3 leading-relaxed">
-                        Start free, upgrade when you grow. One-time payment unlocks access for the full billing period —
-                        no auto-renewal surprises.
+                        Plans are per group — upgrade only the one that needs the room, and every member of it gets the
+                        benefit. One-time payment unlocks access for the full billing period, with no auto-renewal
+                        surprises.
                     </p>
-
-                    <div className="mt-4 inline-flex items-center gap-2 text-theme-xs text-fg-muted">
-                        <span>Current plan:</span>
-                        <span className={`px-2 py-0.5 rounded-md font-semibold ${TIER_THEME[currentTier].chip}`} translate="no">
-                            {currentTier}
-                        </span>
-                        {status === 'grace' && <span className="text-warning-300/80">· grace period</span>}
-                        {status === 'expired' && <span className="text-error-300/80">· expired</span>}
-                        {expiryLabel && status !== 'expired' && <span>· renews/expires {expiryLabel}</span>}
-                    </div>
                 </div>
+
+                {/* Group picker — the plan being bought belongs to whichever group
+                    is selected here, so this drives the whole page. */}
+                <div className="mb-10 max-w-lg mx-auto">
+                    {groupsLoading ? (
+                        <div className="h-[92px] rounded-2xl bg-surface-raised border border-line animate-pulse" />
+                    ) : adminGroups.length === 0 ? (
+                        <div className="rounded-2xl border border-line bg-surface-raised p-6 text-center">
+                            <p className="text-theme-sm font-semibold text-fg">No group to upgrade yet</p>
+                            <p className="text-theme-xs text-fg-muted mt-1.5 leading-relaxed">
+                                Plans are bought for a group, and you need to be its admin. Create a group first —
+                                it starts free.
+                            </p>
+                            <button
+                                onClick={() => navigate('/groups')}
+                                className="mt-4 rounded-xl px-5 py-2.5 text-sm font-semibold bg-brand-500/80 border border-brand-500/50 text-on-accent hover:bg-brand-500 active:bg-brand-600 transition"
+                            >
+                                Go to groups
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl border border-line bg-surface-raised p-5">
+                            <label
+                                htmlFor="billing-group"
+                                className="block text-theme-2xs uppercase tracking-widest text-fg-muted mb-2"
+                            >
+                                Upgrading
+                            </label>
+                            <select
+                                id="billing-group"
+                                value={selectedGroupId ?? ''}
+                                onChange={(e) => selectGroup(e.target.value)}
+                                className="w-full bg-surface-hover border border-line rounded-xl px-4 py-2.5 text-sm text-fg outline-none focus:border-brand-500/40 focus:ring-1 focus:ring-brand-500/10 transition-all"
+                            >
+                                {adminGroups.map((g) => (
+                                    <option key={g._id} value={g._id}>
+                                        {g.name} · {g.displayId} — {g.planTier ?? 'FREE'}
+                                    </option>
+                                ))}
+                            </select>
+                            <div className="mt-3 flex flex-wrap items-center gap-2 text-theme-xs text-fg-muted">
+                                <span>Current plan:</span>
+                                <span
+                                    className={`px-2 py-0.5 rounded-md font-semibold ${TIER_THEME[currentTier].chip}`}
+                                    translate="no"
+                                >
+                                    {currentTier}
+                                </span>
+                                {expiryLabel && <span>· runs until {expiryLabel}</span>}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Payments unavailable — say so before anyone opens a checkout
+                    that can only fail, and point at the path that still works. */}
+                {!paymentsEnabled && !plansLoading && (
+                    <div className="mb-6 max-w-lg mx-auto rounded-2xl border border-warning-400/25 bg-warning-400/[0.06] px-5 py-4">
+                        <p className="text-theme-sm font-semibold text-warning-200">Card payments are unavailable</p>
+                        <p className="mt-1 text-theme-xs text-warning-200/70 leading-relaxed">
+                            This deployment has no payment gateway configured, so upgrades can't be purchased right now.
+                            A promo code still works — it grants a plan directly, without going through checkout.
+                        </p>
+                    </div>
+                )}
 
                 {/* promo code — directly below the current plan */}
                 <div className="mb-12 max-w-lg mx-auto rounded-2xl border border-line bg-surface-raised p-6">
@@ -231,7 +332,8 @@ export default function PricingPage() {
                         <h3 className="text-theme-sm font-semibold text-fg">Have a promo code?</h3>
                     </div>
                     <p className="text-theme-xs text-fg-muted mb-3">
-                        Enter it to unlock your plan instantly — no payment needed.
+                        Enter it to unlock the selected group's plan instantly — no payment needed. Each code can be
+                        used once per group.
                     </p>
 
                     {/* Featured offer — tap to fill the field. */}
@@ -260,7 +362,7 @@ export default function PricingPage() {
                         />
                         <button
                             onClick={handleRedeem}
-                            disabled={redeeming || !promoCode.trim()}
+                            disabled={redeeming || !promoCode.trim() || !selectedGroupId}
                             className="rounded-xl px-5 py-2.5 text-sm font-semibold bg-brand-500/80 border border-brand-500/50 text-on-accent hover:bg-brand-500 active:bg-brand-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {redeeming ? 'Applying…' : 'Apply'}
@@ -315,9 +417,10 @@ export default function PricingPage() {
                             const cfg = plansData[tier];
                             const theme = TIER_THEME[tier];
                             const isCurrent = tier === currentTier;
-                            // Block buying a strictly lower tier while a paid plan is
-                            // still active/grace (an expired plan resolves to FREE).
-                            const isDowngrade = status !== 'expired' && PLAN_RANK[tier] < PLAN_RANK[currentTier];
+                            // Block buying a tier strictly below the group's own. No
+                            // expired check needed: a lapsed plan already resolves to
+                            // FREE server-side, so nothing ranks below it.
+                            const isDowngrade = PLAN_RANK[tier] < PLAN_RANK[currentTier];
                             const isPopular = tier === 'PRO';
                             const price = cycle === 'yearly' ? cfg.priceYearly : cfg.priceMonthly;
                             const perMonth = cycle === 'yearly' && price > 0 ? Math.round(price / 12) : null;
@@ -389,7 +492,14 @@ export default function PricingPage() {
 
                                     {/* CTA */}
                                     <button
-                                        disabled={tier === 'FREE' || isCurrent || isDowngrade || processing !== null}
+                                        disabled={
+                                            tier === 'FREE' ||
+                                            isCurrent ||
+                                            isDowngrade ||
+                                            processing !== null ||
+                                            !selectedGroupId ||
+                                            !paymentsEnabled
+                                        }
                                         onClick={() => handleUpgrade(tier)}
                                         className={`mt-6 w-full rounded-xl py-3 text-sm font-semibold transition-all duration-150 disabled:cursor-not-allowed ${
                                             tier === 'FREE' || isCurrent || isDowngrade ? theme.cta : `${theme.cta} disabled:opacity-60`
@@ -398,16 +508,18 @@ export default function PricingPage() {
                                         {processing === tier
                                             ? 'Processing…'
                                             : isCurrent
-                                            ? 'Your current plan'
+                                            ? 'Current plan for this group'
                                             : isDowngrade
-                                            ? 'Lower than your plan'
+                                            ? "Lower than this group's plan"
                                             : tier === 'FREE'
                                             ? 'Included'
+                                            : !paymentsEnabled
+                                            ? 'Payments unavailable'
                                             : `Upgrade to ${cfg.name}`}
                                     </button>
                                     {isDowngrade && (
                                         <p className="mt-2 text-[10.5px] text-fg-muted text-center leading-snug">
-                                            You're on {currentTier}. Downgrades take effect after it expires.
+                                            This group is on {currentTier}. Downgrades take effect after it expires.
                                         </p>
                                     )}
                                 </div>

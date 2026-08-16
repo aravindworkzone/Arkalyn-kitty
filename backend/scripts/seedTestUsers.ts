@@ -61,9 +61,9 @@ const seed = async () => {
 
         const existing = await User.findOne({ email }).select('_id');
 
-        // Only fields a test account needs to be usable are touched. Plan and
-        // role are left at their schema defaults (FREE / USER) so seeded users
-        // exercise the same limits a real signup would.
+        // Only fields a test account needs to be usable are touched. Role is
+        // left at its schema default (USER). Accounts carry no plan — every
+        // group these users create starts FREE and is upgraded on its own.
         await User.updateOne(
             { email },
             {

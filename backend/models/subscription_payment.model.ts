@@ -5,6 +5,10 @@ import { PLAN_TIERS, BILLING_CYCLES, type Plan, type BillingCycle } from '../con
 export type PaymentStatus = 'created' | 'paid' | 'failed' | 'refunded';
 
 export interface ISubscriptionPayment extends Document {
+    // The group the plan was bought FOR — the entitlement always lands here.
+    groupId: mongoose.Types.ObjectId;
+    // Who paid. Kept only so the payer's profile can list their own receipts;
+    // it grants that account nothing.
     userId: mongoose.Types.ObjectId;
     plan: Plan;
     cycle: BillingCycle;
@@ -25,6 +29,7 @@ export interface ISubscriptionPayment extends Document {
 // browser callback and the webhook fire.
 const subscriptionPaymentSchema = new Schema<ISubscriptionPayment>(
     {
+        groupId: { type: Schema.Types.ObjectId, ref: 'Group', required: true, index: true },
         userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
         plan: { type: String, enum: PLAN_TIERS, required: true },
         cycle: { type: String, enum: BILLING_CYCLES, required: true },

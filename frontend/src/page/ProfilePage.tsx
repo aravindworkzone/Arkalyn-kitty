@@ -22,12 +22,12 @@ import type { PlanTier, PaymentStatus } from "../interface/subscription";
 import { socket } from "../socket/socket";
 import { PageBackground, BackButton, PageContainer } from "../components/ui";
 
-// The /user/me payload — only the slice this page renders.
+// The /user/me payload — only the slice this page renders. No subscription:
+// plans are held by groups, so there is no account tier to show here.
 type ProfileUser = {
   name?: string;
   email?: string;
   createdAt?: string;
-  subscription?: { tier: PlanTier; planExpiresAt: string | null };
   apiKey?: { prefix: string; createdAt: string | null } | null;
 };
 
@@ -248,9 +248,6 @@ export default function ProfilePage() {
         : nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)
   ).toUpperCase();
 
-  const planName = user.subscription?.tier ?? "FREE";
-  const renewsAt = user.subscription?.planExpiresAt;
-
   const switchLanguage = (lng: "en" | "ta") => {
     i18n.changeLanguage(lng);
     localStorage.setItem("i18n_lang", lng);
@@ -344,28 +341,30 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        {/* 6. Subscription strip */}
+        {/* 6. Subscription strip — points at the per-group plans page rather than
+            showing a tier, because an account has none: each group carries its
+            own, and they can differ. */}
         <section className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface-raised p-4">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-wide text-fg-muted">
               {t("profile.subscription", "Subscription")}
             </p>
-            <p className="mt-0.5 text-base font-semibold text-fg" translate="no">
-              {planName}
+            <p className="mt-0.5 text-base font-semibold text-fg">
+              {t("profile.plansPerGroup", "Plans are per group")}
             </p>
             <p className="mt-0.5 text-xs text-fg-muted">
-              {renewsAt
-                ? t("profile.renewsOn", "Renews {{date}}", { date: formatFullDate(renewsAt) })
-                : t("profile.noRenewal", "No renewal — free plan")}
+              {t(
+                "profile.plansPerGroupDesc",
+                "Each group has its own plan. Open a group to see its tier, or manage them all here."
+              )}
             </p>
           </div>
           <button
             type="button"
             onClick={() => navigate("/pricing")}
             className="shrink-0 rounded-xl border border-brand-200 dark:border-brand-500/40 bg-brand-50 dark:bg-brand-500/15 px-4 py-2 text-sm font-semibold text-brand-600 dark:text-brand-300 transition-colors hover:bg-brand-50 dark:bg-brand-500/25 active:bg-brand-50 dark:bg-brand-500/25"
-            translate="no"
           >
-            {planName}
+            {t("profile.managePlans", "Manage")}
           </button>
         </section>
 
@@ -402,6 +401,14 @@ export default function ProfilePage() {
                         <div className="min-w-0">
                           <p className="text-theme-sm font-medium text-fg" translate="no">
                             {tx.plan} · {tx.cycle}
+                          </p>
+                          {/* Which group the money bought a plan for. Absent on a
+                              deleted group, and on pre-migration receipts from
+                              when plans were account-level. */}
+                          <p className="mt-0.5 text-theme-xs text-fg-muted truncate" translate="no">
+                            {tx.group
+                              ? `${tx.group.name} · ${tx.group.displayId}`
+                              : t("profile.noGroupOnPayment", "Group unavailable")}
                           </p>
                           <p className="mt-0.5 text-theme-xs text-fg-muted" translate="no">
                             ₹{tx.amount.toLocaleString("en-IN")} · {formatFullDate(tx.createdAt)}

@@ -5,6 +5,9 @@
 //
 // ⚠️ Keep in sync with backend/config/constants.ts → PLANS. Authenticated flows
 // (PricingPage upgrade/checkout) still read the live API via useGetPlansQuery.
+//
+// Every tier here is priced and enforced PER GROUP — there is no account plan,
+// so a limit like "10 members" means ten members in the group that bought it.
 
 import type { PlanTier, PlanConfig } from '../interface/subscription';
 
@@ -18,7 +21,6 @@ export const PUBLIC_PLANS: Record<PlanTier, PlanConfig> = {
         priceMonthly: 0,
         priceYearly: 0,
         limits: {
-            maxGroups: 3,
             maxMembersPerGroup: 5,
             maxCategoriesPerGroup: 10,
             eventLogRetentionDays: 15,
@@ -31,7 +33,6 @@ export const PUBLIC_PLANS: Record<PlanTier, PlanConfig> = {
         priceMonthly: 69,
         priceYearly: 660,
         limits: {
-            maxGroups: 8,
             maxMembersPerGroup: 10,
             maxCategoriesPerGroup: 20,
             eventLogRetentionDays: 60,
@@ -44,7 +45,6 @@ export const PUBLIC_PLANS: Record<PlanTier, PlanConfig> = {
         priceMonthly: 119,
         priceYearly: 1140,
         limits: {
-            maxGroups: null,
             maxMembersPerGroup: null,
             maxCategoriesPerGroup: null,
             eventLogRetentionDays: null,
@@ -64,18 +64,18 @@ export const fmtLimit = (n: number | null) => (n === null ? 'Unlimited' : String
 export const fmtDays = (n: number | null) => (n === null ? 'Unlimited' : `${n} days`);
 
 // Headline feature lines shown on each tier card (mirrors PricingPage.featureLines).
+// Every line describes what the tier grants THE GROUP it is bought for.
 export const planFeatureLines = (tier: PlanTier, cfg: PlanConfig): string[] => {
     const l = cfg.limits;
     const lines = [
-        `${fmtLimit(l.maxGroups)} active groups`,
-        `${fmtLimit(l.maxMembersPerGroup)} members per group`,
-        `${fmtLimit(l.maxCategoriesPerGroup)} categories per group`,
+        `${fmtLimit(l.maxMembersPerGroup)} members`,
+        `${fmtLimit(l.maxCategoriesPerGroup)} categories`,
         `${fmtDays(l.transactionLogRetentionDays)} transaction history`,
         `${fmtDays(l.eventLogRetentionDays)} activity history`,
         cfg.features.advancedReportRange ? 'Custom-range reports' : 'Month & all-time reports',
     ];
-    if (cfg.features.cloneGroup) lines.push('Clone groups in one click');
-    if (cfg.features.linkGroups) lines.push('Connect groups to fund each other');
+    if (cfg.features.cloneGroup) lines.push('Clone this group in one click');
+    if (cfg.features.linkGroups) lines.push('Connect to other groups for funding');
     if (tier === 'PREMIUM') lines.push('Everything unlimited');
     return lines;
 };

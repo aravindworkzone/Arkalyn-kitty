@@ -34,10 +34,12 @@ const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // ── Users ──────────────────────────────────────────────────────────────────
 
+// Accounts carry no tier, so there is no plan filter here — subscriptions are
+// listed and filtered by GROUP instead (listGroupSubscriptionsService).
 export const listUsersService = async (
     page: number,
     limit: number,
-    opts: { search?: string; status?: string; plan?: string; sort?: 'newest' | 'oldest' } = {}
+    opts: { search?: string; status?: string; sort?: 'newest' | 'oldest' } = {}
 ) => {
     const filter: Record<string, unknown> = {};
     if (opts.search && opts.search.trim()) {
@@ -45,32 +47,77 @@ export const listUsersService = async (
         filter.$or = [{ name: rx }, { email: rx }];
     }
     if (opts.status) filter.status = opts.status;
-    if (opts.plan) filter.plan = opts.plan;
 
     const sortDir = opts.sort === 'oldest' ? 1 : -1;
 
     const [docs, total] = await Promise.all([
         User.find(filter)
-            .select('_id name email role status plan planExpiresAt planSource createdAt lastLoginAt')
+            .select('_id name email role status createdAt lastLoginAt')
             .sort({ createdAt: sortDir })
             .skip((page - 1) * limit)
             .limit(limit),
         User.countDocuments(filter),
     ]);
 
-    const items = docs.map((u) => {
-        const eff = getEffectivePlan({ plan: u.plan, planExpiresAt: u.planExpiresAt });
+    const items = docs.map((u) => ({
+        _id: u._id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        status: u.status,
+        createdAt: u.createdAt,
+        lastLoginAt: u.lastLoginAt ?? null,
+    }));
+
+    return { items, total };
+};
+
+// ── Group subscriptions ──────────────────────────────────────────────────────
+
+// The subscription table, keyed on the thing that actually holds a plan. Filters
+// on the stored tier; each row also reports the computed effective tier, which
+// is what the group's gates use.
+export const listGroupSubscriptionsService = async (
+    page: number,
+    limit: number,
+    opts: { search?: string; plan?: string; sort?: 'newest' | 'oldest' } = {}
+) => {
+    const filter: Record<string, unknown> = {};
+    if (opts.search && opts.search.trim()) {
+        const rx = new RegExp(escapeRegex(opts.search.trim()), 'i');
+        filter.$or = [{ name: rx }, { displayId: rx }];
+    }
+    if (opts.plan) filter.plan = opts.plan;
+
+    const sortDir = opts.sort === 'oldest' ? 1 : -1;
+
+    const [docs, total] = await Promise.all([
+        Group.find(filter)
+            .select('_id name displayId status plan planExpiresAt planCycle planSource planSnapshot createdAt')
+            .sort({ createdAt: sortDir })
+            .skip((page - 1) * limit)
+            .limit(limit),
+        Group.countDocuments(filter),
+    ]);
+
+    const items = docs.map((g) => {
+        // Closed groups serve their frozen snapshot, matching getGroupPlan.
+        const eff =
+            g.status === 'CLOSED' && g.planSnapshot?.tier
+                ? getEffectivePlan({ plan: g.planSnapshot.tier, planExpiresAt: null })
+                : getEffectivePlan({ plan: g.plan, planExpiresAt: g.planExpiresAt });
         return {
-            _id: u._id,
-            name: u.name,
-            email: u.email,
-            role: u.role,
-            status: u.status,
-            plan: u.plan,
+            _id: g._id,
+            name: g.name,
+            displayId: g.displayId,
+            status: g.status,
+            plan: g.plan,
             effectiveTier: eff.tier,
-            planSource: u.planSource,
-            createdAt: u.createdAt,
-            lastLoginAt: u.lastLoginAt ?? null,
+            planStatus: eff.status,
+            planExpiresAt: g.planExpiresAt,
+            planCycle: g.planCycle,
+            planSource: g.planSource,
+            createdAt: g.createdAt,
         };
     });
 
@@ -80,7 +127,7 @@ export const listUsersService = async (
 export const getUserDetailService = async (userId: string) => {
     if (!mongoose.Types.ObjectId.isValid(userId)) throw new AppError('Invalid user ID', 400);
     const user = await User.findById(userId).select(
-        '_id name email role status plan planExpiresAt planCycle planSource createdAt lastLoginAt'
+        '_id name email role status createdAt lastLoginAt'
     );
     if (!user) throw new AppError('User not found', 404);
 
@@ -113,8 +160,8 @@ export const getUserDetailService = async (userId: string) => {
         lastActionAt: lastActionMap.get(String(g._id)) ?? null,
     }));
 
-    const subscription = toPlanView(getEffectivePlan({ plan: user.plan, planExpiresAt: user.planExpiresAt }));
-
+    // No account-level subscription to report — each row in `groups` carries its
+    // own `planTier`, which is where entitlement actually lives.
     return {
         user: {
             _id: user._id,
@@ -122,13 +169,8 @@ export const getUserDetailService = async (userId: string) => {
             email: user.email,
             role: user.role,
             status: user.status,
-            plan: user.plan,
-            planExpiresAt: user.planExpiresAt,
-            planCycle: user.planCycle,
-            planSource: user.planSource,
             createdAt: user.createdAt,
-            lastLoginAt: (user as any).lastLoginAt ?? null,
-            subscription,
+            lastLoginAt: user.lastLoginAt ?? null,
         },
         groups: groupsWithAction,
     };
@@ -317,31 +359,38 @@ export const hardDeleteUserService = async (
 
 // ── Manual plan override ─────────────────────────────────────────────────────
 
-export const overridePlanService = async (
-    userId: string,
+// Comps or corrections, applied to a GROUP. Written as a targeted $set rather
+// than doc.save(): `balance`/`totalContribution` carry rupee<->paise
+// setters/getters, and this is support tooling — it has no business rewriting
+// money fields even accidentally.
+export const overrideGroupPlanService = async (
+    groupId: string,
     plan: Plan,
     cycle: BillingCycle | undefined,
     expiresAt: string | undefined
 ) => {
-    if (!mongoose.Types.ObjectId.isValid(userId)) throw new AppError('Invalid user ID', 400);
-    const user = await User.findById(userId).select('plan planExpiresAt planCycle planSource');
-    if (!user) throw new AppError('User not found', 404);
-
-    if (plan === 'FREE') {
-        user.plan = 'FREE';
-        user.planExpiresAt = null;
-        user.planCycle = null;
-        user.planSource = null;
-    } else {
-        const days = BILLING_PERIOD_DAYS[cycle ?? 'monthly'];
-        user.plan = plan;
-        user.planExpiresAt = expiresAt ? new Date(expiresAt) : new Date(Date.now() + days * 86400000);
-        user.planCycle = cycle ?? 'monthly';
-        user.planSource = 'ADMIN';
+    if (!mongoose.Types.ObjectId.isValid(groupId)) throw new AppError('Invalid group ID', 400);
+    const group = await Group.findById(groupId).select('status');
+    if (!group) throw new AppError('Group not found', 404);
+    if (group.status === 'CLOSED') {
+        throw new AppError('This group is closed — its plan is frozen and cannot be changed.', 400);
     }
-    await user.save();
 
-    return toPlanView(getEffectivePlan({ plan: user.plan, planExpiresAt: user.planExpiresAt }));
+    const update =
+        plan === 'FREE'
+            ? { plan: 'FREE' as Plan, planExpiresAt: null, planCycle: null, planSource: null }
+            : {
+                  plan,
+                  planExpiresAt: expiresAt
+                      ? new Date(expiresAt)
+                      : new Date(Date.now() + BILLING_PERIOD_DAYS[cycle ?? 'monthly'] * DAY_MS),
+                  planCycle: cycle ?? 'monthly',
+                  planSource: 'ADMIN' as const,
+              };
+
+    await Group.updateOne({ _id: groupId }, { $set: update });
+
+    return toPlanView(getEffectivePlan({ plan: update.plan, planExpiresAt: update.planExpiresAt }));
 };
 
 // ── Promo codes ──────────────────────────────────────────────────────────────
@@ -383,6 +432,7 @@ export const getPromoRedemptionsService = async (id: string) => {
     if (!mongoose.Types.ObjectId.isValid(id)) throw new AppError('Invalid promo ID', 400);
     return PromoRedemption.find({ promoCodeId: id })
         .populate('userId', 'name email')
+        .populate('groupId', 'name displayId')
         .sort({ createdAt: -1 });
 };
 
@@ -394,14 +444,14 @@ const monthlyEquivalent = (plan: Plan, cycle: BillingCycle | null): number => {
     return cycle === 'yearly' ? Math.round(cfg.priceYearly / 12) : cfg.priceMonthly;
 };
 
-// Subscription/plan rollup for the dashboard. Built to stay flat as the user
-// table grows: instead of loading every user into memory, the database buckets
-// each account by its (stored plan, cycle, source, status) and the live
-// entitlement window (active / grace / expired) — mirroring getEffectivePlan —
-// then counts them. Node receives only a few dozen grouped rows regardless of
-// whether there are 10 users or 10 million. The tiny pricing math then reuses
-// the SAME monthlyEquivalent + effective-tier rules, so MRR can't drift from the
-// per-user computation used elsewhere.
+// Subscription/plan rollup for the dashboard. Buckets GROUPS, since that is what
+// holds a plan. Built to stay flat as the collection grows: instead of loading
+// every group into memory, the database buckets each by its (stored plan, cycle,
+// source, status) and the live entitlement window (active / grace / expired) —
+// mirroring getEffectivePlan — then counts them. Node receives only a few dozen
+// grouped rows regardless of whether there are 10 groups or 10 million. The tiny
+// pricing math then reuses the SAME monthlyEquivalent + effective-tier rules, so
+// MRR can't drift from the per-group computation used elsewhere.
 type PlanBucketRow = {
     _id: {
         plan: Plan | null;
@@ -417,9 +467,11 @@ export const getAnalyticsService = async (granularity: 'day' | 'week' | 'month')
     const now = new Date();
     const graceMs = GRACE_PERIOD_DAYS * DAY_MS;
 
-    const [planRows, activeGroups, signups, revenueAgg] = await Promise.all([
-        User.aggregate<PlanBucketRow>([
-            { $match: { status: { $ne: 'DELETED' } } },
+    const [planRows, userCounts, activeGroups, signups, revenueAgg] = await Promise.all([
+        Group.aggregate<PlanBucketRow>([
+            // Closed groups are frozen history: their plan can no longer renew or
+            // lapse, so they neither earn revenue nor count as a live tier.
+            { $match: { status: { $ne: 'CLOSED' } } },
             { $addFields: { _stored: { $ifNull: ['$plan', 'FREE'] } } },
             {
                 $addFields: {
@@ -466,6 +518,11 @@ export const getAnalyticsService = async (granularity: 'day' | 'week' | 'month')
                 },
             },
         ]),
+        // Account totals are a separate roll-up now that users hold no plan.
+        User.aggregate<{ _id: string; count: number }>([
+            { $match: { status: { $ne: 'DELETED' } } },
+            { $group: { _id: '$status', count: { $sum: 1 } } },
+        ]),
         Group.countDocuments({ status: { $ne: 'CLOSED' } }),
         User.aggregate([
             { $match: { status: { $ne: 'DELETED' } } },
@@ -481,42 +538,42 @@ export const getAnalyticsService = async (granularity: 'day' | 'week' | 'month')
         ]),
     ]);
 
+    // planBreakdown counts GROUPS per effective tier — the unit that holds a plan.
     const planBreakdown: Record<Plan, number> = { FREE: 0, PRO: 0, PREMIUM: 0 };
-    let totalUsers = 0;
-    let suspended = 0;
     let mrr = 0;
-    let payingUsers = 0;
+    let payingGroups = 0;
 
     for (const row of planRows) {
-        const { plan, cycle, source, status, window } = row._id;
+        const { plan, cycle, source, window } = row._id;
         const c = row.count;
-        totalUsers += c;
-        if (status === 'SUSPENDED') suspended += c;
 
         // Effective tier: an expired paid plan collapses to FREE (same as
         // getEffectivePlan); active/grace keep the stored tier.
         const effTier: Plan = window === 'expired' ? 'FREE' : (plan ?? 'FREE');
         planBreakdown[effTier] += c;
 
-        // Revenue counts only actively-paid seats (not promo/admin comps, not in
-        // grace, not expired) — matches the per-user MRR rule exactly.
+        // Revenue counts only actively-paid groups (not promo/admin comps, not in
+        // grace, not expired) — matches the per-group MRR rule exactly.
         if (effTier !== 'FREE' && window === 'active' && source === 'PAYMENT') {
             mrr += monthlyEquivalent(effTier, cycle) * c;
         }
 
-        // Paying users = those who subscribed via real payment (active or grace).
-        // Promo/admin-granted users are excluded — they did not pay.
+        // Paying groups = those on a real payment (active or grace).
+        // Promo/admin-granted groups are excluded — nobody paid for them.
         if (effTier !== 'FREE' && (window === 'active' || window === 'grace') && source === 'PAYMENT') {
-            payingUsers += c;
+            payingGroups += c;
         }
     }
+
+    const totalUsers = userCounts.reduce((sum, r) => sum + r.count, 0);
+    const suspended = userCounts.find((r) => r._id === 'SUSPENDED')?.count ?? 0;
 
     return {
         totalUsers,
         suspendedUsers: suspended,
         activeGroups,
         planBreakdown,
-        payingUsers,
+        payingGroups,
         revenue: { mrr, totalRevenue: Math.round((revenueAgg[0]?.total ?? 0) / 100), currency: 'INR' },
         signups,
         granularity,

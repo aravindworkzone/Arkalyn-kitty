@@ -6,7 +6,8 @@ import {
     RestoreUser,
     DeleteUser,
     HardDeleteUser,
-    OverridePlan,
+    ListSubscriptions,
+    OverrideGroupPlan,
     CreatePromo,
     ListPromos,
     DeactivatePromo,
@@ -17,7 +18,9 @@ import {
 import { validate } from '../middlewares/validate.middleware';
 import {
     listUsersQuerySchema,
+    listSubscriptionsQuerySchema,
     userIdParamSchema,
+    groupIdParamSchema,
     promoIdParamSchema,
     createPromoBodySchema,
     overridePlanBodySchema,
@@ -35,10 +38,13 @@ router.post('/users/:userId/suspend', validate({ params: userIdParamSchema }), S
 router.post('/users/:userId/restore', validate({ params: userIdParamSchema }), RestoreUser);
 router.delete('/users/:userId', validate({ params: userIdParamSchema }), DeleteUser);
 router.delete('/users/:userId/hard', validate({ params: userIdParamSchema }), HardDeleteUser);
+
+// Group subscriptions — plans hang off groups, so the override targets a group.
+router.get('/subscriptions', validate({ query: listSubscriptionsQuerySchema }), ListSubscriptions);
 router.post(
-    '/users/:userId/plan',
-    validate({ params: userIdParamSchema, body: overridePlanBodySchema }),
-    OverridePlan
+    '/groups/:groupId/plan',
+    validate({ params: groupIdParamSchema, body: overridePlanBodySchema }),
+    OverrideGroupPlan
 );
 
 // Promo codes

@@ -1,7 +1,10 @@
 import mongoose, { Document, Schema } from "mongoose";
 import Counter from "./counter.model";
 import { toDBAmount, fromDBAmount } from "../helpers/Money";
-import { PLAN_TIERS, type Plan } from "../config/constants";
+import {
+    PLAN_TIERS, PLAN_SOURCES, BILLING_CYCLES,
+    type Plan, type PlanSource, type BillingCycle,
+} from "../config/constants";
 
 export interface IGroupPlanSnapshot {
     tier: Plan;
@@ -19,7 +22,21 @@ export interface IGroup extends Document {
     balance: number;
     totalContribution: number;
     status: "ACTIVE" | "INACTIVE" | "CLOSED";
-    // Frozen at close: the owner's plan tier at the moment the group was closed.
+    // ── Subscription (group-scoped) ──────────────────────────────────────────
+    // The tier last purchased FOR THIS GROUP. Every entitlement — member cap,
+    // category cap, log retention, custom reports, clone, linking — is governed
+    // by these fields alone; the buyer's account has no tier of its own. The
+    // *effective* tier (expiry + grace applied) is computed by
+    // helpers/planLimits.ts, so this is stored state and is never gated on
+    // directly.
+    plan: Plan;
+    // When paid access ends. `null` on FREE (never expires).
+    planExpiresAt: Date | null;
+    // Cycle + origin of the current grant — drives revenue reporting (only
+    // PAYMENT counts as revenue; PROMO/ADMIN are comps).
+    planCycle: BillingCycle | null;
+    planSource: PlanSource | null;
+    // Frozen at close: the group's plan tier at the moment it was closed.
     // Immutable thereafter — protects refund calc / audit from later plan changes.
     planSnapshot?: IGroupPlanSnapshot | null;
     createdBy: mongoose.Types.ObjectId;
@@ -40,6 +57,10 @@ const groupSchema = new Schema<IGroup>({
     balance: {type: Number, default: 0, set:toDBAmount, get:fromDBAmount},
     totalContribution: {type: Number, default: 0, set:toDBAmount, get:fromDBAmount},
     status: {type: String, enum: ["ACTIVE", "INACTIVE", "CLOSED"], default: "ACTIVE"},
+    plan: {type: String, enum: PLAN_TIERS, default: 'FREE', index: true},
+    planExpiresAt: {type: Date, default: null},
+    planCycle: {type: String, enum: BILLING_CYCLES, default: null},
+    planSource: {type: String, enum: PLAN_SOURCES, default: null},
     planSnapshot: { type: planSnapshotSchema, default: null },
     createdBy: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true}
 }, {timestamps: true, toJSON: { getters: true }, toObject: { getters: true }});

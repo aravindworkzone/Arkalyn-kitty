@@ -4,31 +4,27 @@ import GroupMember from '../models/group_member.model';
 import User from '../models/user.model';
 import { AppError } from '../helpers/AppError';
 import Session from '../models/session.model';
-import { getEffectivePlan, toPlanView, countActiveOwnedGroups } from '../helpers/planLimits';
-import { BCRYPT_SALT_ROUNDS } from '../config/constants';
+import { countActiveOwnedGroups, getEffectivePlan } from '../helpers/planLimits';
+import { BCRYPT_SALT_ROUNDS, type Plan } from '../config/constants';
 import { generateApiKey, apiKeyPrefixOf } from '../helpers/apiKey';
 
 export const getUserByIdService = async (userId: mongoose.Types.ObjectId) => {
     const user = await User.findById(userId).select(
-        '_id name email role status plan planExpiresAt createdAt apiKeyPrefix apiKeyCreatedAt'
+        '_id name email role status createdAt apiKeyPrefix apiKeyCreatedAt'
     );
     if (!user) throw new AppError('User not found', 404);
 
-    // Attach the effective subscription (tier/status/limits/features) so the
-    // frontend can gate UI from the single /user/me call.
-    const subscription = toPlanView(getEffectivePlan({ plan: user.plan, planExpiresAt: user.planExpiresAt }));
-
+    // No `subscription` here by design: plans belong to groups, so there is no
+    // account-level entitlement to report. UI gating reads the plan off whichever
+    // group it is rendering (GET /group/:id → `subscription`).
     return {
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
         status: user.status,
-        plan: user.plan,
-        planExpiresAt: user.planExpiresAt,
         // Account creation date — powers the "Member since" line on the profile.
         createdAt: user.createdAt,
-        subscription,
         // Masked API-key view for the profile "Developer" section. Never the
         // plaintext (only returned once at generation) and never the hash.
         apiKey: user.apiKeyPrefix
@@ -91,10 +87,30 @@ export const deleteAccountService = async (
     await GroupMember.updateMany({ userId: user._id, isDeleted: false }, { $set: { isDeleted: true } });
 };
 
+// One row of the group list behind the dashboard cards. Mirrors the $project
+// below — kept explicit so the plan post-processing stays type-checked.
+interface UserGroupRow {
+    _id: mongoose.Types.ObjectId;
+    displayId: string;
+    name: string;
+    status: string;
+    plan?: Plan | null;
+    planExpiresAt?: Date | null;
+    planSnapshot?: { tier: Plan } | null;
+    isFavorite: boolean;
+    balance: number;
+    members: string[];
+    role: string;
+    barLength: number;
+    expenseCount: number;
+    categoryCount: number;
+    createdAt: string;
+}
+
 export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
     const objectUserId = new mongoose.Types.ObjectId(userId);
 
-    return GroupMember.aggregate([
+    const rows = await GroupMember.aggregate<UserGroupRow>([
         {
             $match: {
                 userId: objectUserId,
@@ -173,8 +189,12 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
                 displayId: '$group.displayId',
                 name: '$group.name',
                 status: '$group.status',
+                // The group's own stored subscription — every card badges the tier
+                // that group actually holds, not the viewer's.
+                plan: '$group.plan',
+                planExpiresAt: '$group.planExpiresAt',
                 // Frozen plan captured at close — lets the card badge the group's
-                // historical tier even after the owner downgrades. null for open groups.
+                // historical tier even after that plan lapses. null for open groups.
                 planSnapshot: '$group.planSnapshot',
                 isFavorite: { $ifNull: ['$isFavorite', false] },
                 balance: { $divide: ['$group.balance', 100] },
@@ -246,6 +266,19 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
             },
         },
     ]);
+
+    // Resolve each group's EFFECTIVE tier in Node rather than re-expressing the
+    // expiry/grace branching as aggregation stages: this is one user's
+    // memberships, so the set is small, and reusing getEffectivePlan is what
+    // guarantees the badge can't drift from what the write gates enforce.
+    // A closed group reports its frozen snapshot, matching getGroupPlan.
+    return rows.map((g) => ({
+        ...g,
+        planTier:
+            g.status === 'CLOSED' && g.planSnapshot?.tier
+                ? g.planSnapshot.tier
+                : getEffectivePlan({ plan: g.plan, planExpiresAt: g.planExpiresAt }).tier,
+    }));
 };
 
 export const searchUsersService = async (

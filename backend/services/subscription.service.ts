@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import User from '../models/user.model';
+import Group from '../models/group.model';
 import SubscriptionPayment from '../models/subscription_payment.model';
 import PromoCode from '../models/promo_code.model';
 import PromoRedemption from '../models/promo_redemption.model';
@@ -7,7 +7,7 @@ import { AppError } from '../helpers/AppError';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 import { toDBAmount } from '../helpers/Money';
-import { createRazorpayOrder, verifyPaymentSignature, verifyWebhookSignature, getFullRazorpayDetails, refundPayment, type RazorpayPayment } from '../utils/razorpay';
+import { createRazorpayOrder, verifyPaymentSignature, verifyWebhookSignature, getFullRazorpayDetails, refundPayment, isRazorpayConfigured } from '../utils/razorpay';
 import { getEffectivePlan, toPlanView } from '../helpers/planLimits';
 import { PLANS, PLAN_RANK, BILLING_PERIOD_DAYS, type Plan, type BillingCycle } from '../config/constants';
 
@@ -27,24 +27,69 @@ const computeGrantExpiry = (
     return new Date(base + periodDays * DAY_MS);
 };
 
-export const getPlansService = () => PLANS;
+// Writes a grant onto the group with a targeted $set. Deliberately not
+// doc.save(): `balance` and `totalContribution` carry rupee<->paise
+// setters/getters, and a whole-document write is the one place a stray
+// re-conversion could corrupt the pool. Only the four plan paths are touched.
+const applyGrantToGroup = async (
+    groupId: mongoose.Types.ObjectId,
+    plan: Plan,
+    cycle: BillingCycle,
+    periodDays: number,
+    source: 'PAYMENT' | 'PROMO',
+    session?: mongoose.ClientSession
+) => {
+    const group = await Group.findById(groupId)
+        .select('plan planExpiresAt')
+        .session(session ?? null);
+    if (!group) throw new AppError('Group not found', 404);
 
+    const planExpiresAt = computeGrantExpiry(group.plan, group.planExpiresAt, plan, periodDays);
+
+    await Group.updateOne(
+        { _id: groupId },
+        { $set: { plan, planExpiresAt, planCycle: cycle, planSource: source } },
+        { session }
+    );
+
+    return getEffectivePlan({ plan, planExpiresAt });
+};
+
+// The catalogue, plus whether checkout can actually run. Razorpay keys are
+// optional infrastructure (utils/razorpay.ts degrades to a 503), so without this
+// flag the UI can only discover payments are off by taking the user through a
+// checkout that then fails. Promo redemption never touches the gateway, so it
+// stays available either way — which is what the UI steers to.
+export const getPlansService = () => ({
+    plans: PLANS,
+    paymentsEnabled: isRazorpayConfigured,
+});
+
+// Opens a checkout for ONE group. Role is enforced upstream (loadGroup +
+// authorizeRole), so reaching here means the caller administers the group; the
+// tier comparison below is against the GROUP's current entitlement, not the
+// buyer's — a Premium group can't be knocked down to Pro by a second admin, and
+// nothing about the buyer's other groups is relevant.
 export const createSubscriptionOrderService = async (
     userId: mongoose.Types.ObjectId,
+    groupId: mongoose.Types.ObjectId | string,
     plan: Plan,
     cycle: BillingCycle
 ) => {
     if (plan === 'FREE') throw new AppError('The Free plan does not require payment', 400);
 
-    const buyer = await User.findById(userId).select('plan planExpiresAt');
-    if (buyer) {
-        const eff = getEffectivePlan({ plan: buyer.plan, planExpiresAt: buyer.planExpiresAt });
-        if ((eff.status === 'active' || eff.status === 'grace') && PLAN_RANK[eff.tier] > PLAN_RANK[plan]) {
-            throw new AppError(
-                `You're on the ${eff.tier} plan; downgrading to ${plan} isn't allowed while it's active.`,
-                400
-            );
-        }
+    const group = await Group.findById(groupId).select('plan planExpiresAt status name');
+    if (!group) throw new AppError('Group not found', 404);
+    if (group.status === 'CLOSED') {
+        throw new AppError('This group is closed — its plan is frozen and cannot be changed.', 400);
+    }
+
+    const eff = getEffectivePlan({ plan: group.plan, planExpiresAt: group.planExpiresAt });
+    if ((eff.status === 'active' || eff.status === 'grace') && PLAN_RANK[eff.tier] > PLAN_RANK[plan]) {
+        throw new AppError(
+            `This group is on the ${eff.tier} plan; downgrading it to ${plan} isn't allowed while that's active.`,
+            400
+        );
     }
 
     const config = PLANS[plan];
@@ -56,11 +101,12 @@ export const createSubscriptionOrderService = async (
 
     const order = await createRazorpayOrder({
         amountPaise,
-        receipt: `sub_${userId.toString().slice(-10)}_${Date.now().toString(36)}`,
-        notes: { userId: userId.toString(), plan, cycle },
+        receipt: `sub_${group._id.toString().slice(-10)}_${Date.now().toString(36)}`,
+        notes: { groupId: group._id.toString(), userId: userId.toString(), plan, cycle },
     });
 
     await SubscriptionPayment.create({
+        groupId: group._id,
         userId,
         plan,
         cycle,
@@ -75,6 +121,8 @@ export const createSubscriptionOrderService = async (
         amount: amountPaise,
         currency: 'INR',
         keyId: env.RAZORPAY_KEY_ID,
+        groupId: group._id.toString(),
+        groupName: group.name,
         plan,
         cycle,
     };
@@ -91,20 +139,17 @@ const grantFromPayment = async (razorpayOrderId: string, razorpayPaymentId: stri
     if (!payment) {
         const existing = await SubscriptionPayment.findOne({ razorpayOrderId });
         if (!existing) throw new AppError('Payment not found', 404);
-        const u = await User.findById(existing.userId).select('plan planExpiresAt');
-        return getEffectivePlan({ plan: u?.plan, planExpiresAt: u?.planExpiresAt });
+        const g = await Group.findById(existing.groupId).select('plan planExpiresAt');
+        return getEffectivePlan({ plan: g?.plan, planExpiresAt: g?.planExpiresAt });
     }
 
-    const user = await User.findById(payment.userId).select('plan planExpiresAt planCycle planSource');
-    if (!user) throw new AppError('User not found', 404);
-
-    user.planExpiresAt = computeGrantExpiry(user.plan, user.planExpiresAt, payment.plan, payment.periodDays);
-    user.plan = payment.plan;
-    user.planCycle = payment.cycle;
-    user.planSource = 'PAYMENT';
-    await user.save();
-
-    return getEffectivePlan({ plan: user.plan, planExpiresAt: user.planExpiresAt });
+    return applyGrantToGroup(
+        payment.groupId,
+        payment.plan,
+        payment.cycle,
+        payment.periodDays,
+        'PAYMENT'
+    );
 };
 
 // Refunds a captured payment that can't be turned into a plan grant. Never
@@ -218,12 +263,24 @@ export const markPaymentFailedService = async (
     return { updated: Boolean(updated) };
 };
 
+// Receipts for checkouts THIS user paid for, across every group they bought a
+// plan for. Scoped by payer rather than by group: it's their money and their
+// billing history, even for a group they have since left.
 export const listSubscriptionPaymentsService = async (userId: mongoose.Types.ObjectId) => {
     const rows = await SubscriptionPayment.find({ userId, isDeleted: { $ne: true } })
+        .populate<{ groupId: { _id: mongoose.Types.ObjectId; name: string; displayId: string } | null }>(
+            'groupId',
+            'name displayId'
+        )
         .sort({ createdAt: -1 })
         .limit(50);
     return rows.map((r) => ({
         id: r._id.toString(),
+        // Null only if the group was hard-deleted after the payment; the receipt
+        // itself still stands.
+        group: r.groupId
+            ? { id: r.groupId._id.toString(), name: r.groupId.name, displayId: r.groupId.displayId }
+            : null,
         plan: r.plan,
         cycle: r.cycle,
         amount: r.amount,
@@ -246,7 +303,12 @@ export const softDeleteSubscriptionPaymentService = async (
     return { deleted: true };
 };
 
-export const redeemPromoCodeService = async (userId: mongoose.Types.ObjectId, codeRaw: string) => {
+// Redeems a code FOR a group. Role is enforced upstream, same as checkout.
+export const redeemPromoCodeService = async (
+    userId: mongoose.Types.ObjectId,
+    groupId: mongoose.Types.ObjectId | string,
+    codeRaw: string
+) => {
     const code = codeRaw.trim().toUpperCase();
 
     const promo = await PromoCode.findOne({ code });
@@ -259,11 +321,14 @@ export const redeemPromoCodeService = async (userId: mongoose.Types.ObjectId, co
         throw new AppError('This promo code has reached its redemption limit', 409);
     }
 
-    const user = await User.findById(userId).select('plan planExpiresAt');
-    if (!user) throw new AppError('User not found', 404);
-    const eff = getEffectivePlan({ plan: user.plan, planExpiresAt: user.planExpiresAt });
+    const group = await Group.findById(groupId).select('plan planExpiresAt status');
+    if (!group) throw new AppError('Group not found', 404);
+    if (group.status === 'CLOSED') {
+        throw new AppError('This group is closed — its plan is frozen and cannot be changed.', 400);
+    }
+    const eff = getEffectivePlan({ plan: group.plan, planExpiresAt: group.planExpiresAt });
     if ((eff.status === 'active' || eff.status === 'grace') && PLAN_RANK[eff.tier] > PLAN_RANK[promo.plan]) {
-        throw new AppError(`You're already on the ${eff.tier} plan, which is higher than this code grants.`, 400);
+        throw new AppError(`This group is already on the ${eff.tier} plan, which is higher than this code grants.`, 400);
     }
 
     const session = await mongoose.startSession();
@@ -272,11 +337,11 @@ export const redeemPromoCodeService = async (userId: mongoose.Types.ObjectId, co
 
         try {
             await PromoRedemption.create(
-                [{ promoCodeId: promo._id, code: promo.code, userId, plan: promo.plan, periodDays: promo.periodDays }],
+                [{ promoCodeId: promo._id, code: promo.code, groupId: group._id, userId, plan: promo.plan, periodDays: promo.periodDays }],
                 { session }
             );
         } catch (e: any) {
-            if (e.code === 11000) throw new AppError('You have already redeemed this promo code', 409);
+            if (e.code === 11000) throw new AppError('This promo code has already been used on this group', 409);
             throw e;
         }
 
@@ -301,17 +366,17 @@ export const redeemPromoCodeService = async (userId: mongoose.Types.ObjectId, co
         );
         if (!claimed) throw new AppError('This promo code has reached its redemption limit', 409);
 
-        const freshUser = await User.findById(userId).select('plan planExpiresAt planCycle planSource').session(session);
-        if (!freshUser) throw new AppError('User not found', 404);
-
-        freshUser.planExpiresAt = computeGrantExpiry(freshUser.plan, freshUser.planExpiresAt, promo.plan, promo.periodDays);
-        freshUser.plan = promo.plan;
-        freshUser.planCycle = promo.cycle;
-        freshUser.planSource = 'PROMO';
-        await freshUser.save({ session });
+        const granted = await applyGrantToGroup(
+            group._id as mongoose.Types.ObjectId,
+            promo.plan,
+            promo.cycle,
+            promo.periodDays,
+            'PROMO',
+            session
+        );
 
         await session.commitTransaction();
-        return toPlanView(getEffectivePlan({ plan: freshUser.plan, planExpiresAt: freshUser.planExpiresAt }));
+        return toPlanView(granted);
     } catch (error) {
         await session.abortTransaction();
         throw error;

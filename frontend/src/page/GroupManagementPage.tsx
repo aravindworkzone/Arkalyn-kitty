@@ -25,7 +25,9 @@ import {
   PageContainer,
   PageHeader,
   StatusBanner,
+  UpgradeNote,
 } from "../components/ui";
+import { useGroupPlan } from "../hooks/usePlan";
 import {
   ManagementTabs,
   tabId,
@@ -93,6 +95,15 @@ export default function GroupManagementPage() {
   const role = GroupDetails?.role as Group["role"];
   const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
   const isSuperAdmin = role === "SUPER_ADMIN";
+
+  // Member headroom on THIS group's plan. The backend rejects the invite at the
+  // cap (402), so warning here is the difference between "the form explained
+  // why" and "the form failed". `null` means unlimited — never warn on Premium.
+  const { limits: planLimits, tier: planTier } = useGroupPlan(groupId);
+  const memberCap = planLimits.maxMembersPerGroup;
+  const memberCount = GroupMembers?.length ?? 0;
+  const memberSeatsLeft = memberCap === null ? null : Math.max(0, memberCap - memberCount);
+  const isClosed = GroupDetails?.status === "CLOSED";
 
   // Join approvals are admin-only; skip the fetch entirely for plain members.
   const { data: joinRequests } = useGetPendingJoinRequestsQuery(groupId!, {
@@ -266,6 +277,30 @@ export default function GroupManagementPage() {
 
           {activeTab === "addMember" && (
             <div className="space-y-6">
+              {/* Two states, because they need different words: at the cap the
+                  invite will be refused outright, while one seat left is worth
+                  knowing before you go looking for a second person. */}
+              <UpgradeNote
+                show={!isClosed && memberSeatsLeft !== null && memberSeatsLeft <= 1}
+                groupId={groupId}
+                canUpgrade={isAdmin}
+                variant={memberSeatsLeft === 0 ? "blocked" : "hint"}
+              >
+                {memberSeatsLeft === 0
+                  ? t("upgrade.membersFull", {
+                      defaultValue:
+                        "This group is full — the {{tier}} plan allows {{cap}} members. New invites will be refused until its plan is raised.",
+                      tier: planTier,
+                      cap: memberCap,
+                    })
+                  : t("upgrade.membersNearlyFull", {
+                      defaultValue:
+                        "1 seat left of the {{cap}} the {{tier}} plan allows.",
+                      tier: planTier,
+                      cap: memberCap,
+                    })}
+              </UpgradeNote>
+
               <SettingsAddMember
                 isVerifying={isVerifying}
                 isInvitingMember={isInvitingMember}
@@ -465,7 +500,6 @@ export default function GroupManagementPage() {
           sourceGroupId={groupId}
           sourceName={GroupDetails?.name ?? ""}
           sourceStatus={GroupDetails?.status}
-          sourcePlanTier={GroupDetails?.planSnapshot?.tier}
           onClose={() => setCloneGroupOpen(false)}
         />
       )}

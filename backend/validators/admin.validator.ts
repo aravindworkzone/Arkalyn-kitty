@@ -4,16 +4,28 @@ export const listUsersQuerySchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),
     search: z.string().trim().max(120).optional(),
-    // Server-side filters so admins can slice a 10k-row table without paging
-    // blindly. `plan` filters on the stored tier (what the user purchased); the
-    // row still shows the computed effective tier alongside it.
+    // Server-side filter so admins can slice a 10k-row table without paging
+    // blindly. No `plan` here — accounts hold no tier; use /subscriptions.
     status: z.enum(['ACTIVE', 'SUSPENDED', 'DELETED']).optional(),
+    sort: z.enum(['newest', 'oldest']).default('newest'),
+});
+
+// Group subscription table. `plan` filters on the stored tier (what the group
+// bought); each row still reports the computed effective tier alongside it.
+export const listSubscriptionsQuerySchema = z.object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+    search: z.string().trim().max(120).optional(),
     plan: z.enum(['FREE', 'PRO', 'PREMIUM']).optional(),
     sort: z.enum(['newest', 'oldest']).default('newest'),
 });
 
 export const userIdParamSchema = z.object({
     userId: z.string().trim().min(1, 'userId is required'),
+});
+
+export const groupIdParamSchema = z.object({
+    groupId: z.string().trim().min(1, 'groupId is required'),
 });
 
 export const promoIdParamSchema = z.object({
@@ -39,5 +51,6 @@ export const analyticsQuerySchema = z.object({
 });
 
 export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;
+export type ListSubscriptionsQuery = z.infer<typeof listSubscriptionsQuerySchema>;
 export type CreatePromoDto = z.infer<typeof createPromoBodySchema>;
 export type OverridePlanDto = z.infer<typeof overridePlanBodySchema>;

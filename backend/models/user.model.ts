@@ -1,7 +1,7 @@
 import mongoose , { Document, Schema} from 'mongoose';
 import {
-    PLAN_TIERS, USER_ROLES, USER_STATUSES, PLAN_SOURCES, BILLING_CYCLES, AUTH_PROVIDERS,
-    type Plan, type UserRole, type UserStatus, type PlanSource, type BillingCycle, type AuthProvider
+    USER_ROLES, USER_STATUSES, AUTH_PROVIDERS,
+    type UserRole, type UserStatus, type AuthProvider
 } from '../config/constants';
 
 export interface IUser extends Document {
@@ -10,15 +10,10 @@ export interface IUser extends Document {
     password: string;
     role: UserRole;
     status: UserStatus;
-    // Last purchased subscription tier. The *effective* tier (accounting for
-    // expiry + grace period) is computed by helpers/planLimits.ts — this field
-    // is just the stored state, never read directly for gating.
-    plan: Plan;
-    // When the paid access ends. `null` for FREE (never expires).
-    planExpiresAt: Date | null;
-    // Billing cycle + origin of the current plan — used for revenue (MRR/ARR).
-    planCycle: BillingCycle | null;
-    planSource: PlanSource | null;
+    // NOTE: accounts carry no subscription tier. Plans are bought per GROUP and
+    // live on the Group document (`plan`, `planExpiresAt`, `planCycle`,
+    // `planSource`); a user's entitlements are always those of the group they
+    // are acting in. SubscriptionPayment.userId records who paid, nothing more.
     lastLoginAt: Date | null;
     // Personal API key for read-only programmatic access (MCP server).
     // `apiKey` is the bcrypt hash — never the plaintext, which is shown to the
@@ -41,10 +36,6 @@ const userSchema = new Schema<IUser>({
     password: {type: String, required: function(this: IUser) { return this.authProvider === 'LOCAL';}},
     role: {type: String, enum: USER_ROLES, default: 'USER', index: true},
     status: {type: String, enum: USER_STATUSES, default: 'ACTIVE', index: true},
-    plan: {type: String, enum: PLAN_TIERS, default: 'FREE'},
-    planExpiresAt: {type: Date, default: null},
-    planCycle: {type: String, enum: BILLING_CYCLES, default: null},
-    planSource: {type: String, enum: PLAN_SOURCES, default: null},
     lastLoginAt: {type: Date, default: null},
     // select:false — the hash never ships in a normal query/response; apiKeyAuth
     // opts in explicitly with .select('+apiKey'). The prefix index makes the

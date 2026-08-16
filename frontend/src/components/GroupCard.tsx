@@ -1,18 +1,17 @@
 import MemberAvatars from "./ListMember";
 import type { GroupCardProps } from "../interface/group";
 import { useTranslation } from "react-i18next";
-import { usePlan } from "../hooks/usePlan";
 import RoleBadge from "../components/ui/RoleBadge"
 
 const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingFavorite }: GroupCardProps) => {
   const { t } = useTranslation();
-  const { tier } = usePlan();
   const isClosed = group.status === "CLOSED";
   const isFavorite = !!group.isFavorite;
-  // Closed groups badge their FROZEN tier (captured at close, immutable) so the
-  // historical plan shows even after the owner downgrades. Open groups badge the
-  // viewer's own live paid tier on groups they own.
-  const badgeTier = isClosed ? group.planSnapshot?.tier : group.role === "SUPER_ADMIN" ? tier : undefined;
+  // The group's own effective tier — the plan was bought FOR this group, so the
+  // badge is the same for every member and needs no role check. `planTier`
+  // already resolves a closed group to its frozen snapshot and a lapsed plan
+  // to FREE, so there is nothing left to branch on here.
+  const badgeTier = group.planTier;
   const showPlanBadge = !!badgeTier && badgeTier !== "FREE";
 
   // Pool health, coarse: comfortable / getting low / nearly spent.

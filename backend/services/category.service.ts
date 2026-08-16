@@ -4,7 +4,7 @@ import GroupEvent from '../models/group_event.model';
 import Expense from '../models/expense.model';
 import GroupTransaction from '../models/group_transaction.model';
 import { AppError } from '../helpers/AppError';
-import { getGroupOwnerPlan, assertWithinLimit } from '../helpers/planLimits';
+import { getGroupPlan, assertWithinLimit } from '../helpers/planLimits';
 
 // The default credit category every group gets. New credits land here unless a
 // specific credit category is chosen.
@@ -72,12 +72,12 @@ export const createCategoryService = async (data: {
 
         // Subscription gate: cap categories per group on the owner's tier.
         // Counted per type so credit categories don't eat the expense allowance.
-        const ownerPlan = await getGroupOwnerPlan(groupId, session);
+        const groupPlan = await getGroupPlan(groupId, session);
         const categoryCount = await Category.countDocuments({ groupId, ...typeFilter, isDeleted: false }).session(session);
         assertWithinLimit(
             categoryCount,
-            ownerPlan.limits.maxCategoriesPerGroup,
-            `This group has reached its ${ownerPlan.config.name}-plan category limit (${ownerPlan.limits.maxCategoriesPerGroup}). The group owner can upgrade to add more.`
+            groupPlan.limits.maxCategoriesPerGroup,
+            `This group has reached its ${groupPlan.config.name}-plan category limit (${groupPlan.limits.maxCategoriesPerGroup}). Upgrade this group's plan to add more.`
         );
 
         const categorySave = new Category({ name: cleanName, groupId, color, type, limitCents });

@@ -29,11 +29,17 @@ function RedemptionsModal({ promoId, code, onClose }: { promoId: string; code: s
                     <div className="space-y-2 max-h-80 overflow-y-auto">
                         {data.map((r) => {
                             const u = typeof r.userId === 'object' ? r.userId : null;
+                            // A code is spent on a group; the user is who redeemed it.
+                            const g = r.groupId && typeof r.groupId === 'object' ? r.groupId : null;
                             return (
                                 <div key={r._id} className="flex items-center justify-between text-theme-xs border-b border-line pb-2">
                                     <div className="min-w-0">
-                                        <p className="text-fg truncate">{u?.name ?? 'User'}</p>
-                                        <p className="text-fg-muted text-theme-2xs truncate">{u?.email ?? String(r.userId)}</p>
+                                        <p className="text-fg truncate" translate="no">
+                                            {g ? `${g.name} · ${g.displayId}` : 'Group'}
+                                        </p>
+                                        <p className="text-fg-muted text-theme-2xs truncate">
+                                            by {u?.name ?? 'user'}{u?.email ? ` · ${u.email}` : ''}
+                                        </p>
                                     </div>
                                     <div className="text-right shrink-0 ml-2">
                                         <TierBadge tier={r.plan} />

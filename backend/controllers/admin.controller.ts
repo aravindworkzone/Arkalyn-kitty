@@ -7,7 +7,8 @@ import {
     restoreUserService,
     deleteUserService,
     hardDeleteUserService,
-    overridePlanService,
+    listGroupSubscriptionsService,
+    overrideGroupPlanService,
     createPromoService,
     listPromosService,
     deactivatePromoService,
@@ -15,12 +16,16 @@ import {
     getAnalyticsService,
     getHealthService,
 } from '../services/admin.service';
-import { listUsersQuerySchema, analyticsQuerySchema } from '../validators/admin.validator';
+import {
+    listUsersQuerySchema,
+    listSubscriptionsQuerySchema,
+    analyticsQuerySchema,
+} from '../validators/admin.validator';
 
 // ── Users ──
 export const ListUsers = asyncHandler(async (req, res) => {
-    const { page, limit, search, status, plan, sort } = listUsersQuerySchema.parse(req.query);
-    const { items, total } = await listUsersService(page, limit, { search, status, plan, sort });
+    const { page, limit, search, status, sort } = listUsersQuerySchema.parse(req.query);
+    const { items, total } = await listUsersService(page, limit, { search, status, sort });
     sendPaginated(res, items, total, page, limit, 'Users fetched');
 });
 
@@ -49,9 +54,16 @@ export const HardDeleteUser = asyncHandler(async (req, res) => {
     sendSuccess(res, result, 'User permanently deleted');
 });
 
-export const OverridePlan = asyncHandler(async (req, res) => {
+// ── Group subscriptions ──
+export const ListSubscriptions = asyncHandler(async (req, res) => {
+    const { page, limit, search, plan, sort } = listSubscriptionsQuerySchema.parse(req.query);
+    const { items, total } = await listGroupSubscriptionsService(page, limit, { search, plan, sort });
+    sendPaginated(res, items, total, page, limit, 'Group subscriptions fetched');
+});
+
+export const OverrideGroupPlan = asyncHandler(async (req, res) => {
     const { plan, cycle, expiresAt } = req.body;
-    const subscription = await overridePlanService(String(req.params.userId), plan, cycle, expiresAt);
+    const subscription = await overrideGroupPlanService(String(req.params.groupId), plan, cycle, expiresAt);
     sendSuccess(res, { subscription }, 'Plan updated');
 });
 

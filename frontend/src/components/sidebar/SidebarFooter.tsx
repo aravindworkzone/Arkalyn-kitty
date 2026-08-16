@@ -2,11 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
-import { Badge, ThemeToggle } from "../ui";
+import { ThemeToggle } from "../ui";
 import LanguageToggle from "../LanguageToggle";
 import NotificationBell from "../NotificationBell";
 import { cn } from "../../helpers/cn";
-import { usePlan } from "../../hooks/usePlan";
 import { useSignOutMutation } from "../../redux/api/auth";
 import { api } from "../../redux/api/base";
 import { socket } from "../../socket/socket";
@@ -32,7 +31,6 @@ interface SidebarFooterProps {
 
 export default function SidebarFooter({ user, collapsed = false, onNavigate }: SidebarFooterProps) {
     const { t } = useTranslation();
-    const { tier } = usePlan();
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const [signOut, { isLoading: signingOut }] = useSignOutMutation();
@@ -170,10 +168,12 @@ export default function SidebarFooter({ user, collapsed = false, onNavigate }: S
                                 }
                             />
 
+                            {/* No tier badge here: plans belong to groups, and this
+                                menu is global chrome with no group in scope. The
+                                per-group tier is badged on each group card. */}
                             <MenuItem
                                 onClick={() => go("/pricing")}
                                 label={t("nav.plans", "Plans & Billing")}
-                                trailing={<Badge tone={tier === "FREE" ? "gray" : "brand"} translate="no">{tier}</Badge>}
                                 icon={
                                     <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
                                         <path d="M1.5 4.5h10M3 1.5h7a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0110 11.5H3A1.5 1.5 0 011.5 10V3A1.5 1.5 0 013 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />

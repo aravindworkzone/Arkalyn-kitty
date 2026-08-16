@@ -6,12 +6,11 @@ import {
     useDeleteAdminUserMutation,
     useHardDeleteAdminUserMutation,
 } from '../../redux/api/admin';
-import { StatusBadge, TierBadge } from './adminUi';
+import { StatusBadge } from './adminUi';
 import UserDetailModal from './UserDetailModal';
 import DeleteConfirmModal from '../deleteModel';
 import { getApiErrorMessage } from '../../hooks/useApiError';
 import type { UserStatus } from '../../interface/admin';
-import type { PlanTier } from '../../interface/subscription';
 
 const LIMIT = 20;
 const selectClass =
@@ -108,7 +107,6 @@ export default function UsersSection() {
     const [searchInput, setSearchInput] = useState('');
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<UserStatus | ''>('');
-    const [planFilter, setPlanFilter] = useState<PlanTier | ''>('');
     const [sort, setSort] = useState<'newest' | 'oldest'>('newest');
     const [selected, setSelected] = useState<string | null>(null);
 
@@ -117,7 +115,6 @@ export default function UsersSection() {
         limit: LIMIT,
         search: search || undefined,
         status: statusFilter || undefined,
-        plan: planFilter || undefined,
         sort,
     });
     const [suspend] = useSuspendUserMutation();
@@ -178,12 +175,6 @@ export default function UsersSection() {
                     <option value="SUSPENDED">Suspended</option>
                     <option value="DELETED">Deleted</option>
                 </select>
-                <select value={planFilter} onChange={(e) => onFilterChange(setPlanFilter)(e.target.value as PlanTier | '')} className={selectClass} aria-label="Filter by plan">
-                    <option value="">All plans</option>
-                    <option value="FREE">Free</option>
-                    <option value="PRO">Pro</option>
-                    <option value="PREMIUM">Premium</option>
-                </select>
                 <select value={sort} onChange={(e) => onFilterChange(setSort)(e.target.value as 'newest' | 'oldest')} className={selectClass} aria-label="Sort order">
                     <option value="newest">Newest first</option>
                     <option value="oldest">Oldest first</option>
@@ -220,8 +211,9 @@ export default function UsersSection() {
                                 )}
                             </div>
 
+                            {/* No tier badge: accounts hold no plan. Tiers are
+                                listed per group under Subscriptions. */}
                             <div className="flex items-center gap-1.5 shrink-0">
-                                <TierBadge tier={u.effectiveTier} />
                                 <StatusBadge status={u.status} />
                             </div>
 

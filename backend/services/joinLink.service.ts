@@ -5,7 +5,7 @@ import GroupMember from '../models/group_member.model';
 import GroupInvite from '../models/group_invite.model';
 import GroupJoinLink, { generateJoinToken } from '../models/group_join_link.model';
 import { createNotification } from './notification.service';
-import { getGroupOwnerPlan, assertWithinLimit } from '../helpers/planLimits';
+import { getGroupPlan, assertWithinLimit } from '../helpers/planLimits';
 
 /**
  * Shareable join links.
@@ -147,12 +147,12 @@ export const joinViaLinkService = async (data: {
 
     // Soft check, same as acceptInviteService: fail early rather than queue a
     // request the group has no room for. Re-checked as a hard cap on approval.
-    const ownerPlan = await getGroupOwnerPlan(group._id as Id);
+    const groupPlan = await getGroupPlan(group._id as Id);
     const memberCount = await GroupMember.countDocuments({ groupId: group._id, isDeleted: false });
     assertWithinLimit(
         memberCount,
-        ownerPlan.limits.maxMembersPerGroup,
-        `This group is full (${ownerPlan.limits.maxMembersPerGroup}-member limit on the ${ownerPlan.config.name} plan). Ask the group owner to upgrade.`
+        groupPlan.limits.maxMembersPerGroup,
+        `This group is full (${groupPlan.limits.maxMembersPerGroup}-member limit on the ${groupPlan.config.name} plan). Ask a group admin to upgrade its plan.`
     );
 
     // Written straight to PENDING_APPROVAL: there is nobody to "accept" a link

@@ -244,9 +244,10 @@ function buildServer(apiKey: string): McpServer {
             "recorded as kind 'refund', never a delete event; and category create, " +
             "update and delete all arrive as 'category_changed' with the specifics in " +
             "'what'. If no limit is given, returns everything in the visible window. " +
-            "That window depends on the group OWNER's plan, not yours — always check " +
-            "the response's 'retention' field before saying nothing happened, because " +
-            "an empty result may simply predate what the plan can show.",
+            "That window depends on THIS GROUP's own plan — always check the " +
+            "response's 'retention' field before saying nothing happened, because an " +
+            "empty result may simply predate what the plan can show. " +
+            "get_group_subscription reports the same window up front.",
         {
             group: z
                 .string()
@@ -305,18 +306,30 @@ function buildServer(apiKey: string): McpServer {
     );
 
     server.tool(
-        "get_my_subscription",
-        "Your effective plan: tier, planName, status (active, grace or expired), " +
-            "renewalDate (null on FREE, which never renews) and isReadOnly. Note tier " +
-            "is the EFFECTIVE tier — once a paid plan is past its grace period it " +
-            "reverts to FREE and isReadOnly turns true, which is why a group that " +
-            "previously allowed more members or categories can start rejecting writes " +
-            "on FREE limits. Check this when a write fails with a limit error. Caveat: " +
-            "get_group_activity's history window follows the group OWNER's plan, not " +
-            "yours, so this tool does not predict it for groups you did not create.",
-        async () => {
+        "get_group_subscription",
+        "One GROUP's effective plan: tier, planName, status (active, grace or " +
+            "expired), renewalDate (null on FREE, which never renews), isReadOnly, " +
+            "plus its limits and features. Plans are bought per group, not per " +
+            "account, so every group you belong to can be on a different tier and " +
+            "this answers for exactly one of them. Note tier is the EFFECTIVE tier — " +
+            "once a paid plan is past its grace period the group reverts to FREE and " +
+            "isReadOnly turns true, which is why a group that previously allowed more " +
+            "members or categories can start rejecting writes on FREE limits. Check " +
+            "this when a write fails with a limit error; it also tells you exactly " +
+            "how far back get_group_activity can see for this group.",
+        {
+            group: z
+                .string()
+                .describe(
+                    "Group name or display ID (e.g. 'Goa Trip' or 'Grp-26-001'). " +
+                        "Matching is case-insensitive and partial; ambiguous " +
+                        "fragments return an error naming the candidate groups.",
+                ),
+        },
+        async ({ group }) => {
             try {
-                return ok(await callAPI("/api/mcp/subscription", apiKey));
+                const params = new URLSearchParams({ group });
+                return ok(await callAPI(`/api/mcp/subscription?${params}`, apiKey));
             } catch (err) {
                 return fail(err);
             }

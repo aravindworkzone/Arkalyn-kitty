@@ -25,7 +25,7 @@ import { formatCents } from '../helpers/money';
 import type { ReportPreset, CategoryBreakdownRow, TrendGranularity, MemberBy } from '../interface/report';
 import { MIN_DATE, todayISODate, blockDateTyping } from '../helpers/validators';
 import { seriesColor } from '../helpers/chartPalette';
-import { usePlan } from '../hooks/usePlan';
+import { useGroupPlan } from '../hooks/usePlan';
 import { useGetGroupByIdQuery } from '../redux/api/group';
 
 const PRESETS: ReportPreset[] = ['all_time', 'this_month', 'last_month', 'custom'];
@@ -154,7 +154,9 @@ export default function CategoryReportPage() {
     const { t, i18n } = useTranslation();
     const locale = i18n.language;
 
-    const { features } = usePlan();
+    // This group's plan, not the viewer's — matches what requireAdvancedReportRange
+    // will enforce on the request.
+    const { features } = useGroupPlan(groupId);
 
     const { data: group } = useGetGroupByIdQuery(groupId!, { skip: !groupId });
     const isClosed = group?.status === 'CLOSED';
@@ -275,7 +277,7 @@ export default function CategoryReportPage() {
                             return (
                             <button
                                 key={p}
-                                onClick={() => (locked ? navigate('/pricing') : setPickedPreset(p))}
+                                onClick={() => (locked ? navigate(`/pricing?group=${groupId}`) : setPickedPreset(p))}
                                 title={locked ? t('reports.upgradeRange', 'Custom date ranges need Pro') : undefined}
                                 aria-pressed={!locked && preset === p}
                                 className={`px-3 py-1.5 rounded-lg text-theme-xs font-semibold border transition-colors inline-flex items-center gap-1

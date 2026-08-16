@@ -1,37 +1,17 @@
-import { useState, useEffect } from 'react';
-import { useGetAdminUserDetailQuery, useOverrideUserPlanMutation } from '../../redux/api/admin';
-import type { PlanTier, BillingCycle } from '../../interface/subscription';
+import { useEffect } from 'react';
+import { useGetAdminUserDetailQuery } from '../../redux/api/admin';
 import { TierBadge, StatusBadge } from './adminUi';
 
+// Account-level detail only. Plans belong to groups, so the tier of each group
+// is shown in the list below and the override lives in the Subscriptions tab
+// alongside every other group.
 export default function UserDetailModal({ userId, onClose }: { userId: string; onClose: () => void }) {
     const { data, isLoading } = useGetAdminUserDetailQuery(userId);
-    const [overridePlan, { isLoading: saving }] = useOverrideUserPlanMutation();
-
-    const [plan, setPlan] = useState<PlanTier>('PRO');
-    const [cycle, setCycle] = useState<BillingCycle>('monthly');
-    const [expiresAt, setExpiresAt] = useState('');
-    const [msg, setMsg] = useState<string | null>(null);
 
     useEffect(() => {
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = ''; };
     }, []);
-
-    const inputCls = 'bg-surface-hover border border-line rounded-lg px-3 py-2 text-sm text-fg outline-none focus:border-brand-200 dark:border-brand-500/40';
-
-    const handleApply = async () => {
-        setMsg(null);
-        try {
-            await overridePlan({
-                userId,
-                plan,
-                ...(plan !== 'FREE' ? { cycle, ...(expiresAt ? { expiresAt: new Date(expiresAt).toISOString() } : {}) } : {}),
-            }).unwrap();
-            setMsg('Plan updated.');
-        } catch (e: any) {
-            setMsg(e?.data?.message || 'Could not update plan.');
-        }
-    };
 
     return (
         <div className="fixed inset-0 z-modal flex justify-center overflow-y-auto p-4 bg-scrim backdrop-blur-[2px]">
@@ -48,15 +28,12 @@ export default function UserDetailModal({ userId, onClose }: { userId: string; o
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <StatusBadge status={data.user.status} />
-                                <TierBadge tier={data.user.subscription.tier} />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-2 text-theme-xs text-fg-muted mb-4">
                             <p>Joined: <span className="text-fg">{new Date(data.user.createdAt).toLocaleDateString('en-IN')}</span></p>
-                            <p>Source: <span className="text-fg">{data.user.planSource ?? '—'}</span></p>
-                            <p>Status: <span className="text-fg">{data.user.subscription.status}</span></p>
-                            <p>Expires: <span className="text-fg">{data.user.planExpiresAt ? new Date(data.user.planExpiresAt).toLocaleDateString('en-IN') : '—'}</span></p>
+                            <p>Role: <span className="text-fg">{data.user.role}</span></p>
                             <p className="col-span-2">Last login: <span className="text-fg">
                                 {data.user.lastLoginAt
                                     ? new Date(data.user.lastLoginAt).toLocaleString('en-IN', {
@@ -86,38 +63,20 @@ export default function UserDetailModal({ userId, onClose }: { userId: string; o
                                                     : 'No activity'}
                                             </p>
                                         </div>
-                                        <span className="text-fg-muted text-theme-2xs shrink-0">{g.role} · {g.status}</span>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            <TierBadge tier={g.planTier} />
+                                            <span className="text-fg-muted text-theme-2xs">{g.role} · {g.status}</span>
+                                        </div>
                                     </div>
                                 ))
                             )}
                         </div>
 
-                        <div className="rounded-xl border border-line bg-surface-raised p-3.5">
-                            <p className="text-theme-xs font-semibold text-fg mb-2.5">Override plan</p>
-                            <div className="grid grid-cols-2 gap-2">
-                                <select value={plan} onChange={(e) => setPlan(e.target.value as PlanTier)} className={inputCls}>
-                                    <option value="FREE">Free</option>
-                                    <option value="PRO">Pro</option>
-                                    <option value="PREMIUM">Premium</option>
-                                </select>
-                                {plan !== 'FREE' && (
-                                    <select value={cycle} onChange={(e) => setCycle(e.target.value as BillingCycle)} className={inputCls}>
-                                        <option value="monthly">Monthly</option>
-                                        <option value="yearly">Yearly</option>
-                                    </select>
-                                )}
-                                {plan !== 'FREE' && (
-                                    <label className="col-span-2 text-theme-xs text-fg-muted flex flex-col gap-1">
-                                        Expires (optional — defaults to cycle length)
-                                        <input type="datetime-local" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className={inputCls} />
-                                    </label>
-                                )}
-                            </div>
-                            <button onClick={handleApply} disabled={saving} className="mt-3 w-full rounded-xl py-2 text-sm font-semibold bg-brand-50 dark:bg-brand-500/80 border border-brand-200 dark:border-brand-500/50 text-fg hover:bg-brand-500 disabled:opacity-50">
-                                {saving ? 'Applying…' : 'Apply override'}
-                            </button>
-                            {msg && <p className="mt-2 text-xs text-fg-muted">{msg}</p>}
-                        </div>
+                        <p className="text-theme-xs text-fg-muted">
+                            Plans are held by groups, not accounts. To change one, open the{' '}
+                            <span className="text-brand-600 dark:text-brand-300">Subscriptions</span> tab and search for
+                            the group.
+                        </p>
 
                         <button onClick={onClose} className="mt-4 w-full rounded-xl border border-line bg-surface-raised py-2 text-sm text-fg hover:bg-surface-hover">
                             Close

@@ -58,6 +58,11 @@ export type Role = typeof ROLES[keyof typeof ROLES];
 // GET /api/subscription/plans so the UI never drifts from the backend.
 // `null` on a limit means "unlimited". Prices are in whole rupees (INR);
 // `priceYearly` is the full amount charged for a year (not per-month).
+//
+// Subscriptions are GROUP-scoped: a plan is bought for one group and every
+// entitlement below applies to that group alone. Accounts have no tier — a user
+// can own a Premium group and a Free one at the same time, and any admin of a
+// group can pay to lift its limits.
 
 // App-level account role (distinct from per-group SUPER_ADMIN/ADMIN/MEMBER).
 export const USER_ROLES = ['USER', 'APP_OWNER'] as const;
@@ -95,8 +100,13 @@ export const BILLING_PERIOD_DAYS: Record<BillingCycle, number> = {
 // it downgrades to FREE entitlements (read-only freeze on over-limit resources).
 export const GRACE_PERIOD_DAYS = 7;
 
+// Hard ceiling on how many active groups one account may own. This is an
+// anti-abuse guard, NOT a billing lever: with per-group subscriptions there is
+// no account-level tier that could scale it, and every group a user creates is
+// FREE (and separately limited) until someone pays for it.
+export const MAX_ACTIVE_OWNED_GROUPS = 50;
+
 export interface PlanLimits {
-    maxGroups: number | null;
     maxMembersPerGroup: number | null;
     maxCategoriesPerGroup: number | null;
     eventLogRetentionDays: number | null;
@@ -127,7 +137,6 @@ export const PLANS: Record<Plan, PlanConfig> = {
         priceMonthly: 0,
         priceYearly: 0,
         limits: {
-            maxGroups: 3,
             maxMembersPerGroup: 5,
             maxCategoriesPerGroup: 10,
             eventLogRetentionDays: 15,
@@ -140,7 +149,6 @@ export const PLANS: Record<Plan, PlanConfig> = {
         priceMonthly: 69,
         priceYearly: 660,
         limits: {
-            maxGroups: 8,
             maxMembersPerGroup: 10,
             maxCategoriesPerGroup: 20,
             eventLogRetentionDays: 60,
@@ -153,7 +161,6 @@ export const PLANS: Record<Plan, PlanConfig> = {
         priceMonthly: 119,
         priceYearly: 1140,
         limits: {
-            maxGroups: null,
             maxMembersPerGroup: null,
             maxCategoriesPerGroup: null,
             eventLogRetentionDays: null,

@@ -13,13 +13,16 @@ import { sendSuccess } from '../utils/response';
 import { AppError } from '../helpers/AppError';
 
 export const GetPlans = asyncHandler(async (_req, res) => {
-    sendSuccess(res, { plans: getPlansService() }, 'Plans fetched');
+    sendSuccess(res, getPlansService(), 'Plans fetched');
 });
 
+// req.group is resolved and role-checked by loadGroup + authorizeRole, so the
+// service is handed an id the caller is already proven to administer.
 export const CreateOrder = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
     const { plan, cycle } = req.body;
-    const order = await createSubscriptionOrderService(req.user._id, plan, cycle);
+    const order = await createSubscriptionOrderService(req.user._id, req.group._id, plan, cycle);
     sendSuccess(res, { order }, 'Order created');
 });
 
@@ -50,7 +53,8 @@ export const DeleteTransaction = asyncHandler(async (req, res) => {
 
 export const RedeemPromo = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
-    const plan = await redeemPromoCodeService(req.user._id, req.body.code);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+    const plan = await redeemPromoCodeService(req.user._id, req.group._id, req.body.code);
     sendSuccess(res, { plan }, 'Promo code applied');
 });
 

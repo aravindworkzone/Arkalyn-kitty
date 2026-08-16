@@ -10,7 +10,8 @@
     "build": "tsc",
     "start": "node dist/main.js",
     "seed:users": "ts-node ./scripts/seedTestUsers.ts",
-    "seed:data": "ts-node ./scripts/seedTestData.ts"
+    "seed:data": "ts-node ./scripts/seedTestData.ts",
+    "migrate:group-plans": "ts-node ./scripts/migrateGroupPlans.ts"
   },
   "keywords": [],
   "author": "",

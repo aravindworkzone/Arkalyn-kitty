@@ -3,6 +3,7 @@ import type { PaginatedData } from "../../interface/api";
 import type {
     AdminUserRow,
     AdminUserDetail,
+    AdminGroupSubscriptionRow,
     UserStatus,
     PromoCode,
     PromoRedemption,
@@ -16,6 +17,13 @@ export interface GetAdminUsersArgs {
     limit: number;
     search?: string;
     status?: UserStatus;
+    sort?: 'newest' | 'oldest';
+}
+
+export interface GetAdminSubscriptionsArgs {
+    page: number;
+    limit: number;
+    search?: string;
     plan?: PlanTier;
     sort?: 'newest' | 'oldest';
 }
@@ -24,14 +32,13 @@ export const admin = api.injectEndpoints({
     endpoints: (builder) => ({
         // Users
         getAdminUsers: builder.query<PaginatedData<AdminUserRow>, GetAdminUsersArgs>({
-            query: ({ page, limit, search, status, plan, sort }) => ({
+            query: ({ page, limit, search, status, sort }) => ({
                 url: '/admin/users',
                 params: {
                     page,
                     limit,
                     ...(search ? { search } : {}),
                     ...(status ? { status } : {}),
-                    ...(plan ? { plan } : {}),
                     ...(sort ? { sort } : {}),
                 },
             }),
@@ -59,13 +66,33 @@ export const admin = api.injectEndpoints({
             query: (userId) => ({ url: `/admin/users/${userId}/hard`, method: 'DELETE' }),
             invalidatesTags: ['Admin'],
         }),
-        overrideUserPlan: builder.mutation<
-            { subscription: PlanView },
-            { userId: string; plan: PlanTier; cycle?: BillingCycle; expiresAt?: string }
+        // Group subscriptions — the plan lives on the group, so both the listing
+        // and the override are keyed on one.
+        getAdminSubscriptions: builder.query<
+            PaginatedData<AdminGroupSubscriptionRow>,
+            GetAdminSubscriptionsArgs
         >({
-            query: ({ userId, ...body }) => ({ url: `/admin/users/${userId}/plan`, method: 'POST', body }),
+            query: ({ page, limit, search, plan, sort }) => ({
+                url: '/admin/subscriptions',
+                params: {
+                    page,
+                    limit,
+                    ...(search ? { search } : {}),
+                    ...(plan ? { plan } : {}),
+                    ...(sort ? { sort } : {}),
+                },
+            }),
+            transformResponse: (res: { data: PaginatedData<AdminGroupSubscriptionRow> }) => res.data,
+            providesTags: ['Admin'],
+        }),
+        overrideGroupPlan: builder.mutation<
+            { subscription: PlanView },
+            { groupId: string; plan: PlanTier; cycle?: BillingCycle; expiresAt?: string }
+        >({
+            query: ({ groupId, ...body }) => ({ url: `/admin/groups/${groupId}/plan`, method: 'POST', body }),
             transformResponse: (res: { data: { subscription: PlanView } }) => res.data,
-            invalidatesTags: ['Admin'],
+            // The group's own cache entry holds the entitlement the app gates on.
+            invalidatesTags: (_r, _e, { groupId }) => ['Admin', { type: 'Group', id: groupId }, 'Group'],
         }),
 
         // Promo codes
@@ -112,7 +139,8 @@ export const {
     useRestoreUserMutation,
     useDeleteAdminUserMutation,
     useHardDeleteAdminUserMutation,
-    useOverrideUserPlanMutation,
+    useGetAdminSubscriptionsQuery,
+    useOverrideGroupPlanMutation,
     useGetPromosQuery,
     useCreatePromoMutation,
     useDeactivatePromoMutation,
