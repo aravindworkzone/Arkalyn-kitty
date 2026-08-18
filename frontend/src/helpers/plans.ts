@@ -142,8 +142,6 @@ export const canExport = (sub: PlanView | null | undefined): boolean => {
     return Boolean(PUBLIC_PLANS[sub.storedTier]?.features.dataExport);
 };
 
-// Headline feature lines shown on each tier card (mirrors PricingPage.featureLines).
-// Every line describes what the tier grants THE GROUP it is bought for.
 export const planFeatureLines = (tier: PlanTier, cfg: PlanConfig): string[] => {
     const l = cfg.limits;
     const lines = [
@@ -161,11 +159,6 @@ export const planFeatureLines = (tier: PlanTier, cfg: PlanConfig): string[] => {
     if (cfg.features.cloneGroup) lines.push('Clone this group in one click');
     if (cfg.features.linkGroups) lines.push('Receive funding from other groups');
     if (cfg.features.dataExport) lines.push('CSV export & auditor pack');
-    // `contributionRequests` is deliberately NOT advertised. The flag exists and
-    // is set on Organization, but the collect-by-UPI flow it names is not built.
-    // A pricing bullet is a promise at the moment money changes hands, so it goes
-    // on this list when the route exists — not before.
     if (cfg.features.prioritySupport) lines.push('Priority support');
-    if (tier === 'ORG') lines.push('Everything unlimited');
     return lines;
 };
