@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import MemberAvatars from "../ListMember";
 import RoleBadge from "../ui/RoleBadge";
 import type { Group } from "../../interface/group";
+import { hasUpgradeAvailable } from "../../helpers/plans";
 
 interface Props {
   group: Group | undefined;
@@ -29,7 +30,7 @@ export default function GroupSummaryCard({ group, role, memberNames, totalContri
   const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
   const isClosed = group?.status === "CLOSED";
   const tier = group?.subscription?.tier ?? "FREE";
-  const canUpgrade = isAdmin && !isClosed && tier !== "PREMIUM";
+  const canUpgrade = isAdmin && !isClosed && hasUpgradeAvailable(tier);
 
   const tierChip =
     tier === "FREE"

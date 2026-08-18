@@ -17,6 +17,10 @@ export type PlanStatus = 'active' | 'grace' | 'expired';
 
 export interface EffectivePlan {
     tier: Plan; // entitlement tier (FREE once a paid plan lapses past grace)
+    // What the group actually bought, regardless of whether it is still live.
+    // `tier` collapses to FREE on lapse, which loses the information needed to
+    // answer "did this group ever pay for X?" — the question data export asks.
+    storedTier: Plan;
     status: PlanStatus;
     isReadOnly: boolean; // true when downgraded — over-limit writes are frozen
     config: PlanConfig;
@@ -63,6 +67,7 @@ export const getEffectivePlan = (holder: PlanHolderFields): EffectivePlan => {
     const config = PLANS[tier];
     return {
         tier,
+        storedTier,
         status,
         isReadOnly,
         config,
@@ -136,6 +141,10 @@ export const retentionFloor = (eff: EffectivePlan, kind: 'event' | 'transaction'
 // config blob; the limits/features are what the UI gates on).
 export const toPlanView = (eff: EffectivePlan) => ({
     tier: eff.tier,
+    // Shipped so the client can reproduce the survives-lapse export rule. Without
+    // it a lapsed Pro group and a lapsed Organization group are indistinguishable
+    // — both report tier FREE — and the UI would offer an export the API refuses.
+    storedTier: eff.storedTier,
     status: eff.status,
     isReadOnly: eff.isReadOnly,
     planExpiresAt: eff.planExpiresAt,
@@ -161,5 +170,41 @@ export const assertFeature = (
 ): void => {
     if (!eff.features[feature]) {
         throw new AppError(message ?? 'This feature requires a paid plan', 402);
+    }
+};
+
+// Data export is the one entitlement that outlives the subscription.
+//
+// Every other gate freezes on lapse, which is correct: an expired group should
+// not gain members or open new funding links. Export is different because the
+// records already exist and they are the customer's, not ours. A treasurer whose
+// card expired mid-audit must still be able to hand a CSV to the auditor —
+// holding that hostage is the fastest possible way to lose an institutional
+// account, and it converts a renewal conversation into a chargeback.
+//
+// So this reads the STORED tier, not the effective one: it asks "did this group
+// ever pay for export?" rather than "is it paid right now?". Closed groups
+// resolve through their planSnapshot for the same reason.
+export const canExportData = async (
+    groupId: mongoose.Types.ObjectId | string,
+    session?: ClientSession
+): Promise<boolean> => {
+    // Routed through getGroupPlan rather than re-reading the group, so the closed
+    // -group snapshot rule and the missing-group fallback stay defined in exactly
+    // one place. Only the tier it resolves is read differently: `storedTier`
+    // instead of `tier`.
+    const eff = await getGroupPlan(groupId, session);
+    return PLANS[eff.storedTier].features.dataExport;
+};
+
+export const assertCanExport = async (
+    groupId: mongoose.Types.ObjectId | string,
+    session?: ClientSession
+): Promise<void> => {
+    if (!(await canExportData(groupId, session))) {
+        throw new AppError(
+            'Exporting records requires the Organization plan.',
+            402
+        );
     }
 };

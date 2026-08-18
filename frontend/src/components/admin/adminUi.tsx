@@ -64,6 +64,7 @@ const TIER_TONE: Record<string, BadgeTone> = {
     FREE: 'gray',
     PRO: 'brand',
     PREMIUM: 'warning',
+    ORG: 'warning',
 };
 
 export function TierBadge({ tier }: { tier: string }) {

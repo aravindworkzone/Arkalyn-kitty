@@ -6,6 +6,7 @@ import { useGetGroupByIdQuery } from "../redux/api/group";
 // entitlements.
 export const FREE_VIEW: PlanView = {
     tier: 'FREE',
+    storedTier: 'FREE',
     status: 'active',
     isReadOnly: false,
     planExpiresAt: null,
@@ -15,7 +16,15 @@ export const FREE_VIEW: PlanView = {
         eventLogRetentionDays: 15,
         transactionLogRetentionDays: 30,
     },
-    features: { advancedReportRange: false, cloneGroup: false, linkGroups: false, memberRole: false },
+    features: {
+        advancedReportRange: false,
+        cloneGroup: false,
+        linkGroups: false,
+        memberRole: false,
+        dataExport: false,
+        contributionRequests: false,
+        prioritySupport: false,
+    },
 };
 
 // Reads ONE GROUP's effective plan from the cached group query, so any component

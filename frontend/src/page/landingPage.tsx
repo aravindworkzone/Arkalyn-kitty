@@ -411,7 +411,10 @@ function Features() {
 const PRICING_THEME: Record<PlanTier, { accent: string; chip: string }> = {
   FREE: { accent: "text-fg-muted", chip: "bg-surface-hover text-fg-muted" },
   PRO: { accent: "text-brand-500", chip: "bg-brand-100 dark:bg-brand-950/40 text-brand-500" },
+  // LEGACY — kept only so a group still on the retired tier renders; TIER_ORDER
+  // never yields it, so no pricing card uses this entry.
   PREMIUM: { accent: "text-warning-500", chip: "bg-warning-100 dark:bg-warning-950/40 text-warning-500" },
+  ORG: { accent: "text-warning-500", chip: "bg-warning-100 dark:bg-warning-950/40 text-warning-500" },
 };
 
 function Pricing() {

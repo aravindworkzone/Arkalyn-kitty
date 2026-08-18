@@ -51,7 +51,8 @@ function OverrideRow({ group, onDone }: { group: AdminGroupSubscriptionRow; onDo
                 <select value={plan} onChange={(e) => setPlan(e.target.value as PlanTier)} className={inputCls}>
                     <option value="FREE">Free</option>
                     <option value="PRO">Pro</option>
-                    <option value="PREMIUM">Premium</option>
+                    <option value="ORG">Organization</option>
+                    <option value="PREMIUM">Premium (legacy)</option>
                 </select>
                 {plan !== 'FREE' && (
                     <select value={cycle} onChange={(e) => setCycle(e.target.value as BillingCycle)} className={inputCls}>
@@ -107,11 +108,15 @@ export default function SubscriptionsSection() {
         return <div className="h-64 rounded-2xl bg-surface-raised border border-line animate-pulse" />;
     }
 
-    const planBars = (['FREE', 'PRO', 'PREMIUM'] as const).map((t) => ({
-        label: t,
-        value: analytics.planBreakdown[t],
+    const planBars = (['FREE', 'PRO', 'ORG', 'PREMIUM'] as const).map((t) => ({
+        label: t === 'PREMIUM' ? 'PREMIUM (legacy)' : t,
+        value: analytics.planBreakdown[t] ?? 0,
     }));
-    const upgraded = analytics.planBreakdown.PRO + analytics.planBreakdown.PREMIUM;
+    // ORG and its retired PREMIUM twin grant the same thing, so the org-tier
+    // count is their sum — reporting either alone under-counts the paid base.
+    const orgGroups =
+        (analytics.planBreakdown.ORG ?? 0) + (analytics.planBreakdown.PREMIUM ?? 0);
+    const upgraded = (analytics.planBreakdown.PRO ?? 0) + orgGroups;
 
     const items = list?.items ?? [];
     const total = list?.total ?? 0;
@@ -123,7 +128,7 @@ export default function SubscriptionsSection() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <StatCard label="Free groups" value={analytics.planBreakdown.FREE} />
                 <StatCard label="Pro groups" value={analytics.planBreakdown.PRO} />
-                <StatCard label="Premium groups" value={analytics.planBreakdown.PREMIUM} />
+                <StatCard label="Organization groups" value={orgGroups} sub="incl. legacy Premium" />
                 <StatCard label="Upgraded groups" value={upgraded} sub="incl. promo &amp; admin" />
             </div>
 
@@ -160,7 +165,8 @@ export default function SubscriptionsSection() {
                     <option value="">All plans</option>
                     <option value="FREE">Free</option>
                     <option value="PRO">Pro</option>
-                    <option value="PREMIUM">Premium</option>
+                    <option value="ORG">Organization</option>
+                    <option value="PREMIUM">Premium (legacy)</option>
                 </select>
                 <select
                     value={sort}

@@ -4,6 +4,7 @@ import UsersSection from '../../components/admin/UsersSection';
 import PromosSection from '../../components/admin/PromosSection';
 import SubscriptionsSection from '../../components/admin/SubscriptionsSection';
 import AnalyticsSection from '../../components/admin/AnalyticsSection';
+import DemandSection from '../../components/admin/DemandSection';
 import HealthSection from '../../components/admin/HealthSection';
 
 const TABS = [
@@ -11,6 +12,7 @@ const TABS = [
     { id: 'promos', label: 'Promo Codes' },
     { id: 'subscriptions', label: 'Subscriptions' },
     { id: 'analytics', label: 'Analytics' },
+    { id: 'demand', label: 'Demand' },
     { id: 'health', label: 'System Health' },
 ] as const;
 
@@ -50,6 +52,7 @@ export default function AdminDashboard() {
                 {tab === 'promos' && <PromosSection />}
                 {tab === 'subscriptions' && <SubscriptionsSection />}
                 {tab === 'analytics' && <AnalyticsSection />}
+                {tab === 'demand' && <DemandSection />}
                 {tab === 'health' && <HealthSection />}
             </PageContainer>
         </div>

@@ -99,7 +99,7 @@ export default function PromosSection() {
                     <input value={maxUses} onChange={(e) => setMaxUses(e.target.value.replace(/\D/g, ''))} placeholder="Max uses (blank = unlimited)" inputMode="numeric" className={inputCls} />
                     <select value={plan} onChange={(e) => setPlan(e.target.value as PlanTier)} className={inputCls}>
                         <option value="PRO">Pro</option>
-                        <option value="PREMIUM">Premium</option>
+                        <option value="ORG">Organization</option>
                     </select>
                     <select value={cycle} onChange={(e) => setCycle(e.target.value as BillingCycle)} className={inputCls}>
                         <option value="monthly">Monthly (30 days)</option>

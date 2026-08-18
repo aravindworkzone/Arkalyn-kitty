@@ -26,6 +26,7 @@ import GroupRouter from './routes/group.router';
 import GroupLinkRouter from './routes/groupLink.router';
 import JoinLinkRouter from './routes/joinLink.router';
 import ReportRouter from './routes/report.router';
+import ExportRouter from './routes/export.router';
 import UserRouter from './routes/user.router';
 import NotificationRouter from './routes/notification.router';
 import InviteRouter from './routes/invite.router';
@@ -86,6 +87,12 @@ app.use(
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+        // The CSV export composes its filename server-side (`Grp-25-001-ledger-
+        // 2026-08-16.csv`). Cross-origin JS can only read a response header if it
+        // is named here, and the frontend is on a different origin in every
+        // environment — so without this the download silently falls back to the
+        // client's undated guess, and monthly exports collide instead of stacking.
+        exposedHeaders: ['Content-Disposition'],
         maxAge: 86400,
     })
 );
@@ -99,6 +106,7 @@ app.use('/api/group', GroupRouter);
 app.use('/api/grouplink', GroupLinkRouter);
 app.use('/api/joinlink', JoinLinkRouter);
 app.use('/api/groupreport', ReportRouter);
+app.use('/api/export', ExportRouter);
 app.use('/api/user', UserRouter);
 app.use('/api/notifications', NotificationRouter);
 app.use('/api/invite', InviteRouter);

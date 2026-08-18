@@ -45,7 +45,7 @@ export const requireAdvancedReportRange = asyncHandler(
         assertFeature(
             groupPlan,
             'advancedReportRange',
-            'Custom report date ranges require a Pro or Premium plan.'
+            'Custom report date ranges require a Pro or Organization plan.'
         );
         next();
     }
@@ -75,7 +75,7 @@ export const requireGroupLinking = asyncHandler(
         assertFeature(
             groupPlan,
             'linkGroups',
-            'Receiving funding from another group requires a Pro or Premium plan.'
+            'Receiving funding from another group requires a Pro or Organization plan.'
         );
         next();
     }
@@ -101,7 +101,7 @@ export const requireLinkHostPlan = asyncHandler(
         assertFeature(
             hostPlan,
             'linkGroups',
-            "The group being funded is on the Free plan. It needs Pro or Premium to receive funding from another group."
+            "The group being funded is on the Free plan. It needs Pro or Organization to receive funding from another group."
         );
         next();
     }

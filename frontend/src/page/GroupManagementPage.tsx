@@ -28,6 +28,7 @@ import {
   UpgradeNote,
 } from "../components/ui";
 import { useGroupPlan } from "../hooks/usePlan";
+import ExportPanel from "../components/group/ExportPanel";
 import {
   ManagementTabs,
   tabId,
@@ -99,7 +100,7 @@ export default function GroupManagementPage() {
   // Member headroom on THIS group's plan. The backend rejects the invite at the
   // cap (402), so warning here is the difference between "the form explained
   // why" and "the form failed". `null` means unlimited — never warn on Premium.
-  const { limits: planLimits, features: planFeatures, tier: planTier } = useGroupPlan(groupId);
+  const { limits: planLimits, features: planFeatures, tier: planTier, plan } = useGroupPlan(groupId);
   const memberCap = planLimits.maxMembersPerGroup;
   const memberCount = GroupMembers?.length ?? 0;
   const memberSeatsLeft = memberCap === null ? null : Math.max(0, memberCap - memberCount);
@@ -157,10 +158,13 @@ export default function GroupManagementPage() {
    * A member deep-linking to an admin tab falls back to what their role can see,
    * so the URL can never open a panel the role isn't allowed to act on.
    */
+  // "export" sits with the admin tabs rather than behind a plan check: an
+  // unentitled group still sees the tab and the upsell inside it, which is the
+  // point — a treasurer discovering the feature is how the tier gets sold.
   const allowedTabs: SettingsTab[] = isSuperAdmin
-    ? ["addMember", "changeRole", "contribution", "settlement", "requests", "danger"]
+    ? ["addMember", "changeRole", "contribution", "settlement", "requests", "export", "danger"]
     : isAdmin
-      ? ["addMember", "contribution", "settlement", "requests", "danger"]
+      ? ["addMember", "contribution", "settlement", "requests", "export", "danger"]
       : ["danger"];
 
   const tabParam = searchParams.get("tab") as SettingsTab | null;
@@ -188,6 +192,7 @@ export default function GroupManagementPage() {
         : t("groupDetail.tabRequests"),
       show: isAdmin,
     },
+    { id: "export",       label: t("groupDetail.tabExport", "Export"), show: isAdmin },
     { id: "danger",       label: t("groupDetail.tabDanger"),       show: !!role },
   ];
 
@@ -391,6 +396,14 @@ export default function GroupManagementPage() {
                 />
               </div>
             </div>
+          )}
+
+          {activeTab === "export" && groupId && (
+            <ExportPanel
+              groupId={groupId}
+              subscription={plan}
+              isAdmin={isAdmin}
+            />
           )}
 
           {activeTab === "danger" && (

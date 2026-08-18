@@ -9,7 +9,15 @@ import { logger } from '../utils/logger';
 import { toDBAmount } from '../helpers/Money';
 import { createRazorpayOrder, verifyPaymentSignature, verifyWebhookSignature, getFullRazorpayDetails, refundPayment, isRazorpayConfigured } from '../utils/razorpay';
 import { getEffectivePlan, toPlanView } from '../helpers/planLimits';
-import { PLANS, PLAN_RANK, BILLING_PERIOD_DAYS, type Plan, type BillingCycle } from '../config/constants';
+import {
+    PLANS,
+    PLAN_RANK,
+    BILLING_PERIOD_DAYS,
+    SELLABLE_TIERS,
+    isSellablePlan,
+    type Plan,
+    type BillingCycle,
+} from '../config/constants';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -60,8 +68,13 @@ const applyGrantToGroup = async (
 // flag the UI can only discover payments are off by taking the user through a
 // checkout that then fails. Promo redemption never touches the gateway, so it
 // stays available either way — which is what the UI steers to.
+// `plans` still carries every tier, legacy PREMIUM included, so a group sitting
+// on one can render its own entitlements. `sellable` is the ordered list the
+// pricing table draws — the UI must not infer purchasability from the catalogue
+// keys, or a retired tier reappears on the checkout page.
 export const getPlansService = () => ({
     plans: PLANS,
+    sellable: SELLABLE_TIERS,
     paymentsEnabled: isRazorpayConfigured,
 });
 
@@ -77,6 +90,15 @@ export const createSubscriptionOrderService = async (
     cycle: BillingCycle
 ) => {
     if (plan === 'FREE') throw new AppError('The Free plan does not require payment', 400);
+    // Defence in depth behind the validator's enum: promo grants, admin
+    // overrides and the MCP surface all reach plan values from other routes, and
+    // a retired tier must never be reachable by checkout from any of them.
+    if (!isSellablePlan(plan)) {
+        throw new AppError(
+            `The ${PLANS[plan].name} plan is no longer sold. Choose ${SELLABLE_TIERS.filter((t) => t !== 'FREE').join(' or ')}.`,
+            400
+        );
+    }
 
     const group = await Group.findById(groupId).select('plan planExpiresAt status name');
     if (!group) throw new AppError('Group not found', 404);
@@ -87,7 +109,7 @@ export const createSubscriptionOrderService = async (
     const eff = getEffectivePlan({ plan: group.plan, planExpiresAt: group.planExpiresAt });
     if ((eff.status === 'active' || eff.status === 'grace') && PLAN_RANK[eff.tier] > PLAN_RANK[plan]) {
         throw new AppError(
-            `This group is on the ${eff.tier} plan; downgrading it to ${plan} isn't allowed while that's active.`,
+            `This group is on the ${PLANS[eff.tier].name} plan; downgrading it to ${PLANS[plan].name} isn't allowed while that's active.`,
             400
         );
     }
@@ -328,7 +350,7 @@ export const redeemPromoCodeService = async (
     }
     const eff = getEffectivePlan({ plan: group.plan, planExpiresAt: group.planExpiresAt });
     if ((eff.status === 'active' || eff.status === 'grace') && PLAN_RANK[eff.tier] > PLAN_RANK[promo.plan]) {
-        throw new AppError(`This group is already on the ${eff.tier} plan, which is higher than this code grants.`, 400);
+        throw new AppError(`This group is already on the ${PLANS[eff.tier].name} plan, which is higher than this code grants.`, 400);
     }
 
     const session = await mongoose.startSession();

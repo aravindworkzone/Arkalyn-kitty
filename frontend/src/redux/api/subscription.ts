@@ -1,9 +1,9 @@
 import { api } from "./base";
 import type {
-    PlansResponse,
+    PlansEnvelope,
     CreateOrderResponse,
     PlanView,
-    PlanTier,
+    SellableTier,
     BillingCycle,
     SubscriptionTransaction,
 } from "../../interface/subscription";
@@ -13,15 +13,19 @@ export const subscription = api.injectEndpoints({
         // `paymentsEnabled` is false when the deployment has no Razorpay keys.
         // Checkout would 503, so the UI disables it up front and points at promo
         // codes, which never touch the gateway.
-        getPlans: builder.query<{ plans: PlansResponse; paymentsEnabled: boolean }, void>({
+        getPlans: builder.query<PlansEnvelope, void>({
             query: () => '/subscription/plans',
-            transformResponse: (res: { data: { plans: PlansResponse; paymentsEnabled: boolean } }) => res.data,
+            transformResponse: (res: { data: PlansEnvelope }) => res.data,
         }),
         // Checkout is always for one group — the backend authorizes the caller as
         // an admin of it before creating the order.
+        //
+        // `SellableTier`, not `PlanTier`: the retired PREMIUM value is
+        // unreachable from checkout at the type level, matching the server's
+        // enum. A legacy group renews onto ORG.
         createSubscriptionOrder: builder.mutation<
             CreateOrderResponse,
-            { groupId: string; plan: PlanTier; cycle: BillingCycle }
+            { groupId: string; plan: SellableTier; cycle: BillingCycle }
         >({
             query: (body) => ({ url: '/subscription/order', method: 'POST', body }),
             transformResponse: (res: { data: { order: CreateOrderResponse } }) => res.data.order,

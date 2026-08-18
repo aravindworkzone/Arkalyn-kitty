@@ -44,6 +44,8 @@ const COMPARISON: { label: string; value: (t: PlanTier) => string }[] = [
     { label: 'One-click group clone', value: (t) => (PUBLIC_PLANS[t].features.cloneGroup ? 'Yes' : '—') },
     { label: 'Receive funding from other groups', value: (t) => (PUBLIC_PLANS[t].features.linkGroups ? 'Yes' : '—') },
     { label: 'Fund another group', value: () => 'Yes' },
+    { label: 'CSV export & auditor pack', value: (t) => (PUBLIC_PLANS[t].features.dataExport ? 'Yes' : '—') },
+    { label: 'Priority support', value: (t) => (PUBLIC_PLANS[t].features.prioritySupport ? 'Yes' : '—') },
 ];
 
 const TOC: [string, string][] = [
@@ -61,7 +63,9 @@ const TOC: [string, string][] = [
 const TIER_ACCENT: Record<PlanTier, string> = {
     FREE: 'text-fg-muted',
     PRO: 'text-brand-500',
+    // LEGACY — no longer sold; retained so an existing group renders correctly.
     PREMIUM: 'text-warning-500',
+    ORG: 'text-warning-500',
 };
 
 export default function SubscriptionPlansPage() {
@@ -140,7 +144,7 @@ export default function SubscriptionPlansPage() {
                             required, and you upgrade only the ones that outgrow it. As a group gets larger or needs longer history and
                             advanced reports, two paid tiers —{' '}
                             <strong className="text-brand-600 dark:text-brand-400">Pro</strong> and{' '}
-                            <strong className="text-warning-600 dark:text-warning-400">Premium</strong> — raise its limits and unlock extra
+                            <strong className="text-warning-600 dark:text-warning-400">Organization</strong> — raise its limits and unlock extra
                             features for everyone in it.
                         </p>
                         <p>

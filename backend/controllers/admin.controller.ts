@@ -15,11 +15,13 @@ import {
     getPromoRedemptionsService,
     getAnalyticsService,
     getHealthService,
+    getDemandService,
 } from '../services/admin.service';
 import {
     listUsersQuerySchema,
     listSubscriptionsQuerySchema,
     analyticsQuerySchema,
+    demandQuerySchema,
 } from '../validators/admin.validator';
 
 // ── Users ──
@@ -93,6 +95,14 @@ export const Analytics = asyncHandler(async (req, res) => {
     const { granularity } = analyticsQuerySchema.parse(req.query);
     const data = await getAnalyticsService(granularity);
     sendSuccess(res, data, 'Analytics');
+});
+
+// What people hit a paywall trying to do. Drives pricing, not vanity metrics —
+// see getDemandService.
+export const Demand = asyncHandler(async (req, res) => {
+    const { days } = demandQuerySchema.parse(req.query);
+    const data = await getDemandService(days);
+    sendSuccess(res, data, 'Demand signal');
 });
 
 export const Health = asyncHandler(async (_req, res) => {
