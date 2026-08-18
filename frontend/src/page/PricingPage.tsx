@@ -406,7 +406,7 @@ export default function PricingPage() {
                                 {c === 'monthly' ? 'Monthly' : 'Yearly'}
                                 {c === 'yearly' && (
                                     <span className="ml-2 text-theme-2xs font-bold px-1.5 py-0.5 rounded bg-success-500/20 text-success-300 align-middle">
-                                        7 MONTHS FREE
+                                        2 MONTHS FREE
                                     </span>
                                 )}
                             </button>
