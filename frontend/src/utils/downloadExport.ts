@@ -1,13 +1,4 @@
-// CSV downloads bypass RTK Query.
-//
-// RTK Query is built to cache a parsed JSON body keyed by argument; an export is
-// a one-shot binary-ish response with a filename in a header and no cacheable
-// identity. Forcing it through the store would keep whole ledgers in memory and
-// still need a manual blob step at the end. A direct fetch is the honest shape —
-// it just has to reproduce base.ts's two behaviours: send cookies, and retry
-// once behind a refresh on 401.
-
-const API = import.meta.env.VITE_API_URL;
+const API = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '');
 
 export type ExportSheet = 'ledger' | 'expenses' | 'members' | 'audit-pack';
 
@@ -18,9 +9,6 @@ export class ExportError extends Error {
     }
 }
 
-// Content-Disposition wins over a client-guessed name: the server already
-// composed `Grp-25-001-ledger-2026-08-16.csv`, and duplicating that format here
-// is how the two drift. Falls back only if the header is missing.
 const filenameFrom = (res: Response, fallback: string): string => {
     const cd = res.headers.get('Content-Disposition') ?? '';
     const match = /filename="?([^"]+)"?/.exec(cd);

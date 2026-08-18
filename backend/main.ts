@@ -87,6 +87,12 @@ app.use(
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+        // The CSV export composes its filename server-side (`Grp-25-001-ledger-
+        // 2026-08-16.csv`). Cross-origin JS can only read a response header if it
+        // is named here, and the frontend is on a different origin in every
+        // environment — so without this the download silently falls back to the
+        // client's undated guess, and monthly exports collide instead of stacking.
+        exposedHeaders: ['Content-Disposition'],
         maxAge: 86400,
     })
 );
