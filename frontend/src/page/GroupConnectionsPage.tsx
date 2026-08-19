@@ -12,6 +12,7 @@ import {
   useRevokeLinkMutation,
 } from "../redux/api/groupLink";
 import { useGroupPlan } from "../hooks/usePlan";
+import { useGroupType } from "../hooks/useGroupType";
 import type { Group } from "../interface/group";
 import type { GroupLink, GroupLinkStatus, LinkedGroupRef } from "../interface/groupLink";
 import {
@@ -61,6 +62,7 @@ export default function GroupConnectionsPage() {
   // sees live controls in a group someone else upgraded, and nobody is shown an
   // upsell for a group that is already Pro.
   const { features } = useGroupPlan(groupId);
+  const { features: groupTypeFeatures } = useGroupType(groupId);
 
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [sourceRef, setSourceRef] = useState("");
@@ -98,6 +100,15 @@ export default function GroupConnectionsPage() {
   // Declining and removing are never gated at all: saying no, and unwinding
   // something already agreed, must work on any plan.
   const canRequestFunding = isAdmin && features.linkGroups && !isClosed;
+  // Whether THIS group may bankroll another — a property of its type, not its
+  // plan. Only a Reserve group can. Independent of canRequestFunding above, which
+  // is about being funded: those are opposite directions and gated differently
+  // (the host pays for the connection, the source never does).
+  //
+  // Existing ACTIVE links are grandfathered on the API side, so this hides the
+  // "no outgoing links" copy and nothing else — a non-Reserve group that already
+  // funds someone keeps its rows and its send-funds form.
+  const canFundOthers = groupTypeFeatures.fundOthers;
   const canActOnOutgoing = isAdmin && !isClosed;
 
   const run = async (fn: () => Promise<unknown>, okText: string) => {
@@ -338,7 +349,7 @@ export default function GroupConnectionsPage() {
                 <p className="text-theme-xs text-fg-muted">
                   {t(
                     "connections.requestHint",
-                    "Enter the other group's ID (like Grp-25-001). Their admins have to accept before any money can move."
+                    "Enter the ID of a Reserve group (like Grp-25-001). Only a Reserve group can fund another group, and its admins have to accept before any money can move."
                   )}
                 </p>
                 <div className="flex items-start gap-2">
@@ -370,8 +381,16 @@ export default function GroupConnectionsPage() {
             {linksLoading ? (
               <div className="h-16 rounded-lg bg-surface-hover animate-pulse" />
             ) : outgoing.length === 0 ? (
+              // Two different empty states, because they mean different things. A
+              // non-Reserve group is not "not funding anyone yet" — it can never
+              // fund anyone, and saying so stops an admin hunting for the button.
               <p className="text-theme-xs text-fg-muted">
-                {t("connections.noOutgoing", "This group isn't funding any other group.")}
+                {canFundOthers
+                  ? t("connections.noOutgoing", "This group isn't funding any other group.")
+                  : t(
+                      "connections.cannotFund",
+                      "Only a Reserve group can fund another group. Create a Reserve group to pool money and bankroll this one."
+                    )}
               </p>
             ) : (
               <div className="space-y-3">

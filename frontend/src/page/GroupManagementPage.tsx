@@ -28,6 +28,7 @@ import {
   UpgradeNote,
 } from "../components/ui";
 import { useGroupPlan } from "../hooks/usePlan";
+import { groupTypeI18nKey, groupTypeLabel } from "../helpers/groupTypes";
 import ExportPanel from "../components/group/ExportPanel";
 import {
   ManagementTabs,
@@ -264,6 +265,29 @@ export default function GroupManagementPage() {
                 )
           }
         />
+
+        {/* The group's type, stated read-only. There is no control to change it
+            because there is no route that can: the type decides which features the
+            group has, and a group that switched type would carry data — expenses in
+            a Reserve, funding links in a Family — that its new type has no meaning
+            for. Showing it inert is better than hiding it, since a member wondering
+            why this group has no expenses page needs the answer somewhere. */}
+        {GroupDetails?.purpose && (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="text-theme-2xs uppercase tracking-widest text-fg-muted">
+              {t("groupManagement.groupType", "Group type")}
+            </span>
+            <span
+              className="text-theme-2xs font-semibold px-2 py-0.5 rounded-md border border-line bg-surface-hover text-fg"
+              translate="no"
+            >
+              {t(groupTypeI18nKey(GroupDetails.purpose), groupTypeLabel(GroupDetails.purpose))}
+            </span>
+            <span className="text-theme-2xs text-fg-muted">
+              {t("groupManagement.groupTypeLocked", "Chosen when the group was created and cannot be changed.")}
+            </span>
+          </div>
+        )}
 
         <ManagementTabs
           tabs={tabs}

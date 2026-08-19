@@ -26,6 +26,7 @@ import {
   UpgradeNote,
 } from "../components/ui";
 import { useGroupPlan } from "../hooks/usePlan";
+import { useGroupType } from "../hooks/useGroupType";
 import { centsToRupeeInput, rupeesToCents, formatCents } from "../helpers/money";
 import { useTranslation } from "react-i18next";
 
@@ -34,11 +35,20 @@ export default function CategoryPage() {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
 
+  // A Reserve group records no expenses, so an expense category would be a bucket
+  // nothing can go into. It gets the credit side only — which is the side it
+  // actually needs, to file the contributions it receives.
+  const { features: groupFeatures } = useGroupType(groupId);
+  const canRecordExpenses = groupFeatures.expenses;
+
   // Manage both expense and credit categories from this page via a toggle.
   const [categoryType, setCategoryType] = useState<CategoryType>("EXPENSE");
-  const isCredit = categoryType === "CREDIT";
+  // Forced to CREDIT for a Reserve group. Derived rather than pushed into state so
+  // it cannot briefly render EXPENSE before an effect corrects it.
+  const effectiveType: CategoryType = canRecordExpenses ? categoryType : "CREDIT";
+  const isCredit = effectiveType === "CREDIT";
 
-  const { handleAdd, handleEditCategory, handleToggleSpecial, handleDelete, isCreating, isUpdating, isDeleting } = useCategoryHandlers(groupId, categoryType);
+  const { handleAdd, handleEditCategory, handleToggleSpecial, handleDelete, isCreating, isUpdating, isDeleting } = useCategoryHandlers(groupId, effectiveType);
   const { data: expenseData, isLoading: expenseLoading } = useGetCategoriesQuery(groupId!);
   const { data: creditData, isLoading: creditLoading } = useGetCreditCategoriesQuery(groupId!);
   const data = isCredit ? creditData : expenseData;
@@ -72,7 +82,7 @@ export default function CategoryPage() {
 
   useEffect(() => {
     setCategories(data ?? []);
-  }, [data, categoryType]);
+  }, [data, effectiveType]);
 
   // Category headroom on THIS group's plan. The cap is per group across both
   // types, so both lists count toward it — matching the backend's count.
@@ -132,6 +142,9 @@ export default function CategoryPage() {
         />
 
         {/* ── Expense / Credit toggle ── */}
+        {/* Hidden entirely for a Reserve group: a toggle with one reachable side
+            is a control that does nothing. */}
+        {canRecordExpenses ? (
         <div className="mb-2">
           <SegmentedToggle
             options={[
@@ -149,6 +162,7 @@ export default function CategoryPage() {
             ariaLabel={t("createCategory.label")}
           />
         </div>
+        ) : null}
 
         {/* ── 01 Create ── */}
         <FormSection step="01" title={t("createCategory.newCategory")} contentClass="px-5 py-4 space-y-4">

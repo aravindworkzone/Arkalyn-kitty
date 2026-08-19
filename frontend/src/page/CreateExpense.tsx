@@ -41,6 +41,7 @@ import {
   Spinner,
   LimitMeter,
   PageContainer,
+  PageHeader,
 } from "../components/ui";
 import DuplicateNoticeBar from "../components/ui/DuplicateNoticeBar";
 import DuplicateExpenseModal from "../components/ui/DuplicateExpenseModal";
@@ -114,6 +115,10 @@ export default function CreateExpensePage() {
   const { data: groupLinks } = useGetGroupLinksQuery(groupId!, {
     skip: !groupId,
   });
+  // Reserve groups hold funds rather than spending them. `features` is resolved
+  // server-side; default to allowed while the group is still loading so the form
+  // never flickers into the blocked state for a group that isn't a Reserve.
+  const blockNewExpense = !isEdit && groupDetails?.features?.expenses === false;
   const { data: editExpense } = useGetExpenseByIdQuery(
     { groupId: groupId!, expenseId: expenseId! },
     { skip: !isEdit || !groupId },
@@ -668,6 +673,43 @@ export default function CreateExpensePage() {
       {name.slice(0, 2).toUpperCase()}
     </span>
   );
+
+  // A Reserve group records no expenses. Guarded on the page itself, not only on
+  // the affordances that lead here, because this route is also reachable by deep
+  // link and by the global keyboard shortcut — and the API would refuse the save
+  // anyway, so the form must not pretend otherwise.
+  //
+  // Creation only. Editing stays open: a Reserve group whose purpose predates this
+  // rule may already carry expenses, and they have to remain correctable.
+  if (blockNewExpense) {
+    return (
+      <div className="min-h-screen bg-surface text-fg">
+        <PageBackground />
+        <PageContainer width="form">
+          <PageHeader
+            accent="warning"
+            icon={
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path
+                  d="M7 1.5 12.5 12H1.5L7 1.5ZM7 5.5v3M7 10.2v.3"
+                  stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"
+                />
+              </svg>
+            }
+            label={t("createExpense.reserveLabel", "Reserve group")}
+            title={t("createExpense.reserveTitle", "This group doesn't record expenses")}
+            description={t(
+              "createExpense.reserveMessage",
+              "A Reserve group holds funds for your other groups. Send money to a connected group and record the spending there."
+            )}
+          />
+          <Button variant="secondary" onClick={() => navigate(`/groups/${groupId}`)}>
+            {t("createExpense.reserveAction", "Back to group")}
+          </Button>
+        </PageContainer>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-surface text-fg">

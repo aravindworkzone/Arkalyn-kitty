@@ -196,6 +196,9 @@ export const userGroupsService = async (userId: mongoose.Types.ObjectId) => {
                 // Frozen plan captured at close — lets the card badge the group's
                 // historical tier even after that plan lapses. null for open groups.
                 planSnapshot: '$group.planSnapshot',
+                // The group's type, so a card can badge it and the sidebar can gate
+                // per-group nav without fetching each group's detail payload.
+                purpose: '$group.purpose',
                 isFavorite: { $ifNull: ['$isFavorite', false] },
                 balance: { $divide: ['$group.balance', 100] },
                 members: {

@@ -18,6 +18,7 @@ export const SOCKET_EVENTS = {
     GROUP_SETTLEMENT_COMPLETED: 'group:settlement:completed',
     GROUP_LEAVE_REQUEST_UPDATED: 'group:leave:request:updated',
     GROUP_LINK_UPDATED: 'group:link:updated',
+    CHIT_UPDATED: 'chit:updated',
     GROUP_DELETED: 'group:deleted',
 
     ACTIVITY_EVENT: 'activity:event',
@@ -54,6 +55,7 @@ export interface ServerToClientEvents {
     [SOCKET_EVENTS.GROUP_SETTLEMENT_COMPLETED]: (payload?: unknown) => void;
     [SOCKET_EVENTS.GROUP_LEAVE_REQUEST_UPDATED]: (payload?: unknown) => void;
     [SOCKET_EVENTS.GROUP_LINK_UPDATED]: (payload?: unknown) => void;
+    [SOCKET_EVENTS.CHIT_UPDATED]: (payload?: unknown) => void;
     [SOCKET_EVENTS.GROUP_DELETED]: (payload?: unknown) => void;
     [SOCKET_EVENTS.ACTIVITY_EVENT]: (payload?: unknown) => void;
     [SOCKET_EVENTS.NOTIFICATION_NEW]: (payload?: unknown) => void;

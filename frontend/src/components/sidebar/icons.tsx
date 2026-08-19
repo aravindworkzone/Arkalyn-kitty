@@ -71,6 +71,12 @@ export const Link = () => (
     </svg>
 );
 
+export const Cycle = () => (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <path d="M12 7a5 5 0 1 1-1.6-3.7M12 1.6V4.4H9.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
 export const Tag = () => (
     <svg {...S}>
         <path d="M2.8 8.4V3.4a.6.6 0 01.6-.6h5l5.2 5.2a.8.8 0 010 1.2l-4.4 4.4a.8.8 0 01-1.2 0L2.8 8.4z" {...stroke} />

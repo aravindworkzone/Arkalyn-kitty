@@ -1,9 +1,13 @@
 import type { GroupPurpose } from "../models/group.model";
+import type { CategoryType } from "../models/category.model";
 
 export interface DefaultCategory {
     name: string;
     color: string;
     isSpecial?: boolean;
+    // Which side of the ledger this bucket belongs to. Omitted means EXPENSE,
+    // which is what every purpose but RESERVE wants.
+    type?: CategoryType;
 }
 
 export const PURPOSE_DEFAULT_CATEGORIES: Record<GroupPurpose, DefaultCategory[]> = {
@@ -34,13 +38,33 @@ export const PURPOSE_DEFAULT_CATEGORIES: Record<GroupPurpose, DefaultCategory[]>
         { name: "Supplies", color: "#10b981" },
         { name: "Events", color: "#ec4899" },
     ],
+    // A Reserve group cannot record expenses, so these are CREDIT buckets — they
+    // label where incoming money came from, not what it was spent on. They were
+    // always named that way ("Savings", "Emergency Fund"); they were merely
+    // seeded on the wrong side of the ledger before the type meant anything.
+    //
+    // Category names are unique per (group, type), so none of these collides with
+    // the "Other" credit category every group gets automatically.
     RESERVE: [
-        { name: "Personal Funds", color: "#f97316" },
-        { name: "Savings", color: "#06b6d4" },
-        { name: "Emergency Fund", color: "#ef4444" },
-        { name: "Family Funds", color: "#8b5cf6" },
-        { name: "Business Funds", color: "#10b981" },
-        { name: "Shared Fund", color: "#ec4899" },
+        { name: "Personal Funds", color: "#f97316", type: "CREDIT" },
+        { name: "Savings", color: "#06b6d4", type: "CREDIT" },
+        { name: "Emergency Fund", color: "#ef4444", type: "CREDIT" },
+        { name: "Family Funds", color: "#8b5cf6", type: "CREDIT" },
+        { name: "Business Funds", color: "#10b981", type: "CREDIT" },
+        { name: "Shared Fund", color: "#ec4899", type: "CREDIT" },
+    ],
+    // Mirrors FAMILY, because a Chit group has FAMILY's feature set today. Chit
+    // has no starter set of its own on purpose: inventing "Chit Dues" or
+    // "Commission" buckets would presuppose the mechanics of the chit engine,
+    // which is not built yet, and a group cannot delete a category once anything
+    // references it. Revisit when the engine lands.
+    CHIT: [
+        { name: "Chit", color: "#6366f1", isSpecial: true },
+        { name: "Groceries", color: "#10b981" },
+        { name: "Utilities", color: "#06b6d4" },
+        { name: "Rent/EMI", color: "#f59e0b" },
+        { name: "Healthcare", color: "#ef4444" },
+        { name: "Transport", color: "#8b5cf6" },
     ],
     OTHER: [],
 };

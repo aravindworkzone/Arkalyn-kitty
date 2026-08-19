@@ -2,7 +2,7 @@ import {api} from "./base";
 import type { GroupMember } from "../../interface/member";
 import type { GroupTransaction, GroupEvent, GroupCredit, BasicTransactionTotals } from "../../interface/transaction";
 import type { PaginatedData, ApiSuccess } from "../../interface/api";
-import type { Group } from "../../interface/group";
+import type { Group, SelectableGroupPurpose } from "../../interface/group";
 
 // Refund preview returned by GET /group/:id/close-preview.
 export interface GroupClosePreview {
@@ -20,7 +20,7 @@ export interface GroupClosePreview {
 
 export const group = api.injectEndpoints({
     endpoints: (builder) => ({
-        CreateGroup : builder.mutation<ApiSuccess<{ group: Group }>, { name: string; contribution: number; invitees: string[]; purpose: string }>({
+        CreateGroup : builder.mutation<ApiSuccess<{ group: Group }>, { name: string; contribution: number; invitees: string[]; purpose: SelectableGroupPurpose }>({
             query: (credentials) => ({
                 url: '/group/create',
                 method: 'POST',

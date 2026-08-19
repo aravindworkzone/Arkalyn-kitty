@@ -588,7 +588,7 @@ export const mcpAddExpenseService = async (userId: mongoose.Types.ObjectId, inpu
 
     const expense = await createExpenseService({
         user: userId.toString(),
-        group: { _id: group._id.toString(), balance: group.balance },
+        group: { _id: group._id.toString(), balance: group.balance, purpose: group.purpose },
         category: category._id.toString(),
         title: input.title,
         amount: input.amount,
@@ -623,6 +623,7 @@ export const mcpAddCategoryService = async (userId: mongoose.Types.ObjectId, inp
         name: input.name,
         groupId: group._id as mongoose.Types.ObjectId,
         userId,
+        purpose: group.purpose,
         color: input.color?.trim() || undefined,
     });
 

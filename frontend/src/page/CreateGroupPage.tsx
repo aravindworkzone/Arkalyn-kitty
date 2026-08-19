@@ -20,20 +20,16 @@ import {
 import { useTranslation } from "react-i18next";
 import { useSearchUsersQuery, type UserSuggestion } from "../redux/api/user";
 import { useGetUserQuery } from "../redux/api/auth";
-
-const PURPOSE_OPTIONS: { value: string; label: string; hint: string }[] = [
-  { value: "FAMILY",    label: "Family",    hint: "Household & shared bills" },
-  { value: "FRIENDS",   label: "Friends",   hint: "Outings & trips" },
-  { value: "ROOMMATES", label: "Roommates", hint: "Rent & utilities" },
-  { value: "TEAM",      label: "Team",      hint: "Work & events" },
-  { value: "RESERVE",   label: "Reserve",      hint: "Funds kept for the main group" },
-  { value: "OTHER",     label: "Other",     hint: "Start blank" },
-];
+import { GROUP_TYPE_OPTIONS } from "../helpers/groupTypes";
+import type { SelectableGroupPurpose } from "../interface/group";
 
 export default function CreateGroupPage() {
   const { t } = useTranslation();
   const [groupName, setGroupName] = useState("");
-  const [purpose, setPurpose] = useState("OTHER");
+  // No default. The type decides which features the group has and can never be
+  // changed afterwards, so it has to be a deliberate choice rather than whatever
+  // the form happened to start on.
+  const [purpose, setPurpose] = useState<SelectableGroupPurpose | "">("");
   const [members, setMembers] = useState<CreateGroupMember[]>([]);
   const [emailInput, setEmailInput] = useState("");
   const { data: meData } = useGetUserQuery();
@@ -128,10 +124,10 @@ export default function CreateGroupPage() {
             </div>
           </FormSection>
 
-          {/* Step 2 — Purpose */}
-          <FormSection step="02" title={t("createGroup.purposeStep", "Purpose")}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {PURPOSE_OPTIONS.map((opt) => (
+          {/* Step 2 — Group type */}
+          <FormSection step="02" title={t("createGroup.purposeStep", "Group type")}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {GROUP_TYPE_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
@@ -154,8 +150,12 @@ export default function CreateGroupPage() {
               ))}
             </div>
             <p className="text-theme-2xs text-fg-muted mt-2.5">
-              {t("createGroup.purposeNote", "We'll add a starter set of categories for this purpose. You can edit them anytime.")}
+              {t(
+                "createGroup.purposeNote",
+                "This decides what the group can do, and it cannot be changed later. We'll also add a starter set of categories, which you can edit anytime."
+              )}
             </p>
+            {fieldErrors.purpose ? <ErrorMessage error={fieldErrors.purpose} /> : null}
           </FormSection>
 
           {/* Step 3 — Members */}

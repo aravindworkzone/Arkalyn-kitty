@@ -10,6 +10,8 @@ import CreateGroupPage from './page/CreateGroupPage'
 import GroupDetailPage from './page/GroupDetailPage'
 import GroupManagementPage from './page/GroupManagementPage'
 import GroupConnectionsPage from './page/GroupConnectionsPage'
+import ChitPage from './page/ChitPage'
+import ChitSetupPage from './page/ChitSetupPage'
 import JoinGroupPage from './page/JoinGroupPage'
 import CreateCategory from './page/CreateCategory'
 import CreateExpense from './page/CreateExpense'
@@ -76,6 +78,8 @@ function App() {
             <Route path="/groups/:groupId" element={<GroupDetailPage />} />
             <Route path="/groups/:groupId/manage" element={<GroupManagementPage />} />
             <Route path="/groups/:groupId/connections" element={<GroupConnectionsPage />} />
+            <Route path="/groups/:groupId/chit" element={<ChitPage />} />
+            <Route path="/groups/:groupId/chit/setup" element={<ChitSetupPage />} />
             <Route path="/groups/:groupId/expenses" element={<AllExpensesPage />} />
             <Route path="/groups/:groupId/expenses/new" element={<CreateExpense />} />
             <Route path="/groups/:groupId/expenses/:expenseId/edit" element={<CreateExpense />} />

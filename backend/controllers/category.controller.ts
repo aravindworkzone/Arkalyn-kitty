@@ -16,6 +16,7 @@ export const createCategory = asyncHandler(async (req, res) => {
         name,
         groupId: req.group._id,
         userId: req.user._id,
+        purpose: req.group.purpose,
         color: req.body.color,
         type,
         limitCents: req.body.limitCents,

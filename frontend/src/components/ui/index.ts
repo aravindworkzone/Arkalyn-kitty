@@ -18,6 +18,8 @@ export { default as UpgradeNote } from "./UpgradeNote";
 export { default as Switch } from "./Switch";
 export { default as ColorPicker } from "./ColorPicker";
 export { default as LimitMeter } from "./LimitMeter";
+export { default as Meter } from "./Meter";
+export type { MeterTone } from "./Meter";
 export type { BadgeTone } from "./Badge";
 export { default as ThemeToggle } from "./ThemeToggle";
 export { default as Select } from "./Select";

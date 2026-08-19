@@ -1,7 +1,31 @@
 import type { PlanTier, PlanView } from "./subscription";
 
-export const GROUP_PURPOSES = ["FAMILY", "FRIENDS", "ROOMMATES", "TEAM", "OTHER"] as const;
+// Storage enum — mirrors Backend/models/group.model.ts. FRIENDS, ROOMMATES, TEAM
+// and OTHER are LEGACY: existing groups still carry them, but they are not
+// offered on the create form and all resolve to the FAMILY feature set.
+// ⚠️ Keep in sync with Backend/models/group.model.ts → GROUP_PURPOSES.
+export const GROUP_PURPOSES = ["FAMILY", "FRIENDS", "ROOMMATES", "TEAM", "RESERVE", "OTHER", "CHIT"] as const;
 export type GroupPurpose = typeof GROUP_PURPOSES[number];
+
+// The three types offered when creating a group.
+// ⚠️ Keep in sync with Backend/models/group.model.ts → SELECTABLE_GROUP_PURPOSES.
+export const SELECTABLE_GROUP_PURPOSES = ["FAMILY", "CHIT", "RESERVE"] as const;
+export type SelectableGroupPurpose = typeof SELECTABLE_GROUP_PURPOSES[number];
+
+// A group's resolved type: what its purpose means for which features it has.
+export const GROUP_TYPES = ["FAMILY", "CHIT", "RESERVE"] as const;
+export type GroupType = typeof GROUP_TYPES[number];
+
+// ⚠️ Keep in sync with Backend/config/groupTypeFeatures.ts → GroupTypeFeatures.
+export interface GroupTypeFeatures {
+  // May record expenses and create expense categories.
+  expenses: boolean;
+  // May be the source of a funding link — i.e. bankroll another group.
+  fundOthers: boolean;
+  // Runs a chit fund: fixed contributions per cycle, members taking turns to
+  // receive the pot.
+  chit: boolean;
+}
 
 export interface IGroup {
   _id: string;
@@ -36,6 +60,12 @@ export interface Group {
   // Resolved server-side by the same helper the write gates use, so gating UI on
   // it can't disagree with what the API will enforce.
   subscription?: PlanView;
+  // The group's resolved type and the features it grants — present on the
+  // single-group detail view, resolved by the same helper the write gates use.
+  // Named groupTypeName rather than groupType because the schema already has an
+  // unrelated (and unimplemented) groupType: "POOL" | "SPLIT" field.
+  groupTypeName?: GroupType;
+  features?: GroupTypeFeatures;
   // The group's effective tier, flattened onto the group-list cards (which don't
   // carry the full plan view). Closed groups report their frozen snapshot.
   planTier?: PlanTier;

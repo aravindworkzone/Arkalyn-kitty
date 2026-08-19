@@ -278,21 +278,25 @@
     "description": "Name your group and invite members. You set your own contribution; invitees set theirs when they accept.",
     "step1": "Group name",
     "groupNamePlaceholder": "e.g. Goa Trip 2025",
-    "purposeStep": "Purpose",
-    "purposeNote": "We'll add a starter set of categories for this purpose. You can edit them anytime.",
+    "purposeStep": "Group type",
+    "purposeNote": "This decides what the group can do, and it cannot be changed later. We'll also add a starter set of categories, which you can edit anytime.",
     "purpose": {
       "FAMILY": "Family",
       "FRIENDS": "Friends",
       "ROOMMATES": "Roommates",
       "TEAM": "Team",
-      "OTHER": "Other"
+      "OTHER": "Other",
+      "CHIT": "Chit",
+      "RESERVE": "Reserve"
     },
     "purposeHint": {
-      "FAMILY": "Household & shared bills",
+      "FAMILY": "Shared bills, groceries and everyday spending",
       "FRIENDS": "Outings & trips",
       "ROOMMATES": "Rent & utilities",
       "TEAM": "Work & events",
-      "OTHER": "Start blank"
+      "OTHER": "Start blank",
+      "CHIT": "A chit fund group — members contribute and take turns",
+      "RESERVE": "Holds money and funds your other groups. No expenses of its own"
     },
     "step2": "Members",
     "membersAdded": "{{count}} added",
@@ -397,7 +401,11 @@
     "overLimitHint": "You can still save it — this is only a heads-up.",
     "fundedBy": "Funded by",
     "ownWallet": "This group's wallet",
-    "overFundedWarning": "This would tag ₹{{tagged}} to {{group}}, which has contributed ₹{{contributed}}. You can still save it — this is only a heads-up."
+    "overFundedWarning": "This would tag ₹{{tagged}} to {{group}}, which has contributed ₹{{contributed}}. You can still save it — this is only a heads-up.",
+    "reserveLabel": "Reserve group",
+    "reserveTitle": "This group doesn't record expenses",
+    "reserveMessage": "A Reserve group holds funds for your other groups. Send money to a connected group and record the spending there.",
+    "reserveAction": "Back to group"
   },
   "editExpense": {
     "title": "Edit Expense",
@@ -433,7 +441,7 @@
     "outgoingTitle": "Funded by this group",
     "noIncoming": "No other group is funding this one yet.",
     "noOutgoing": "This group isn't funding any other group.",
-    "requestHint": "Enter the other group's ID (like Grp-25-001). Their admins have to accept before any money can move.",
+    "requestHint": "Enter the ID of a Reserve group (like Grp-25-001). Only a Reserve group can fund another group, and its admins have to accept before any money can move.",
     "request": "Request",
     "requestSent": "Request sent. The other group's admins decide next.",
     "awaitingThem": "Waiting for their admins to accept.",
@@ -459,7 +467,8 @@
       "REJECTED": "Declined",
       "REVOKED": "Removed"
     },
-    "drillLabel": "Funded by {{group}}"
+    "drillLabel": "Funded by {{group}}",
+    "cannotFund": "Only a Reserve group can fund another group. Create a Reserve group to pool money and bankroll this one."
   },
   "joinLink": {
     "label": "Invitation",
@@ -632,7 +641,9 @@
     "title": "Group Management",
     "description": "Members, contributions, settlements and requests for this group.",
     "descriptionFor": "Members, contributions and requests for {{group}}.",
-    "backToGroup": "Back to group"
+    "backToGroup": "Back to group",
+    "groupType": "Group type",
+    "groupTypeLocked": "Chosen when the group was created and cannot be changed."
   },
   "closeGroup": {
     "title": "Close Group",
@@ -900,9 +911,128 @@
     "unfavorite": "Remove from favorites",
     "groupSettings": "Group settings",
     "leavePending": "Leave requested",
-    "connections": "Connections"
+    "connections": "Connections",
+    "chit": "Chit"
   },
   "quickAccess": {
     "title": "Quick Access"
+  },
+  "groupType": {
+    "FAMILY": "Family",
+    "CHIT": "Chit",
+    "RESERVE": "Reserve"
+  },
+  "chit": {
+    "label": "Chit",
+    "title": "Chit fund",
+    "description": "{{count}} members paying {{amount}} each cycle — a pot of {{pot}}.",
+    "descriptionEmpty": "A chit fund for this group.",
+    "notStartedTitle": "No chit yet",
+    "noSchemeAdmin": "No chit set up yet. Choose the amount, the members and their turn order to begin.",
+    "noSchemeMember": "This group hasn't set up its chit yet. The group owner starts it.",
+    "setUp": "Set up the chit",
+    "continueSetup": "Continue setup",
+    "draftOrganizer": "This chit is still a draft. Nothing is collected and no turns are fixed until you start it — and starting it locks the amount, the members and the order.",
+    "draftMember": "The chit is being set up. You'll see your amount and dates here once it starts.",
+    "cancelled": "This chit was cancelled. Nothing further is collected — the history below is kept as a record.",
+    "completed": "This chit is finished. All {{total}} cycles were paid out.",
+    "myStatusTitle": "Your contribution",
+    "paidOn": "Paid for cycle {{n}} on {{date}}",
+    "dueOn": "Cycle {{n}} — due {{date}}",
+    "missedBody": "{{amount}} was due on {{date}}. Pay the organiser and ask them to record it.",
+    "offlineHint": "Pay {{name}} directly — they record it here once received.",
+    "arrears": "You also have {{count}} unpaid contribution(s) from earlier cycles — {{amount}} in total.",
+    "notParticipant": "You're not part of this chit, so there's nothing for you to pay. You can still see how it's going.",
+    "turnTitle": "This cycle",
+    "cyclePaid": "Paid out",
+    "cycleCollecting": "Collecting",
+    "turnThisCycle": "Cycle {{n}} of {{total}} goes to {{name}}",
+    "potIs": "Pot: {{amount}}",
+    "collectedAria": "Collected so far this cycle",
+    "collectedOf": "{{collected}} of {{expected}} collected",
+    "payoutReceived": "You received {{amount}} on {{date}} — cycle {{n}}.",
+    "payoutNow": "It's your turn. You get {{amount}} once this cycle is released.",
+    "payoutUpcoming": "Your turn is cycle {{n}}, expected around {{date}}.",
+    "collectionTitle": "Collection — cycle {{n}}",
+    "cycleN": "Cycle {{n}}",
+    "chooseCycle": "Choose a cycle",
+    "markPaid": "Mark paid",
+    "undo": "Undo",
+    "releasePayout": "Release this cycle's payout",
+    "confirmRecipient": "{{name}} receives {{amount}}",
+    "shortWarning": "{{count}} member(s) haven't paid, so this cycle is {{short}} short. They will receive {{collected}}, not the full {{expected}}. The unpaid contributions stay owed.",
+    "confirmRelease": "Release payout",
+    "cancel": "Cancel",
+    "orderTitle": "Turn order",
+    "orderSummary": "{{done}} of {{total}} paid out",
+    "expectedOn": "Expected {{date}}",
+    "historyTitle": "Cycle history",
+    "historyEmpty": "No cycles have been paid out yet.",
+    "historyLine": "Cycle {{n}} → {{name}} got {{amount}}",
+    "historyOpen": "Cycle {{n}} → {{name}}",
+    "notReleasedYet": "Not released yet",
+    "shortBy": "{{amount}} short",
+    "cyclesUnit": "cycles",
+    "you": "You",
+    "youLower": "you",
+    "recorded": "Contribution recorded.",
+    "undone": "Contribution undone.",
+    "released": "Payout recorded.",
+    "actionFailed": "That didn't work. Try again.",
+    "state": {
+      "PAID": "Paid",
+      "PENDING": "Pending",
+      "MISSED": "Missed"
+    },
+    "youState": {
+      "PAID": "You: Paid",
+      "PENDING": "You: Pending",
+      "MISSED": "You: Missed"
+    },
+    "payoutState": {
+      "RECEIVED": "Received",
+      "CURRENT": "This cycle",
+      "UPCOMING": "Upcoming"
+    }
+  },
+  "chitSetup": {
+    "label": "Chit setup",
+    "title": "Set up the chit",
+    "description": "Everyone pays the same amount each cycle, and one member takes the pot each time, in the order you set here.",
+    "alreadyRunning": "This chit has already started, so its amount, members and order are fixed. Only the dates can still be changed.",
+    "amountStep": "How much, how often",
+    "amountPlaceholder": "Amount each member pays",
+    "monthly": "Monthly (30 days)",
+    "fortnightly": "Every 2 weeks",
+    "weekly": "Weekly",
+    "dueSameDay": "Due on the cycle date",
+    "due3": "Due within 3 days",
+    "due7": "Due within 7 days",
+    "due10": "Due within 10 days",
+    "dueDaysHint": "How long members have after each cycle opens before their contribution counts as missed.",
+    "startDate": "First cycle date",
+    "potPreview": "Pot each cycle: {{pot}} — {{count}} members × {{each}}",
+    "orderStep": "Members and turn order",
+    "orderHint": "Tap a member to add them. Position 1 receives the pot in the first cycle, position 2 in the second, and so on.",
+    "addAll": "Add everyone",
+    "orderEmpty": "No members added yet.",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "remove": "Remove {{name}}",
+    "reviewStep": "Review and start",
+    "saveDraft": "Save draft",
+    "previewTitle": "The schedule",
+    "previewRow": "Cycle {{n}} → {{name}} receives {{amount}}",
+    "previewStart": "First contribution due {{date}}.",
+    "activateWarning": "Starting the chit fixes the amount, the members and the order — they cannot be changed afterwards. Only the dates stay editable.",
+    "activate": "Start the chit",
+    "confirmActivate": "Start the chit",
+    "cancel": "Cancel",
+    "created": "Draft saved.",
+    "saved": "Draft saved.",
+    "activated": "The chit has started.",
+    "needAmount": "Enter the amount each member pays.",
+    "needDate": "Choose a start date.",
+    "failed": "That didn't work. Try again."
   }
 }

@@ -369,18 +369,50 @@ function GroupNav({
     const pendingLeaveCount = members.filter((m) => m.leaveRequestedAt).length;
     const pendingRequestCount = pendingLeaveCount + (joinRequests?.length ?? 0);
 
+    // A Reserve group holds funds for other groups and records no expenses of its
+    // own, so its expense surfaces are dropped rather than shown empty. Credits,
+    // Categories (it still needs credit buckets), Activity and Connections stay —
+    // those are what a Reserve actually does.
+    const canRecordExpenses = group?.features?.expenses ?? true;
+
+    // ...but a Reserve group created before the type meant anything may already
+    // carry expenses, and those have to stay reachable — hiding the nav would be
+    // the one thing that makes existing records unbrowsable. Expense categories are
+    // the tell: a new Reserve seeds only CREDIT buckets, so any expense category at
+    // all means this group has expense history to show. The list is already fetched
+    // for canAddExpense below, so this costs no extra request.
+    const hasExpenseHistory = categories.length > 0;
+    const showExpenseSurfaces = canRecordExpenses || hasExpenseHistory;
+
     // An expense needs a category. Shown optimistically while the list loads,
-    // matching components/MobileNav.tsx.
-    const canAddExpense = !isClosed && (catLoading || categories.length > 0);
+    // matching the old bottom-bar behaviour.
+    const canAddExpense = canRecordExpenses && !isClosed && (catLoading || categories.length > 0);
 
     const items = [
         { to: `/groups/${groupId}`, icon: <I.Home />, label: t("sidebar.overview", "Overview"), end: true },
         { to: `/groups/${groupId}/credits`, icon: <I.Wallet />, label: t("sidebar.credits", "Credits") },
-        { to: `/groups/${groupId}/expenses`, icon: <I.Receipt />, label: t("sidebar.expenses", "Expenses") },
-        { to: `/groups/${groupId}/categories/new`, icon: <I.Tag />, label: t("sidebar.categories", "Categories") },
-        { to: `/groups/${groupId}/activity`, icon: <I.Activity />, label: t("sidebar.activity", "Activity") },
-        { to: `/groups/${groupId}/reports/categories`, icon: <I.Chart />, label: t("sidebar.report", "Report") }
     ];
+
+    if (showExpenseSurfaces) {
+        items.push({ to: `/groups/${groupId}/expenses`, icon: <I.Receipt />, label: t("sidebar.expenses", "Expenses") });
+    }
+
+    // In a chit group this is the group's reason to exist, so it sits high —
+    // and it is shown to EVERY role: the member view (what do I owe, whose turn
+    // is it) is the primary audience, and on the Free plan an isAdmin gate would
+    // be no gate at all.
+    if (group?.features?.chit) {
+        items.push({ to: `/groups/${groupId}/chit`, icon: <I.Cycle />, label: t("sidebar.chit", "Chit") });
+    }
+
+    items.push({ to: `/groups/${groupId}/categories/new`, icon: <I.Tag />, label: t("sidebar.categories", "Categories") });
+    items.push({ to: `/groups/${groupId}/activity`, icon: <I.Activity />, label: t("sidebar.activity", "Activity") });
+
+    // The category report is a spend breakdown, so it has nothing to show without
+    // expenses — but it does have something to show for past ones.
+    if (showExpenseSurfaces) {
+        items.push({ to: `/groups/${groupId}/reports/categories`, icon: <I.Chart />, label: t("sidebar.report", "Report") });
+    }
 
     if(isAdmin){
         items.push({ to: `/groups/${groupId}/connections`, icon: <I.Link />, label: t("sidebar.connections", "Connections") });

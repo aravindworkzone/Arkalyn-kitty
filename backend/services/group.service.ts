@@ -6,7 +6,9 @@ import GroupEvent from "../models/group_event.model";
 import GroupMember from "../models/group_member.model";
 import GroupInvite from "../models/group_invite.model";
 import Category from "../models/category.model";
-import { GROUP_PURPOSES, type GroupPurpose } from "../models/group.model";
+import { isSelectableGroupPurpose, type GroupPurpose } from "../models/group.model";
+import { toGroupTypeView } from "../helpers/groupTypes";
+import { assertMemberFreeOfChit } from "../helpers/chitGuards";
 import { PURPOSE_DEFAULT_CATEGORIES } from "../config/purposeCategories";
 import { createNotification } from "./notification.service";
 import { getOrCreateOtherCreditCategory } from "./category.service";
@@ -18,9 +20,16 @@ export const createGroupService = async (data: { name: string; invitees: string[
     const name = data.name?.trim();
     const superAdmin = data.superAdmin;
     const contribution = data.contribution ?? 0;
-    const purpose: GroupPurpose = GROUP_PURPOSES.includes(data.purpose as GroupPurpose)
-        ? (data.purpose as GroupPurpose)
-        : "OTHER";
+    // Purpose decides the group's TYPE, and therefore which features it has —
+    // and it is immutable once set. So an unrecognised value is rejected rather
+    // than coerced to a default: silently seating a group on the wrong feature
+    // set would leave no way to correct it afterwards. Only the three selectable
+    // types are accepted here; the legacy values remain valid in the schema for
+    // groups that already carry them, but no new group may be created on one.
+    if (!isSelectableGroupPurpose(data.purpose)) {
+        throw new AppError("Choose a group type: Family, Chit or Reserve", 400);
+    }
+    const purpose: GroupPurpose = data.purpose;
 
     if (!superAdmin || !name) {
         throw new AppError("All fields are required", 400);
@@ -79,7 +88,9 @@ export const createGroupService = async (data: { name: string; invitees: string[
                     name: c.name,
                     color: c.color,
                     isSpecial: c.isSpecial ?? false,
-                    type: "EXPENSE",
+                    // RESERVE seeds CREDIT buckets — it cannot record expenses,
+                    // so expense categories would be unusable in it.
+                    type: c.type ?? "EXPENSE",
                 })),
                 { session }
             );
@@ -219,8 +230,15 @@ export const cloneGroupService = async (data: { sourceGroupId: string; name: str
     try {
         session.startTransaction();
 
+        // Purpose IS carried over, unlike anything financial. It decides the
+        // group's type and therefore its features, so a clone that dropped it
+        // would silently become a Family group — and since type is immutable,
+        // cloning a Reserve or Chit group would be a one-way trip to the wrong
+        // feature set. Legacy purposes clone as-is; they resolve to FAMILY, which
+        // is what the source behaves as too.
         const CloneGroup = new Group({
             name,
+            purpose: sourceGroup.purpose,
             totalContribution: 0,
             balance: 0,
             createdBy: superAdmin,
@@ -370,6 +388,13 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
 
     if(isMember && !isMember.settlement && action === "remove") {
         throw new AppError("Cannot remove a member without settlement", 400);
+    }
+
+    // A participant in a running chit cannot be removed: the scheme promises one
+    // cycle per member, so losing one leaves a cycle that can never collect a
+    // full pot.
+    if (isMember && action === "remove") {
+        await assertMemberFreeOfChit(groupData, Member);
     }
 
     if (isMember && action === "add") {
@@ -831,6 +856,10 @@ export const leaveGroupService = async (data: {
         throw new AppError("Super admin cannot leave the group", 400);
     }
 
+    // Before either exit path. Forfeiting would leave the chit a member short
+    // just as surely as settling out does, so the guard sits above the branch.
+    await assertMemberFreeOfChit(groupData, userId);
+
     // Forfeit path: instant exit, no balance change, no settlement record.
     // The member's contribution stays in the group pool and they show up
     // under "left contributors" with leftMode = "FORFEIT". A pending leave
@@ -956,6 +985,7 @@ export const approveLeaveRequestService = async (data: {
     if (member.role === "SUPER_ADMIN") {
         throw new AppError("Super admin cannot leave the group", 400);
     }
+    await assertMemberFreeOfChit(groupData, memberId);
     // An admin's exit must be authorised by the super admin — a peer admin
     // cannot approve another admin's leave request.
     if (member.role === "ADMIN") {
@@ -1118,7 +1148,20 @@ export const getGroupByIdService = async (groupId: mongoose.Types.ObjectId, user
             ? getEffectivePlan({ plan: group.planSnapshot.tier, planExpiresAt: null })
             : getEffectivePlan({ plan: group.plan, planExpiresAt: group.planExpiresAt })
     );
-    const groupData = {...group.toObject(),role: currentUser.role, barLength, subscription};
+    // The group's TYPE and the features it grants, resolved server-side and
+    // shipped alongside the subscription for the same reason: the UI must gate on
+    // the identical answer the API enforces. `purpose` is already on the payload,
+    // but leaving the client to re-derive the type from it would duplicate the
+    // legacy-value mapping and let the two drift.
+    const { type: groupTypeName, features } = toGroupTypeView(group.purpose);
+    const groupData = {
+        ...group.toObject(),
+        role: currentUser.role,
+        barLength,
+        subscription,
+        groupTypeName,
+        features,
+    };
     return groupData;
 };
 
@@ -1250,6 +1293,18 @@ export const removeCreditService = async (data: {
         }).session(session);
 
         if (!credit) throw new AppError("Credit not found", 404);
+
+        // A chit contribution is not an ordinary credit, and removing it here
+        // would only reverse half of it: the wallet and the member's total would
+        // roll back while the chit due went on claiming it was paid, and the
+        // cycle's collected total would be overstated forever. The chit page owns
+        // the undo, which reverses all four together.
+        if ((credit.metadata as Record<string, unknown> | undefined)?.chitDueId) {
+            throw new AppError(
+                "This is a chit contribution. Undo it from the group's chit page so the cycle stays in step.",
+                400
+            );
+        }
 
         const amount = credit.amount;
 

@@ -41,6 +41,9 @@ export default function GroupListener() {
             // A funding link change moves both groups' balances, and the server
             // emits to both rooms — so whichever side is open refetches.
             SOCKET_EVENTS.GROUP_LINK_UPDATED,
+            // A chit contribution or payout moves the group wallet, the credits
+            // list and the chit board — all of which hang off the Group tag.
+            SOCKET_EVENTS.CHIT_UPDATED,
         ];
 
         refreshEvents.forEach((e) => socket.on(e, refreshGroup));

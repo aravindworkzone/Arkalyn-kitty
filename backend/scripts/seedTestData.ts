@@ -11,6 +11,7 @@ import GroupEvent from '../models/group_event.model';
 import Category from '../models/category.model';
 import Expense, { PAYMENT_TYPES } from '../models/expense.model';
 import { PURPOSE_DEFAULT_CATEGORIES } from '../config/purposeCategories';
+import { groupFeaturesOf } from '../helpers/groupTypes';
 import { creditGroupBalance, debitGroupBalance } from '../helpers/balanceOps';
 
 /**
@@ -63,6 +64,10 @@ const GROUPS: GroupSpec[] = [
     // Only three members, so test4 can sit in the join-requests queue below.
     { name: 'Seed · Family Budget', purpose: 'FAMILY', owner: 2, others: [0, 1] },
     { name: 'Seed · Team Offsite', purpose: 'TEAM', owner: 3, others: [0, 1, 2] },
+    { name: 'Seed · Monthly Chit', purpose: 'CHIT', owner: 0, others: [1, 2, 3] },
+    // A Reserve holds money and bankrolls other groups; it records no expenses,
+    // so it gets contributions and a wallet but no spend.
+    { name: 'Seed · Reserve Pool', purpose: 'RESERVE', owner: 1, others: [0, 2] },
 ];
 
 const CREDIT_CATEGORIES = [
@@ -137,9 +142,16 @@ const seed = async () => {
         });
 
         // ── Categories ────────────────────────────────────────────────────────
+        // Does this group's type record expenses? A Reserve does not, so it gets
+        // no expense categories and no spend below.
+        const recordsExpenses = groupFeaturesOf(spec.purpose).expenses;
+
+        // RESERVE's defaults are CREDIT buckets, so each entry's own type is
+        // honoured rather than forced to EXPENSE.
         const defaults = PURPOSE_DEFAULT_CATEGORIES[spec.purpose];
+        const purposeCreditCats = defaults.filter((d) => d.type === 'CREDIT');
         const expenseCats = await Category.insertMany(
-            defaults.map((d, i) => ({
+            defaults.filter((d) => (d.type ?? 'EXPENSE') === 'EXPENSE').map((d, i) => ({
                 groupId: group._id,
                 name: d.name,
                 color: d.color,
@@ -151,7 +163,7 @@ const seed = async () => {
             }))
         );
         const creditCats = await Category.insertMany(
-            CREDIT_CATEGORIES.map((c) => ({
+            [...CREDIT_CATEGORIES, ...purposeCreditCats].map((c) => ({
                 groupId: group._id,
                 name: c.name,
                 color: c.color,
@@ -160,7 +172,7 @@ const seed = async () => {
         );
 
         // ── Generate the spend first ──────────────────────────────────────────
-        const specs = Array.from({ length: EXPENSES_PER_GROUP }, () => {
+        const specs = Array.from({ length: recordsExpenses ? EXPENSES_PER_GROUP : 0 }, () => {
             const amount = intBetween(50, 1200);
             const payer = pick(memberUsers);
             // ~55% split between 2-4 members; the rest sit unsplit on the payer.
