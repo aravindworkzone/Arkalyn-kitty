@@ -405,7 +405,10 @@
     "reserveLabel": "Reserve group",
     "reserveTitle": "This group doesn't record expenses",
     "reserveMessage": "A Reserve group holds funds for your other groups. Send money to a connected group and record the spending there.",
-    "reserveAction": "Back to group"
+    "reserveAction": "Back to group",
+    "chitLabel": "Chit group",
+    "chitTitle": "This group only runs its chit",
+    "chitMessage": "A Chit group's wallet is owed to whoever is next in the rotation, so it records no spending of its own. Keep everyday expenses in a Family group."
   },
   "editExpense": {
     "title": "Edit Expense",
@@ -993,7 +996,14 @@
       "RECEIVED": "Received",
       "CURRENT": "This cycle",
       "UPCOMING": "Upcoming"
-    }
+    },
+    "tabMine": "My chit",
+    "tabCycles": "Cycles",
+    "tabCollection": "Collection",
+    "tabsAria": "Chit sections",
+    "viewOrder": "Turn order",
+    "viewHistory": "History",
+    "viewsAria": "Cycle views"
   },
   "chitSetup": {
     "label": "Chit setup",

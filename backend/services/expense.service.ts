@@ -10,7 +10,7 @@ import GroupMembers from "../models/group_member.model";
 import { PAYMENT_TYPES, PaymentType } from "../models/expense.model";
 import { debitGroupBalance, refundGroupBalance } from "../helpers/balanceOps";
 import { findActiveFunderLink } from "./groupLink.service";
-import { assertGroupTypeFeature } from "../helpers/groupTypes";
+import { assertGroupTypeFeature, expensesDeniedMessage } from "../helpers/groupTypes";
 import type { GroupPurpose } from "../models/group.model";
 
 interface ExpenseData {
@@ -95,18 +95,19 @@ export const createExpenseService = async (data: ExpenseData) => {
         throw new AppError("All fields are required", 400);
     }
 
-    // A Reserve group holds money for the groups it funds; it does not spend on
-    // its own account. Gated here in the service rather than only on the router,
-    // because the MCP server's add_expense tool calls this function directly and
-    // never passes through Express middleware.
+    // Only a Family group spends on its own account. A Reserve holds money for the
+    // groups it funds; a Chit holds money the rotation has already promised to a
+    // member. Gated here in the service rather than only on the router, because
+    // the MCP server's add_expense tool calls this function directly and never
+    // passes through Express middleware.
     //
-    // Creation only. Editing and deleting stay open, so a Reserve group that
-    // already carries expenses — the purpose predates the rule — can still have
-    // them corrected or unwound. Freezing them would strand money with no fix.
+    // Creation only. Editing and deleting stay open, so a group that already
+    // carries expenses can still have them corrected or unwound. Freezing them
+    // would strand money with no fix.
     assertGroupTypeFeature(
         groupData.purpose,
         "expenses",
-        "A Reserve group holds funds for other groups and does not record its own expenses."
+        expensesDeniedMessage(groupData.purpose)
     );
 
     if( groupData.balance < amount) {

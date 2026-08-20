@@ -108,11 +108,22 @@ The schema is normalized across focused collections rather than embedded blobs:
 Every group has a **type**, chosen at creation and **immutable thereafter**. It is
 stored in `group.purpose` and decides which features the group has.
 
-| Type | Records expenses | May fund another group | What it is |
-|---|---|---|---|
-| `FAMILY` | ✓ | — | The pooled-wallet baseline: shared bills and everyday spending. |
-| `CHIT` | ✓ | — | Everything Family can do, **plus a chit fund** — see below. |
-| `RESERVE` | — | ✓ | A vault. Holds contributions and bankrolls other groups; it does not spend on its own account. |
+**Each type has exactly one job**, and the map is deliberately not cumulative — no
+type is a superset of another:
+
+| Type | Records expenses | Runs a chit | May fund another | May be funded | What it is |
+|---|---|---|---|---|---|
+| `FAMILY` | ✓ | — | — | ✓ | The pooled-wallet baseline: shared bills and everyday spending. The whole app as it was before types existed. |
+| `CHIT` | — | ✓ | — | — | A chit fund and nothing else — see [Chit Funds](#chit-funds). |
+| `RESERVE` | — | — | ✓ | ✓ | A vault. Holds contributions and bankrolls other groups; it does not spend on its own account. |
+
+A Chit group records **no expenses**, for the same reason a Reserve records none:
+its wallet is not a shared spending pot. Every rupee in it is owed to whoever is
+next in the rotation, and the term only balances because each member pays in
+exactly what they take out — an ordinary expense would spend money the rotation
+has already promised to someone, leaving a later payout short for a reason that
+has nothing to do with the chit. A household that wants both keeps a Family group
+beside the chit, so the two wallets stay separate.
 
 **Type and tier are orthogonal axes.** A plan is bought and lapses; a type is
 intrinsic and permanent. So group-type gating is a second capability map
@@ -145,11 +156,17 @@ Two consequences worth stating:
   middleware is an early, cheap failure; the service is the enforcement point. The
   group's `purpose` is a *required* field on both service inputs, so the compiler
   names any call site that forgets to pass it.
-- **Restrictions bind creation, not history.** A Reserve group that predates the
-  rule keeps its expenses readable, editable and deletable — only new ones are
-  refused. Freezing them would strand money with no way to correct it. Its
-  `RESERVE` starter categories are seeded as `CREDIT` buckets, since expense
-  categories would be buckets nothing could ever go into.
+- **Restrictions bind creation, not history.** A group that predates a rule keeps
+  its expenses readable, editable and deletable — only new ones are refused.
+  Freezing them would strand money with no way to correct it. Starter categories
+  follow the same logic: `RESERVE` seeds `CREDIT` buckets and `CHIT` seeds none at
+  all, since an expense bucket nothing could ever go into is worse than no bucket
+  — and a category cannot be deleted once anything references it.
+- **A refusal names the type that refused.** Two types decline expenses for
+  different reasons, so `expensesDeniedMessage()` resolves the sentence from the
+  group's own type rather than hardcoding one. Telling a chit organiser that "a
+  Reserve group does not record expenses" names a type they did not create and
+  offers them no way forward.
 
 ---
 
@@ -209,17 +226,65 @@ is what `MAX_CHIT_PARTICIPANTS` (50) bounds.
 - **Chit size is the plan lever.** `participants.length` is checked against
   `maxMembersPerGroup`, so a Free group can run a 5-person chit and a real
   20-person one needs Pro. No new plan flag was required.
+- **The chit is the whole group.** A `CHIT` group records no expenses and seeds no
+  expense categories, so the wallet holds exactly the contributions collected and
+  owes exactly the payouts still to come. Its navigation is cut to
+  **Chit → Activity → Group Management**, and `/groups/:id` redirects to
+  the board: `getChitBoardService` already returns term progress, this cycle's
+  collection, your due, your arrears, your turn and the full rotation, so a
+  separate overview would be a second screen built from the same data — and the
+  one thing it showed that the board does not is a pool-health bar reading
+  "nearly spent" on a wallet that has just correctly paid out. Categories goes
+  because both buckets that matter are created unasked (`Other` at group creation,
+  `Chit contributions` on the first payment), Connections goes with the rule
+  below, and Credits goes with `manualWalletMoves` — once no top-up can be
+  recorded, every row it could hold is a chit contribution the board already shows
+  by cycle and member, with paid/missed state a flat ledger cannot express.
+- **Only the chit moves a chit's money.** `manualWalletMoves` is false for `CHIT`
+  and closes the last two doors into the wallet: `addContributionService` (an
+  admin recording a contribution) and `SettlementService` (paying a member out).
+  The first would add money belonging to nobody in the rotation; the second pays
+  out money already promised to the next recipient — "not more than the group
+  holds" is no ceiling when the whole wallet is spoken for. `adjustMemberContribution`
+  is shared by manual top-ups and chit dues, so one top-up makes the two
+  permanently indistinguishable in the field the close refund is proportional to.
+  A **type** rule rather than a scheme-state one: it holds between chits too, and
+  the settings tabs cannot see scheme state to hide themselves. Group creation
+  therefore offers no opening pool for a `CHIT`, and the Contribution and
+  Settlement tabs are absent from its Group Management.
+- **The board is three panels, not one page.** `?tab=mine|cycles|collection`.
+  *My chit* is what a member came for (their due, its date, their turn); *Cycles*
+  is the rotation as a whole (who has been paid, who is next); *Collection* is the
+  organiser's roster and the two actions that move money, and does not exist below
+  `canViewAll`. The role split is structural rather than cards hidden mid-page.
+- **A chit cannot be funded from outside.** `receiveFunding` is false for `CHIT`
+  and gates the **host** end of link formation, mirroring `fundOthers` on the
+  source end — both on `/request` and `/approve`, never on `/transfer`. The term
+  balances only because each member pays in exactly what they take out; a rupee
+  arriving from a Reserve belongs to nobody in the rotation, so somebody would end
+  up taking out more than they put in.
+- **The Credits page hides what it cannot delete.** `getAllCreditsService` ships an
+  `isChitCredit` flag per row, resolved from the same `CHIT_CREDIT_FLAG` that
+  `removeCreditService` refuses on, so the button and the rule cannot disagree.
+  Undo belongs on the board, which unwinds the due, the cycle total, the member's
+  contribution and the wallet together.
 
 ---
 
 ## Connected Groups
 
 A **Reserve** group can bankroll another — a household reserve funding a trip
-group, say. Only a Reserve group may be the source: `fundOthers` is a group-type
-capability, so a Family or Chit group cannot be named as a funder. The link is
-consented to on both sides: an admin of the **host** (the group that wants
-funding) requests it, and an admin of the **source** (the group whose money it is)
-approves. Direction is never inferred and never reversed.
+group, say. **Both ends are gated by type.** Only a Reserve may be the source
+(`fundOthers`), so a Family or Chit group cannot be named as a funder; and a Chit
+may not be the host (`receiveFunding`), because outside money has no owner in its
+rotation. The link is consented to on both sides: an admin of the **host** (the
+group that wants funding) requests it, and an admin of the **source** (the group
+whose money it is) approves. Direction is never inferred and never reversed.
+
+Both type gates sit on **formation** — `/request` and `/approve` — so a link
+approved before either rule existed keeps working with no grandfather flag and no
+migration. The host is re-checked on approve rather than trusted from the request,
+since approval is the last moment before money can move.
 
 The type gate sits on link **formation** — `/request` and `/approve` — and
 deliberately *not* on `/transfer`. A transfer acts on a link that is already

@@ -46,7 +46,15 @@ export default function CreditDetailModal({
   } = useShareAsImage(cardRef);
 
   // Removing a credit reverses a wallet deposit, so it is restricted to the super admin.
-  const canRemove = role === "SUPER_ADMIN";
+  //
+  // A chit contribution is excluded outright, whatever the role: removeCreditService
+  // refuses it, because reversing the wallet here would leave the due still
+  // claiming it was paid. Undoing one belongs on the chit board, which unwinds the
+  // due, the cycle's collected total, the member's contribution and the wallet
+  // together. The server resolves the flag so this button and that rule cannot
+  // disagree.
+  const isChitCredit = Boolean(credit?.isChitCredit);
+  const canRemove = role === "SUPER_ADMIN" && !isChitCredit;
 
   if (!credit) return null;
 
@@ -136,6 +144,18 @@ export default function CreditDetailModal({
 
       {/* hidden off-screen card used as the image source */}
       <ShareCard ref={cardRef} type="credit" credit={credit} group={group} />
+
+      {/* Why the remove button is absent, for the one viewer who would otherwise
+          have had it. Shown instead of the button rather than as a disabled one:
+          a disabled control invites a second click, this names the way forward. */}
+      {isChitCredit && role === "SUPER_ADMIN" && (
+        <div className="mt-5 pt-4 border-t border-line">
+          <p className="text-theme-xs text-fg-muted leading-snug">
+            This is a chit contribution. Undo it from the group's chit page, so the
+            cycle stays in step with the wallet.
+          </p>
+        </div>
+      )}
 
       {/* remove section — super admin only */}
       {canRemove && (

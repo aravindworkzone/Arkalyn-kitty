@@ -44,6 +44,16 @@ export interface ChitSchemeView {
    * so a role-based client check would be wrong in the default case.
    */
   canManage: boolean;
+  /**
+   * Whether the caller sees the whole group's figures — the collection meter and
+   * the per-member roster — rather than only their own dues.
+   *
+   * Wider than canManage: an ADMIN reads everything but still cannot record a
+   * payment, so the roster renders read-only for them. A plain MEMBER gets the
+   * narrow view. Note that a Free group has no MEMBER role at all, so the narrow
+   * view only appears on a plan carrying memberRole.
+   */
+  canViewAll: boolean;
 }
 
 export interface ChitCycleView {
@@ -52,10 +62,13 @@ export interface ChitCycleView {
   status: ChitCycleStatus;
   recipient: ChitPersonRef;
   expectedAmount: number;
-  collectedAmount: number;
   payoutAmount: number;
-  shortfallAmount: number;
-  collectedPct: number;
+  // Omitted entirely when the caller is not canViewAll — the server sends no key
+  // rather than a zero, so `collectedAmount ?? 0` can never be mistaken for "the
+  // group has collected nothing".
+  collectedAmount?: number;
+  shortfallAmount?: number;
+  collectedPct?: number;
   dueDate: string;
   paidAt: string | null;
   overdue: boolean;
@@ -137,9 +150,10 @@ export interface ChitHistoryRow {
   status: ChitCycleStatus;
   recipient: ChitPersonRef;
   expectedAmount: number;
-  collectedAmount: number;
   payoutAmount: number;
-  shortfallAmount: number;
+  // Same narrowing as ChitCycleView above.
+  collectedAmount?: number;
+  shortfallAmount?: number;
   dueDate: string;
   paidAt: string | null;
   myDue: { amount: number; paidAt: string | null; state: ChitDueState } | null;

@@ -49,8 +49,19 @@ export default function GroupDetailPage() {
 
   const { data: GroupDetails, isLoading: groupLoading, isError: groupError } =
     useGetGroupByIdQuery(groupId!, { skip: !groupId });
+  // Only a Family group records expenses; a Reserve's wallet belongs to the groups
+  // it bankrolls and a Chit's to the next member in the rotation. Neither can have
+  // spent anything today, so the feed is dropped rather than rendered empty — and
+  // the request behind it is skipped rather than fetched for a panel that will not
+  // appear. Expenses from before the type refused them stay reachable through the
+  // sidebar's Expenses entry, which keeps its own grandfather rule.
+  //
+  // `!== false` rather than a truth test: `features` is absent while the group
+  // loads, and defaulting to hidden would blink the feed out of a Family group's
+  // overview on every visit.
+  const recordsExpenses = GroupDetails?.features?.expenses !== false;
   const { data: TodayExpenses } =
-    useGetExpenseReportQuery(groupId!, { skip: !groupId });
+    useGetExpenseReportQuery(groupId!, { skip: !groupId || !recordsExpenses });
   const { data: GroupMembers } =
     useGetGroupMembersQuery(groupId!, { skip: !groupId });
   const { data: LeftContributors } =
@@ -98,6 +109,24 @@ export default function GroupDetailPage() {
     return <GroupDetailSkeleton />;
   }
 
+  /**
+   * A chit group has no overview of its own — the board IS its overview.
+   *
+   * getChitBoardService already returns term progress, this cycle's collection,
+   * your due, your arrears, your turn and the full rotation, and the chit pages
+   * render all of it. Building a second screen from the same data is how the two drift;
+   * worse, the one thing this page shows that the board does not is the
+   * pool-health bar, which reads "nearly spent" on a chit wallet that has just
+   * correctly paid someone the pot.
+   *
+   * Placed after the loading and error guards so it never fires on an unresolved
+   * group, and `replace` so Back does not bounce between the two. Same
+   * <Navigate> forwarding the stale ?settings= param above already uses.
+   */
+  if (GroupDetails?.features?.chit) {
+    return <Navigate to={`/groups/${groupId}/chit`} replace />;
+  }
+
   return (
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
@@ -134,8 +163,9 @@ export default function GroupDetailPage() {
         {/* Roster and today's feed sit side by side once there is room for two
             columns. They answer different questions — who is in this group, and
             what happened today — so neither has to be scrolled past to reach
-            the other. */}
-        <div className="grid gap-6 lg:gap-8 items-start lg:grid-cols-2">
+            the other. With no feed to show, the roster takes the full width
+            instead of leaving half the row blank. */}
+        <div className={`grid gap-6 lg:gap-8 items-start ${recordsExpenses ? "lg:grid-cols-2" : ""}`}>
           <GroupMembersPanel
             members={GroupMembers}
             leftContributors={LeftContributors}
@@ -149,11 +179,13 @@ export default function GroupDetailPage() {
             onRemoveMember={setDeleteMemberTarget}
           />
 
-          <TodayExpenseFeed
-            expenses={TodayExpenses}
-            onSelect={setSelectedExpense}
-            onViewAll={() => navigate(`/groups/${groupId}/expenses`)}
-          />
+          {recordsExpenses ? (
+            <TodayExpenseFeed
+              expenses={TodayExpenses}
+              onSelect={setSelectedExpense}
+              onViewAll={() => navigate(`/groups/${groupId}/expenses`)}
+            />
+          ) : null}
         </div>
 
       </PageContainer>

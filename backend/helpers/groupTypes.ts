@@ -37,6 +37,47 @@ export const assertGroupTypeFeature = (
     if (!groupFeaturesOf(purpose)[feature]) throw new AppError(message, 403);
 };
 
+// Why THIS group cannot record expenses. Two types refuse expenses and they
+// refuse them for different reasons, so one sentence cannot serve both: a Reserve
+// holds money for the groups it bankrolls, while a Chit holds money the rotation
+// has already promised to a member. Telling a chit organiser that "a Reserve
+// group does not record expenses" names a type they did not create and offers no
+// way forward.
+//
+// Keyed on the resolved type so a legacy purpose lands on the FAMILY branch,
+// which is unreachable in practice — the caller only asks once the gate has
+// already refused — but keeps the function total rather than needing a throw.
+export const expensesDeniedMessage = (purpose?: GroupPurpose | null): string => {
+    switch (groupTypeOf(purpose)) {
+        case 'CHIT':
+            return 'A Chit group only runs its chit fund. Its wallet is owed to whoever is next in the rotation, so it does not record spending of its own — keep everyday expenses in a Family group.';
+        case 'RESERVE':
+            return 'A Reserve group holds funds for other groups and does not record its own expenses.';
+        default:
+            return 'This group does not record expenses.';
+    }
+};
+
+// Same message, phrased for the CATEGORY surface: the answer there is not "spend
+// somewhere else" but "you wanted the other side of the ledger".
+export const expenseCategoriesDeniedMessage = (purpose?: GroupPurpose | null): string =>
+    `${expensesDeniedMessage(purpose)} Add a credit category instead.`;
+
+// Why THIS group cannot be funded by another. Only CHIT refuses, so unlike
+// expensesDeniedMessage there is one branch — but it stays a function so the
+// sentence sits beside the flag it explains rather than inline at two call sites.
+export const receiveFundingDeniedMessage = (name?: string | null): string =>
+    `${name ? `"${name}"` : 'That group'} is a Chit group. A chit is funded only by its own members — outside money would belong to nobody in the rotation, so it cannot receive funding from another group.`;
+
+// The two hand-operated money paths, refused for a chit. Separate sentences
+// because they fail for opposite reasons — one puts money in that nobody owns,
+// the other takes money out that is already owed.
+export const contributionDeniedMessage = (): string =>
+    'A Chit group collects only through its chit. Money added by hand would belong to nobody in the rotation, so record the contribution against its cycle on the chit page instead.';
+
+export const settlementDeniedMessage = (): string =>
+    'A Chit group cannot settle a member from the pool: the wallet is already owed to whoever is next in the rotation. Complete or cancel the chit first.';
+
 // The wire shape sent to the client, mirroring toPlanView. The server ships the
 // type it resolved rather than letting the client re-derive it from `purpose`, so
 // the UI gates on the identical answer the API will enforce. Commit 3dfd6da

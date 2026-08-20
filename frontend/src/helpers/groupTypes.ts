@@ -14,10 +14,13 @@ import {
 // surfaces that only have a purpose, such as the group-list cards and the create
 // form.
 export const GROUP_TYPE_FEATURES: Record<GroupType, GroupTypeFeatures> = {
-  FAMILY: { expenses: true, fundOthers: false, chit: false },
-  // Everything Family can do, plus the chit subsystem.
-  CHIT: { expenses: true, fundOthers: false, chit: true },
-  RESERVE: { expenses: false, fundOthers: true, chit: false },
+  // The only type that records ordinary spending.
+  FAMILY: { expenses: true, fundOthers: false, receiveFunding: true, manualWalletMoves: true, chit: false },
+  // The chit subsystem and nothing else: the wallet is owed to whoever is next in
+  // the rotation, so there is no spending of its own to record — and no outside
+  // funding either, since a funded rupee belongs to nobody in the rotation.
+  CHIT: { expenses: false, fundOthers: false, receiveFunding: false, manualWalletMoves: false, chit: true },
+  RESERVE: { expenses: false, fundOthers: true, receiveFunding: true, manualWalletMoves: true, chit: false },
 };
 
 // Resolves a stored purpose to the type whose features apply. Every legacy
@@ -46,7 +49,7 @@ export const GROUP_TYPE_OPTIONS: {
   {
     value: "CHIT",
     label: "Chit",
-    hint: "A chit fund — members contribute each cycle and take turns to receive the pot",
+    hint: "Only a chit fund — members contribute each cycle and take turns to receive the pot. No expenses of its own",
   },
   {
     value: "RESERVE",
@@ -69,6 +72,38 @@ const GROUP_TYPE_LABELS: Record<GroupType, string> = {
 // t()'s default, so a translated locale wins where it has the string.
 export const groupTypeLabel = (purpose?: GroupPurpose | null): string =>
   GROUP_TYPE_LABELS[groupTypeOf(purpose)];
+
+// Copy for the "this group records no expenses" screen, resolved from the type.
+//
+// Two types refuse expenses and they refuse them for different reasons, so one
+// screen cannot serve both: a Reserve is told to spend in the group it funds, a
+// Chit is told to keep everyday costs in a Family group. Telling a chit organiser
+// about Reserve groups names a type they did not create and offers no way out.
+//
+// Mirrors expensesDeniedMessage in Backend/helpers/groupTypes.ts — same split,
+// same reasons — so the screen and the 403 that would follow say the same thing.
+// Returns i18n keys WITH English fallbacks, the t(key, default) shape used
+// everywhere else here.
+export const noExpensesCopy = (type: GroupType) =>
+  type === "CHIT"
+    ? {
+        labelKey: "createExpense.chitLabel",
+        label: "Chit group",
+        titleKey: "createExpense.chitTitle",
+        title: "This group only runs its chit",
+        messageKey: "createExpense.chitMessage",
+        message:
+          "A Chit group's wallet is owed to whoever is next in the rotation, so it records no spending of its own. Keep everyday expenses in a Family group.",
+      }
+    : {
+        labelKey: "createExpense.reserveLabel",
+        label: "Reserve group",
+        titleKey: "createExpense.reserveTitle",
+        title: "This group doesn't record expenses",
+        messageKey: "createExpense.reserveMessage",
+        message:
+          "A Reserve group holds funds for your other groups. Send money to a connected group and record the spending there.",
+      };
 
 // The i18n key for a group's type badge.
 //

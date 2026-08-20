@@ -96,6 +96,11 @@ export default function GroupManagementPage() {
 
   const role = GroupDetails?.role as Group["role"];
   const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
+  // A chit group's wallet is filled and emptied by its cycles alone, so the two
+  // hand-operated money panels do not apply to it. The API refuses both, so
+  // showing the tabs would only offer forms that 403. Defaults to allowed while
+  // the group loads, so they never blink out of an ordinary group's settings.
+  const canMoveWalletByHand = GroupDetails?.features?.manualWalletMoves !== false;
   const isSuperAdmin = role === "SUPER_ADMIN";
 
   // Member headroom on THIS group's plan. The backend rejects the invite at the
@@ -162,10 +167,11 @@ export default function GroupManagementPage() {
   // "export" sits with the admin tabs rather than behind a plan check: an
   // unentitled group still sees the tab and the upsell inside it, which is the
   // point — a treasurer discovering the feature is how the tier gets sold.
+  const walletTabs: SettingsTab[] = canMoveWalletByHand ? ["contribution", "settlement"] : [];
   const allowedTabs: SettingsTab[] = isSuperAdmin
-    ? ["addMember", "changeRole", "contribution", "settlement", "requests", "export", "danger"]
+    ? ["addMember", "changeRole", ...walletTabs, "requests", "export", "danger"]
     : isAdmin
-      ? ["addMember", "contribution", "settlement", "requests", "export", "danger"]
+      ? ["addMember", ...walletTabs, "requests", "export", "danger"]
       : ["danger"];
 
   const tabParam = searchParams.get("tab") as SettingsTab | null;
@@ -184,8 +190,8 @@ export default function GroupManagementPage() {
   const tabs: ManagementTabDef[] = [
     { id: "addMember",    label: t("groupDetail.tabAddMember"),    show: isAdmin },
     { id: "changeRole",   label: t("groupDetail.tabChangeRole"),   show: isSuperAdmin },
-    { id: "contribution", label: t("groupDetail.tabContribution"), show: isAdmin },
-    { id: "settlement",   label: t("groupDetail.tabSettlement"),   show: isAdmin },
+    { id: "contribution", label: t("groupDetail.tabContribution"), show: isAdmin && canMoveWalletByHand },
+    { id: "settlement",   label: t("groupDetail.tabSettlement"),   show: isAdmin && canMoveWalletByHand },
     {
       id: "requests",
       label: pendingRequestCount > 0

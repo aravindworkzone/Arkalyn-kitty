@@ -99,7 +99,15 @@ export default function GroupConnectionsPage() {
   //
   // Declining and removing are never gated at all: saying no, and unwinding
   // something already agreed, must work on any plan.
-  const canRequestFunding = isAdmin && features.linkGroups && !isClosed;
+  // ...and the group's TYPE must allow being funded at all. False only for a chit,
+  // which balances because each member pays in exactly what they take out — an
+  // outside rupee belongs to nobody in the rotation. The API refuses the request
+  // and the approve, so without this the form would be a button that always 403s.
+  //
+  // Sidebar-hidden for a chit, but this page is still reachable by URL, which is
+  // why the gate is here and not only on the nav entry.
+  const canRequestFunding =
+    isAdmin && features.linkGroups && !isClosed && groupTypeFeatures.receiveFunding;
   // Whether THIS group may bankroll another — a property of its type, not its
   // plan. Only a Reserve group can. Independent of canRequestFunding above, which
   // is about being funded: those are opposite directions and gated differently

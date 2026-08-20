@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import type { ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Logo, SearchInput } from "../ui";
@@ -22,6 +23,7 @@ import {
 } from "../../redux/api/group";
 import { useGetPendingJoinRequestsQuery } from "../../redux/api/invite";
 import { useGetCategoriesQuery } from "../../redux/api/category";
+import { useGetChitBoardQuery } from "../../redux/api/chit";
 import type { Group } from "../../interface/group";
 import * as I from "./icons";
 
@@ -369,18 +371,19 @@ function GroupNav({
     const pendingLeaveCount = members.filter((m) => m.leaveRequestedAt).length;
     const pendingRequestCount = pendingLeaveCount + (joinRequests?.length ?? 0);
 
-    // A Reserve group holds funds for other groups and records no expenses of its
-    // own, so its expense surfaces are dropped rather than shown empty. Credits,
-    // Categories (it still needs credit buckets), Activity and Connections stay —
-    // those are what a Reserve actually does.
+    // Only a Family group records expenses. A Reserve holds funds for the groups it
+    // bankrolls; a Chit holds funds owed to the next member in the rotation. Both
+    // drop their expense surfaces rather than show them empty. Credits, Categories
+    // (both still need credit buckets), Activity and Connections stay — those are
+    // what those groups actually do, and a Chit additionally gets its board below.
     const canRecordExpenses = group?.features?.expenses ?? true;
 
-    // ...but a Reserve group created before the type meant anything may already
-    // carry expenses, and those have to stay reachable — hiding the nav would be
-    // the one thing that makes existing records unbrowsable. Expense categories are
-    // the tell: a new Reserve seeds only CREDIT buckets, so any expense category at
-    // all means this group has expense history to show. The list is already fetched
-    // for canAddExpense below, so this costs no extra request.
+    // ...but a group may already carry expenses from before its type refused them,
+    // and those have to stay reachable — hiding the nav would be the one thing that
+    // makes existing records unbrowsable. Expense categories are the tell: neither
+    // type seeds any, so any expense category at all means this group has expense
+    // history to show. The list is already fetched for canAddExpense below, so this
+    // costs no extra request.
     const hasExpenseHistory = categories.length > 0;
     const showExpenseSurfaces = canRecordExpenses || hasExpenseHistory;
 
@@ -388,24 +391,69 @@ function GroupNav({
     // matching the old bottom-bar behaviour.
     const canAddExpense = canRecordExpenses && !isClosed && (catLoading || categories.length > 0);
 
-    const items = [
-        { to: `/groups/${groupId}`, icon: <I.Home />, label: t("sidebar.overview", "Overview"), end: true },
-        { to: `/groups/${groupId}/credits`, icon: <I.Wallet />, label: t("sidebar.credits", "Credits") },
-    ];
+    // A chit group runs a rotation and nothing else, so three destinations that
+    // make sense for a pooled wallet are dropped rather than left to render
+    // something empty or wrong. See each gate below for which and why.
+    const isChit = group?.features?.chit ?? false;
+
+    // Only the Collection entry needs this, and only in a chit group — hence the
+    // skip. `canViewAll` is the server's own answer about who reads the roster, so
+    // the nav and the page agree by construction rather than by both guessing from
+    // the role.
+    const { data: chitBoard } = useGetChitBoardQuery(
+        { groupId: groupId! },
+        { skip: !groupId || !isChit }
+    );
+
+    // Annotated rather than inferred: seeding `[]` and pushing would leave this an
+    // evolving any[], where a typo in a key would go unnoticed. The literal it
+    // replaced got its shape from its first element.
+    const items: { to: string; icon: ReactNode; label: string; end?: boolean }[] = [];
+
+    // Overview is skipped for a chit: /groups/:id redirects to the board, so the
+    // entry would only ever bounce. The board is the first item instead.
+    if (!isChit) {
+        items.push({ to: `/groups/${groupId}`, icon: <I.Home />, label: t("sidebar.overview", "Overview"), end: true });
+    }
+
+    // The chit's three pages, listed individually rather than behind one "Chit"
+    // entry that then shows its own rail. Two menus of the same destinations drift
+    // apart — the same reason GroupActionBar's tiles were removed once the sidebar
+    // listed everything they duplicated (see QuickAccessButton's docblock).
+    //
+    // Shown to EVERY role: the member pages (what do I owe, whose turn is it) are
+    // the primary audience, and on the Free plan an isAdmin gate would be no gate
+    // at all. Collection is the exception and uses the board's own answer below.
+    if (isChit) {
+        items.push({ to: `/groups/${groupId}/chit`, icon: <I.User />, label: t("chit.tabMine", "My chit"), end: true });
+        items.push({ to: `/groups/${groupId}/chit/cycles`, icon: <I.Cycle />, label: t("chit.tabCycles", "Cycles") });
+        // canViewAll, not isAdmin: the organiser may hold any role, and the server
+        // already resolved who sees the roster. Costs one request, and only in a
+        // chit group — the query is skipped everywhere else.
+        if (chitBoard?.scheme?.canViewAll) {
+            items.push({ to: `/groups/${groupId}/chit/collection`, icon: <I.Roster />, label: t("chit.tabCollection", "Collection") });
+        }
+    }
+
+    // Credits is skipped for a chit. With hand-recorded contributions refused, every
+    // row it could hold is a chit contribution — and the Collection tab and the
+    // cycle history already show those broken down by cycle and member, with
+    // paid/missed state a flat ledger cannot express.
+    if (!isChit) {
+        items.push({ to: `/groups/${groupId}/credits`, icon: <I.Wallet />, label: t("sidebar.credits", "Credits") });
+    }
 
     if (showExpenseSurfaces) {
         items.push({ to: `/groups/${groupId}/expenses`, icon: <I.Receipt />, label: t("sidebar.expenses", "Expenses") });
     }
 
-    // In a chit group this is the group's reason to exist, so it sits high —
-    // and it is shown to EVERY role: the member view (what do I owe, whose turn
-    // is it) is the primary audience, and on the Free plan an isAdmin gate would
-    // be no gate at all.
-    if (group?.features?.chit) {
-        items.push({ to: `/groups/${groupId}/chit`, icon: <I.Cycle />, label: t("sidebar.chit", "Chit") });
+    // Categories is credit-side only in a chit, and both buckets that matter are
+    // created without anyone asking — "Other" at group creation, "Chit
+    // contributions" on the first recorded payment. There is nothing to manage.
+    if (!isChit) {
+        items.push({ to: `/groups/${groupId}/categories/new`, icon: <I.Tag />, label: t("sidebar.categories", "Categories") });
     }
 
-    items.push({ to: `/groups/${groupId}/categories/new`, icon: <I.Tag />, label: t("sidebar.categories", "Categories") });
     items.push({ to: `/groups/${groupId}/activity`, icon: <I.Activity />, label: t("sidebar.activity", "Activity") });
 
     // The category report is a spend breakdown, so it has nothing to show without
@@ -414,7 +462,11 @@ function GroupNav({
         items.push({ to: `/groups/${groupId}/reports/categories`, icon: <I.Chart />, label: t("sidebar.report", "Report") });
     }
 
-    if(isAdmin){
+    // Connections is admin-only, and additionally hidden for a group that can
+    // neither fund another nor be funded — for a chit that is the whole page. The
+    // API refuses both halves of link formation for it, so the screen would offer
+    // a request form that always 403s.
+    if (isAdmin && ((group?.features?.receiveFunding ?? true) || (group?.features?.fundOthers ?? false))) {
         items.push({ to: `/groups/${groupId}/connections`, icon: <I.Link />, label: t("sidebar.connections", "Connections") });
     }
 
@@ -480,15 +532,22 @@ function GroupNav({
                     />
                 )}
 
-                <SidebarNavItem
-                    to={`/groups/${groupId}/expenses/new`}
-                    icon={<I.Plus />}
-                    label={t("groupDetail.addExpense", "New Expense")}
-                    collapsed={collapsed}
-                    emphasis="primary"
-                    disabled={!canAddExpense}
-                    onClick={onNavigate}
-                />
+                {/* Hidden, not disabled, when the group's TYPE refuses expenses:
+                    that can never be satisfied, and a permanently dead primary
+                    action is worse than no action. `disabled` stays for the cases
+                    that CAN resolve — a closed group, or one with no categories
+                    yet — where the control is telling the user what to fix. */}
+                {canRecordExpenses && (
+                    <SidebarNavItem
+                        to={`/groups/${groupId}/expenses/new`}
+                        icon={<I.Plus />}
+                        label={t("groupDetail.addExpense", "New Expense")}
+                        collapsed={collapsed}
+                        emphasis="primary"
+                        disabled={!canAddExpense}
+                        onClick={onNavigate}
+                    />
+                )}
             </div>
 
             <SidebarGroupFilters groupId={groupId} collapsed={collapsed} onNavigate={onNavigate} />

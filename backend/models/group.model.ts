@@ -106,6 +106,15 @@ groupSchema.pre("findOneAndDelete", async function() {
             { $set: { isDeleted: true, status: "REVOKED" } }
         );
         await mongoose.model("GroupJoinLink").deleteMany({ groupId });
+        // The chit's three collections. Hard-deleted rather than soft, because
+        // unlike the ledgers they describe nothing outside this group — a due or a
+        // cycle belonging to a group that no longer exists is unreachable, and the
+        // money they moved is already recorded in GroupTransaction, which is kept.
+        // Without this a deleted group orphans its scheme, and the partial unique
+        // index on { groupId } keeps indexing rows nothing can ever reach again.
+        await mongoose.model("ChitDue").deleteMany({ groupId });
+        await mongoose.model("ChitCycle").deleteMany({ groupId });
+        await mongoose.model("ChitScheme").deleteMany({ groupId });
         // Expenses in OTHER groups may still be attributed to this one. Clear the
         // reference so they don't point at a group that no longer exists — the
         // expense itself and its debit are unaffected, since the tag never drove

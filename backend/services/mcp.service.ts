@@ -654,6 +654,9 @@ export const mcpAddContributionService = async (userId: mongoose.Types.ObjectId,
         userId: targetId,
         contribution: input.amount,
         description: input.description?.trim() ?? '',
+        // The whole reason purpose is a required field: this path never touches
+        // Express, so a router-only gate would not apply to it.
+        purpose: group.purpose,
     });
 
     const [target, fresh] = await Promise.all([

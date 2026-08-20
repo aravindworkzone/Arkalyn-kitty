@@ -7,7 +7,8 @@ import GroupMember from "../models/group_member.model";
 import GroupInvite from "../models/group_invite.model";
 import Category from "../models/category.model";
 import { isSelectableGroupPurpose, type GroupPurpose } from "../models/group.model";
-import { toGroupTypeView } from "../helpers/groupTypes";
+import { toGroupTypeView, assertGroupTypeFeature, contributionDeniedMessage, settlementDeniedMessage } from "../helpers/groupTypes";
+import { CHIT_CREDIT_FLAG } from "./chitMoney.service";
 import { assertMemberFreeOfChit } from "../helpers/chitGuards";
 import { PURPOSE_DEFAULT_CATEGORIES } from "../config/purposeCategories";
 import { createNotification } from "./notification.service";
@@ -680,7 +681,12 @@ export const manageAdminService = async (data: { group: mongoose.Types.ObjectId,
     }
 };
 
-export const addContributionService = async (data: {group: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, contribution: number, description: string, category?: string}) => {
+export const addContributionService = async (data: {group: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, contribution: number, description: string, category?: string,
+    // Required, not optional: the group's type decides whether money may be added
+    // by hand at all. Optional would let a caller omit it and resolve to FAMILY,
+    // passing the gate — so the compiler names every call site instead. Same
+    // arrangement as createExpenseService and createCategoryService.
+    purpose: GroupPurpose}) => {
     const groupData = data.group;
     const userId = data.userId;
     const contribution = data.contribution;
@@ -693,6 +699,9 @@ export const addContributionService = async (data: {group: mongoose.Types.Object
     if (typeof contribution !== "number" || contribution <= 0) {
         throw new AppError("Contribution must be a positive number", 400);
     }
+
+    // A chit's wallet is filled by its cycles and nothing else.
+    assertGroupTypeFeature(data.purpose, 'manualWalletMoves', contributionDeniedMessage());
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
         throw new AppError("Invalid user ID format", 400);
@@ -761,7 +770,9 @@ export const SettlementService = async (data: {
     userId: mongoose.Types.ObjectId,
     settlement: number,
     member: mongoose.Types.ObjectId,
-    balance: number
+    balance: number,
+    // Required for the same reason as on addContributionService above.
+    purpose: GroupPurpose
 }) => {
 
     const { group, userId, settlement, member, balance } = data;
@@ -783,6 +794,12 @@ export const SettlementService = async (data: {
 
     if (settlement > balance)
         throw new AppError("Settlement amount cannot be greater than group balance", 400);
+
+    // Balance is not the only ceiling. In a chit the whole wallet is spoken for —
+    // "not more than the group holds" would still hand over the next recipient's
+    // pot. assertMemberFreeOfChit already stops the member LEAVING; this stops
+    // them being paid out without leaving.
+    assertGroupTypeFeature(data.purpose, 'manualWalletMoves', settlementDeniedMessage());
 
 
     const isMember = await GroupMember.findOne({
@@ -1261,7 +1278,19 @@ export const getAllCreditsService = async (
                 .limit(limit),
             GroupTransaction.countDocuments(filter),
         ]);
-        return { items, total };
+        // Flag the rows removeCreditService will refuse, so the client can stop
+        // OFFERING a delete it cannot perform. Resolved here rather than left to
+        // the client to sniff out of `metadata`: the refusal below reads the same
+        // CHIT_CREDIT_FLAG, so shipping the server's own answer keeps the button
+        // and the rule from ever disagreeing — the toPlanView / toGroupTypeView
+        // pattern applied to one row.
+        const withChitFlag = items.map((item) => ({
+            ...item.toObject(),
+            isChitCredit: Boolean(
+                (item.metadata as Record<string, unknown> | undefined)?.[CHIT_CREDIT_FLAG]
+            ),
+        }));
+        return { items: withChitFlag, total };
     } catch (error: any) {
         throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }
@@ -1299,7 +1328,7 @@ export const removeCreditService = async (data: {
         // roll back while the chit due went on claiming it was paid, and the
         // cycle's collected total would be overstated forever. The chit page owns
         // the undo, which reverses all four together.
-        if ((credit.metadata as Record<string, unknown> | undefined)?.chitDueId) {
+        if ((credit.metadata as Record<string, unknown> | undefined)?.[CHIT_CREDIT_FLAG]) {
             throw new AppError(
                 "This is a chit contribution. Undo it from the group's chit page so the cycle stays in step.",
                 400

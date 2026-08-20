@@ -53,18 +53,16 @@ export const PURPOSE_DEFAULT_CATEGORIES: Record<GroupPurpose, DefaultCategory[]>
         { name: "Business Funds", color: "#10b981", type: "CREDIT" },
         { name: "Shared Fund", color: "#ec4899", type: "CREDIT" },
     ],
-    // Mirrors FAMILY, because a Chit group has FAMILY's feature set today. Chit
-    // has no starter set of its own on purpose: inventing "Chit Dues" or
-    // "Commission" buckets would presuppose the mechanics of the chit engine,
-    // which is not built yet, and a group cannot delete a category once anything
-    // references it. Revisit when the engine lands.
-    CHIT: [
-        { name: "Chit", color: "#6366f1", isSpecial: true },
-        { name: "Groceries", color: "#10b981" },
-        { name: "Utilities", color: "#06b6d4" },
-        { name: "Rent/EMI", color: "#f59e0b" },
-        { name: "Healthcare", color: "#ef4444" },
-        { name: "Transport", color: "#8b5cf6" },
-    ],
+    // Nothing. A Chit group records no expenses, so an expense starter set would
+    // be six buckets nothing could ever go into — the same reason RESERVE seeds
+    // CREDIT rows instead.
+    //
+    // It seeds no CREDIT rows either, because the two it would want already exist
+    // without being named here: every group gets an "Other" credit category at
+    // creation, and the first recorded contribution creates "Chit contributions"
+    // through getOrCreateChitCreditCategory. Seeding them twice would collide on
+    // the { groupId, type, name } unique index, and a category cannot be deleted
+    // once anything references it — so a wrong guess here is permanent.
+    CHIT: [],
     OTHER: [],
 };

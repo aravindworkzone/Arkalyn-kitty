@@ -203,6 +203,9 @@ export const getChitHistory = asyncHandler(async (req, res) => {
     const { items, total } = await getChitHistoryService({
         groupId: req.group._id,
         userId: req.user._id,
+        // The log carries per-cycle collection figures, which are narrowed for a
+        // plain MEMBER exactly as they are on the board.
+        role: await roleOf(req.group._id, req.user._id),
         page,
         limit,
     });

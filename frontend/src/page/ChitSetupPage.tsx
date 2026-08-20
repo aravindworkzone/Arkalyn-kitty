@@ -215,7 +215,15 @@ export default function ChitSetupPage() {
           )}
 
           {/* Step 1 — the money */}
-          <FormSection step="01" title={t("chitSetup.amountStep", "How much, how often")}>
+          {/* allowOverflow: the two Selects and the DatePicker all open panels that
+              are positioned against this card. The start-date field is the last
+              control in it, so a clipped section cuts the calendar off at the
+              border and the date cannot be picked at all. */}
+          <FormSection
+            step="01"
+            title={t("chitSetup.amountStep", "How much, how often")}
+            allowOverflow
+          >
             <div className="space-y-3">
               <AmountInput
                 size="md"
@@ -379,15 +387,6 @@ export default function ChitSetupPage() {
           {/* Step 3 — review and start */}
           <FormSection step="03" title={t("chitSetup.reviewStep", "Review and start")}>
             <div className="space-y-3">
-              <Button
-                variant="secondary"
-                loading={isCreating || isSaving}
-                disabled={!isDraft}
-                onClick={onSave}
-              >
-                {t("chitSetup.saveDraft", "Save draft")}
-              </Button>
-
               {isDraft && order.length >= 2 && amountNumber > 0 && startDate && (
                 <Card title={t("chitSetup.previewTitle", "The schedule")}>
                   <div className="space-y-1">
@@ -411,32 +410,52 @@ export default function ChitSetupPage() {
                 </Card>
               )}
 
-              {isDraft &&
-                (confirming ? (
-                  <div className="space-y-2">
-                    <Note tone="warning">
-                      {t(
-                        "chitSetup.activateWarning",
-                        "Starting the chit fixes the amount, the members and the order — they cannot be changed afterwards. Only the dates stay editable."
-                      )}
-                    </Note>
-                    <div className="flex gap-2">
-                      <Button loading={isActivating} onClick={onActivate}>
-                        {t("chitSetup.confirmActivate", "Start the chit")}
-                      </Button>
-                      <Button variant="ghost" onClick={() => setConfirming(false)}>
-                        {t("chitSetup.cancel", "Cancel")}
-                      </Button>
-                    </div>
-                  </div>
+              {/* The warning belongs above the actions it is warning about, not
+                  wrapped around them in a stack of its own. */}
+              {isDraft && confirming && (
+                <Note tone="warning">
+                  {t(
+                    "chitSetup.activateWarning",
+                    "Starting the chit fixes the amount, the members and the order — they cannot be changed afterwards. Only the dates stay editable."
+                  )}
+                </Note>
+              )}
+
+              {/* ONE action row. Save draft and Start the chit are peers, so they
+                  share a baseline instead of sitting in separate stack slots with
+                  the schedule card wedged between them. `flex-wrap` lets the pair
+                  stack on a narrow phone rather than shrinking either label. */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {confirming ? (
+                  <>
+                    <Button loading={isActivating} onClick={onActivate}>
+                      {t("chitSetup.confirmActivate", "Start the chit")}
+                    </Button>
+                    <Button variant="ghost" onClick={() => setConfirming(false)}>
+                      {t("chitSetup.cancel", "Cancel")}
+                    </Button>
+                  </>
                 ) : (
-                  <Button
-                    disabled={!scheme || order.length < 2 || !amountNumber}
-                    onClick={() => setConfirming(true)}
-                  >
-                    {t("chitSetup.activate", "Start the chit")}
-                  </Button>
-                ))}
+                  <>
+                    <Button
+                      variant="secondary"
+                      loading={isCreating || isSaving}
+                      disabled={!isDraft}
+                      onClick={onSave}
+                    >
+                      {t("chitSetup.saveDraft", "Save draft")}
+                    </Button>
+                    {isDraft && (
+                      <Button
+                        disabled={!scheme || order.length < 2 || !amountNumber}
+                        onClick={() => setConfirming(true)}
+                      >
+                        {t("chitSetup.activate", "Start the chit")}
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </FormSection>
         </div>

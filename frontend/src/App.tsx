@@ -10,7 +10,10 @@ import CreateGroupPage from './page/CreateGroupPage'
 import GroupDetailPage from './page/GroupDetailPage'
 import GroupManagementPage from './page/GroupManagementPage'
 import GroupConnectionsPage from './page/GroupConnectionsPage'
-import ChitPage from './page/ChitPage'
+import ChitLayout from './components/chit/ChitLayout'
+import MyChitPage from './page/chit/MyChitPage'
+import ChitCyclesPage from './page/chit/ChitCyclesPage'
+import ChitCollectionPage from './page/chit/ChitCollectionPage'
 import ChitSetupPage from './page/ChitSetupPage'
 import JoinGroupPage from './page/JoinGroupPage'
 import CreateCategory from './page/CreateCategory'
@@ -78,7 +81,16 @@ function App() {
             <Route path="/groups/:groupId" element={<GroupDetailPage />} />
             <Route path="/groups/:groupId/manage" element={<GroupManagementPage />} />
             <Route path="/groups/:groupId/connections" element={<GroupConnectionsPage />} />
-            <Route path="/groups/:groupId/chit" element={<ChitPage />} />
+            {/* The chit board is three pages under one shell. ChitLayout owns the
+                board query and the scheme-wide notices; each child renders one
+                section. /chit/setup stays a sibling — it is a full-page form, not
+                a section of the board, and has no matching child here so it falls
+                through to its own route below. */}
+            <Route path="/groups/:groupId/chit" element={<ChitLayout />}>
+              <Route index element={<MyChitPage />} />
+              <Route path="cycles" element={<ChitCyclesPage />} />
+              <Route path="collection" element={<ChitCollectionPage />} />
+            </Route>
             <Route path="/groups/:groupId/chit/setup" element={<ChitSetupPage />} />
             <Route path="/groups/:groupId/expenses" element={<AllExpensesPage />} />
             <Route path="/groups/:groupId/expenses/new" element={<CreateExpense />} />

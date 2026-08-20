@@ -129,6 +129,7 @@ export const addContribution = asyncHandler(async (req, res) => {
         contribution: req.body.contribution,
         description: req.body.description,
         category: req.body.category,
+        purpose: req.group.purpose,
     });
 
     emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_CONTRIBUTION_ADDED);
@@ -146,6 +147,7 @@ export const Settlement = asyncHandler(async (req, res) => {
         settlement: req.body.settlement,
         member: req.body.member,
         balance: req.group.balance,
+        purpose: req.group.purpose,
     });
 
     emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_SETTLEMENT_COMPLETED);

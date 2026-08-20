@@ -9,7 +9,7 @@ import { AppError } from '../helpers/AppError';
 import { creditGroupBalance, debitGroupBalance } from '../helpers/balanceOps';
 import { fromDBAmount } from '../helpers/Money';
 import { getGroupPlan } from '../helpers/planLimits';
-import { assertGroupTypeFeature } from '../helpers/groupTypes';
+import { assertGroupTypeFeature, receiveFundingDeniedMessage } from '../helpers/groupTypes';
 import { getOrCreateOtherCreditCategory } from './category.service';
 import { createNotification } from './notification.service';
 import type { NotificationType } from '../models/notification.model';
@@ -99,6 +99,19 @@ export const requestLinkService = async (data: {
         source.purpose,
         'fundOthers',
         `"${source.name}" is not a Reserve group. Only a Reserve group can fund another group.`
+    );
+
+    // ...and the mirror rule on the HOST: a chit is funded only by its own
+    // members. Checked here rather than in router middleware for the same reason
+    // the source check is — the two halves of one rule belong side by side, where
+    // a reader can see that formation is gated on both ends and /transfer on
+    // neither. One projected read; the host document is not otherwise needed.
+    const host = await Group.findById(hostGroup).select('purpose name');
+    if (!host) throw new AppError('Group not found', 404);
+    assertGroupTypeFeature(
+        host.purpose,
+        'receiveFunding',
+        receiveFundingDeniedMessage(host.name)
     );
 
     // A pair funding each other in both directions makes the contributed totals
@@ -193,6 +206,18 @@ const reviewLink = async (data: {
             sourceGroupDoc.purpose,
             'fundOthers',
             'Only a Reserve group can fund another group, so this connection cannot be approved.'
+        );
+
+        // The host may have been a Chit all along — the request predates this
+        // rule — or the rule may simply not have run on its path. Either way an
+        // approval is the last moment before money can move, so both ends are
+        // re-checked here rather than trusted from the request.
+        const hostGroupDoc = await Group.findById(link.hostGroupId).select('purpose name');
+        if (!hostGroupDoc) throw new AppError('Group not found', 404);
+        assertGroupTypeFeature(
+            hostGroupDoc.purpose,
+            'receiveFunding',
+            receiveFundingDeniedMessage(hostGroupDoc.name)
         );
     }
 

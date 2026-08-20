@@ -77,6 +77,22 @@ export const Cycle = () => (
     </svg>
 );
 
+// One person: the caller's own position in the chit, as opposed to the roster.
+export const User = () => (
+    <svg {...S}>
+        <circle cx="8" cy="5.2" r="2.4" {...stroke} />
+        <path d="M3.2 13.4a4.8 4.8 0 019.6 0" {...stroke} />
+    </svg>
+);
+
+// A checklist of people — the organiser's collection roster.
+export const Roster = () => (
+    <svg {...S}>
+        <path d="M6 4h7.5M6 8h7.5M6 12h7.5" {...stroke} />
+        <path d="M2.5 4l1 1 1.5-1.8M2.5 8l1 1L5 7.2M2.5 12l1 1L5 11.2" {...stroke} strokeWidth={1.2} />
+    </svg>
+);
+
 export const Tag = () => (
     <svg {...S}>
         <path d="M2.8 8.4V3.4a.6.6 0 01.6-.6h5l5.2 5.2a.8.8 0 010 1.2l-4.4 4.4a.8.8 0 01-1.2 0L2.8 8.4z" {...stroke} />

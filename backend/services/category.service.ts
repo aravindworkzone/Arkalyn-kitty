@@ -5,7 +5,7 @@ import Expense from '../models/expense.model';
 import GroupTransaction from '../models/group_transaction.model';
 import { AppError } from '../helpers/AppError';
 import { getGroupPlan, assertWithinLimit } from '../helpers/planLimits';
-import { assertGroupTypeFeature } from '../helpers/groupTypes';
+import { assertGroupTypeFeature, expenseCategoriesDeniedMessage } from '../helpers/groupTypes';
 import type { GroupPurpose } from '../models/group.model';
 
 // The default credit category every group gets. New credits land here unless a
@@ -92,9 +92,10 @@ export const createCategoryService = async (data: {
     const { groupId, userId, name, color } = data;
     const type: CategoryType = data.type === 'CREDIT' ? 'CREDIT' : 'EXPENSE';
 
-    // A Reserve group cannot record expenses, so an expense category would be a
-    // bucket nothing can ever go into. CREDIT categories stay allowed — a Reserve
-    // needs somewhere to file the contributions it receives.
+    // A group that cannot record expenses has no use for an expense category — it
+    // would be a bucket nothing can ever go into. CREDIT categories stay allowed
+    // for every type: a Reserve needs somewhere to file the contributions it
+    // receives, and a Chit files its cycle contributions the same way.
     //
     // Gated on the resolved type rather than blanket-blocking category creation,
     // which is why this check lives in the service and not in router middleware:
@@ -103,7 +104,7 @@ export const createCategoryService = async (data: {
         assertGroupTypeFeature(
             data.purpose,
             'expenses',
-            'A Reserve group does not record expenses, so it has no expense categories. Add a credit category instead.'
+            expenseCategoriesDeniedMessage(data.purpose)
         );
     }
     const typeFilter = type === 'CREDIT' ? { type: 'CREDIT' } : EXPENSE_CATEGORY_FILTER;

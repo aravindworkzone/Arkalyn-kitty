@@ -1,21 +1,24 @@
 import type { SettingsTab } from "../../interface/group";
 
-export interface ManagementTabDef {
-  id: SettingsTab;
+// Generic over the id type, defaulting to SettingsTab so every existing call site
+// is unchanged. The chit board needs the identical rail over its own three tabs,
+// and a second copy of it would drift — this is the same rail, not a lookalike.
+export interface ManagementTabDef<T extends string = SettingsTab> {
+  id: T;
   label: string;
   show: boolean;
 }
 
-interface Props {
-  tabs: ManagementTabDef[];
-  activeTab: SettingsTab;
-  onSwitchTab: (tab: SettingsTab) => void;
+interface Props<T extends string> {
+  tabs: ManagementTabDef<T>[];
+  activeTab: T;
+  onSwitchTab: (tab: T) => void;
   ariaLabel: string;
 }
 
 /** Stable ids so the tab and its panel can point at each other. */
-export const tabId = (id: SettingsTab) => `manage-tab-${id}`;
-export const tabPanelId = (id: SettingsTab) => `manage-panel-${id}`;
+export const tabId = (id: string) => `manage-tab-${id}`;
+export const tabPanelId = (id: string) => `manage-panel-${id}`;
 
 /**
  * The Group Management tab rail.
@@ -26,7 +29,12 @@ export const tabPanelId = (id: SettingsTab) => `manage-panel-${id}`;
  * global header the way page/CategoryReportPage.tsx's view switch does, and
  * stays reachable while the panel below it scrolls.
  */
-export default function ManagementTabs({ tabs, activeTab, onSwitchTab, ariaLabel }: Props) {
+export default function ManagementTabs<T extends string = SettingsTab>({
+  tabs,
+  activeTab,
+  onSwitchTab,
+  ariaLabel,
+}: Props<T>) {
   return (
     <div
       className="sticky top-14 lg:top-16 z-sticky bg-surface/95 backdrop-blur-md

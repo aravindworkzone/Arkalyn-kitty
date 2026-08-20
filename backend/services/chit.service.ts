@@ -544,9 +544,25 @@ export const getChitBoardService = async (data: {
         return { scheme: null, cycle: null, myDue: null, myPayout: null, turns: [], asOf: now };
     }
 
+    // TWO different questions, deliberately not one flag.
+    //
+    // canManage is WRITE authority: who may mark a contribution paid and release
+    // the pot. It stays organiser-or-SUPER_ADMIN and is never widened to ADMIN,
+    // because defaultJoinRole makes every member of a Free group an ADMIN — a role
+    // check there would let anyone pay themselves the pot.
+    //
+    // canViewAll is READ breadth: who sees the group's collection figures and the
+    // per-member roster, rather than only their own dues. A plain MEMBER gets the
+    // narrow view — what they owe, when, who has been paid and who is next.
+    //
+    // Widening the read to ADMIN is safe in a way widening the write is not: the
+    // worst case on a Free group is that everyone sees figures about a chit they
+    // are all in. Note the consequence though — a Free group has no MEMBER role at
+    // all, so the narrow view only ever appears on a plan that has memberRole.
     const canManage =
         String((scheme.organizerUserId as any)?._id ?? scheme.organizerUserId) === String(data.userId) ||
         data.role === 'SUPER_ADMIN';
+    const canViewAll = canManage || data.role === 'ADMIN';
 
     const cycles = await ChitCycle.find({ schemeId: scheme._id, isDeleted: false })
         .sort({ cycleNumber: 1 })
@@ -637,6 +653,7 @@ export const getChitBoardService = async (data: {
                     String(data.userId),
             },
             canManage,
+            canViewAll,
         },
         cycle: selected
             ? {
@@ -648,17 +665,30 @@ export const getChitBoardService = async (data: {
                       name: nameOf(selected.recipientUserId),
                       isMe: String((selected.recipientUserId as any)?._id) === String(data.userId),
                   },
+                  // The pot, and what the recipient actually got. Both stay visible
+                  // to everyone: the pot is the term each member agreed to, and who
+                  // received how much is the whole point of watching the rotation.
                   expectedAmount: selected.expectedAmount,
-                  collectedAmount: selected.collectedAmount,
                   payoutAmount: selected.payoutAmount,
-                  shortfallAmount: selected.shortfallAmount,
-                  collectedPct:
-                      selected.expectedAmount > 0
-                          ? Math.min(
-                                100,
-                                Math.round((selected.collectedAmount / selected.expectedAmount) * 100)
-                            )
-                          : 0,
+                  // How collection is GOING — the organiser's business, not every
+                  // member's. Spread in rather than set to null, so a member's
+                  // payload has no key at all and the client cannot render a
+                  // half-filled meter off a zero it mistook for a real figure.
+                  ...(canViewAll
+                      ? {
+                            collectedAmount: selected.collectedAmount,
+                            shortfallAmount: selected.shortfallAmount,
+                            collectedPct:
+                                selected.expectedAmount > 0
+                                    ? Math.min(
+                                          100,
+                                          Math.round(
+                                              (selected.collectedAmount / selected.expectedAmount) * 100
+                                          )
+                                      )
+                                    : 0,
+                        }
+                      : {}),
                   dueDate: selected.dueDate,
                   paidAt: selected.paidAt,
                   overdue: selected.status === 'COLLECTING' && now > selected.dueDate,
@@ -693,9 +723,13 @@ export const getChitBoardService = async (data: {
         asOf: now,
     };
 
-    // Organizer only. Absent rather than empty: an empty array renders as "nobody
-    // has paid", which is a different and wrong statement.
-    if (canManage && selected) {
+    // The per-member roster. Gated on the WIDE READ, not on canManage — an admin
+    // may see who has paid without being the one who records it, and the client
+    // renders the rows read-only unless canManage is also true.
+    //
+    // Absent rather than empty: an empty array renders as "nobody has paid", which
+    // is a different and wrong statement.
+    if (canViewAll && selected) {
         const dues = await ChitDue.find({ cycleId: selected._id, isDeleted: false }).populate(
             'userId',
             'name email'
@@ -737,6 +771,7 @@ export const getChitBoardService = async (data: {
 export const getChitHistoryService = async (data: {
     groupId: Id;
     userId: Id;
+    role: string;
     page: number;
     limit: number;
 }) => {
@@ -745,6 +780,14 @@ export const getChitHistoryService = async (data: {
         createdAt: -1,
     });
     if (!scheme) return { items: [], total: 0 };
+
+    // Same split as the board: everyone sees who received how much and when, only
+    // the wider read sees how collection went. Resolved independently rather than
+    // passed in, so the two endpoints cannot be given different answers.
+    const canViewAll =
+        String(scheme.organizerUserId) === String(data.userId) ||
+        data.role === 'SUPER_ADMIN' ||
+        data.role === 'ADMIN';
 
     const filter = { schemeId: scheme._id, isDeleted: false };
     const [cycles, total] = await Promise.all([
@@ -776,9 +819,13 @@ export const getChitHistoryService = async (data: {
                 isMe: String((cycle.recipientUserId as any)?._id) === String(data.userId),
             },
             expectedAmount: cycle.expectedAmount,
-            collectedAmount: cycle.collectedAmount,
             payoutAmount: cycle.payoutAmount,
-            shortfallAmount: cycle.shortfallAmount,
+            ...(canViewAll
+                ? {
+                      collectedAmount: cycle.collectedAmount,
+                      shortfallAmount: cycle.shortfallAmount,
+                  }
+                : {}),
             dueDate: cycle.dueDate,
             paidAt: cycle.paidAt,
             myDue: mine

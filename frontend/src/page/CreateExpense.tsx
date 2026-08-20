@@ -60,6 +60,7 @@ import {
   clearExpenseDefaults,
 } from "../helpers/expenseDefaults";
 import { formatCents, limitStatus } from "../helpers/money";
+import { groupTypeOf, noExpensesCopy } from "../helpers/groupTypes";
 import { useFieldError } from "../hooks/useFieldError";
 import { useTranslation } from "react-i18next";
 
@@ -115,10 +116,15 @@ export default function CreateExpensePage() {
   const { data: groupLinks } = useGetGroupLinksQuery(groupId!, {
     skip: !groupId,
   });
-  // Reserve groups hold funds rather than spending them. `features` is resolved
-  // server-side; default to allowed while the group is still loading so the form
-  // never flickers into the blocked state for a group that isn't a Reserve.
+  // Reserve and Chit groups hold funds rather than spending them — a Reserve on
+  // behalf of the groups it bankrolls, a Chit on behalf of the next member in the
+  // rotation. `features` is resolved server-side; default to allowed while the
+  // group is still loading so the form never flickers into the blocked state for
+  // a group that records expenses perfectly well.
   const blockNewExpense = !isEdit && groupDetails?.features?.expenses === false;
+  // Which of the two refused, so the screen below can say why. Resolved the same
+  // way useGroupType does, off the payload already in hand.
+  const blockedCopy = noExpensesCopy(groupDetails?.groupTypeName ?? groupTypeOf(groupDetails?.purpose));
   const { data: editExpense } = useGetExpenseByIdQuery(
     { groupId: groupId!, expenseId: expenseId! },
     { skip: !isEdit || !groupId },
@@ -674,13 +680,13 @@ export default function CreateExpensePage() {
     </span>
   );
 
-  // A Reserve group records no expenses. Guarded on the page itself, not only on
-  // the affordances that lead here, because this route is also reachable by deep
-  // link and by the global keyboard shortcut — and the API would refuse the save
-  // anyway, so the form must not pretend otherwise.
+  // A Reserve or Chit group records no expenses. Guarded on the page itself, not
+  // only on the affordances that lead here, because this route is also reachable
+  // by deep link and by the global keyboard shortcut — and the API would refuse
+  // the save anyway, so the form must not pretend otherwise.
   //
-  // Creation only. Editing stays open: a Reserve group whose purpose predates this
-  // rule may already carry expenses, and they have to remain correctable.
+  // Creation only. Editing stays open: a group may already carry expenses from
+  // before its type refused them, and they have to remain correctable.
   if (blockNewExpense) {
     return (
       <div className="min-h-screen bg-surface text-fg">
@@ -696,12 +702,9 @@ export default function CreateExpensePage() {
                 />
               </svg>
             }
-            label={t("createExpense.reserveLabel", "Reserve group")}
-            title={t("createExpense.reserveTitle", "This group doesn't record expenses")}
-            description={t(
-              "createExpense.reserveMessage",
-              "A Reserve group holds funds for your other groups. Send money to a connected group and record the spending there."
-            )}
+            label={t(blockedCopy.labelKey, blockedCopy.label)}
+            title={t(blockedCopy.titleKey, blockedCopy.title)}
+            description={t(blockedCopy.messageKey, blockedCopy.message)}
           />
           <Button variant="secondary" onClick={() => navigate(`/groups/${groupId}`)}>
             {t("createExpense.reserveAction", "Back to group")}
