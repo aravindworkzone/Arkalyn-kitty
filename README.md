@@ -16,7 +16,7 @@ This is a monorepo with three independently deployable packages:
 | Package | Description |
 |---|---|
 | `backend/` | Express 5 + TypeScript REST API, Mongoose 9, socket.io, Razorpay, JWT auth |
-| `frontend/` | React 19 + TypeScript SPA (Vite 8, Redux Toolkit + RTK Query, Tailwind 4) |
+| `frontend/` | React 19 + TypeScript (Vite 8, Redux Toolkit + RTK Query, Tailwind 4) |
 | `arkalyn-mcp/` | Standalone MCP server exposing the user's data to Claude.ai — see [`arkalyn-mcp/README.md`](./arkalyn-mcp/README.md) |
 
 The backend is a flat layered tree (no `src/`): `routes → validators → middlewares → controllers → services → models`.
