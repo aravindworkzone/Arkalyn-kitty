@@ -19,6 +19,7 @@ import {
     getAllCreditsService,
     removeCreditService,
     getEventService,
+    getSectionUpdatesService,
     toggleFavoriteService,
 } from '../services/group.service';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -34,7 +35,10 @@ export const createGroup = asyncHandler(async (req, res) => {
         name: typeof req.body.name === 'string' ? req.body.name.trim() : '',
         invitees: Array.isArray(req.body.invitees) ? req.body.invitees : [],
         contribution: typeof req.body.contribution === 'number' ? req.body.contribution : 0,
-        purpose: typeof req.body.purpose === 'string' ? req.body.purpose : 'OTHER',
+        // Passed through as-is. The validator has already narrowed this to one
+        // of the three selectable types, and the service rejects anything else —
+        // a fallback here would defeat both.
+        purpose: req.body.purpose,
         superAdmin: req.user._id.toString(),
     };
 
@@ -126,6 +130,7 @@ export const addContribution = asyncHandler(async (req, res) => {
         contribution: req.body.contribution,
         description: req.body.description,
         category: req.body.category,
+        purpose: req.group.purpose,
     });
 
     emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_CONTRIBUTION_ADDED);
@@ -143,6 +148,7 @@ export const Settlement = asyncHandler(async (req, res) => {
         settlement: req.body.settlement,
         member: req.body.member,
         balance: req.group.balance,
+        purpose: req.group.purpose,
     });
 
     emitToGroup(req.group.displayId, SOCKET_EVENTS.GROUP_SETTLEMENT_COMPLETED);
@@ -288,6 +294,13 @@ export const getEvent = asyncHandler(async (req, res) => {
 
     const events = await getEventService(req.group._id);
     sendSuccess(res, { events }, 'Events fetched');
+});
+
+export const getSectionUpdates = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const updates = await getSectionUpdatesService(req.group._id);
+    sendSuccess(res, { updates }, 'Section updates fetched');
 });
 
 export const toggleFavorite = asyncHandler(async (req, res) => {

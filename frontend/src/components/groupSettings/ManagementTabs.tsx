@@ -1,21 +1,31 @@
+import { useTranslation } from "react-i18next";
 import type { SettingsTab } from "../../interface/group";
 
-export interface ManagementTabDef {
-  id: SettingsTab;
+// Generic over the id type, defaulting to SettingsTab so every existing call site
+// is unchanged. The chit board needs the identical rail over its own three tabs,
+// and a second copy of it would drift — this is the same rail, not a lookalike.
+export interface ManagementTabDef<T extends string = SettingsTab> {
+  id: T;
   label: string;
   show: boolean;
+  /**
+   * "Something changed behind this tab since you last opened it" — the same red
+   * dot the sidebar rows carry (components/sidebar/SidebarNavItem.tsx), so one
+   * marker means one thing across both navigation surfaces.
+   */
+  dot?: boolean;
 }
 
-interface Props {
-  tabs: ManagementTabDef[];
-  activeTab: SettingsTab;
-  onSwitchTab: (tab: SettingsTab) => void;
+interface Props<T extends string> {
+  tabs: ManagementTabDef<T>[];
+  activeTab: T;
+  onSwitchTab: (tab: T) => void;
   ariaLabel: string;
 }
 
 /** Stable ids so the tab and its panel can point at each other. */
-export const tabId = (id: SettingsTab) => `manage-tab-${id}`;
-export const tabPanelId = (id: SettingsTab) => `manage-panel-${id}`;
+export const tabId = (id: string) => `manage-tab-${id}`;
+export const tabPanelId = (id: string) => `manage-panel-${id}`;
 
 /**
  * The Group Management tab rail.
@@ -26,7 +36,14 @@ export const tabPanelId = (id: SettingsTab) => `manage-panel-${id}`;
  * global header the way page/CategoryReportPage.tsx's view switch does, and
  * stays reachable while the panel below it scrolls.
  */
-export default function ManagementTabs({ tabs, activeTab, onSwitchTab, ariaLabel }: Props) {
+export default function ManagementTabs<T extends string = SettingsTab>({
+  tabs,
+  activeTab,
+  onSwitchTab,
+  ariaLabel,
+}: Props<T>) {
+  const { t } = useTranslation();
+
   return (
     <div
       className="sticky top-14 lg:top-16 z-sticky bg-surface/95 backdrop-blur-md
@@ -42,6 +59,11 @@ export default function ManagementTabs({ tabs, activeTab, onSwitchTab, ariaLabel
               type="button"
               aria-selected={activeTab === tab.id}
               aria-controls={tabPanelId(tab.id)}
+              aria-label={
+                tab.dot
+                  ? t("sidebar.updatedAria", { label: tab.label, defaultValue: "{{label}} — updated" })
+                  : undefined
+              }
               onClick={() => onSwitchTab(tab.id)}
               className={`px-3.5 py-2.5 text-theme-xs font-semibold whitespace-nowrap transition-colors border-b-2
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40
@@ -53,6 +75,15 @@ export default function ManagementTabs({ tabs, activeTab, onSwitchTab, ariaLabel
                 }`}
             >
               {tab.label}
+              {/* Inline rather than absolutely positioned: the rail scrolls
+                  horizontally, and a dot pinned to the button's top-right went
+                  under the fade gradient on the last visible tab. */}
+              {tab.dot && (
+                <span
+                  aria-hidden="true"
+                  className="inline-block align-top ml-1 w-1.5 h-1.5 rounded-full bg-error-500"
+                />
+              )}
             </button>
           ))}
         </div>

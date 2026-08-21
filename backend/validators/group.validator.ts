@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { objectIdSchema, groupIdParamSchema } from './common';
-import { GROUP_PURPOSES } from '../models/group.model';
+import { SELECTABLE_GROUP_PURPOSES } from '../models/group.model';
 
 export const createGroupBodySchema = z.object({
     name: z
@@ -11,7 +11,12 @@ export const createGroupBodySchema = z.object({
         .regex(/^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/, 'Name may contain letters, numbers, and single spaces'),
     contribution: z.number().nonnegative('Contribution cannot be negative'),
     invitees: z.array(objectIdSchema).default([]),
-    purpose: z.enum(GROUP_PURPOSES).default('OTHER'),
+    // Validated against SELECTABLE_GROUP_PURPOSES, not the wider storage enum:
+    // the legacy values stay valid on existing documents but must not be
+    // creatable. Required, with no default — purpose now decides the group's
+    // features and is immutable, so the caller has to say which type it wants
+    // rather than being seated on one by omission.
+    purpose: z.enum(SELECTABLE_GROUP_PURPOSES),
 });
 
 export const cloneGroupBodySchema = z.object({

@@ -20,6 +20,7 @@ import {
     getAllCredits,
     removeCredit,
     getEvent,
+    getSectionUpdates,
     toggleFavorite,
 } from '../controllers/group.controller';
 import { verifyToken, authorizeRole, loadGroup, ensureGroupActive } from '../middlewares/auth.middleware';
@@ -237,6 +238,18 @@ router.get(
     loadGroup,
     authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
     getEvent
+);
+
+// Feeds the sidebar's per-tab "something changed here" dots. Read-only, open to
+// every role — the dot is only ever shown next to a destination the role can
+// already reach, and the sidebar decides which those are.
+router.get(
+    '/:groupId/section-updates',
+    validate({ params: groupIdParamObject }),
+    verifyToken,
+    loadGroup,
+    authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
+    getSectionUpdates
 );
 
 router.get(

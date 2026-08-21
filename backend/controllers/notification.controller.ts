@@ -10,7 +10,14 @@ export const getNotifications = asyncHandler(async (req, res) => {
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
     const skip = (page - 1) * limit;
 
-    const filter = { recipient: req.user._id };
+    // Unread-only is what the arrival toast asks for at sign-in: it shows what
+    // came in while the user was away, and scanning the newest page for unread
+    // rows would miss one sitting behind a screenful of read ones. Served by the
+    // existing { recipient, read, createdAt } index.
+    const filter =
+        req.query.unread === 'true'
+            ? { recipient: req.user._id, read: false }
+            : { recipient: req.user._id };
 
     const [items, total] = await Promise.all([
         Notification.find(filter)

@@ -10,12 +10,19 @@ import GroupMembers from "../models/group_member.model";
 import { PAYMENT_TYPES, PaymentType } from "../models/expense.model";
 import { debitGroupBalance, refundGroupBalance } from "../helpers/balanceOps";
 import { findActiveFunderLink } from "./groupLink.service";
+import { assertGroupTypeFeature, expensesDeniedMessage } from "../helpers/groupTypes";
+import type { GroupPurpose } from "../models/group.model";
 
 interface ExpenseData {
     user: string;
     group: {
         _id: string;
         balance: number;
+        // Required, not optional, and deliberately so. The group's type decides
+        // whether it may record expenses at all, and an optional field would let
+        // a caller omit it and silently resolve to FAMILY — passing the gate.
+        // Required means the compiler names every call site that has to supply it.
+        purpose: GroupPurpose;
     };
     category: string;
     // Optional credit category (pool) the expense is drawn from.
@@ -87,6 +94,21 @@ export const createExpenseService = async (data: ExpenseData) => {
     if (!groupData._id || !category || !title || !amount || !paidBy || !paymentType || !date) {
         throw new AppError("All fields are required", 400);
     }
+
+    // Only a Family group spends on its own account. A Reserve holds money for the
+    // groups it funds; a Chit holds money the rotation has already promised to a
+    // member. Gated here in the service rather than only on the router, because
+    // the MCP server's add_expense tool calls this function directly and never
+    // passes through Express middleware.
+    //
+    // Creation only. Editing and deleting stay open, so a group that already
+    // carries expenses can still have them corrected or unwound. Freezing them
+    // would strand money with no fix.
+    assertGroupTypeFeature(
+        groupData.purpose,
+        "expenses",
+        expensesDeniedMessage(groupData.purpose)
+    );
 
     if( groupData.balance < amount) {
         throw new AppError("Amount cannot be greater than group balance", 400);

@@ -11,8 +11,32 @@ export interface IGroupPlanSnapshot {
     snapshotAt: Date;
 }
 
-export const GROUP_PURPOSES = ["FAMILY", "FRIENDS", "ROOMMATES", "TEAM", "RESERVE", "OTHER"] as const;
+// The STORAGE enum: every value a group document may carry. FRIENDS, ROOMMATES,
+// TEAM and OTHER are LEGACY — they exist on groups created before purpose meant
+// anything, and removing them would strand that data behind an enum that no
+// longer accepts it. They are absent from SELECTABLE_GROUP_PURPOSES below, and
+// config/groupTypeFeatures.ts resolves every one of them to the FAMILY feature
+// set, which is exactly how those groups already behave.
+//
+// Same arrangement as PLAN_TIERS vs SELLABLE_TIERS in config/constants.ts: a wide
+// storage enum that carries history, and a narrow list of what is offered today.
+export const GROUP_PURPOSES = ["FAMILY", "FRIENDS", "ROOMMATES", "TEAM", "RESERVE", "OTHER", "CHIT"] as const;
 export type GroupPurpose = typeof GROUP_PURPOSES[number];
+
+// The three types a user can actually pick. Group creation validates against
+// this, not GROUP_PURPOSES, so no new group can be created on a legacy value.
+//
+// Purpose now decides which FEATURES a group has, which is why creation must
+// reject anything unrecognised rather than falling back to a default: a silent
+// coercion would hand a group the wrong feature set and, because type is
+// immutable, there would be no way to correct it afterwards.
+export const SELECTABLE_GROUP_PURPOSES = ["FAMILY", "CHIT", "RESERVE"] as const;
+export type SelectableGroupPurpose = typeof SELECTABLE_GROUP_PURPOSES[number];
+
+// Mirrors isSellablePlan in config/constants.ts — same storage-vs-offered split,
+// same narrowing predicate, so the two read alike at their call sites.
+export const isSelectableGroupPurpose = (p: unknown): p is SelectableGroupPurpose =>
+    typeof p === "string" && (SELECTABLE_GROUP_PURPOSES as readonly string[]).includes(p);
 
 export interface IGroup extends Document {
     displayId: string;
@@ -74,18 +98,20 @@ groupSchema.pre("findOneAndDelete", async function() {
         await mongoose.model("GroupMember").deleteMany({ groupId });
         await mongoose.model("GroupEvent").updateMany({ groupId }, { $set: { isDeleted: true } });
         await mongoose.model("GroupTransaction").updateMany({ groupId }, { $set: { isDeleted: true } });
-        // Funding links point both ways, so match either end. Soft-deleted like
-        // the ledgers rather than dropped: the surviving group's history still
-        // refers to money that moved.
         await mongoose.model("GroupLink").updateMany(
             { $or: [{ hostGroupId: groupId }, { sourceGroupId: groupId }] },
             { $set: { isDeleted: true, status: "REVOKED" } }
         );
         await mongoose.model("GroupJoinLink").deleteMany({ groupId });
-        // Expenses in OTHER groups may still be attributed to this one. Clear the
-        // reference so they don't point at a group that no longer exists — the
-        // expense itself and its debit are unaffected, since the tag never drove
-        // any balance.
+        // The chit's three collections. Hard-deleted rather than soft, because
+        // unlike the ledgers they describe nothing outside this group — a due or a
+        // cycle belonging to a group that no longer exists is unreachable, and the
+        // money they moved is already recorded in GroupTransaction, which is kept.
+        // Without this a deleted group orphans its scheme, and the partial unique
+        // index on { groupId } keeps indexing rows nothing can ever reach again.
+        await mongoose.model("ChitDue").deleteMany({ groupId });
+        await mongoose.model("ChitCycle").deleteMany({ groupId });
+        await mongoose.model("ChitScheme").deleteMany({ groupId });
         await mongoose.model("Expense").updateMany(
             { fundedByGroup: groupId },
             { $unset: { fundedByGroup: "" } }

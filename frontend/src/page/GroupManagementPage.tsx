@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import DeleteConfirmModal from "../components/deleteModel";
@@ -28,6 +28,9 @@ import {
   UpgradeNote,
 } from "../components/ui";
 import { useGroupPlan } from "../hooks/usePlan";
+import { useSeenMarks } from "../hooks/useSectionUpdates";
+import { useGetSectionUpdatesQuery } from "../redux/api/group";
+import { groupTypeI18nKey, groupTypeLabel } from "../helpers/groupTypes";
 import ExportPanel from "../components/group/ExportPanel";
 import {
   ManagementTabs,
@@ -95,6 +98,11 @@ export default function GroupManagementPage() {
 
   const role = GroupDetails?.role as Group["role"];
   const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
+  // A chit group's wallet is filled and emptied by its cycles alone, so the two
+  // hand-operated money panels do not apply to it. The API refuses both, so
+  // showing the tabs would only offer forms that 403. Defaults to allowed while
+  // the group loads, so they never blink out of an ordinary group's settings.
+  const canMoveWalletByHand = GroupDetails?.features?.manualWalletMoves !== false;
   const isSuperAdmin = role === "SUPER_ADMIN";
 
   // Member headroom on THIS group's plan. The backend rejects the invite at the
@@ -161,10 +169,11 @@ export default function GroupManagementPage() {
   // "export" sits with the admin tabs rather than behind a plan check: an
   // unentitled group still sees the tab and the upsell inside it, which is the
   // point — a treasurer discovering the feature is how the tier gets sold.
+  const walletTabs: SettingsTab[] = canMoveWalletByHand ? ["contribution", "settlement"] : [];
   const allowedTabs: SettingsTab[] = isSuperAdmin
-    ? ["addMember", "changeRole", "contribution", "settlement", "requests", "export", "danger"]
+    ? ["addMember", "changeRole", ...walletTabs, "requests", "export", "danger"]
     : isAdmin
-      ? ["addMember", "contribution", "settlement", "requests", "export", "danger"]
+      ? ["addMember", ...walletTabs, "requests", "export", "danger"]
       : ["danger"];
 
   const tabParam = searchParams.get("tab") as SettingsTab | null;
@@ -180,20 +189,45 @@ export default function GroupManagementPage() {
     setSearchParams(params, { replace: true });
   };
 
+  /* ── Update dots ────────────────────────────────────────────────────────
+   * Every panel on this rail reads the same two collections — members and
+   * invites — so they share the one `manage` stamp the server reports, and the
+   * rail keeps a seen mark per tab. A membership change really is news for all
+   * of them: it moves who can be promoted, who is owed a settlement and who is
+   * waiting in the queue alike.
+   *
+   * A tab the user has never opened has no mark, so on a first visit the whole
+   * rail is dotted — the same first-login behaviour the sidebar has.
+   */
+  const { data: sectionUpdates } = useGetSectionUpdatesQuery(groupId!, { skip: !groupId });
+  const manageStamp = sectionUpdates?.manage ?? null;
+  const { isUnseen, markSeen } = useSeenMarks(groupId);
+
+  useEffect(() => {
+    markSeen(`manage:${activeTab}`, manageStamp);
+  }, [activeTab, manageStamp, markSeen]);
+
+  // The open tab is being read right now, so it never dots itself — the effect
+  // above marks it, this covers the frame before that lands.
+  const tabDot = (id: SettingsTab) => id !== activeTab && isUnseen(`manage:${id}`, manageStamp);
+
   const tabs: ManagementTabDef[] = [
-    { id: "addMember",    label: t("groupDetail.tabAddMember"),    show: isAdmin },
-    { id: "changeRole",   label: t("groupDetail.tabChangeRole"),   show: isSuperAdmin },
-    { id: "contribution", label: t("groupDetail.tabContribution"), show: isAdmin },
-    { id: "settlement",   label: t("groupDetail.tabSettlement"),   show: isAdmin },
+    { id: "addMember",    label: t("groupDetail.tabAddMember"),    show: isAdmin,       dot: tabDot("addMember") },
+    { id: "changeRole",   label: t("groupDetail.tabChangeRole"),   show: isSuperAdmin,  dot: tabDot("changeRole") },
+    { id: "contribution", label: t("groupDetail.tabContribution"), show: isAdmin && canMoveWalletByHand, dot: tabDot("contribution") },
+    { id: "settlement",   label: t("groupDetail.tabSettlement"),   show: isAdmin && canMoveWalletByHand, dot: tabDot("settlement") },
     {
       id: "requests",
       label: pendingRequestCount > 0
         ? `${t("groupDetail.tabRequests")} (${pendingRequestCount})`
         : t("groupDetail.tabRequests"),
+      // The count in the label already says a queue is waiting; a dot beside it
+      // would mark the same fact twice.
       show: isAdmin,
+      dot: pendingRequestCount === 0 && tabDot("requests"),
     },
     { id: "export",       label: t("groupDetail.tabExport", "Export"), show: isAdmin },
-    { id: "danger",       label: t("groupDetail.tabDanger"),       show: !!role },
+    { id: "danger",       label: t("groupDetail.tabDanger"),       show: !!role,        dot: tabDot("danger") },
   ];
 
   // Non-members (403) and unknown groups (404) both land here.
@@ -264,6 +298,29 @@ export default function GroupManagementPage() {
                 )
           }
         />
+
+        {/* The group's type, stated read-only. There is no control to change it
+            because there is no route that can: the type decides which features the
+            group has, and a group that switched type would carry data — expenses in
+            a Reserve, funding links in a Family — that its new type has no meaning
+            for. Showing it inert is better than hiding it, since a member wondering
+            why this group has no expenses page needs the answer somewhere. */}
+        {GroupDetails?.purpose && (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="text-theme-2xs uppercase tracking-widest text-fg-muted">
+              {t("groupManagement.groupType", "Group type")}
+            </span>
+            <span
+              className="text-theme-2xs font-semibold px-2 py-0.5 rounded-md border border-line bg-surface-hover text-fg"
+              translate="no"
+            >
+              {t(groupTypeI18nKey(GroupDetails.purpose), groupTypeLabel(GroupDetails.purpose))}
+            </span>
+            <span className="text-theme-2xs text-fg-muted">
+              {t("groupManagement.groupTypeLocked", "Chosen when the group was created and cannot be changed.")}
+            </span>
+          </div>
+        )}
 
         <ManagementTabs
           tabs={tabs}

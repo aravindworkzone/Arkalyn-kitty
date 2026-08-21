@@ -1,13 +1,19 @@
-// Money crosses the API in cents (paise) — `totalCents`, `limitCents`,
-// `spentCents`. The UI speaks rupees, so conversion lives here rather than
-// being re-derived at each call site.
+// Money crosses the API in cents (paise) on the CATEGORY-LIMIT surfaces —
+// `totalCents`, `limitCents`, `spentCents`. Everywhere else (balances,
+// contributions, transactions, chit) it crosses in rupees, because the Mongoose
+// getters convert at the schema boundary. Both live here so no call site
+// re-derives the conversion or hand-rolls its own ₹ formatter.
 
-export const formatCents = (cents: number, locale = "en") =>
+// The canonical rupee formatter. Prefer this over a local template string —
+// there were three near-identical copies of it before it existed.
+export const formatRupees = (rupees: number, locale = "en", maximumFractionDigits = 0) =>
   new Intl.NumberFormat(locale === "ta" ? "ta-IN" : "en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
+    maximumFractionDigits,
+  }).format(rupees);
+
+export const formatCents = (cents: number, locale = "en") => formatRupees(cents / 100, locale);
 
 // Rupees typed into an amount field → cents. Empty/invalid input means the
 // user cleared the field, which for an optional limit reads as "no limit".

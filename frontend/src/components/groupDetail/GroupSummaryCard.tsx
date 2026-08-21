@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import MemberAvatars from "../ListMember";
 import RoleBadge from "../ui/RoleBadge";
+import { groupTypeI18nKey, groupTypeLabel } from "../../helpers/groupTypes";
 import type { Group } from "../../interface/group";
 import { hasUpgradeAvailable } from "../../helpers/plans";
 
@@ -51,6 +52,16 @@ export default function GroupSummaryCard({ group, role, memberNames, totalContri
               {group?.displayId}
             </span>
             <RoleBadge Role={role || "MEMBER"} groupName={group?.name} />
+
+            {/* The group's type, badged on every group. It decides what the group
+                can do and can never be changed, so it belongs next to the
+                identity chips rather than only in settings. */}
+            <span
+              className="text-theme-2xs font-semibold px-2 py-0.5 rounded-md border border-line bg-surface-hover text-fg-muted"
+              translate="no"
+            >
+              {t(groupTypeI18nKey(group?.purpose), groupTypeLabel(group?.purpose))}
+            </span>
 
             {canUpgrade ? (
               <button

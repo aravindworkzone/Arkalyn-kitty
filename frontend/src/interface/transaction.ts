@@ -15,6 +15,11 @@ export interface GroupCredit {
   performedBy: { _id: string; name: string; email?: string };
   referenceModel: string;
   createdAt: string;
+  // Set by the server on rows a chit contribution wrote. removeCreditService
+  // refuses to delete these, so the UI must not offer the button — undoing one
+  // belongs on the chit board, which unwinds the due, the cycle total, the
+  // member's contribution and the wallet together.
+  isChitCredit?: boolean;
 }
 
 export interface GroupEvent {

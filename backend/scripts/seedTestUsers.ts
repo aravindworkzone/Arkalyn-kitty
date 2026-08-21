@@ -5,7 +5,7 @@ import { BCRYPT_SALT_ROUNDS } from '../config/constants';
 import User from '../models/user.model';
 
 /**
- * Seeds four local test accounts.
+ * Seeds the local test accounts.
  *
  *   npm run seed:users
  *
@@ -30,11 +30,22 @@ interface SeedUser {
     password: string;
 }
 
+// test1-4 are the original four and keep their passwords — every other seeded
+// group is built from them, and changing those would invalidate anyone's saved
+// login. test5-10 exist so the chit can run at a realistic SIZE: a 4-person
+// rotation finishes in four cycles and never shows the states that only appear
+// over a longer term.
 const USERS: SeedUser[] = [
     { name: 'Test One', email: 'test1@gmail.com', password: 'test@1' },
     { name: 'Test Two', email: 'test2@gmail.com', password: 'test@2' },
     { name: 'Test Three', email: 'test3@gmail.com', password: 'test@3' },
     { name: 'Test Four', email: 'test4@gmail.com', password: 'test@4' },
+    { name: 'Test Five', email: 'test5@gmail.com', password: 'test@5' },
+    { name: 'Test Six', email: 'test6@gmail.com', password: 'test@6' },
+    { name: 'Test Seven', email: 'test7@gmail.com', password: 'test@7' },
+    { name: 'Test Eight', email: 'test8@gmail.com', password: 'test@8' },
+    { name: 'Test Nine', email: 'test9@gmail.com', password: 'test@9' },
+    { name: 'Test Ten', email: 'test10@gmail.com', password: 'test@10' },
 ];
 
 const looksLocal = (uri: string) => /localhost|127\.0\.0\.1|host\.docker\.internal/.test(uri);

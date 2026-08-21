@@ -9,6 +9,7 @@ import { AppError } from '../helpers/AppError';
 import { creditGroupBalance, debitGroupBalance } from '../helpers/balanceOps';
 import { fromDBAmount } from '../helpers/Money';
 import { getGroupPlan } from '../helpers/planLimits';
+import { assertGroupTypeFeature, receiveFundingDeniedMessage } from '../helpers/groupTypes';
 import { getOrCreateOtherCreditCategory } from './category.service';
 import { createNotification } from './notification.service';
 import type { NotificationType } from '../models/notification.model';
@@ -84,6 +85,34 @@ export const requestLinkService = async (data: {
     if (source.status === 'CLOSED') {
         throw new AppError('That group is closed and cannot fund another group', 400);
     }
+
+    // Only a Reserve group may bankroll another. Checked on the source that was
+    // just resolved, not on req.group — the host is the acting group here, and the
+    // funder is named in the body, which is why this gate is a service check
+    // rather than router middleware.
+    //
+    // This lands on link FORMATION (here and on approve), never on /transfer. A
+    // transfer acts on a link that is already ACTIVE, so links approved before
+    // this rule existed keep working untouched — grandfathering falls out of
+    // where the gate sits, with no flag and no migration.
+    assertGroupTypeFeature(
+        source.purpose,
+        'fundOthers',
+        `"${source.name}" is not a Reserve group. Only a Reserve group can fund another group.`
+    );
+
+    // ...and the mirror rule on the HOST: a chit is funded only by its own
+    // members. Checked here rather than in router middleware for the same reason
+    // the source check is — the two halves of one rule belong side by side, where
+    // a reader can see that formation is gated on both ends and /transfer on
+    // neither. One projected read; the host document is not otherwise needed.
+    const host = await Group.findById(hostGroup).select('purpose name');
+    if (!host) throw new AppError('Group not found', 404);
+    assertGroupTypeFeature(
+        host.purpose,
+        'receiveFunding',
+        receiveFundingDeniedMessage(host.name)
+    );
 
     // A pair funding each other in both directions makes the contributed totals
     // meaningless, so one live direction at a time.
@@ -161,6 +190,35 @@ const reviewLink = async (data: {
     if (!host) throw new AppError('Group not found', 404);
     if (approve && host.status === 'CLOSED') {
         throw new AppError('That group has been closed', 400);
+    }
+
+    // Approving is the other half of link formation, so the funding-source rule is
+    // enforced here too — not only on /request. It closes the case where a group's
+    // type stopped qualifying between the request and the answer, and it means the
+    // rule holds even for a request written directly to the database.
+    //
+    // Only on the approve branch. Rejecting must stay available whatever the
+    // group's type: saying no is never gated.
+    if (approve) {
+        const sourceGroupDoc = await Group.findById(sourceGroup).select('purpose name');
+        if (!sourceGroupDoc) throw new AppError('Group not found', 404);
+        assertGroupTypeFeature(
+            sourceGroupDoc.purpose,
+            'fundOthers',
+            'Only a Reserve group can fund another group, so this connection cannot be approved.'
+        );
+
+        // The host may have been a Chit all along — the request predates this
+        // rule — or the rule may simply not have run on its path. Either way an
+        // approval is the last moment before money can move, so both ends are
+        // re-checked here rather than trusted from the request.
+        const hostGroupDoc = await Group.findById(link.hostGroupId).select('purpose name');
+        if (!hostGroupDoc) throw new AppError('Group not found', 404);
+        assertGroupTypeFeature(
+            hostGroupDoc.purpose,
+            'receiveFunding',
+            receiveFundingDeniedMessage(hostGroupDoc.name)
+        );
     }
 
     link.status = approve ? 'ACTIVE' : 'REJECTED';

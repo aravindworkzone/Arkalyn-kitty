@@ -2,7 +2,7 @@ import {api} from "./base";
 import type { GroupMember } from "../../interface/member";
 import type { GroupTransaction, GroupEvent, GroupCredit, BasicTransactionTotals } from "../../interface/transaction";
 import type { PaginatedData, ApiSuccess } from "../../interface/api";
-import type { Group } from "../../interface/group";
+import type { Group, SelectableGroupPurpose, GroupSectionUpdates } from "../../interface/group";
 
 // Refund preview returned by GET /group/:id/close-preview.
 export interface GroupClosePreview {
@@ -20,7 +20,7 @@ export interface GroupClosePreview {
 
 export const group = api.injectEndpoints({
     endpoints: (builder) => ({
-        CreateGroup : builder.mutation<ApiSuccess<{ group: Group }>, { name: string; contribution: number; invitees: string[]; purpose: string }>({
+        CreateGroup : builder.mutation<ApiSuccess<{ group: Group }>, { name: string; contribution: number; invitees: string[]; purpose: SelectableGroupPurpose }>({
             query: (credentials) => ({
                 url: '/group/create',
                 method: 'POST',
@@ -208,6 +208,22 @@ export const group = api.injectEndpoints({
                 'Group', 'Expense', 'Transaction', 'Event'
             ]
         }),
+        getSectionUpdates: builder.query<GroupSectionUpdates, string>({
+            query: (groupId) => ({
+                url: `/group/${groupId}/section-updates`,
+                method: 'GET'
+            }),
+            transformResponse: (res: { data: { updates: GroupSectionUpdates } }) => res.data.updates,
+            // Every tag the group's socket listeners invalidate. The stamps this
+            // returns move whenever ANY of those collections is written, so
+            // riding the existing invalidations is what keeps the sidebar dots
+            // live without a poll of their own.
+            providesTags: (_result, _error, groupId) => [
+                { type: 'Group', id: groupId },
+                { type: 'Expense', id: groupId },
+                { type: 'Category', id: groupId }
+            ]
+        }),
         toggleFavorite: builder.mutation<{ isFavorite: boolean }, { groupId: string; isFavorite: boolean }>({
             query: (body) => ({ url: '/group/favorite', method: 'POST', body }),
             invalidatesTags: (_result, _error, arg) => [
@@ -227,5 +243,6 @@ export const {
     useSettlementMutation, useDeleteGroupMutation, useLeaveGroupMutation,
     useApproveLeaveMutation, useRejectLeaveMutation, useCancelOwnLeaveMutation,
     useGetGroupClosePreviewQuery, useCloseGroupMutation,
-    useToggleFavoriteMutation
+    useToggleFavoriteMutation,
+    useGetSectionUpdatesQuery
 } = group;

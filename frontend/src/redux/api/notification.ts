@@ -3,11 +3,21 @@ import type { PaginatedNotifications } from "../../interface/notification";
 
 export const notificationApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    getNotifications: builder.query<PaginatedNotifications, { page?: number; limit?: number } | void>({
+    getNotifications: builder.query<
+      PaginatedNotifications,
+      { page?: number; limit?: number; unread?: boolean } | void
+    >({
       query: (arg) => ({
         url: "/notifications",
         method: "GET",
-        params: { page: arg?.page ?? 1, limit: arg?.limit ?? 20 },
+        // `unread` is omitted rather than sent as false when it isn't asked
+        // for, so the plain feed keeps the request — and the cache key — it
+        // has always had.
+        params: {
+          page: arg?.page ?? 1,
+          limit: arg?.limit ?? 20,
+          ...(arg?.unread ? { unread: "true" } : {}),
+        },
       }),
       transformResponse: (res: { data: PaginatedNotifications }) => res.data,
       providesTags: ["Notification"],

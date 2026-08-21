@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../helpers/cn";
 import { groupColor } from "../../helpers/groupColor";
+import { groupFeaturesOf } from "../../helpers/groupTypes";
 import type { Group } from "../../interface/group";
 
 /**
@@ -158,7 +159,7 @@ export default function SidebarGroupItem({
                         menuOpen && "opacity-100"
                     )}
                 >
-                    {!isClosed && (
+                    {!isClosed && groupFeaturesOf(group.purpose).expenses && (
                         <button
                             type="button"
                             onClick={() => go(`/groups/${group.displayId}/expenses/new`)}

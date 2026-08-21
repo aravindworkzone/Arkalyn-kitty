@@ -4,8 +4,9 @@ import { useVerifyUserMutation } from "../redux/api/user";
 import { validateEmail, validateGroupName } from "../helpers/validators";
 import type { SetFieldError } from "../hooks/useFieldError";
 import type { CreateGroupMember } from "../interface/member";
+import type { SelectableGroupPurpose } from "../interface/group";
 
-export type GroupField = "groupName" | "emailInput" | "members";
+export type GroupField = "groupName" | "emailInput" | "members" | "purpose";
 
 export const removeMember = (
   setMembers: React.Dispatch<React.SetStateAction<CreateGroupMember[]>>,
@@ -63,12 +64,17 @@ export const useGroupHandlers = () => {
     currentUserId: string,
     setFieldError: SetFieldError<GroupField>,
     setApiError:   React.Dispatch<React.SetStateAction<string>>,
-    purpose: string = "OTHER"
+    purpose: SelectableGroupPurpose | ""
   ) => {
     e.preventDefault();
 
     const nameV = validateGroupName(groupName);
     if (!nameV.valid) { setFieldError("groupName", nameV.message); return; }
+
+    // No default type. The API rejects a missing purpose too, but catching it here
+    // points at the step the user skipped instead of surfacing a generic error at
+    // the bottom of the form.
+    if (!purpose) { setFieldError("purpose", "Choose a group type"); return; }
 
     // Only the creator's contribution is collected at creation time. Everyone
     // else is invited and sets their own contribution when they accept.

@@ -16,10 +16,9 @@ import {
   useGetSubscriptionTransactionsQuery,
   useDeleteSubscriptionTransactionMutation,
 } from "../redux/api/subscription";
-import { api } from "../redux/api/base";
 import type { AppDispatch } from "../redux/store";
 import type { PlanTier, PaymentStatus } from "../interface/subscription";
-import { socket } from "../socket/socket";
+import { endSession } from "../helpers/endSession";
 import { PageBackground, BackButton, PageContainer } from "../components/ui";
 
 // The /user/me payload — only the slice this page renders. No subscription:
@@ -284,8 +283,7 @@ export default function ProfilePage() {
     if (confirmText !== DELETE_KEYWORD) return;
     try {
       await deleteAccount().unwrap();
-      dispatch(api.util.resetApiState());
-      socket.disconnect();
+      endSession(dispatch);
       navigate("/login", { replace: true });
     } catch (err: unknown) {
       const message =
@@ -301,8 +299,7 @@ export default function ProfilePage() {
     } catch {
       // Even if the network call fails, still clear local state and leave.
     }
-    dispatch(api.util.resetApiState());
-    socket.disconnect();
+    endSession(dispatch);
     navigate("/login", { replace: true });
   };
 

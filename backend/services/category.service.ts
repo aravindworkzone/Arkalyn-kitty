@@ -5,38 +5,69 @@ import Expense from '../models/expense.model';
 import GroupTransaction from '../models/group_transaction.model';
 import { AppError } from '../helpers/AppError';
 import { getGroupPlan, assertWithinLimit } from '../helpers/planLimits';
+import { assertGroupTypeFeature, expenseCategoriesDeniedMessage } from '../helpers/groupTypes';
+import type { GroupPurpose } from '../models/group.model';
 
 // The default credit category every group gets. New credits land here unless a
 // specific credit category is chosen.
 export const OTHER_CREDIT_CATEGORY = { name: 'Other', color: '#64748b' } as const;
 
+// Where a chit contribution lands, so the credit-category rollup can tell chit
+// money apart from an ordinary top-up.
+export const CHIT_CREDIT_CATEGORY = { name: 'Chit contributions', color: '#0ea5e9' } as const;
+
 // Mongo filter fragment for "expense-side" categories. Pre-existing documents
 // have no `type` field, so we match on NOT credit rather than == expense.
 export const EXPENSE_CATEGORY_FILTER = { type: { $ne: 'CREDIT' } } as const;
 
-// Fetch (or lazily create) a group's "Other" credit category. Used by every
-// credit-creation flow so older groups get one on first use.
-export const getOrCreateOtherCreditCategory = async (
+// Fetch (or lazily create) a named credit category for a group.
+//
+// Deliberately bypasses the per-group category cap, exactly as the purpose-seeded
+// defaults and cloning do: these are categories the system needs in order to file
+// money correctly, not ones the user chose to add.
+export const getOrCreateNamedCreditCategory = async (
     groupId: mongoose.Types.ObjectId,
+    name: string,
+    color: string,
     session?: mongoose.ClientSession
 ) => {
-    const query = Category.findOne({
-        groupId,
-        type: 'CREDIT',
-        name: OTHER_CREDIT_CATEGORY.name,
-        isDeleted: false,
-    });
+    const query = Category.findOne({ groupId, type: 'CREDIT', name, isDeleted: false });
     if (session) query.session(session);
     let category = await query;
     if (!category) {
         const created = await Category.create(
-            [{ groupId, type: 'CREDIT', name: OTHER_CREDIT_CATEGORY.name, color: OTHER_CREDIT_CATEGORY.color }],
+            [{ groupId, type: 'CREDIT', name, color }],
             session ? { session } : {}
         );
         category = created[0]!;
     }
     return category;
 };
+
+// Fetch (or lazily create) a group's "Other" credit category. Used by every
+// credit-creation flow so older groups get one on first use.
+export const getOrCreateOtherCreditCategory = (
+    groupId: mongoose.Types.ObjectId,
+    session?: mongoose.ClientSession
+) =>
+    getOrCreateNamedCreditCategory(
+        groupId,
+        OTHER_CREDIT_CATEGORY.name,
+        OTHER_CREDIT_CATEGORY.color,
+        session
+    );
+
+// Fetch (or lazily create) the group's chit contribution category.
+export const getOrCreateChitCreditCategory = (
+    groupId: mongoose.Types.ObjectId,
+    session?: mongoose.ClientSession
+) =>
+    getOrCreateNamedCreditCategory(
+        groupId,
+        CHIT_CREDIT_CATEGORY.name,
+        CHIT_CREDIT_CATEGORY.color,
+        session
+    );
 
 // A spend limit only means something on the expense side, and 0 is how the
 // client says "no limit" — normalise both to null.
@@ -50,12 +81,32 @@ export const createCategoryService = async (data: {
     name: string;
     groupId: mongoose.Types.ObjectId;
     userId: mongoose.Types.ObjectId;
+    // Required: the group's type decides whether EXPENSE categories are allowed
+    // at all. Optional would let a caller omit it and resolve to FAMILY, passing
+    // the gate — so the compiler names every call site instead.
+    purpose: GroupPurpose;
     color?: string;
     type?: CategoryType;
     limitCents?: number | null;
 }) => {
     const { groupId, userId, name, color } = data;
     const type: CategoryType = data.type === 'CREDIT' ? 'CREDIT' : 'EXPENSE';
+
+    // A group that cannot record expenses has no use for an expense category — it
+    // would be a bucket nothing can ever go into. CREDIT categories stay allowed
+    // for every type: a Reserve needs somewhere to file the contributions it
+    // receives, and a Chit files its cycle contributions the same way.
+    //
+    // Gated on the resolved type rather than blanket-blocking category creation,
+    // which is why this check lives in the service and not in router middleware:
+    // the decision depends on the request body.
+    if (type !== 'CREDIT') {
+        assertGroupTypeFeature(
+            data.purpose,
+            'expenses',
+            expenseCategoriesDeniedMessage(data.purpose)
+        );
+    }
     const typeFilter = type === 'CREDIT' ? { type: 'CREDIT' } : EXPENSE_CATEGORY_FILTER;
     const limitCents = normaliseLimit(data.limitCents, type) ?? null;
 

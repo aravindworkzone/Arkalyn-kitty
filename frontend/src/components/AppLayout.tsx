@@ -3,8 +3,10 @@ import { Outlet, useLocation, useOutletContext } from "react-router-dom";
 import { cn } from "../helpers/cn";
 import { Sidebar } from "./sidebar";
 import Header from "./header";
+import NotificationToaster from "./notifications/NotificationToaster";
 import { useSidebar } from "../hooks/useSidebar";
 import { useRecentGroups } from "../hooks/useRecentGroups";
+import { useGroupRoom } from "../hooks/useGroupRoom";
 import { useActiveGroupId } from "../hooks/useActiveGroupId";
 import type { CurrentUser } from "../interface/user";
 
@@ -45,6 +47,11 @@ export default function AppLayout() {
     // sidebar so it tracks real navigation even while the drawer is shut.
     useRecentGroups(groupId);
 
+    // Live updates for the open group, on every one of its screens rather than
+    // only the overview. Here for the same reason as the line above: this is the
+    // one component that sees every authenticated navigation.
+    useGroupRoom(groupId);
+
     // A route change means the drawer's job is done. Without this it stays open
     // over the page the user just navigated to.
     useEffect(() => {
@@ -74,6 +81,13 @@ export default function AppLayout() {
 
             {/* Header is mobile-only now — the sidebar owns the chrome at md+. */}
             <Header onOpenSidebar={openMobile} />
+
+            {/* Inside the shell rather than App, so arrival toasts are scoped to
+                signed-in screens — the socket only carries a session's own
+                notifications, and the landing and auth pages have no bell to
+                point at. Outside the keyed route wrapper below: a toast must
+                survive the navigation it invites the user to make. */}
+            <NotificationToaster />
 
             <div
                 className={cn(

@@ -6,7 +6,15 @@ import GroupEvent from "../models/group_event.model";
 import GroupMember from "../models/group_member.model";
 import GroupInvite from "../models/group_invite.model";
 import Category from "../models/category.model";
-import { GROUP_PURPOSES, type GroupPurpose } from "../models/group.model";
+import Expense from "../models/expense.model";
+import GroupLink from "../models/group_link.model";
+import ChitScheme from "../models/chit_scheme.model";
+import ChitCycle from "../models/chit_cycle.model";
+import ChitDue from "../models/chit_due.model";
+import { isSelectableGroupPurpose, type GroupPurpose } from "../models/group.model";
+import { toGroupTypeView, assertGroupTypeFeature, contributionDeniedMessage, settlementDeniedMessage } from "../helpers/groupTypes";
+import { CHIT_CREDIT_FLAG } from "./chitMoney.service";
+import { assertMemberFreeOfChit } from "../helpers/chitGuards";
 import { PURPOSE_DEFAULT_CATEGORIES } from "../config/purposeCategories";
 import { createNotification } from "./notification.service";
 import { getOrCreateOtherCreditCategory } from "./category.service";
@@ -18,9 +26,16 @@ export const createGroupService = async (data: { name: string; invitees: string[
     const name = data.name?.trim();
     const superAdmin = data.superAdmin;
     const contribution = data.contribution ?? 0;
-    const purpose: GroupPurpose = GROUP_PURPOSES.includes(data.purpose as GroupPurpose)
-        ? (data.purpose as GroupPurpose)
-        : "OTHER";
+    // Purpose decides the group's TYPE, and therefore which features it has —
+    // and it is immutable once set. So an unrecognised value is rejected rather
+    // than coerced to a default: silently seating a group on the wrong feature
+    // set would leave no way to correct it afterwards. Only the three selectable
+    // types are accepted here; the legacy values remain valid in the schema for
+    // groups that already carry them, but no new group may be created on one.
+    if (!isSelectableGroupPurpose(data.purpose)) {
+        throw new AppError("Choose a group type: Family, Chit or Reserve", 400);
+    }
+    const purpose: GroupPurpose = data.purpose;
 
     if (!superAdmin || !name) {
         throw new AppError("All fields are required", 400);
@@ -79,7 +94,9 @@ export const createGroupService = async (data: { name: string; invitees: string[
                     name: c.name,
                     color: c.color,
                     isSpecial: c.isSpecial ?? false,
-                    type: "EXPENSE",
+                    // RESERVE seeds CREDIT buckets — it cannot record expenses,
+                    // so expense categories would be unusable in it.
+                    type: c.type ?? "EXPENSE",
                 })),
                 { session }
             );
@@ -219,8 +236,15 @@ export const cloneGroupService = async (data: { sourceGroupId: string; name: str
     try {
         session.startTransaction();
 
+        // Purpose IS carried over, unlike anything financial. It decides the
+        // group's type and therefore its features, so a clone that dropped it
+        // would silently become a Family group — and since type is immutable,
+        // cloning a Reserve or Chit group would be a one-way trip to the wrong
+        // feature set. Legacy purposes clone as-is; they resolve to FAMILY, which
+        // is what the source behaves as too.
         const CloneGroup = new Group({
             name,
+            purpose: sourceGroup.purpose,
             totalContribution: 0,
             balance: 0,
             createdBy: superAdmin,
@@ -370,6 +394,13 @@ export const manageMemberService = async (data: { group: mongoose.Types.ObjectId
 
     if(isMember && !isMember.settlement && action === "remove") {
         throw new AppError("Cannot remove a member without settlement", 400);
+    }
+
+    // A participant in a running chit cannot be removed: the scheme promises one
+    // cycle per member, so losing one leaves a cycle that can never collect a
+    // full pot.
+    if (isMember && action === "remove") {
+        await assertMemberFreeOfChit(groupData, Member);
     }
 
     if (isMember && action === "add") {
@@ -655,7 +686,12 @@ export const manageAdminService = async (data: { group: mongoose.Types.ObjectId,
     }
 };
 
-export const addContributionService = async (data: {group: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, contribution: number, description: string, category?: string}) => {
+export const addContributionService = async (data: {group: mongoose.Types.ObjectId, userId: mongoose.Types.ObjectId, contribution: number, description: string, category?: string,
+    // Required, not optional: the group's type decides whether money may be added
+    // by hand at all. Optional would let a caller omit it and resolve to FAMILY,
+    // passing the gate — so the compiler names every call site instead. Same
+    // arrangement as createExpenseService and createCategoryService.
+    purpose: GroupPurpose}) => {
     const groupData = data.group;
     const userId = data.userId;
     const contribution = data.contribution;
@@ -668,6 +704,9 @@ export const addContributionService = async (data: {group: mongoose.Types.Object
     if (typeof contribution !== "number" || contribution <= 0) {
         throw new AppError("Contribution must be a positive number", 400);
     }
+
+    // A chit's wallet is filled by its cycles and nothing else.
+    assertGroupTypeFeature(data.purpose, 'manualWalletMoves', contributionDeniedMessage());
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
         throw new AppError("Invalid user ID format", 400);
@@ -736,7 +775,9 @@ export const SettlementService = async (data: {
     userId: mongoose.Types.ObjectId,
     settlement: number,
     member: mongoose.Types.ObjectId,
-    balance: number
+    balance: number,
+    // Required for the same reason as on addContributionService above.
+    purpose: GroupPurpose
 }) => {
 
     const { group, userId, settlement, member, balance } = data;
@@ -758,6 +799,12 @@ export const SettlementService = async (data: {
 
     if (settlement > balance)
         throw new AppError("Settlement amount cannot be greater than group balance", 400);
+
+    // Balance is not the only ceiling. In a chit the whole wallet is spoken for —
+    // "not more than the group holds" would still hand over the next recipient's
+    // pot. assertMemberFreeOfChit already stops the member LEAVING; this stops
+    // them being paid out without leaving.
+    assertGroupTypeFeature(data.purpose, 'manualWalletMoves', settlementDeniedMessage());
 
 
     const isMember = await GroupMember.findOne({
@@ -830,6 +877,10 @@ export const leaveGroupService = async (data: {
     if (member.role === "SUPER_ADMIN") {
         throw new AppError("Super admin cannot leave the group", 400);
     }
+
+    // Before either exit path. Forfeiting would leave the chit a member short
+    // just as surely as settling out does, so the guard sits above the branch.
+    await assertMemberFreeOfChit(groupData, userId);
 
     // Forfeit path: instant exit, no balance change, no settlement record.
     // The member's contribution stays in the group pool and they show up
@@ -956,6 +1007,7 @@ export const approveLeaveRequestService = async (data: {
     if (member.role === "SUPER_ADMIN") {
         throw new AppError("Super admin cannot leave the group", 400);
     }
+    await assertMemberFreeOfChit(groupData, memberId);
     // An admin's exit must be authorised by the super admin — a peer admin
     // cannot approve another admin's leave request.
     if (member.role === "ADMIN") {
@@ -1118,7 +1170,20 @@ export const getGroupByIdService = async (groupId: mongoose.Types.ObjectId, user
             ? getEffectivePlan({ plan: group.planSnapshot.tier, planExpiresAt: null })
             : getEffectivePlan({ plan: group.plan, planExpiresAt: group.planExpiresAt })
     );
-    const groupData = {...group.toObject(),role: currentUser.role, barLength, subscription};
+    // The group's TYPE and the features it grants, resolved server-side and
+    // shipped alongside the subscription for the same reason: the UI must gate on
+    // the identical answer the API enforces. `purpose` is already on the payload,
+    // but leaving the client to re-derive the type from it would duplicate the
+    // legacy-value mapping and let the two drift.
+    const { type: groupTypeName, features } = toGroupTypeView(group.purpose);
+    const groupData = {
+        ...group.toObject(),
+        role: currentUser.role,
+        barLength,
+        subscription,
+        groupTypeName,
+        features,
+    };
     return groupData;
 };
 
@@ -1218,7 +1283,19 @@ export const getAllCreditsService = async (
                 .limit(limit),
             GroupTransaction.countDocuments(filter),
         ]);
-        return { items, total };
+        // Flag the rows removeCreditService will refuse, so the client can stop
+        // OFFERING a delete it cannot perform. Resolved here rather than left to
+        // the client to sniff out of `metadata`: the refusal below reads the same
+        // CHIT_CREDIT_FLAG, so shipping the server's own answer keeps the button
+        // and the rule from ever disagreeing — the toPlanView / toGroupTypeView
+        // pattern applied to one row.
+        const withChitFlag = items.map((item) => ({
+            ...item.toObject(),
+            isChitCredit: Boolean(
+                (item.metadata as Record<string, unknown> | undefined)?.[CHIT_CREDIT_FLAG]
+            ),
+        }));
+        return { items: withChitFlag, total };
     } catch (error: any) {
         throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }
@@ -1250,6 +1327,18 @@ export const removeCreditService = async (data: {
         }).session(session);
 
         if (!credit) throw new AppError("Credit not found", 404);
+
+        // A chit contribution is not an ordinary credit, and removing it here
+        // would only reverse half of it: the wallet and the member's total would
+        // roll back while the chit due went on claiming it was paid, and the
+        // cycle's collected total would be overstated forever. The chit page owns
+        // the undo, which reverses all four together.
+        if ((credit.metadata as Record<string, unknown> | undefined)?.[CHIT_CREDIT_FLAG]) {
+            throw new AppError(
+                "This is a chit contribution. Undo it from the group's chit page so the cycle stays in step.",
+                400
+            );
+        }
 
         const amount = credit.amount;
 
@@ -1342,4 +1431,104 @@ export const toggleFavoriteService = async (data: {
     if (!updated) throw new AppError("Not a group member", 403);
 
     return { isFavorite: updated.isFavorite };
+};
+/* ── Section updates ──────────────────────────────────────────────────────── */
+
+/**
+ * The nav destinations a group's sidebar offers, as far as "has anything
+ * changed here?" is concerned. Report is deliberately absent: it is a
+ * breakdown of expenses and carries no store of its own, so the frontend maps
+ * that tab onto `expenses` rather than have this invent a duplicate answer.
+ */
+export type GroupSectionKey =
+    | "overview"
+    | "credits"
+    | "expenses"
+    | "categories"
+    | "activity"
+    | "connections"
+    | "manage"
+    | "chit";
+
+export type GroupSectionUpdates = Record<GroupSectionKey, string | null>;
+
+/**
+ * When each collection behind a section was last written, newest first.
+ *
+ * `updatedAt` rather than `createdAt` wherever the model has one: an edited
+ * expense or an approved link is an update the user has not seen either, and a
+ * created-only reading would go quiet on both. GroupEvent is the exception —
+ * it is append-only, so its two stamps agree.
+ */
+const latestStamp = async (
+    model: mongoose.Model<any>,
+    filter: Record<string, unknown>,
+    field: "updatedAt" | "createdAt" = "updatedAt"
+): Promise<Date | null> => {
+    const doc = await model
+        .findOne(filter)
+        .sort({ [field]: -1 })
+        .select(field)
+        .lean<Record<string, Date>>();
+    return doc?.[field] ?? null;
+};
+
+const newest = (...dates: (Date | null)[]): Date | null =>
+    dates.reduce<Date | null>(
+        (max, d) => (d && (!max || d > max) ? d : max),
+        null
+    );
+
+export const getSectionUpdatesService = async (
+    groupId: mongoose.Types.ObjectId
+): Promise<GroupSectionUpdates> => {
+    const inGroup = { groupId, isDeleted: false };
+
+    const [
+        expenses,
+        credits,
+        categories,
+        activity,
+        connections,
+        members,
+        invites,
+        scheme,
+        cycle,
+        due,
+    ] = await Promise.all([
+        latestStamp(Expense, inGroup),
+        latestStamp(GroupTransaction, inGroup),
+        latestStamp(Category, inGroup),
+        latestStamp(GroupEvent, inGroup, "createdAt"),
+        // A link is one row shared by both sides, so either end of it counts as
+        // news for this group's Connections tab.
+        latestStamp(GroupLink, {
+            isDeleted: false,
+            $or: [{ hostGroupId: groupId }, { sourceGroupId: groupId }],
+        }),
+        // Deleted members included: someone leaving is exactly the kind of
+        // change the Group Management tab exists to show.
+        latestStamp(GroupMember, { groupId }),
+        latestStamp(GroupInvite, { groupId }),
+        latestStamp(ChitScheme, { groupId }),
+        latestStamp(ChitCycle, { groupId }),
+        latestStamp(ChitDue, { groupId }),
+    ]);
+
+    const manage = newest(members, invites);
+    const chit = newest(scheme, cycle, due);
+    const overview = newest(expenses, credits, categories, activity, connections, manage, chit);
+
+    const iso = (d: Date | null) => (d ? d.toISOString() : null);
+
+    return {
+        overview: iso(overview),
+        credits: iso(credits),
+        expenses: iso(expenses),
+        categories: iso(categories),
+        activity: iso(activity),
+        connections: iso(connections),
+        manage: iso(manage),
+        chit: iso(chit),
+    };
 };

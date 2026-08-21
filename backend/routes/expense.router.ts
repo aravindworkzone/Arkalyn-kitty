@@ -12,6 +12,7 @@ import {
     getTitleSuggestions,
 } from '../controllers/expense.controller';
 import { verifyToken, authorizeRole, loadGroup, ensureGroupActive } from '../middlewares/auth.middleware';
+import { requireExpenseCapableGroup } from '../middlewares/groupType.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import {
     createExpenseBodySchema,
@@ -28,6 +29,14 @@ import {
 
 const router = express.Router();
 
+// The group-type gate runs last, after authorizeRole — a caller with no rights in
+// the group should not learn what kind of group it is. It is an early, cheap
+// failure only: createExpenseService enforces the same rule, which is what covers
+// the MCP server's add_expense tool (it calls the service directly and never
+// passes through this router).
+//
+// Create only. Update and delete below are deliberately ungated, so a Reserve
+// group that already carries expenses can still correct or unwind them.
 router.post(
     '/create',
     validate({ body: createExpenseBodySchema }),
@@ -35,6 +44,7 @@ router.post(
     loadGroup,
     ensureGroupActive,
     authorizeRole('SUPER_ADMIN', 'ADMIN', 'MEMBER'),
+    requireExpenseCapableGroup,
     createExpense
 );
 

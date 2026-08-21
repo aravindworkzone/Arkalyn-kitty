@@ -2,6 +2,7 @@ import MemberAvatars from "./ListMember";
 import type { GroupCardProps } from "../interface/group";
 import { useTranslation } from "react-i18next";
 import RoleBadge from "../components/ui/RoleBadge"
+import { groupFeaturesOf, groupTypeI18nKey, groupTypeLabel } from "../helpers/groupTypes";
 
 const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingFavorite }: GroupCardProps) => {
   const { t } = useTranslation();
@@ -12,6 +13,10 @@ const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingF
   // already resolves a closed group to its frozen snapshot and a lapsed plan
   // to FREE, so there is nothing left to branch on here.
   const badgeTier = group.planTier;
+  // Derived from `purpose` on the list payload — the cards have no detail fetch to
+  // read the server-resolved features from.
+  const typeFeatures = groupFeaturesOf(group.purpose);
+  const typeLabel = groupTypeLabel(group.purpose);
   const showPlanBadge = !!badgeTier && badgeTier !== "FREE";
 
   // Pool health, coarse: comfortable / getting low / nearly spent.
@@ -73,6 +78,13 @@ const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingF
               {group.displayId}
             </span>
             <RoleBadge Role={group.role} info={false} groupName={group.name} />
+            {/* Every group is badged with its type, Family included — a type the
+                user chose and can never change is worth stating plainly, and a
+                label that appears on some cards but not others reads as a
+                property only those groups have. */}
+            <span className="text-theme-2xs font-bold px-2 py-0.5 rounded-md border border-line bg-surface-hover text-fg-muted" translate="no">
+              {t(groupTypeI18nKey(group.purpose), typeLabel)}
+            </span>
             {showPlanBadge && (
               <span className="text-theme-2xs font-bold px-2 py-0.5 rounded-md border border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300" translate="no">
                 {badgeTier}
@@ -122,7 +134,7 @@ const GroupCard = ({ group, onClick, onAddExpense, onToggleFavorite, isTogglingF
         </div>
 
         {/* An expense needs a category — hide the action until one exists. */}
-        {!isClosed && group.categoryCount > 0 && (
+        {!isClosed && typeFeatures.expenses && group.categoryCount > 0 && (
           <button
             onClick={(e) => {
               e.stopPropagation();

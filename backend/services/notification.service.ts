@@ -25,6 +25,16 @@ export const createNotification = async (payload: CreateNotificationPayload): Pr
         metadata: payload.metadata ?? {},
     });
 
+    // Populated to the same shape GET /notifications returns, so the client can
+    // render the pushed notification directly — the toast that pops on arrival
+    // names the actor and the group, and ObjectIds would leave it with nothing
+    // but the generic fallback text. A deleted group populates to null, which
+    // the client already handles by falling back to metadata.groupName.
+    await notification.populate([
+        { path: 'actor', select: 'name' },
+        { path: 'group', select: 'name' },
+    ]);
+
     // Recipient's personal socket room is keyed by their userId string.
     // If they're offline the room is empty and this is a harmless no-op.
     emitToUser(String(payload.recipient), SOCKET_EVENTS.NOTIFICATION_NEW, notification.toJSON());

@@ -6,6 +6,18 @@ interface Props {
   children: ReactNode;
   headerRight?: ReactNode;
   contentClass?: string;
+  /**
+   * Drops the corner-clipping `overflow-hidden` so a popover inside the section
+   * can paint past its edge.
+   *
+   * Needed because `overflow-hidden` clips absolutely-positioned descendants,
+   * not just backgrounds: a DatePicker calendar or a Select panel opening near
+   * the bottom of a section gets cut off at the border and becomes unusable.
+   * Opt-in rather than the default, because the clip is doing real work for
+   * sections whose content runs flush to the rounded corners (CreateCategory
+   * passes contentClass="" for exactly that).
+   */
+  allowOverflow?: boolean;
 }
 
 /**
@@ -19,9 +31,14 @@ export default function FormSection({
   children,
   headerRight,
   contentClass = "px-5 sm:px-6 py-5",
+  allowOverflow = false,
 }: Props) {
   return (
-    <div className="bg-surface-raised border border-line rounded-2xl overflow-hidden shadow-theme-xs">
+    <div
+      className={`bg-surface-raised border border-line rounded-2xl shadow-theme-xs ${
+        allowOverflow ? "" : "overflow-hidden"
+      }`}
+    >
       <div
         className={`flex items-center gap-3 px-5 sm:px-6 py-4 border-b border-line ${
           headerRight ? "justify-between" : ""

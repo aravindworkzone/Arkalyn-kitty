@@ -20,20 +20,16 @@ import {
 import { useTranslation } from "react-i18next";
 import { useSearchUsersQuery, type UserSuggestion } from "../redux/api/user";
 import { useGetUserQuery } from "../redux/api/auth";
-
-const PURPOSE_OPTIONS: { value: string; label: string; hint: string }[] = [
-  { value: "FAMILY",    label: "Family",    hint: "Household & shared bills" },
-  { value: "FRIENDS",   label: "Friends",   hint: "Outings & trips" },
-  { value: "ROOMMATES", label: "Roommates", hint: "Rent & utilities" },
-  { value: "TEAM",      label: "Team",      hint: "Work & events" },
-  { value: "RESERVE",   label: "Reserve",      hint: "Funds kept for the main group" },
-  { value: "OTHER",     label: "Other",     hint: "Start blank" },
-];
+import { GROUP_TYPE_OPTIONS } from "../helpers/groupTypes";
+import type { SelectableGroupPurpose } from "../interface/group";
 
 export default function CreateGroupPage() {
   const { t } = useTranslation();
   const [groupName, setGroupName] = useState("");
-  const [purpose, setPurpose] = useState("OTHER");
+  // No default. The type decides which features the group has and can never be
+  // changed afterwards, so it has to be a deliberate choice rather than whatever
+  // the form happened to start on.
+  const [purpose, setPurpose] = useState<SelectableGroupPurpose | "">("");
   const [members, setMembers] = useState<CreateGroupMember[]>([]);
   const [emailInput, setEmailInput] = useState("");
   const { data: meData } = useGetUserQuery();
@@ -76,13 +72,24 @@ export default function CreateGroupPage() {
   const { addMember, handleSubmit, isLoading, isVerifying } = useGroupHandlers();
 
   const poolTotal = members.find((m) => m._id === currentUser?._id)?.contribution || 0;
+  // A chit group's wallet is filled by its cycles and nothing else, so there is no
+  // opening pool to seed. Asking for one would put money in before anyone has paid
+  // a due — money belonging to nobody in the rotation, which the API now refuses
+  // to add later anyway. The field is hidden and the amount stays 0.
+  const seedsOpeningPool = purpose !== "CHIT";
+  // Zeroed at submit, not only hidden: someone can type an amount and THEN pick
+  // Chit, and the state would still carry it. Derived here rather than cleared in
+  // an effect on `purpose`, so switching back to Family restores what they typed.
+  const submittedMembers = seedsOpeningPool
+    ? members
+    : members.map((m) => ({ ...m, contribution: 0 }));
 
   return (
     <div className="min-h-screen bg-surface text-fg">
       <PageBackground />
 
 
-      <PageContainer onSubmit={(e) => handleSubmit(e, groupName, members, currentUser?._id ?? "", setFieldError, setApiError, purpose)} width="form" as="form">
+      <PageContainer onSubmit={(e) => handleSubmit(e, groupName, submittedMembers, currentUser?._id ?? "", setFieldError, setApiError, purpose)} width="form" as="form">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -128,10 +135,10 @@ export default function CreateGroupPage() {
             </div>
           </FormSection>
 
-          {/* Step 2 — Purpose */}
-          <FormSection step="02" title={t("createGroup.purposeStep", "Purpose")}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {PURPOSE_OPTIONS.map((opt) => (
+          {/* Step 2 — Group type */}
+          <FormSection step="02" title={t("createGroup.purposeStep", "Group type")}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {GROUP_TYPE_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
@@ -154,8 +161,12 @@ export default function CreateGroupPage() {
               ))}
             </div>
             <p className="text-theme-2xs text-fg-muted mt-2.5">
-              {t("createGroup.purposeNote", "We'll add a starter set of categories for this purpose. You can edit them anytime.")}
+              {t(
+                "createGroup.purposeNote",
+                "This decides what the group can do, and it cannot be changed later. We'll also add a starter set of categories, which you can edit anytime."
+              )}
             </p>
+            {fieldErrors.purpose ? <ErrorMessage error={fieldErrors.purpose} /> : null}
           </FormSection>
 
           {/* Step 3 — Members */}
@@ -254,7 +265,7 @@ export default function CreateGroupPage() {
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                          {member._id === currentUser?._id ? (
+                          {member._id === currentUser?._id && seedsOpeningPool ? (
                             <div className="relative">
                               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-muted text-theme-xs">₹</span>
                               <Input
@@ -268,7 +279,7 @@ export default function CreateGroupPage() {
                                 onChange={(e) => updateContribution(setMembers, member._id, Number(sanitizeAmount(e.target.value)))}
                               />
                             </div>
-                          ) : (
+                          ) : member._id === currentUser?._id ? null : (
                             <>
                               <span className="text-theme-2xs font-medium text-fg-muted bg-surface-hover border border-line px-2 py-1 rounded-md">
                                 {t("createGroup.invitePending")}
@@ -292,14 +303,23 @@ export default function CreateGroupPage() {
                     </div>
                   ))}
 
-                  <div className="flex items-center justify-between px-1 pt-1">
-                    <span className="text-theme-2xs text-fg-muted uppercase tracking-widest">
-                      {t("createGroup.initialPool")}
-                    </span>
-                    <span className="text-theme-sm font-semibold font-mono text-brand-600 dark:text-brand-300" translate="no">
-                      ₹{poolTotal.toLocaleString("en-IN")}
-                    </span>
-                  </div>
+                  {seedsOpeningPool ? (
+                    <div className="flex items-center justify-between px-1 pt-1">
+                      <span className="text-theme-2xs text-fg-muted uppercase tracking-widest">
+                        {t("createGroup.initialPool")}
+                      </span>
+                      <span className="text-theme-sm font-semibold font-mono text-brand-600 dark:text-brand-300" translate="no">
+                        ₹{poolTotal.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-theme-2xs text-fg-muted px-1 pt-1">
+                      {t(
+                        "createGroup.chitNoPool",
+                        "A chit starts empty. The wallet fills as members pay each cycle, so there is no opening amount to set here."
+                      )}
+                    </p>
+                  )}
                 </div>
               )}
           </FormSection>

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { AppError } from '../helpers/AppError';
+import { assertNoActiveChit, findActiveChit } from '../helpers/chitGuards';
 import Group from '../models/group.model';
 import GroupMember from '../models/group_member.model';
 import Category from '../models/category.model';
@@ -94,11 +95,19 @@ export const getGroupClosePreviewService = async (groupId: mongoose.Types.Object
     const refunds = proportionalSplit(members, balanceCents);
     const totalContribCents = members.reduce((s, m) => s + m.contributionCents, 0);
 
+    // Non-fatal: the preview still renders the refund split, but the UI can say
+    // why the close will be refused instead of letting the user discover it on
+    // submit. executeGroupCloseService is the one that actually blocks.
+    const liveChit = await findActiveChit(groupId);
+
     return {
         groupId: group._id,
         status: group.status,
         currentBalance: fromCents(balanceCents),
         totalContribution: fromCents(totalContribCents),
+        liveChit: liveChit
+            ? { schemeId: String(liveChit._id), totalCycles: liveChit.totalCycles }
+            : null,
         members: members.map((m) => ({
             userId: m.userId,
             name: m.name,
@@ -119,6 +128,13 @@ export const executeGroupCloseService = async (data: {
     const group = await Group.findById(groupId);
     if (!group) throw new AppError('Group not found', 404);
     if (group.status === 'CLOSED') throw new AppError('Group is already closed', 400);
+
+    // A running chit blocks the close. The refund below is proportional to each
+    // member's contribution, and mid-chit that is simply wrong: someone who has
+    // already taken their pot has the same contribution total as someone still
+    // waiting, so a proportional split would refund the person who was already
+    // paid. Finishing or cancelling the chit first is the only honest order.
+    await assertNoActiveChit(groupId);
 
     const balanceCents = rawBalanceCents(group);
     const members = await loadActiveMembers(groupId);

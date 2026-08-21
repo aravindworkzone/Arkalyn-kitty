@@ -588,7 +588,7 @@ export const mcpAddExpenseService = async (userId: mongoose.Types.ObjectId, inpu
 
     const expense = await createExpenseService({
         user: userId.toString(),
-        group: { _id: group._id.toString(), balance: group.balance },
+        group: { _id: group._id.toString(), balance: group.balance, purpose: group.purpose },
         category: category._id.toString(),
         title: input.title,
         amount: input.amount,
@@ -623,6 +623,7 @@ export const mcpAddCategoryService = async (userId: mongoose.Types.ObjectId, inp
         name: input.name,
         groupId: group._id as mongoose.Types.ObjectId,
         userId,
+        purpose: group.purpose,
         color: input.color?.trim() || undefined,
     });
 
@@ -653,6 +654,9 @@ export const mcpAddContributionService = async (userId: mongoose.Types.ObjectId,
         userId: targetId,
         contribution: input.amount,
         description: input.description?.trim() ?? '',
+        // The whole reason purpose is a required field: this path never touches
+        // Express, so a router-only gate would not apply to it.
+        purpose: group.purpose,
     });
 
     const [target, fresh] = await Promise.all([

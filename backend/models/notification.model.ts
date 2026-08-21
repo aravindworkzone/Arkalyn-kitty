@@ -17,7 +17,11 @@ export type NotificationType =
     | 'GROUP_LINK_APPROVED'
     | 'GROUP_LINK_REJECTED'
     | 'GROUP_LINK_REVOKED'
-    | 'GROUP_LINK_FUNDED';
+    | 'GROUP_LINK_FUNDED'
+    // The two chit moments a member actually needs told about: their payment was
+    // recorded, and their turn came round.
+    | 'CHIT_DUE_RECORDED'
+    | 'CHIT_PAYOUT_RELEASED';
 
 export const NOTIFICATION_TYPES: NotificationType[] = [
     'GROUP_INVITE',
@@ -37,6 +41,8 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
     'GROUP_LINK_REJECTED',
     'GROUP_LINK_REVOKED',
     'GROUP_LINK_FUNDED',
+    'CHIT_DUE_RECORDED',
+    'CHIT_PAYOUT_RELEASED',
 ];
 
 export interface INotification extends Document {

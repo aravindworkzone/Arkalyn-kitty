@@ -16,7 +16,7 @@ This is a monorepo with three independently deployable packages:
 | Package | Description |
 |---|---|
 | `backend/` | Express 5 + TypeScript REST API, Mongoose 9, socket.io, Razorpay, JWT auth |
-| `frontend/` | React 19 + TypeScript SPA (Vite 8, Redux Toolkit + RTK Query, Tailwind 4) |
+| `frontend/` | React 19 + TypeScript (Vite 8, Redux Toolkit + RTK Query, Tailwind 4) |
 | `arkalyn-mcp/` | Standalone MCP server exposing the user's data to Claude.ai — see [`arkalyn-mcp/README.md`](./arkalyn-mcp/README.md) |
 
 The backend is a flat layered tree (no `src/`): `routes → validators → middlewares → controllers → services → models`.
@@ -71,7 +71,7 @@ The schema is normalized across focused collections rather than embedded blobs:
 - `password_reset` — short-lived reset tokens
 
 **Groups**
-- `group` — group metadata, purpose, status, balance, **its subscription** (`plan`, `planExpiresAt`, `planCycle`, `planSource`) and the plan snapshot frozen at close
+- `group` — group metadata, **its type** (`purpose` — see Group Types), status, balance, **its subscription** (`plan`, `planExpiresAt`, `planCycle`, `planSource`) and the plan snapshot frozen at close
 - `group_member` — join collection (user ↔ group) carrying role, contribution total, and settlement state
 - `group_invite` — invitations with a two-step lifecycle (invitee responds, then an admin approves)
 - `group_join_link` — shareable "ask to join" tokens, one active per group, revocable and rotatable
@@ -103,9 +103,194 @@ The schema is normalized across focused collections rather than embedded blobs:
 
 ---
 
+## Group Types
+
+Every group has a **type**, chosen at creation and **immutable thereafter**. It is
+stored in `group.purpose` and decides which features the group has.
+
+**Each type has exactly one job**, and the map is deliberately not cumulative — no
+type is a superset of another:
+
+| Type | Records expenses | Runs a chit | May fund another | May be funded | What it is |
+|---|---|---|---|---|---|
+| `FAMILY` | ✓ | — | — | ✓ | The pooled-wallet baseline: shared bills and everyday spending. The whole app as it was before types existed. |
+| `CHIT` | — | ✓ | — | — | A chit fund and nothing else — see [Chit Funds](#chit-funds). |
+| `RESERVE` | — | — | ✓ | ✓ | A vault. Holds contributions and bankrolls other groups; it does not spend on its own account. |
+
+A Chit group records **no expenses**, for the same reason a Reserve records none:
+its wallet is not a shared spending pot. Every rupee in it is owed to whoever is
+next in the rotation, and the term only balances because each member pays in
+exactly what they take out — an ordinary expense would spend money the rotation
+has already promised to someone, leaving a later payout short for a reason that
+has nothing to do with the chit. A household that wants both keeps a Family group
+beside the chit, so the two wallets stay separate.
+
+**Type and tier are orthogonal axes.** A plan is bought and lapses; a type is
+intrinsic and permanent. So group-type gating is a second capability map
+(`config/groupTypeFeatures.ts` → `GROUP_TYPE_FEATURES`) resolved by its own
+assertion (`helpers/groupTypes.ts` → `assertGroupTypeFeature`), rather than more
+rows in `PLANS`. Where both apply they compose: funding a group needs
+`assertFeature(plan, 'linkGroups')` **and**
+`assertGroupTypeFeature(purpose, 'fundOthers')`.
+
+Type gates throw **403, not 402**. A Chit group does not become a Family group by
+paying, so `402 Payment Required` would be a lie — and every 402 is recorded to
+`paywall_hit` as purchase intent, which would poison the one dataset used to
+decide where tier boundaries belong. Same line the funding routes already draw for
+`/reject`: refusing is never a paid action.
+
+**`purpose` has legacy values.** `FRIENDS`, `ROOMMATES`, `TEAM` and `OTHER` exist
+on groups created before purpose meant anything. They stay valid in the Mongoose
+enum — dropping them would strand real documents behind a schema that no longer
+accepts them — and `groupTypeOf()` resolves every one of them to `FAMILY`, which
+is exactly how those groups already behave. `SELECTABLE_GROUP_PURPOSES` is what
+the create form offers and the validator accepts, so no *new* group can be created
+on a legacy value. This is the same storage-vs-offered split as `PLAN_TIERS` vs
+`SELLABLE_TIERS`, down to the `isSelectableGroupPurpose` predicate.
+
+Two consequences worth stating:
+
+- **Gates live in the services, not only in middleware.** The MCP server calls
+  `createExpenseService` and `createCategoryService` directly and never passes
+  through a router, so a middleware-only gate would not apply to it. The
+  middleware is an early, cheap failure; the service is the enforcement point. The
+  group's `purpose` is a *required* field on both service inputs, so the compiler
+  names any call site that forgets to pass it.
+- **Restrictions bind creation, not history.** A group that predates a rule keeps
+  its expenses readable, editable and deletable — only new ones are refused.
+  Freezing them would strand money with no way to correct it. Starter categories
+  follow the same logic: `RESERVE` seeds `CREDIT` buckets and `CHIT` seeds none at
+  all, since an expense bucket nothing could ever go into is worse than no bucket
+  — and a category cannot be deleted once anything references it.
+- **A refusal names the type that refused.** Two types decline expenses for
+  different reasons, so `expensesDeniedMessage()` resolves the sentence from the
+  group's own type rather than hardcoding one. Telling a chit organiser that "a
+  Reserve group does not record expenses" names a type they did not create and
+  offers them no way forward.
+
+---
+
+## Chit Funds
+
+A `CHIT` group runs a **rotating savings scheme**: every participant pays the same
+fixed amount each cycle, and one participant per cycle receives the whole pot, in
+an order fixed when the scheme starts.
+
+There is deliberately **no auction, no bidding, no discount and no organiser
+commission**. That keeps one identity true: the pot is always
+`amountPerMember × participants`, everyone pays every cycle *including that
+cycle's recipient*, and over the full term each member pays in exactly what they
+take out. Take any of those away and it stops being a chit and becomes a lottery.
+
+**Chit money is the group's money.** Recording a contribution credits
+`group.balance`, bumps the member's `contribution` and writes a `CREDIT` row —
+the same `helpers/balanceOps` primitives, the same ledger, the same atomic
+overspend guard as every other money path. A payout debits it and writes a
+`DEBIT`. There is no parallel chit ledger: a second source of truth for the same
+rupees is the one thing this codebase has consistently refused to build.
+
+Three collections. `chit_scheme` holds the terms and the frozen turn order;
+`chit_cycle` is one row per cycle; `chit_due` is one row per member per cycle.
+**Everything is materialised at activation** — all N cycles and all N² dues in one
+transaction — so there is no per-cycle "open" step to remember, members can pay
+ahead, and "my history" is an indexed query rather than a reconstruction. That N²
+is what `MAX_CHIT_PARTICIPANTS` (50) bounds.
+
+- **Missed is derived, never stored.** A due is missed when it is still `PENDING`
+  and either its date has passed or its cycle has already paid out. Storing it
+  would need a scheduler, which this codebase refused for lazy plan expiry too.
+  One `dueState()` helper resolves it, so the member view, the organiser roster
+  and the history log cannot disagree. The server ships the answer; the client
+  never reads the clock during render, which the React Compiler would reject.
+- **A missed contribution stays payable.** "Ravi paid his August dues in
+  September" is the most ordinary event in a real chit. A late payment raises that
+  cycle's `collectedAmount` but never rewrites its `shortfallAmount`, which records
+  what the recipient actually received on the day.
+- **A short cycle still pays out**, with an explicit confirmation naming collected
+  versus expected. One defaulter must not freeze the scheme.
+- **The organiser acts, not the role.** `defaultJoinRole` makes *every* member of
+  a Free group an `ADMIN`, so gating on the role would let anyone mark themselves
+  paid and pay themselves the pot. `requireChitOrganizer` gates on
+  `scheme.organizerUserId`, with `SUPER_ADMIN` as the backup that stops a group
+  being stranded by a quiet organiser.
+- **Recording is reversible; the payout is not.** Marking paid is manual, so
+  mis-marking is one misclick — hence an undo, restricted to cycles that have not
+  yet paid out. Correspondingly, `removeCreditService` **refuses** to delete a chit
+  credit: doing so would reverse the wallet while the due went on claiming it was
+  paid. The chit page owns that reversal because only it can unwind all four
+  writes together.
+- **A running chit blocks group close and blocks members leaving.** The close
+  refund is proportional to `contribution`, which is wrong mid-chit — a member who
+  has taken their pot has the same contribution as one still waiting. And losing a
+  participant breaks the one-cycle-per-member invariant.
+- **Chit size is the plan lever.** `participants.length` is checked against
+  `maxMembersPerGroup`, so a Free group can run a 5-person chit and a real
+  20-person one needs Pro. No new plan flag was required.
+- **The chit is the whole group.** A `CHIT` group records no expenses and seeds no
+  expense categories, so the wallet holds exactly the contributions collected and
+  owes exactly the payouts still to come. Its navigation is cut to
+  **Chit → Activity → Group Management**, and `/groups/:id` redirects to
+  the board: `getChitBoardService` already returns term progress, this cycle's
+  collection, your due, your arrears, your turn and the full rotation, so a
+  separate overview would be a second screen built from the same data — and the
+  one thing it showed that the board does not is a pool-health bar reading
+  "nearly spent" on a wallet that has just correctly paid out. Categories goes
+  because both buckets that matter are created unasked (`Other` at group creation,
+  `Chit contributions` on the first payment), Connections goes with the rule
+  below, and Credits goes with `manualWalletMoves` — once no top-up can be
+  recorded, every row it could hold is a chit contribution the board already shows
+  by cycle and member, with paid/missed state a flat ledger cannot express.
+- **Only the chit moves a chit's money.** `manualWalletMoves` is false for `CHIT`
+  and closes the last two doors into the wallet: `addContributionService` (an
+  admin recording a contribution) and `SettlementService` (paying a member out).
+  The first would add money belonging to nobody in the rotation; the second pays
+  out money already promised to the next recipient — "not more than the group
+  holds" is no ceiling when the whole wallet is spoken for. `adjustMemberContribution`
+  is shared by manual top-ups and chit dues, so one top-up makes the two
+  permanently indistinguishable in the field the close refund is proportional to.
+  A **type** rule rather than a scheme-state one: it holds between chits too, and
+  the settings tabs cannot see scheme state to hide themselves. Group creation
+  therefore offers no opening pool for a `CHIT`, and the Contribution and
+  Settlement tabs are absent from its Group Management.
+- **The board is three panels, not one page.** `?tab=mine|cycles|collection`.
+  *My chit* is what a member came for (their due, its date, their turn); *Cycles*
+  is the rotation as a whole (who has been paid, who is next); *Collection* is the
+  organiser's roster and the two actions that move money, and does not exist below
+  `canViewAll`. The role split is structural rather than cards hidden mid-page.
+- **A chit cannot be funded from outside.** `receiveFunding` is false for `CHIT`
+  and gates the **host** end of link formation, mirroring `fundOthers` on the
+  source end — both on `/request` and `/approve`, never on `/transfer`. The term
+  balances only because each member pays in exactly what they take out; a rupee
+  arriving from a Reserve belongs to nobody in the rotation, so somebody would end
+  up taking out more than they put in.
+- **The Credits page hides what it cannot delete.** `getAllCreditsService` ships an
+  `isChitCredit` flag per row, resolved from the same `CHIT_CREDIT_FLAG` that
+  `removeCreditService` refuses on, so the button and the rule cannot disagree.
+  Undo belongs on the board, which unwinds the due, the cycle total, the member's
+  contribution and the wallet together.
+
+---
+
 ## Connected Groups
 
-One group can bankroll another — a household group funding a trip group, say. The link is consented to on both sides: an admin of the **host** (the group that wants funding) requests it, and an admin of the **source** (the group whose money it is) approves. Direction is never inferred and never reversed.
+A **Reserve** group can bankroll another — a household reserve funding a trip
+group, say. **Both ends are gated by type.** Only a Reserve may be the source
+(`fundOthers`), so a Family or Chit group cannot be named as a funder; and a Chit
+may not be the host (`receiveFunding`), because outside money has no owner in its
+rotation. The link is consented to on both sides: an admin of the **host** (the
+group that wants funding) requests it, and an admin of the **source** (the group
+whose money it is) approves. Direction is never inferred and never reversed.
+
+Both type gates sit on **formation** — `/request` and `/approve` — so a link
+approved before either rule existed keeps working with no grandfather flag and no
+migration. The host is re-checked on approve rather than trusted from the request,
+since approval is the last moment before money can move.
+
+The type gate sits on link **formation** — `/request` and `/approve` — and
+deliberately *not* on `/transfer`. A transfer acts on a link that is already
+`ACTIVE`, so links approved before the rule existed keep working: grandfathering
+falls out of where the gate sits, with no flag, no migration and no dead state to
+reconcile.
 
 Funding is **pre-paid, not pulled**. An admin of the source pushes a lump sum, exactly like a member topping up a wallet; the host then spends it through the ordinary expense flow. Only the source can move its own money — a host can request a link and spend what it has been given, but it can never reach into the funder's wallet.
 
@@ -442,7 +627,24 @@ Stated plainly, so the scope is honest:
   the tier is sold on that promise.
 - **Splitting supports equal and exact amounts only** — no percentage, shares, or multiple payers.
 - **Expense text search is client-side** over the loaded page; the server-side filters are the ones that scale.
-- **`groupType: "SPLIT"`** exists in the schema but is unimplemented — `POOL` is the only live mode.
+- **`groupType: "SPLIT"`** exists in the schema but is unimplemented — `POOL` is
+  the only live mode. Note this is a *different, unrelated* field from the group
+  TYPE described above, which is stored in `purpose`; the dead `groupType` field is
+  a naming collision worth retiring.
+- **Chit funds are the simple rotating kind only.** There is no auction or
+  bidding, no discount, no dividend and no organiser commission — see Chit Funds
+  above for why that is a design choice rather than an omission. A group wanting a
+  bid-based chit is not served.
+- **Chit contributions are recorded by hand.** Money is settled offline and an
+  organiser marks it received; there is no payment rail, so nothing reconciles
+  automatically against a bank or UPI feed.
+- **A chit cannot be resized once started.** Amount, participants and order freeze
+  at activation, and a member cannot be substituted — the only exits are running
+  the scheme out or cancelling it. One person's life event can therefore end a
+  20-cycle scheme, which a participant-replacement flow would fix.
+- **Chit data is not in the CSV export.** The audit pack covers the ledger,
+  expenses and members; chit cycles and contributions appear only through the
+  ledger rows they produce.
 - **No repayment between connected groups.** Funding is a one-way contribution by design; there is no inter-group debt or settle-up, and over-attributing spend to a funder warns rather than blocks.
 - **The MCP `add_expense` tool can't set a funding group** — the field is optional, so the tool keeps working, but attribution has to be set from the web app.
 
