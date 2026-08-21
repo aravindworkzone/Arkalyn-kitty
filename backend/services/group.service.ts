@@ -6,6 +6,11 @@ import GroupEvent from "../models/group_event.model";
 import GroupMember from "../models/group_member.model";
 import GroupInvite from "../models/group_invite.model";
 import Category from "../models/category.model";
+import Expense from "../models/expense.model";
+import GroupLink from "../models/group_link.model";
+import ChitScheme from "../models/chit_scheme.model";
+import ChitCycle from "../models/chit_cycle.model";
+import ChitDue from "../models/chit_due.model";
 import { isSelectableGroupPurpose, type GroupPurpose } from "../models/group.model";
 import { toGroupTypeView, assertGroupTypeFeature, contributionDeniedMessage, settlementDeniedMessage } from "../helpers/groupTypes";
 import { CHIT_CREDIT_FLAG } from "./chitMoney.service";
@@ -1426,4 +1431,104 @@ export const toggleFavoriteService = async (data: {
     if (!updated) throw new AppError("Not a group member", 403);
 
     return { isFavorite: updated.isFavorite };
+};
+/* ── Section updates ──────────────────────────────────────────────────────── */
+
+/**
+ * The nav destinations a group's sidebar offers, as far as "has anything
+ * changed here?" is concerned. Report is deliberately absent: it is a
+ * breakdown of expenses and carries no store of its own, so the frontend maps
+ * that tab onto `expenses` rather than have this invent a duplicate answer.
+ */
+export type GroupSectionKey =
+    | "overview"
+    | "credits"
+    | "expenses"
+    | "categories"
+    | "activity"
+    | "connections"
+    | "manage"
+    | "chit";
+
+export type GroupSectionUpdates = Record<GroupSectionKey, string | null>;
+
+/**
+ * When each collection behind a section was last written, newest first.
+ *
+ * `updatedAt` rather than `createdAt` wherever the model has one: an edited
+ * expense or an approved link is an update the user has not seen either, and a
+ * created-only reading would go quiet on both. GroupEvent is the exception —
+ * it is append-only, so its two stamps agree.
+ */
+const latestStamp = async (
+    model: mongoose.Model<any>,
+    filter: Record<string, unknown>,
+    field: "updatedAt" | "createdAt" = "updatedAt"
+): Promise<Date | null> => {
+    const doc = await model
+        .findOne(filter)
+        .sort({ [field]: -1 })
+        .select(field)
+        .lean<Record<string, Date>>();
+    return doc?.[field] ?? null;
+};
+
+const newest = (...dates: (Date | null)[]): Date | null =>
+    dates.reduce<Date | null>(
+        (max, d) => (d && (!max || d > max) ? d : max),
+        null
+    );
+
+export const getSectionUpdatesService = async (
+    groupId: mongoose.Types.ObjectId
+): Promise<GroupSectionUpdates> => {
+    const inGroup = { groupId, isDeleted: false };
+
+    const [
+        expenses,
+        credits,
+        categories,
+        activity,
+        connections,
+        members,
+        invites,
+        scheme,
+        cycle,
+        due,
+    ] = await Promise.all([
+        latestStamp(Expense, inGroup),
+        latestStamp(GroupTransaction, inGroup),
+        latestStamp(Category, inGroup),
+        latestStamp(GroupEvent, inGroup, "createdAt"),
+        // A link is one row shared by both sides, so either end of it counts as
+        // news for this group's Connections tab.
+        latestStamp(GroupLink, {
+            isDeleted: false,
+            $or: [{ hostGroupId: groupId }, { sourceGroupId: groupId }],
+        }),
+        // Deleted members included: someone leaving is exactly the kind of
+        // change the Group Management tab exists to show.
+        latestStamp(GroupMember, { groupId }),
+        latestStamp(GroupInvite, { groupId }),
+        latestStamp(ChitScheme, { groupId }),
+        latestStamp(ChitCycle, { groupId }),
+        latestStamp(ChitDue, { groupId }),
+    ]);
+
+    const manage = newest(members, invites);
+    const chit = newest(scheme, cycle, due);
+    const overview = newest(expenses, credits, categories, activity, connections, manage, chit);
+
+    const iso = (d: Date | null) => (d ? d.toISOString() : null);
+
+    return {
+        overview: iso(overview),
+        credits: iso(credits),
+        expenses: iso(expenses),
+        categories: iso(categories),
+        activity: iso(activity),
+        connections: iso(connections),
+        manage: iso(manage),
+        chit: iso(chit),
+    };
 };

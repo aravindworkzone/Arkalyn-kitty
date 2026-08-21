@@ -94,3 +94,23 @@ export interface GroupCardProps {
 
 // "requests" holds both join approvals and leave requests.
 export type SettingsTab = "addMember" | "changeRole" | "contribution" | "settlement" | "requests" | "export" | "danger";
+
+/**
+ * The nav destinations the sidebar tracks for "has anything changed here?".
+ *
+ * `report` is not one of them — it is a breakdown of expenses with no store of
+ * its own, so it reads the `expenses` stamp. The chit's three pages share the
+ * one `chit` stamp for the same reason: they are three views of one board.
+ */
+export type GroupSectionKey =
+  | "overview"
+  | "credits"
+  | "expenses"
+  | "categories"
+  | "activity"
+  | "connections"
+  | "manage"
+  | "chit";
+
+/** ISO timestamp of the last write behind each section, or null if it is empty. */
+export type GroupSectionUpdates = Record<GroupSectionKey, string | null>;

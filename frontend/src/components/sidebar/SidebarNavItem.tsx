@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { cn } from "../../helpers/cn";
 
 /**
@@ -23,6 +24,13 @@ interface SidebarNavItemProps {
     label: string;
     /** Rendered as a count bubble on the right. Hidden when 0 or undefined. */
     badge?: number;
+    /**
+     * "Something changed here since you last looked" — a red dot on the icon.
+     * Red, not brand: the brand badge above is a count the user asked to see,
+     * this is an unread marker, and one colour for both made them read as the
+     * same thing. Suppressed while a badge is showing, which already says more.
+     */
+    dot?: boolean;
     collapsed?: boolean;
     /** Route matching. NavLink's own `end` semantics. */
     end?: boolean;
@@ -55,6 +63,7 @@ export default function SidebarNavItem({
     icon,
     label,
     badge,
+    dot = false,
     collapsed = false,
     end = false,
     active,
@@ -62,6 +71,8 @@ export default function SidebarNavItem({
     emphasis,
     className,
 }: SidebarNavItemProps) {
+    const { t } = useTranslation();
+
     const body = (isActive: boolean) => (
         <>
             {/* Accent bar. Only for the plain active state — a primary CTA is
@@ -82,6 +93,14 @@ export default function SidebarNavItem({
                     the dot adrift from the centred glyph. */}
                 {collapsed && !!badge && badge > 0 && (
                     <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-brand-500 ring-2 ring-surface" />
+                )}
+
+                {/* Update dot. Anchored to the icon in BOTH layouts, unlike the
+                    count above: at 264px the label can be long enough to push a
+                    trailing dot off the row's visible width, and a marker that
+                    scrolls out of view marks nothing. */}
+                {showDot && (
+                    <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-error-500 ring-2 ring-surface" />
                 )}
             </span>
 
@@ -116,6 +135,17 @@ export default function SidebarNavItem({
         </>
     );
 
+    // The dot is decoration inside an aria-hidden span, so the row carries the
+    // fact in its accessible name instead. Undefined when there is nothing to
+    // add and the label is already on screen — an aria-label that only repeats
+    // the visible text is noise.
+    const showDot = dot && !(badge && badge > 0);
+    const ariaLabel = showDot
+        ? t("sidebar.updatedAria", { label, defaultValue: "{{label}} — updated" })
+        : collapsed
+          ? label
+          : undefined;
+
     const shared = cn(
         base,
         layout(collapsed),
@@ -130,7 +160,7 @@ export default function SidebarNavItem({
                 to={to}
                 end={end}
                 title={collapsed ? label : undefined}
-                aria-label={collapsed ? label : undefined}
+                aria-label={ariaLabel}
                 onClick={onClick}
                 className={({ isActive }) => {
                     const isOn = active ?? isActive;
@@ -148,7 +178,7 @@ export default function SidebarNavItem({
             onClick={onClick}
             disabled={disabled}
             title={collapsed ? label : undefined}
-            aria-label={collapsed ? label : undefined}
+            aria-label={ariaLabel}
             className={cn(shared, !emphasis && (active ? on : rest), "w-full")}
         >
             {body(!!active)}

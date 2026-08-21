@@ -10,6 +10,7 @@ import {
 import { useAcceptInviteMutation, useRejectInviteMutation } from "../../redux/api/invite";
 import type { NotificationItem } from "../../interface/notification";
 import { sanitizeAmount } from "../../helpers/validators";
+import { notificationMessage } from "../../helpers/notificationMessage";
 import { Input } from "../ui";
 
 const useTimeAgo = () => {
@@ -53,14 +54,9 @@ export default function NotificationList() {
   const [contribution, setContribution] = useState("");
   const [actionError, setActionError] = useState("");
 
-  const notifications = data?.items ?? [];
+  const[localDelete, setlocalDelete] = useState<Set<string>>(new Set());
 
-  const messageFor = (n: NotificationItem): string => {
-    const actor = n.actor?.name ?? t("notifications.someone");
-    const group =
-      n.group?.name ?? (typeof n.metadata?.groupName === "string" ? n.metadata.groupName : "");
-    return t([`notifications.msg.${n.type}`, "notifications.msg.default"], { actor, group });
-  };
+  const notifications = (data?.items ?? []).filter((n) => !localDelete.has(n._id));
 
   const inviteIdOf = (n: NotificationItem): string | null =>
     typeof n.metadata?.inviteId === "string" ? n.metadata.inviteId : null;
@@ -73,10 +69,15 @@ export default function NotificationList() {
   };
 
   const handleDelete = async (id: string) => {
+    setlocalDelete(prev => new Set(prev).add(id));
     try {
       await deleteNotification(id).unwrap();
     } catch {
-      /* refetch on tag invalidation keeps the list consistent */
+      setlocalDelete(prev =>{
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
@@ -167,7 +168,7 @@ export default function NotificationList() {
                   )}
                   <div className={`min-w-0 flex-1 ${n.read ? "pl-4" : ""}`}>
                     <p className="text-theme-sm text-fg leading-snug" translate="no">
-                      {messageFor(n)}
+                      {notificationMessage(n, t)}
                     </p>
                     <p className="text-theme-xs text-fg-muted mt-0.5" translate="no">
                       {timeAgo(n.createdAt)}

@@ -19,6 +19,7 @@ import {
     getAllCreditsService,
     removeCreditService,
     getEventService,
+    getSectionUpdatesService,
     toggleFavoriteService,
 } from '../services/group.service';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -293,6 +294,13 @@ export const getEvent = asyncHandler(async (req, res) => {
 
     const events = await getEventService(req.group._id);
     sendSuccess(res, { events }, 'Events fetched');
+});
+
+export const getSectionUpdates = asyncHandler(async (req, res) => {
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const updates = await getSectionUpdatesService(req.group._id);
+    sendSuccess(res, { updates }, 'Section updates fetched');
 });
 
 export const toggleFavorite = asyncHandler(async (req, res) => {

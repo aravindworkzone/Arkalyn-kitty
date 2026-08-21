@@ -7,8 +7,7 @@ import LanguageToggle from "../LanguageToggle";
 import NotificationBell from "../NotificationBell";
 import { cn } from "../../helpers/cn";
 import { useSignOutMutation } from "../../redux/api/auth";
-import { api } from "../../redux/api/base";
-import { socket } from "../../socket/socket";
+import { endSession } from "../../helpers/endSession";
 import type { CurrentUser } from "../../interface/user";
 
 /**
@@ -66,9 +65,9 @@ export default function SidebarFooter({ user, collapsed = false, onNavigate }: S
         onNavigate?.();
     };
 
-    // Mirrors page/ProfilePage.tsx's handleSignOut: clear the RTK cache and drop
-    // the socket even if the network call fails, so a failed logout can never
-    // leave a half-authenticated shell behind.
+    // Torn down even if the network call fails, so a failed logout can never
+    // leave a half-authenticated shell behind. helpers/endSession.ts holds what
+    // "torn down" means — this used to be a hand-copied subset of it.
     const handleSignOut = async () => {
         try {
             await signOut().unwrap();
@@ -76,8 +75,7 @@ export default function SidebarFooter({ user, collapsed = false, onNavigate }: S
             /* still tear down locally */
         }
         setOpen(false);
-        dispatch(api.util.resetApiState());
-        socket.disconnect();
+        endSession(dispatch);
         navigate("/login", { replace: true });
     };
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import DeleteConfirmModal from "../components/deleteModel";
@@ -28,6 +28,8 @@ import {
   UpgradeNote,
 } from "../components/ui";
 import { useGroupPlan } from "../hooks/usePlan";
+import { useSeenMarks } from "../hooks/useSectionUpdates";
+import { useGetSectionUpdatesQuery } from "../redux/api/group";
 import { groupTypeI18nKey, groupTypeLabel } from "../helpers/groupTypes";
 import ExportPanel from "../components/group/ExportPanel";
 import {
@@ -187,20 +189,45 @@ export default function GroupManagementPage() {
     setSearchParams(params, { replace: true });
   };
 
+  /* ── Update dots ────────────────────────────────────────────────────────
+   * Every panel on this rail reads the same two collections — members and
+   * invites — so they share the one `manage` stamp the server reports, and the
+   * rail keeps a seen mark per tab. A membership change really is news for all
+   * of them: it moves who can be promoted, who is owed a settlement and who is
+   * waiting in the queue alike.
+   *
+   * A tab the user has never opened has no mark, so on a first visit the whole
+   * rail is dotted — the same first-login behaviour the sidebar has.
+   */
+  const { data: sectionUpdates } = useGetSectionUpdatesQuery(groupId!, { skip: !groupId });
+  const manageStamp = sectionUpdates?.manage ?? null;
+  const { isUnseen, markSeen } = useSeenMarks(groupId);
+
+  useEffect(() => {
+    markSeen(`manage:${activeTab}`, manageStamp);
+  }, [activeTab, manageStamp, markSeen]);
+
+  // The open tab is being read right now, so it never dots itself — the effect
+  // above marks it, this covers the frame before that lands.
+  const tabDot = (id: SettingsTab) => id !== activeTab && isUnseen(`manage:${id}`, manageStamp);
+
   const tabs: ManagementTabDef[] = [
-    { id: "addMember",    label: t("groupDetail.tabAddMember"),    show: isAdmin },
-    { id: "changeRole",   label: t("groupDetail.tabChangeRole"),   show: isSuperAdmin },
-    { id: "contribution", label: t("groupDetail.tabContribution"), show: isAdmin && canMoveWalletByHand },
-    { id: "settlement",   label: t("groupDetail.tabSettlement"),   show: isAdmin && canMoveWalletByHand },
+    { id: "addMember",    label: t("groupDetail.tabAddMember"),    show: isAdmin,       dot: tabDot("addMember") },
+    { id: "changeRole",   label: t("groupDetail.tabChangeRole"),   show: isSuperAdmin,  dot: tabDot("changeRole") },
+    { id: "contribution", label: t("groupDetail.tabContribution"), show: isAdmin && canMoveWalletByHand, dot: tabDot("contribution") },
+    { id: "settlement",   label: t("groupDetail.tabSettlement"),   show: isAdmin && canMoveWalletByHand, dot: tabDot("settlement") },
     {
       id: "requests",
       label: pendingRequestCount > 0
         ? `${t("groupDetail.tabRequests")} (${pendingRequestCount})`
         : t("groupDetail.tabRequests"),
+      // The count in the label already says a queue is waiting; a dot beside it
+      // would mark the same fact twice.
       show: isAdmin,
+      dot: pendingRequestCount === 0 && tabDot("requests"),
     },
     { id: "export",       label: t("groupDetail.tabExport", "Export"), show: isAdmin },
-    { id: "danger",       label: t("groupDetail.tabDanger"),       show: !!role },
+    { id: "danger",       label: t("groupDetail.tabDanger"),       show: !!role,        dot: tabDot("danger") },
   ];
 
   // Non-members (403) and unknown groups (404) both land here.

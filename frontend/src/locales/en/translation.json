@@ -341,7 +341,9 @@
       "JOIN_APPROVED": "You were approved to join {{group}}",
       "JOIN_DECLINED": "Your request to join {{group}} was declined"
     },
-    "unreadAria": "Notifications, {{count}} unread"
+    "unreadAria": "Notifications, {{count}} unread",
+    "viewAll": "View all notifications",
+    "dismiss": "Dismiss"
   },
   "createExpense": {
     "title": "Record an expense",
@@ -915,7 +917,8 @@
     "groupSettings": "Group settings",
     "leavePending": "Leave requested",
     "connections": "Connections",
-    "chit": "Chit"
+    "chit": "Chit",
+    "updatedAria": "{{label}} — updated"
   },
   "quickAccess": {
     "title": "Quick Access"

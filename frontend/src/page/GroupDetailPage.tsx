@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Navigate, useNavigate, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import DeleteConfirmModal from "../components/deleteModel";
 import NotFoundPage from "./NotFoundPage";
@@ -20,9 +20,6 @@ import GroupMembersPanel from "../components/groupDetail/GroupMembersPanel";
 import TodayExpenseFeed from "../components/groupDetail/TodayExpenseFeed";
 import GroupDetailSkeleton from "../components/groupDetail/GroupDetailSkeleton";
 import { useTranslation } from "react-i18next";
-import { joinGroup } from "../socket/emiter/group.emit";
-import { setGroupId } from "../redux/slice/group.slice";
-import { useDispatch } from "react-redux";
 import { type Group } from "../interface/group";
 
 export default function GroupDetailPage() {
@@ -30,17 +27,6 @@ export default function GroupDetailPage() {
   const navigate = useNavigate();
   const { openSidebar, canOpenSidebar } = useOutletContext<AppLayoutContext>();
   const { t } = useTranslation();
-  const dispatch = useDispatch();
-
-  useEffect(() => {
-
-    if (!groupId) return;
-    dispatch(setGroupId(groupId));
-
-    joinGroup(groupId);
-
-  }, [groupId]);
-
   const [searchParams, setSearchParams] = useSearchParams();
   const [deleteMemberTarget, setDeleteMemberTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleteMemberError,  setDeleteMemberError]  = useState("");

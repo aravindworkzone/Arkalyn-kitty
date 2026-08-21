@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { SettingsTab } from "../../interface/group";
 
 // Generic over the id type, defaulting to SettingsTab so every existing call site
@@ -7,6 +8,12 @@ export interface ManagementTabDef<T extends string = SettingsTab> {
   id: T;
   label: string;
   show: boolean;
+  /**
+   * "Something changed behind this tab since you last opened it" — the same red
+   * dot the sidebar rows carry (components/sidebar/SidebarNavItem.tsx), so one
+   * marker means one thing across both navigation surfaces.
+   */
+  dot?: boolean;
 }
 
 interface Props<T extends string> {
@@ -35,6 +42,8 @@ export default function ManagementTabs<T extends string = SettingsTab>({
   onSwitchTab,
   ariaLabel,
 }: Props<T>) {
+  const { t } = useTranslation();
+
   return (
     <div
       className="sticky top-14 lg:top-16 z-sticky bg-surface/95 backdrop-blur-md
@@ -50,6 +59,11 @@ export default function ManagementTabs<T extends string = SettingsTab>({
               type="button"
               aria-selected={activeTab === tab.id}
               aria-controls={tabPanelId(tab.id)}
+              aria-label={
+                tab.dot
+                  ? t("sidebar.updatedAria", { label: tab.label, defaultValue: "{{label}} — updated" })
+                  : undefined
+              }
               onClick={() => onSwitchTab(tab.id)}
               className={`px-3.5 py-2.5 text-theme-xs font-semibold whitespace-nowrap transition-colors border-b-2
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40
@@ -61,6 +75,15 @@ export default function ManagementTabs<T extends string = SettingsTab>({
                 }`}
             >
               {tab.label}
+              {/* Inline rather than absolutely positioned: the rail scrolls
+                  horizontally, and a dot pinned to the button's top-right went
+                  under the fade gradient on the last visible tab. */}
+              {tab.dot && (
+                <span
+                  aria-hidden="true"
+                  className="inline-block align-top ml-1 w-1.5 h-1.5 rounded-full bg-error-500"
+                />
+              )}
             </button>
           ))}
         </div>

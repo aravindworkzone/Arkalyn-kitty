@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useGetUserGroupsQuery } from "../redux/api/user";
 import { useToggleFavoriteMutation } from "../redux/api/group";
@@ -6,10 +5,6 @@ import EmptyState from "../components/EmptyList";
 import GroupCard from "../components/GroupCard";
 import { Button, PageBackground, PageContainer } from "../components/ui";
 import { useTranslation } from "react-i18next";
-import type { RootState } from "../redux/store";
-import { useDispatch, useSelector } from "react-redux";
-import { leaveGroup } from "../socket/emiter/group.emit";
-import { clearGroupId } from "../redux/slice/group.slice";
 
 // The card list became a grid when the page went wide: at 1152px a single
 // column of 88px-tall cards is a thin ribbon with a field of empty canvas
@@ -22,8 +17,6 @@ const GroupPage = () => {
   const { data, isLoading } = useGetUserGroupsQuery();
   const groups = data?.data?.groups || [];
   const { t } = useTranslation();
-  const dispatch = useDispatch();
-  const groupId = useSelector((state: RootState) => state.group);
   const [toggleFavorite, { isLoading: isTogglingFavorite, originalArgs }] = useToggleFavoriteMutation();
 
   // Search and the Active/Closed/Manage filter are driven by the sidebar, which
@@ -59,12 +52,6 @@ const GroupPage = () => {
     else next.set("closed", "1");
     setSearchParams(next, { replace: true });
   };
-
-  useEffect(() => {
-      if (!groupId) return;
-      leaveGroup(groupId);
-      dispatch(clearGroupId());
-  }, []);
 
   return (
     <div className="min-h-screen bg-surface text-fg">
