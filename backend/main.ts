@@ -13,7 +13,6 @@ import { logger } from './utils/logger';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 import {
     sanitizeMongoOperators,
-    authRateLimiter,
     globalRateLimiter,
 } from './middlewares/security.middleware';
 import { REQUEST_BODY_LIMIT } from './config/constants';
@@ -49,7 +48,11 @@ const DB_READY_STATES: Record<number, string> = {
 const app: Application = express();
 
 app.disable('x-powered-by');
-app.set('trust proxy', 1);
+// Two hops in production: the browser hits Vercel, whose /api/* rewrite proxies
+// to Render, whose own edge fronts this process. Left at 1, `req.ip` resolves to
+// Vercel's edge address instead of the client's — which would put every user of
+// the app into a single rate-limit bucket.
+app.set('trust proxy', env.isProduction ? 2 : 1);
 
 app.use(helmet());
 
@@ -100,7 +103,9 @@ app.use(
 
 app.use(sanitizeMongoOperators);
 
-app.use('/api/auth', authRateLimiter, AuthRouter);
+// authRateLimiter is applied per-route inside AuthRouter, not here: mounting it
+// over the whole router also throttled /auth/refresh and the OAuth callback.
+app.use('/api/auth', AuthRouter);
 app.use('/api/expense', ExpenseRouter);
 app.use('/api/category', CategoryRouter);
 app.use('/api/group', GroupRouter);

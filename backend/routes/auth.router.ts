@@ -12,6 +12,7 @@ import {
 } from '../controllers/auth.controller';
 import { verifyToken } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
+import { authRateLimiter, sessionRateLimiter } from '../middlewares/security.middleware';
 import {
     signUpBodySchema,
     signInBodySchema,
@@ -22,14 +23,17 @@ import {
 
 const router = express.Router();
 
-router.get('/oauth/start', OAuthStart);
-router.get('/oauth', OAuth);
-router.post('/signup', validate({ body: signUpBodySchema }), SignUp);
-router.post('/login', validate({ body: signInBodySchema }), Login);
-router.post('/refresh', Refresh);
-router.post('/logout', verifyToken, Logout);
-router.post('/forgot-password', validate({ body: forgotPasswordBodySchema }), ForgotPassword);
-router.post('/reset-password', validate({ body: resetPasswordBodySchema }), ResetPassword);
-router.post('/change-password', verifyToken, validate({ body: changePasswordBodySchema }), ChangePassword);
+// Rate limiting is per-route rather than mounted over the whole router: the
+// credential endpoints need the tight budget, but session upkeep and the OAuth
+// redirects must not be able to spend it.
+router.get('/oauth/start', sessionRateLimiter, OAuthStart);
+router.get('/oauth', sessionRateLimiter, OAuth);
+router.post('/signup', authRateLimiter, validate({ body: signUpBodySchema }), SignUp);
+router.post('/login', authRateLimiter, validate({ body: signInBodySchema }), Login);
+router.post('/refresh', sessionRateLimiter, Refresh);
+router.post('/logout', sessionRateLimiter, verifyToken, Logout);
+router.post('/forgot-password', authRateLimiter, validate({ body: forgotPasswordBodySchema }), ForgotPassword);
+router.post('/reset-password', authRateLimiter, validate({ body: resetPasswordBodySchema }), ResetPassword);
+router.post('/change-password', authRateLimiter, verifyToken, validate({ body: changePasswordBodySchema }), ChangePassword);
 
 export default router;

@@ -35,6 +35,20 @@ export const authRateLimiter = rateLimit({
     },
 });
 
+// Guards /auth/refresh and the two OAuth legs. Separate from authRateLimiter so
+// routine session upkeep cannot exhaust the credential-guessing budget (and vice
+// versa). Still capped — a runaway refresh loop should not go unbounded.
+export const sessionRateLimiter = rateLimit({
+    windowMs: RATE_LIMIT.SESSION_WINDOW_MS,
+    max: RATE_LIMIT.SESSION_MAX_REQUESTS,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Too many requests. Please try again later.',
+    },
+});
+
 export const globalRateLimiter = rateLimit({
     windowMs: RATE_LIMIT.GLOBAL_WINDOW_MS,
     max: RATE_LIMIT.GLOBAL_MAX_REQUESTS,

@@ -47,6 +47,12 @@ export const LoginService = async (
     const user = await User.findOne({ email: data.email });
     if (!user) throw new AppError('Invalid credentials', 401);
 
+    // A Google-only account has no password hash, and bcrypt.compare throws on
+    // an undefined hash rather than returning false — so without this guard the
+    // form answers a Google user with a 500 instead of a rejection. Same generic
+    // message as a wrong password: which accounts exist is not ours to leak.
+    if (!user.password) throw new AppError('Invalid credentials', 401);
+
     const match = await bcrypt.compare(data.password, user.password);
     if (!match) throw new AppError('Invalid credentials', 401);
 
@@ -127,6 +133,16 @@ export const changePasswordService = async (
     const user = await User.findById(userId);
     if (!user) throw new AppError('User not found', 404);
 
+    // Unlike the login path, naming the cause here leaks nothing — the caller is
+    // already authenticated as this account — and "current password is incorrect"
+    // would be unanswerable advice for someone who has never set one.
+    if (!user.password) {
+        throw new AppError(
+            'This account signs in with Google, so it has no password to change.',
+            400
+        );
+    }
+
     const match = await bcrypt.compare(currentPassword, user.password);
     if (!match) throw new AppError('Current password is incorrect', 400);
 
@@ -179,7 +195,7 @@ export const OAuthService = async (code: string, deviceInfo: string) => {
     // An unverified address must never match an existing account — on custom
     // domains it can be claimed by someone who does not control the mailbox.
     if (!decoded?.email || !decoded.email_verified) {
-        throw new AppError('Google account email is not verified', 401);
+        throw new AppError('Google account email is not verified', 401, undefined, 'google_unverified');
     }
 
     const email = decoded.email.toLowerCase();
@@ -188,7 +204,7 @@ export const OAuthService = async (code: string, deviceInfo: string) => {
 
     if (user && user.email !== email) {
         const clash = await User.findOne({ email });
-        if (clash) throw new AppError('That email is already in use by another account', 409);
+        if (clash) throw new AppError('That email is already in use by another account', 409, undefined, 'account_conflict');
         user.email = email;
         await user.save();
     }
@@ -203,11 +219,11 @@ export const OAuthService = async (code: string, deviceInfo: string) => {
         user.googleId = decoded.sub;
         await user.save();
     } else if (user.googleId && user.googleId !== decoded.sub ) {
-        throw new AppError('This email is already linked to a different Google account', 409);
+        throw new AppError('This email is already linked to a different Google account', 409, undefined, 'account_conflict');
     }
 
-    if (user.status === 'SUSPENDED') throw new AppError('Your account has been suspended. Contact support.', 403);
-    if (user.status === 'DELETED') throw new AppError('Invalid credentials', 401);
+    if (user.status === 'SUSPENDED') throw new AppError('Your account has been suspended. Contact support.', 403, undefined, 'account_suspended');
+    if (user.status === 'DELETED') throw new AppError('Invalid credentials', 401, undefined, 'account_unavailable');
 
     const id = user._id as import('mongoose').Types.ObjectId;
     const tokens = await issueTokensForUser(id, user.role, deviceInfo);

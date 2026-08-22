@@ -10,6 +10,7 @@ import { FieldInput, ErrorMessage, Logo, StatusBanner } from '../components/ui';
 import { useTranslation } from 'react-i18next';
 import { useEffect } from 'react';
 import { useCurrentUser } from '../hooks/useCurrentUser';
+import { readBounceReason, clearBounceReason, isBounceLoop } from '../helpers/authBounce';
 import AuthLoader from '../components/AuthLoader';
 import GoogleButton from '../components/GoogleButton'
 
@@ -22,6 +23,14 @@ const OAUTH_ERRORS: Record<string, string> = {
     google_unverified: "Your Google email address is not verified.",
     account_suspended: "Your account has been suspended. Contact support.",
     account_conflict: "That email is already linked to a different Google account.",
+    // `oauth_failed` is the backend's catch-all for anything it did not expect,
+    // and it was missing here — so every unanticipated server-side failure fell
+    // through to the generic fallback with no way to tell them apart. The `ref`
+    // rendered below is what makes one of these reportable.
+    oauth_failed: "Something went wrong signing you in. Please try again.",
+    oauth_misconfigured: "Google sign-in is unavailable right now. Please try again later.",
+    google_exchange_failed: "We couldn't complete sign-in with Google. Please try again.",
+    account_unavailable: "That account is no longer available.",
 };
 
 const Templete = ({inputs, link} : AuthFormProps) => {
@@ -33,29 +42,34 @@ const Templete = ({inputs, link} : AuthFormProps) => {
     const { handleSubmit, loading } = useAuthHandlers(link);
     const { fieldErrors, setFieldError, clearFieldError } = useFieldError<AuthField>();
     const [apiError, setApiError] = useState('');
-    const [sessionExpired] = useState(
-        () => sessionStorage.getItem("auth:sessionExpired") === "1"
-    );
+    const [bounceReason] = useState(readBounceReason);
+    // Read once on mount, alongside the reason it pairs with: the sibling
+    // Authentication() effect has given up redirecting, so this page has to stop
+    // showing the loader and render itself — banner included.
+    const [bounceLoop] = useState(isBounceLoop);
     const [shownPasswords, setShownPasswords] = useState<Record<string, boolean>>({});
     const [searchParams, setSearchParams] = useSearchParams();
     const [oauthError] = useState(() => searchParams.get("error"));
-    // Consume the flag once so the notice doesn't reappear on later visits.
+    const [oauthRef] = useState(() => searchParams.get("ref"));
+    // Consume the notice once so it doesn't reappear on later visits.
     useEffect(() => {
-        if (sessionExpired) sessionStorage.removeItem("auth:sessionExpired");
-    }, [sessionExpired]);
+        if (bounceReason) clearBounceReason();
+    }, [bounceReason]);
+
     // Same idea for the OAuth code: strip it from the URL so a reload or a
     // shared link doesn't resurrect a stale failure message.
     useEffect(() => {
         if (!searchParams.get("error")) return;
         const next = new URLSearchParams(searchParams);
         next.delete("error");
+        next.delete("ref");
         setSearchParams(next, { replace: true });
     }, [searchParams, setSearchParams]);
     const toggleShown = (name: string) =>
         setShownPasswords((prev) => ({ ...prev, [name]: !prev[name] }));
     return (
         <>
-        {isLoading || isAuthenticated ? <AuthLoader /> : (
+        {(isLoading || isAuthenticated) && !bounceLoop ? <AuthLoader /> : (
             <div className="min-h-screen flex flex-col items-center justify-center bg-surface relative overflow-hidden px-5 sm:px-6 py-10 sm:py-14 pt-safe pb-safe">
                 <div className="absolute top-[-100px] left-[-100px] w-[500px] h-[500px] rounded-full bg-line blur-3xl pointer-events-none" />
                 <div className="absolute top-[-100px] right-[-100px] w-[500px] h-[500px] rounded-full bg-line blur-3xl pointer-events-none" />
@@ -70,11 +84,18 @@ const Templete = ({inputs, link} : AuthFormProps) => {
                     <h1 className="text-2xl sm:text-3xl font-bold text-fg tracking-tight mb-1">{t("auth.welcome")}</h1>
                     <p className="text-fg-muted text-sm mb-6 sm:mb-8"> {head} </p>
 
-                    {sessionExpired && (
+                    {bounceReason && (
                         <div className="mb-5">
                             <StatusBanner
                                 status="err"
-                                text={t("auth.sessionExpired", "Your session expired. Please sign in again.")}
+                                text={
+                                    bounceReason === "expired"
+                                        ? t("auth.sessionExpired", "Your session expired. Please sign in again.")
+                                        : t(
+                                              "auth.signInIncomplete",
+                                              "We couldn't keep you signed in. If this keeps happening, check that your browser allows cookies for this site."
+                                          )
+                                }
                             />
                         </div>
                     )}
@@ -83,10 +104,12 @@ const Templete = ({inputs, link} : AuthFormProps) => {
                         <div className="mb-5">
                             <StatusBanner
                                 status="err"
-                                text={t(
-                                    `auth.oauth.${oauthError}`,
-                                    OAUTH_ERRORS[oauthError] ?? "Google sign-in failed. Please try again."
-                                )}
+                                text={
+                                    t(
+                                        `auth.oauth.${oauthError}`,
+                                        OAUTH_ERRORS[oauthError] ?? "Google sign-in failed. Please try again."
+                                    ) + (oauthRef ? ` (ref: ${oauthRef})` : "")
+                                }
                             />
                         </div>
                     )}
@@ -232,10 +255,20 @@ export const Registration = () => {
 
 const Authentication = () => {
     const { user, isAuthenticated } = useCurrentUser();
+    // Captured during render, not read inside the effect. Templete is a child,
+    // and React flushes child effects first — its useCurrentUser clears the
+    // counter on a confirmed session, so a live read here would always see zero
+    // and redirect anyway.
+    const [bounceLoop] = useState(isBounceLoop);
     useEffect(() => {
-        if (isAuthenticated && user) {
-            // App owners land on the dashboard; everyone else on their groups.
-            window.location.href = user.role === "APP_OWNER" ? "/admin" : "/groups";
-        }
-    }, [user, isAuthenticated]);
+        if (!isAuthenticated || !user) return;
+        // This navigation and the 401 handler in redux/api/base.ts point at each
+        // other, and both reload the page. If /user/me answers here but not on
+        // the destination — a session cookie the browser stores yet won't send
+        // back — the pair spins forever. Stop after a couple of round trips and
+        // let the banner above explain, rather than reloading indefinitely.
+        if (bounceLoop) return;
+        // App owners land on the dashboard; everyone else on their groups.
+        window.location.href = user.role === "APP_OWNER" ? "/admin" : "/groups";
+    }, [user, isAuthenticated, bounceLoop]);
 }
