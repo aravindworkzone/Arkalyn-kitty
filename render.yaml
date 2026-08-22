@@ -21,11 +21,25 @@ services:
         sync: false             # paste your Atlas connection string in the dashboard
       - key: FRONTEND_URL
         sync: false             # set to the Vercel URL after the frontend is deployed
+      - key: FRONTEND_DASHBOARD_URL
+        sync: false             # where OAuth lands on success, e.g. https://<vercel-url>/groups
       - key: ACCESS_TOKEN_SECRET
         generateValue: true     # Render generates a strong random secret
       - key: REFRESH_TOKEN_SECRET
         generateValue: true
-      - key: SMTP_USER
-        sync: false             # Gmail address for password-reset email (optional)
-      - key: SMTP_PASS
-        sync: false             # Gmail App Password (optional)
+      # Google sign-in. All three are in config/env.ts REQUIRED_ENV_VARS, so the
+      # service refuses to boot without them.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false             # must match Google Console exactly; with the Vercel
+                                # /api proxy this is https://<vercel-url>/api/auth/oauth
+      # Transactional email (password reset). Optional — utils/email.ts no-ops
+      # without them. These replace the SMTP_USER/SMTP_PASS pair this file used
+      # to list, which no code has read since the move to Resend.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        sync: false

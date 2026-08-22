@@ -128,11 +128,23 @@ export const ChangePassword = asyncHandler(async (req, res) => {
     sendSuccess(res, null, 'Password changed successfully');
 });
 
+// Fallback only. Every OAuth throw site now carries an explicit `code`, which is
+// what actually gets used — this table exists for AppErrors raised further down
+// the stack that predate the codes. It deliberately no longer claims that a 401
+// means "unverified email": several unrelated failures share that status.
 const OAUTH_ERROR_CODES: Record<number, string> = {
-    401: 'google_unverified',
     403: 'account_suspended',
     409: 'account_conflict',
 };
+
+// Reasons the user is told about are also the ones we don't need a stack trace
+// for: they are the user's situation, not a fault in the service.
+const EXPECTED_OAUTH_CODES = new Set([
+    'google_unverified',
+    'account_conflict',
+    'account_suspended',
+    'account_unavailable',
+]);
 
 export const OAuthStart = (_req: Request, res: Response): void => {
     const state = crypto.randomBytes(32).toString('hex');
@@ -154,8 +166,12 @@ export const OAuthStart = (_req: Request, res: Response): void => {
 // in a redirect. Falling through to the JSON error handler would strand the user
 // on a raw API response with no way back.
 export const OAuth = async (req: Request, res: Response): Promise<void> => {
-    const fail = (reason: string): void => {
-        res.redirect(`${env.FRONTEND_URL}/login?error=${reason}`);
+    // `ref` is set only for failures that produced a log line, so the user can
+    // quote it and have it lead somewhere. Built through URLSearchParams because
+    // these values now end up in a multi-parameter query string.
+    const fail = (reason: string, ref?: string): void => {
+        const params = new URLSearchParams({ error: reason, ...(ref ? { ref } : {}) });
+        res.redirect(`${env.FRONTEND_URL}/login?${params}`);
     };
 
     // Read then immediately clear: the nonce is single-use, so a replayed
@@ -176,10 +192,38 @@ export const OAuth = async (req: Request, res: Response): Promise<void> => {
         setAuthCookies(res, tokens);
         res.redirect(env.FRONTEND_DASHBOARD_URL);
     } catch (err) {
-        logger.warn(
-            { err: err instanceof Error ? err.message : err },
+        // A short id shared between the log line and the URL the user ends up
+        // on, so a screenshot of the failure is enough to find the trace.
+        const ref = crypto.randomBytes(4).toString('hex');
+        const reason =
+            (err instanceof AppError && (err.code ?? OAUTH_ERROR_CODES[err.statusCode])) ||
+            'oauth_failed';
+
+        // Pass the Error itself, not err.message: pino's standard serializer
+        // records the stack, and Mongoose hangs its per-field validation detail
+        // off properties that stringifying would throw away. Anything we did not
+        // anticipate is an error, not a warning — a failure nobody is watching
+        // for is exactly the one worth surfacing.
+        const expected = err instanceof AppError && EXPECTED_OAUTH_CODES.has(reason);
+        const log = expected ? logger.warn.bind(logger) : logger.error.bind(logger);
+        log(
+            {
+                err,
+                ref,
+                reason,
+                // Driver-level detail on a failed write: `code` is numeric there
+                // (11000 is a duplicate key), which is also what distinguishes it
+                // from AppError's own string `code`.
+                ...(err instanceof AppError
+                    ? {}
+                    : {
+                          mongoCode: (err as { code?: unknown })?.code,
+                          validation: (err as { errors?: unknown })?.errors,
+                      }),
+            },
             'Google OAuth callback failed'
         );
-        fail(err instanceof AppError ? OAUTH_ERROR_CODES[err.statusCode] ?? 'oauth_failed' : 'oauth_failed');
+
+        fail(reason, ref);
     }
 };

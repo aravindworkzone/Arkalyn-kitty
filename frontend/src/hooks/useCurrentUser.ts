@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useGetUserQuery } from "../redux/api/auth";
+import { clearBounces } from "../helpers/authBounce";
 import type { CurrentUser } from "../interface/user";
 
 export function useCurrentUser() {
@@ -9,7 +10,11 @@ export function useCurrentUser() {
     // Record that a real session existed so a later refresh failure can tell an
     // expired user apart from a first-time visitor and show the right message.
     useEffect(() => {
-        if (isAuthenticated) sessionStorage.setItem("auth:hadSession", "1");
+        if (!isAuthenticated) return;
+        sessionStorage.setItem("auth:hadSession", "1");
+        // A confirmed session ends any redirect chain that was in progress, so
+        // the loop breaker starts from zero next time.
+        clearBounces();
     }, [isAuthenticated]);
 
     return {

@@ -31,6 +31,14 @@ export const PAGINATION = {
 export const RATE_LIMIT = {
     AUTH_WINDOW_MS: 15 * 60 * 1000,
     AUTH_MAX_ATTEMPTS: 15,
+    // Session upkeep (/auth/refresh) and the OAuth round trip are NOT credential
+    // guessing surfaces: refresh needs an already-valid signed token, and the
+    // OAuth legs are browser redirects. They used to share AUTH_MAX_ATTEMPTS,
+    // which meant a handful of open tabs renewing at once could 429 a refresh —
+    // and the client reads a failed refresh as "session dead" and bounces the
+    // user to /login despite a perfectly good session.
+    SESSION_WINDOW_MS: 15 * 60 * 1000,
+    SESSION_MAX_REQUESTS: 120,
     GLOBAL_WINDOW_MS: 15 * 60 * 1000,
     GLOBAL_MAX_REQUESTS: 300,
     // Contact form is public + sends email — keep it tight to deter spam/abuse.
