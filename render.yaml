@@ -43,3 +43,10 @@ services:
         sync: false
       - key: RESEND_FROM
         sync: false
+      # Web Push (VAPID). Optional — services/push.service.ts logs a warning and
+      # disables push if unset, rather than refusing to boot. The public key must
+      # match VITE_VAPID_PUBLIC_KEY in the Vercel env.
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false

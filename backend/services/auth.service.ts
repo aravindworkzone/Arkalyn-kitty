@@ -44,7 +44,7 @@ export const LoginService = async (
     data: SignInDto,
     deviceInfo: string
 ): Promise<LoginResult> => {
-    const user = await User.findOne({ email: data.email });
+    const user = await User.findOne({ email: data.email, status: { $ne: 'DELETED' } });
     if (!user) throw new AppError('Invalid credentials', 401);
 
     // A Google-only account has no password hash, and bcrypt.compare throws on
@@ -57,7 +57,6 @@ export const LoginService = async (
     if (!match) throw new AppError('Invalid credentials', 401);
 
     if (user.status === 'SUSPENDED') throw new AppError('Your account has been suspended. Contact support.', 403);
-    if (user.status === 'DELETED') throw new AppError('Invalid credentials', 401);
 
     const tokens = await issueTokensForUser(
         user._id as import('mongoose').Types.ObjectId,

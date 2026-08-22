@@ -8,6 +8,7 @@ import {
     generateApiKeyService,
     revokeApiKeyService,
 } from '../services/user.service';
+import { saveSubscription, removeSubscription } from '../services/push.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 import { AppError } from '../helpers/AppError';
@@ -70,4 +71,16 @@ export const RevokeApiKey = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
     await revokeApiKeyService(req.user._id);
     sendSuccess(res, null, 'API key revoked');
+});
+
+export const SubscribePush = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    await saveSubscription(req.user._id, req.body);
+    sendSuccess(res, null, 'Push subscription saved');
+});
+
+export const UnsubscribePush = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    await removeSubscription(req.user._id, req.body.endpoint);
+    sendSuccess(res, null, 'Push subscription removed');
 });

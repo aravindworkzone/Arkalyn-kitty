@@ -1,4 +1,4 @@
-import { useState, useCallback, lazy, Suspense } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import { Analytics } from '@vercel/analytics/react';
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { Login, Registration } from './page/Authentication'
@@ -48,6 +48,17 @@ function App() {
   const openHelp = useCallback(() => setShortcutHelpOpen(true), [])
   useGlobalShortcuts(openHelp)
   const location = useLocation()
+
+  // Registered for every visitor, signed in or not — the worker itself is inert
+  // until something subscribes, and having it ready is what lets the push
+  // subscription resolve immediately once someone signs in. The empty dependency
+  // array matters: without it this re-registered on every single render.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    navigator.serviceWorker
+      .register('/sw.js')
+      .catch((err) => console.error('Service worker registration failed', err))
+  }, [])
 
   return (
     <>

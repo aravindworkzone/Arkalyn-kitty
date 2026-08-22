@@ -51,11 +51,18 @@ export const user = api.injectEndpoints({
                 method: 'DELETE'
             }),
             invalidatesTags: ['Auth']
+        }),
+        subscribePush: builder.mutation<{ message: string }, PushSubscriptionJSON>({
+            query: (subscription) => ({
+                url: '/user/notificationSubscription',
+                method: 'POST',
+                body: subscription
+            })
         })
     })
 });
 
 export const {
     useGetUserGroupsQuery, useSearchUsersQuery, useVerifyUserMutation, useDeleteAccountMutation,
-    useGenerateApiKeyMutation, useRevokeApiKeyMutation
+    useGenerateApiKeyMutation, useRevokeApiKeyMutation, useSubscribePushMutation
 } = user;
