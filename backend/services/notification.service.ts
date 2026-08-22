@@ -2,6 +2,9 @@ import mongoose from 'mongoose';
 import Notification, { type NotificationType } from '../models/notification.model';
 import { emitToUser } from '../sockets';
 import { SOCKET_EVENTS } from '../sockets/events';
+import { sendPushToUser } from './push.service';
+import { notificationText } from '../utils/notificationText';
+import { logger } from '../utils/logger';
 
 export interface CreateNotificationPayload {
     recipient: mongoose.Types.ObjectId | string;
@@ -38,4 +41,23 @@ export const createNotification = async (payload: CreateNotificationPayload): Pr
     // Recipient's personal socket room is keyed by their userId string.
     // If they're offline the room is empty and this is a harmless no-op.
     emitToUser(String(payload.recipient), SOCKET_EVENTS.NOTIFICATION_NEW, notification.toJSON());
+
+    // Push covers the case the socket cannot: the tab is closed. It is the last
+    // thing here and deliberately not awaited into the caller's critical path —
+    // the notification is already saved and already emitted, so a push service
+    // being slow must not hold up (or fail) the invite that triggered it.
+    const actor = notification.actor as unknown as { name?: string } | null;
+    const group = notification.group as unknown as { name?: string } | null;
+    const groupName =
+        group?.name ??
+        (typeof payload.metadata?.groupName === 'string' ? payload.metadata.groupName : null);
+
+    void sendPushToUser(payload.recipient, {
+        title: groupName || 'Arkalyn Kitty',
+        body: notificationText({ type: payload.type, actorName: actor?.name, groupName }),
+        url: '/notifications',
+        // One live notification per group at a time in the OS tray: a burst of
+        // group activity should not bury the rest of the user's shade.
+        tag: `group:${String(payload.group)}`,
+    }).catch((err) => logger.warn({ err }, 'Push fan-out failed'));
 };

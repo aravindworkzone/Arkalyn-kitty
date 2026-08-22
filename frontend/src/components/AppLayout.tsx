@@ -4,6 +4,7 @@ import { cn } from "../helpers/cn";
 import { Sidebar } from "./sidebar";
 import Header from "./header";
 import NotificationToaster from "./notifications/NotificationToaster";
+import EnableNotifications from "./BrowserNotification";
 import { useSidebar } from "../hooks/useSidebar";
 import { useRecentGroups } from "../hooks/useRecentGroups";
 import { useGroupRoom } from "../hooks/useGroupRoom";
@@ -88,6 +89,9 @@ export default function AppLayout() {
                 point at. Outside the keyed route wrapper below: a toast must
                 survive the navigation it invites the user to make. */}
             <NotificationToaster />
+            {/* Sits inside the authenticated shell so the subscribe call always has
+                a session behind it — see the note in BrowserNotification.tsx. */}
+            <EnableNotifications />
 
             <div
                 className={cn(

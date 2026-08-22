@@ -7,10 +7,16 @@ import {
     DeleteAccount,
     GenerateApiKey,
     RevokeApiKey,
+    SubscribePush,
+    UnsubscribePush,
 } from '../controllers/user.controller';
 import { verifyToken } from '../middlewares/auth.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import { verifyEmailBodySchema } from '../validators/auth.validator';
+import {
+    pushSubscriptionBodySchema,
+    pushUnsubscribeBodySchema,
+} from '../validators/push.validator';
 
 const router = express.Router();
 
@@ -24,5 +30,20 @@ router.post('/verifyuser', validate({ body: verifyEmailBodySchema }), verifyToke
 // JWT-cookie protected — a user manages their own key from the web app only.
 router.post('/generate-api-key', verifyToken, GenerateApiKey);
 router.delete('/revoke-api-key', verifyToken, RevokeApiKey);
+
+// Web Push. The path is camelCase to match what the client already calls; the
+// browser's subscription object is posted as-is.
+router.post(
+    '/notificationSubscription',
+    verifyToken,
+    validate({ body: pushSubscriptionBodySchema }),
+    SubscribePush
+);
+router.delete(
+    '/notificationSubscription',
+    verifyToken,
+    validate({ body: pushUnsubscribeBodySchema }),
+    UnsubscribePush
+);
 
 export default router;

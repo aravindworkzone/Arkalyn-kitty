@@ -52,6 +52,15 @@ export const env = {
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? '',
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? '',
     GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI ?? '',
+    // Web Push (VAPID). Deliberately NOT in REQUIRED_ENV_VARS: push is an
+    // enhancement on top of the socket + in-app notification path, so an
+    // environment without keys should start and simply not send push, rather
+    // than refuse to boot. services/push.service.ts checks these at startup.
+    VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY ?? '',
+    VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY ?? '',
+    // mailto: or https: URL identifying the sender, per RFC 8292. Push services
+    // use it to contact the operator about a misbehaving sender.
+    VAPID_SUBJECT: process.env.VAPID_SUBJECT ?? `mailto:${process.env.CONTACT_EMAIL ?? 'aravind.workzone@gmail.com'}`,
     isProduction: process.env.NODE_ENV === 'production',
     isDevelopment: process.env.NODE_ENV !== 'production',
 };
