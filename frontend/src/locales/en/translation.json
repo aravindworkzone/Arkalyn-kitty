@@ -219,6 +219,9 @@
       "tagline": "Questions or something not working? We are a message away.",
       "askCta": "Ask a question",
       "reportCta": "Report a problem"
+    },
+    "footer": {
+      "cookieSettings": "Cookie settings"
     }
   },
   "auth": {

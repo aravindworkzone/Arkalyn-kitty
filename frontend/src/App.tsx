@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
-import { Analytics } from '@vercel/analytics/react';
 import { Routes, Route, useLocation } from 'react-router-dom'
+// Analytics is no longer the raw @vercel/analytics component — it is the
+// consent-gated wrapper, which is the only place a tracker may be loaded from.
+import { CookieConsentBanner, Analytics } from './components/consent'
 import { Login, Registration } from './page/Authentication'
 import ForgotPasswordPage from './page/ForgotPasswordPage'
 import ResetPasswordPage from './page/ResetPasswordPage'
@@ -134,6 +136,9 @@ function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </ErrorBoundary>
+    {/* Order is deliberate: the banner boots the consent library, and Analytics
+        listens for the events it emits. */}
+    <CookieConsentBanner />
     <Analytics />
     </>
   )

@@ -6,6 +6,7 @@ import DemoShowcase from "../components/landing/DemoShowcase";
 import { PUBLIC_PLANS, TIER_ORDER, planFeatureLines } from "../helpers/plans";
 import type { PlanTier } from "../interface/subscription";
 import ContactModal from "../components/ContactModal";
+import { CookieSettingsLink } from "../components/consent";
 import type { ContactKind } from "../interface/contact";
 
 type Mode = "summary" | "detailed";
@@ -631,9 +632,12 @@ function Footer({ onContact }: { onContact: (kind: ContactKind) => void }) {
         </div>
         <div className="mt-10 pt-6 border-t border-line flex flex-wrap items-center justify-between gap-3 text-xs text-fg-muted">
           <span>© {new Date().getFullYear()} {t("brand")}</span>
-          <Link to="/plans" className="hover:text-fg transition-colors">
-            {t("landing.nav.pricing")}
-          </Link>
+          <div className="flex items-center gap-4">
+            <CookieSettingsLink />
+            <Link to="/plans" className="hover:text-fg transition-colors">
+              {t("landing.nav.pricing")}
+            </Link>
+          </div>
         </div>
       </div>
     </footer>
