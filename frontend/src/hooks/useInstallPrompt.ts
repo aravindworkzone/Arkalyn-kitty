@@ -54,6 +54,22 @@ export async function promptInstall(): Promise<boolean> {
     return outcome === "accepted";
 }
 
+/** Already running as the installed app — nothing left to offer. */
+export const isStandalone = (): boolean =>
+    typeof window !== "undefined" &&
+    (window.matchMedia("(display-mode: standalone)").matches ||
+        (navigator as Navigator & { standalone?: boolean }).standalone === true);
+
+/**
+ * iOS browsers never fire beforeinstallprompt, so the only path there is the
+ * manual Share → Add to Home Screen. iPadOS reports itself as a Mac, hence the
+ * touch-point check.
+ */
+export const isIos = (): boolean =>
+    typeof navigator !== "undefined" &&
+    (/iphone|ipad|ipod/i.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+
 export default function useInstallPrompt() {
     const canInstall = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
     return { canInstall, promptInstall };

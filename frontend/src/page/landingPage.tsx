@@ -8,6 +8,7 @@ import type { PlanTier } from "../interface/subscription";
 import ContactModal from "../components/ContactModal";
 import { CookieSettingsLink } from "../components/consent";
 import type { ContactKind } from "../interface/contact";
+import useInstallPrompt, { isIos, isStandalone } from "../hooks/useInstallPrompt";
 
 type Mode = "summary" | "detailed";
 
@@ -40,6 +41,50 @@ interface Faq {
 }
 
 const AUDIENCE_ICONS = ["🏠", "✈️", "👨‍👩‍👧", "🧑‍🤝‍🧑", "🏢", "🎓"];
+
+const DownloadIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <path d="M8 2v8M4.5 6.5L8 10l3.5-3.5M2.5 11.5v1a1 1 0 001 1h9a1 1 0 001-1v-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/**
+ * Chromium gets the real install prompt; iOS has none, so there the button
+ * reveals the Share → Add to Home Screen instructions instead. Renders nothing
+ * when already installed or when the browser offers no path at all.
+ */
+function InstallAppButton({ className, compact = false }: { className: string; compact?: boolean }) {
+  const { t } = useTranslation();
+  const { canInstall, promptInstall } = useInstallPrompt();
+  const [showIosHint, setShowIosHint] = useState(false);
+
+  if (isStandalone()) return null;
+  const ios = !canInstall && isIos();
+  if (!canInstall && !ios) return null;
+  if (compact && ios) return null;
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => (canInstall ? void promptInstall() : setShowIosHint((p) => !p))}
+        aria-expanded={ios ? showIosHint : undefined}
+        className={className}
+      >
+        <DownloadIcon />
+        {t("landing.hero.install")}
+      </button>
+      {ios && showIosHint && (
+        <p
+          role="status"
+          className="absolute left-0 top-full mt-2 z-10 w-64 rounded-xl border border-line bg-surface-overlay p-3 text-theme-xs text-fg shadow-theme-md"
+        >
+          {t("landing.hero.installIosHint")}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function Nav() {
   const { t, i18n } = useTranslation();
@@ -103,6 +148,12 @@ function Nav() {
               { value: "ta", label: "தமிழ்" },
             ]}
           />
+          <div className="hidden lg:block">
+            <InstallAppButton
+              compact
+              className="inline-flex h-9 px-3 items-center gap-1.5 rounded-lg text-sm font-medium text-brand-600 dark:text-brand-400 hover:bg-surface-hover transition-colors"
+            />
+          </div>
           <Link
             to="/login"
             className="hidden lg:inline-flex h-9 px-4 items-center rounded-lg text-sm font-medium text-fg hover:bg-surface-hover transition-colors"
@@ -220,6 +271,7 @@ function Hero() {
               >
                 {t("landing.hero.ctaSecondary")}
               </a>
+              <InstallAppButton className="inline-flex items-center gap-2 h-12 px-6 rounded-xl text-theme-sm font-medium bg-surface-raised border border-brand-300 dark:border-brand-800 text-brand-600 dark:text-brand-400 hover:border-brand-500 active:border-brand-500 transition-colors" />
             </div>
             <div className="flex flex-wrap gap-x-6 gap-y-2 mt-7 text-sm text-fg-muted">
               {badges.map((s) => (
