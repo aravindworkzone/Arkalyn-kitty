@@ -8,9 +8,10 @@ import { toDBAmount, fromDBAmount } from '../helpers/Money';
 // is a link that was live and got torn down afterwards, kept distinct from
 // REJECTED so the audit trail records whether money ever actually moved.
 //
-// Direction matters and is never inferred: money only ever flows
-// source -> host, and only an admin of the SOURCE can push it (the host can
-// never pull). See services/groupLink.service.ts.
+// The link is a CREDIT LINE, like a card: the source (a Reserve) sets a limit,
+// the host (a Family group) spends against it at expense time, and what it has
+// spent is `outstanding` until the host repays it. See
+// services/groupLink.service.ts.
 export type GroupLinkStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'REVOKED';
 
 export interface IGroupLink extends Document {
@@ -18,6 +19,8 @@ export interface IGroupLink extends Document {
     sourceGroupId: mongoose.Types.ObjectId;
     status: GroupLinkStatus;
     contribution: number;
+    creditLimit: number;
+    outstanding: number;
     requestedBy: mongoose.Types.ObjectId;
     reviewedBy?: mongoose.Types.ObjectId | null;
     reviewedAt?: Date | null;
@@ -37,10 +40,16 @@ const groupLinkSchema = new Schema<IGroupLink>(
             enum: ['PENDING', 'ACTIVE', 'REJECTED', 'REVOKED'],
             default: 'PENDING',
         },
-        // Running total the source has actually transferred into the host.
+        // Lump sums the source pushed in under the old gift model. Frozen history:
+        // never owed back, and nothing writes it any more.
         // Same cents-in-DB / rupees-in-code convention as member contributions,
         // so every write goes through raw rupees and the setter converts.
         contribution: { type: Number, default: 0, set: toDBAmount, get: fromDBAmount },
+        // The most the host may owe at once. Set by a source admin; 0 means the
+        // host cannot draw yet.
+        creditLimit: { type: Number, default: 0, min: 0, set: toDBAmount, get: fromDBAmount },
+        // What the host currently owes: credit drawn by expenses, minus repayments.
+        outstanding: { type: Number, default: 0, min: 0, set: toDBAmount, get: fromDBAmount },
         // An admin of the host, who asked for the link.
         requestedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         // The admin of the source who approved or rejected it, and when.

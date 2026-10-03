@@ -15,8 +15,12 @@ export interface GroupLink {
     hostGroupId: LinkedGroupRef | string;
     sourceGroupId: LinkedGroupRef | string;
     status: GroupLinkStatus;
-    /** Running total the source has transferred into the host, in rupees. */
+    /** Lump sums sent under the old gift model, in rupees. History only — never owed. */
     contribution: number;
+    /** Most the host may owe at once, set by the Reserve. 0 = no credit yet. */
+    creditLimit?: number;
+    /** What the host currently owes the Reserve. */
+    outstanding?: number;
     requestedBy?: { _id: string; name: string } | string;
     reviewedAt?: string | null;
     createdAt: string;

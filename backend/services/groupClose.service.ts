@@ -136,6 +136,21 @@ export const executeGroupCloseService = async (data: {
     // paid. Finishing or cancelling the chit first is the only honest order.
     await assertNoActiveChit(groupId);
 
+    // Unsettled Reserve credit blocks the close too, at either end. Closing the
+    // borrower would leave a debt nobody can repay; closing the Reserve would
+    // pay its wallet out to members while money it lent is still owed back.
+    const owing = await GroupLink.findOne({
+        $or: [{ hostGroupId: groupId }, { sourceGroupId: groupId }],
+        outstanding: { $gt: 0 },
+        isDeleted: false,
+    }).select('_id');
+    if (owing) {
+        throw new AppError(
+            'Reserve credit is still owed on one of this group\'s connections. Settle it on the Connections page before closing.',
+            409
+        );
+    }
+
     const balanceCents = rawBalanceCents(group);
     const members = await loadActiveMembers(groupId);
     if (members.length === 0) {

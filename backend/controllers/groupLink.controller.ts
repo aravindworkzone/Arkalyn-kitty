@@ -4,7 +4,8 @@ import {
     requestLinkService,
     approveLinkService,
     rejectLinkService,
-    transferToLinkedGroupService,
+    setCreditLimitService,
+    repayCreditService,
     revokeLinkService,
     getGroupLinksService,
 } from '../services/groupLink.service';
@@ -47,6 +48,7 @@ export const approveLink = asyncHandler(async (req, res) => {
         sourceGroup: req.group._id,
         linkId: req.body.linkId,
         reviewer: req.user._id,
+        creditLimit: req.body.creditLimit,
     });
 
     await announce(link.hostGroupId, link.sourceGroupId);
@@ -67,20 +69,34 @@ export const rejectLink = asyncHandler(async (req, res) => {
     sendSuccess(res, link, 'Connection rejected');
 });
 
-export const transferToLink = asyncHandler(async (req, res) => {
+export const setCreditLimit = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
     if (!req.group?._id) throw new AppError('Group not found', 400);
 
-    const link = await transferToLinkedGroupService({
+    const link = await setCreditLimitService({
         sourceGroup: req.group._id,
         linkId: req.body.linkId,
+        creditLimit: req.body.creditLimit,
+        performedBy: req.user._id,
+    });
+
+    await announce(link.hostGroupId, link.sourceGroupId);
+    sendSuccess(res, link, 'Credit limit updated');
+});
+
+export const repayCredit = asyncHandler(async (req, res) => {
+    if (!req.user?._id) throw new AppError('Unauthorized', 401);
+    if (!req.group?._id) throw new AppError('Group not found', 400);
+
+    const link = await repayCreditService({
+        hostGroup: req.group._id,
+        linkId: req.body.linkId,
         amount: req.body.amount,
-        description: req.body.description,
         performedBy: req.user._id,
     });
 
     if (link) await announce(link.hostGroupId, link.sourceGroupId);
-    sendSuccess(res, link, 'Funds sent');
+    sendSuccess(res, link, 'Credit repaid');
 });
 
 export const revokeLink = asyncHandler(async (req, res) => {

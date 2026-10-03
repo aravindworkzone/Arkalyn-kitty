@@ -63,11 +63,14 @@ export const expensesDeniedMessage = (purpose?: GroupPurpose | null): string => 
 export const expenseCategoriesDeniedMessage = (purpose?: GroupPurpose | null): string =>
     `${expensesDeniedMessage(purpose)} Add a credit category instead.`;
 
-// Why THIS group cannot be funded by another. Only CHIT refuses, so unlike
-// expensesDeniedMessage there is one branch — but it stays a function so the
-// sentence sits beside the flag it explains rather than inline at two call sites.
-export const receiveFundingDeniedMessage = (name?: string | null): string =>
-    `${name ? `"${name}"` : 'That group'} is a Chit group. A chit is funded only by its own members — outside money would belong to nobody in the rotation, so it cannot receive funding from another group.`;
+// Why THIS group cannot be given a credit line. Chit and Reserve both refuse,
+// for different reasons, so the sentence is chosen by type.
+export const receiveFundingDeniedMessage = (name?: string | null, purpose?: GroupPurpose | null): string => {
+    const who = name ? `"${name}"` : 'That group';
+    return groupTypeOf(purpose) === 'RESERVE'
+        ? `${who} is a Reserve group. Reserve credit is spent through expenses, and a Reserve records none — only a Family group can have a credit line.`
+        : `${who} is a Chit group. A chit is funded only by its own members — outside money would belong to nobody in the rotation, so it cannot receive funding from another group.`;
+};
 
 // The two hand-operated money paths, refused for a chit. Separate sentences
 // because they fail for opposite reasons — one puts money in that nobody owns,

@@ -9,7 +9,8 @@ import Category from "../models/category.model";
 import GroupMembers from "../models/group_member.model";
 import { PAYMENT_TYPES, PaymentType } from "../models/expense.model";
 import { debitGroupBalance, refundGroupBalance } from "../helpers/balanceOps";
-import { findActiveFunderLink } from "./groupLink.service";
+import { findActiveFunderLink, drawOnCredit, releaseCredit } from "./groupLink.service";
+import { getGroupPlan, assertFeature } from "../helpers/planLimits";
 import { assertGroupTypeFeature, expensesDeniedMessage } from "../helpers/groupTypes";
 import type { GroupPurpose } from "../models/group.model";
 
@@ -61,10 +62,9 @@ const resolveCreditCategory = async (
     return found._id;
 };
 
-// Validate an optional funding group: must be a group with an ACTIVE link
-// funding THIS group. Attribution only — the money was transferred into this
-// group's wallet beforehand, so the debit below still targets this group.
-const resolveFundedByGroup = async (
+// Validate an optional funding group: must be a Reserve with an ACTIVE credit
+// line to THIS group. Returns the link, whose credit the expense is charged to.
+const resolveCreditLink = async (
     groupId: string,
     fundedByGroup: string | undefined,
     session: mongoose.ClientSession
@@ -76,8 +76,20 @@ const resolveFundedByGroup = async (
         ref,
         session
     );
-    if (!link) throw new AppError("That group does not fund this group", 400);
-    return link.sourceGroupId;
+    if (!link) throw new AppError("That group does not give this group credit", 400);
+    return link;
+};
+
+// Spending on credit is part of a group connection, which the HOST pays for —
+// the same gate requireLinkHostPlan applies on /approve. Checked at draw time
+// because a plan can lapse after the link was approved.
+const assertCanSpendOnCredit = async (groupId: string, session: mongoose.ClientSession) => {
+    const plan = await getGroupPlan(new mongoose.Types.ObjectId(groupId), session);
+    assertFeature(
+        plan,
+        "linkGroups",
+        "Paying with Reserve credit needs this group on Pro or Organization."
+    );
 };
 
 export const createExpenseService = async (data: ExpenseData) => {
@@ -110,7 +122,11 @@ export const createExpenseService = async (data: ExpenseData) => {
         expensesDeniedMessage(groupData.purpose)
     );
 
-    if( groupData.balance < amount) {
+    // Paid on credit, the money comes from the Reserve, so this group's own
+    // balance is irrelevant; the credit limit and the Reserve's wallet are
+    // checked atomically in drawOnCredit instead.
+    const onCredit = Boolean(data.fundedByGroup?.trim());
+    if (!onCredit && groupData.balance < amount) {
         throw new AppError("Amount cannot be greater than group balance", 400);
     }
 
@@ -152,13 +168,15 @@ export const createExpenseService = async (data: ExpenseData) => {
     try {
         session.startTransaction();
         const creditCategoryId = await resolveCreditCategory(groupData._id, data.creditCategory, session);
-        const fundedByGroupId = await resolveFundedByGroup(groupData._id, data.fundedByGroup, session);
+        const creditLink = await resolveCreditLink(groupData._id, data.fundedByGroup, session);
+        if (creditLink) await assertCanSpendOnCredit(groupData._id, session);
 
         const expense: {
             groupId: string;
             category: string;
             creditCategory?: mongoose.Types.ObjectId;
             fundedByGroup?: mongoose.Types.ObjectId;
+            creditLink?: mongoose.Types.ObjectId;
             title: string;
             description?: string;
             amount: number;
@@ -177,7 +195,10 @@ export const createExpenseService = async (data: ExpenseData) => {
             splitBetween: [],
         };
         if (creditCategoryId) expense.creditCategory = creditCategoryId;
-        if (fundedByGroupId) expense.fundedByGroup = fundedByGroupId as mongoose.Types.ObjectId;
+        if (creditLink) {
+            expense.fundedByGroup = creditLink.sourceGroupId as mongoose.Types.ObjectId;
+            expense.creditLink = creditLink._id as mongoose.Types.ObjectId;
+        }
         if (data.description?.trim()) expense.description = data.description.trim();
 
         if (splitBetween.length > 0) {
@@ -187,6 +208,21 @@ export const createExpenseService = async (data: ExpenseData) => {
         const expenseSave = new Expense(expense);
 
         await expenseSave.save({ session });
+
+        if (creditLink) {
+            // The Reserve's wallet pays and this group owes it; this group's
+            // own balance does not move, so there is no DEBIT row for it here.
+            await drawOnCredit({
+                linkId: creditLink._id as mongoose.Types.ObjectId,
+                amount,
+                expenseId: expenseSave._id as mongoose.Types.ObjectId,
+                title,
+                performedBy: userId,
+                session,
+            });
+            await session.commitTransaction();
+            return expenseSave;
+        }
 
         const updated = await debitGroupBalance(groupData._id, amount, { session });
 
@@ -231,6 +267,20 @@ export const deleteExpenseService = async (data: { expenseId: string, groupId: s
 
         // expense.amount getter returns rupees.
         const balanceUpdate = expense.amount;
+
+        // Paid on credit: the money goes back to the Reserve and off what this
+        // group owes, not into this group's wallet.
+        if (expense.creditLink) {
+            await releaseCredit({
+                linkId: expense.creditLink,
+                amount: balanceUpdate,
+                title: expense.title,
+                performedBy: data.userId,
+                session,
+            });
+            await session.commitTransaction();
+            return expense;
+        }
 
         await refundGroupBalance(data.groupId, balanceUpdate, { session });
 
@@ -392,9 +442,43 @@ export const updateExpenseService = async (data: ExpenseData & { expenseId: stri
             splitBetween: expense.splitBetween.map((s) => ({ userId: s.userId.toString(), amount: s.amount })),
         };
 
-        // Adjust the pool balance by the amount delta only.
+        // How an expense was paid is fixed once it exists. Moving it between this
+        // group's wallet and a credit line, or between two credit lines, would
+        // have to unwind one ledger and replay another inside an edit; deleting
+        // and re-recording does exactly that, visibly.
+        const requestedFunder = data.fundedByGroup?.trim() || undefined;
+        const currentFunder = expense.fundedByGroup?.toString();
+        if (expense.creditLink && requestedFunder !== currentFunder) {
+            throw new AppError(
+                "This expense was paid with Reserve credit and stays on that credit line. Delete it and record it again to pay another way.",
+                400
+            );
+        }
+        if (!expense.creditLink && requestedFunder && requestedFunder !== currentFunder) {
+            throw new AppError(
+                "An existing expense can't be moved onto Reserve credit. Record a new expense and choose the Reserve there.",
+                400
+            );
+        }
+
+        // Adjust by the amount delta only — on the credit line for a credit
+        // expense, otherwise on this group's own wallet.
         const delta = parseFloat((amount - oldAmount).toFixed(2));
-        if (delta > 0) {
+        if (expense.creditLink) {
+            if (delta > 0) {
+                await assertCanSpendOnCredit(groupId, session);
+                await drawOnCredit({
+                    linkId: expense.creditLink,
+                    amount: delta,
+                    expenseId: expense._id as mongoose.Types.ObjectId,
+                    title,
+                    performedBy: userId,
+                    session,
+                });
+            } else if (delta < 0) {
+                await releaseCredit({ linkId: expense.creditLink, amount: -delta, title, performedBy: userId, session });
+            }
+        } else if (delta > 0) {
             const updated = await debitGroupBalance(groupId, delta, { session });
             if (!updated) throw new AppError("Amount cannot be greater than group balance", 400);
         } else if (delta < 0) {
@@ -403,7 +487,8 @@ export const updateExpenseService = async (data: ExpenseData & { expenseId: stri
 
         // Mutate + save the document so the model's split-sum/unique validator runs.
         const creditCategoryId = await resolveCreditCategory(groupId, data.creditCategory, session);
-        const fundedByGroupId = await resolveFundedByGroup(groupId, data.fundedByGroup, session);
+        // Unchanged by the rule above, except that a gift-era label may be cleared.
+        const fundedByGroupId = requestedFunder ? expense.fundedByGroup : undefined;
 
         expense.title = title;
         expense.description = data.description?.trim() || undefined;
@@ -420,8 +505,10 @@ export const updateExpenseService = async (data: ExpenseData & { expenseId: stri
                 : ([] as unknown as typeof expense.splitBetween);
         await expense.save({ session });
 
-        // Audit the balance movement (only when the amount changed).
-        if (delta !== 0) {
+        // Audit the balance movement (only when the amount changed). A credit
+        // expense's movement is audited on the Reserve by drawOnCredit /
+        // releaseCredit; this group's wallet did not move.
+        if (delta !== 0 && !expense.creditLink) {
             await GroupTransaction.create([{
                 groupId,
                 amount: Math.abs(delta),

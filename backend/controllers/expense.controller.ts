@@ -15,6 +15,15 @@ import { sendSuccess, sendCreated, sendPaginated } from '../utils/response';
 import { AppError } from '../helpers/AppError';
 import { allExpensesQuerySchema, titleSuggestionsQuerySchema } from '../validators/expense.validator';
 import { emitToGroup, SOCKET_EVENTS } from "../sockets/index";
+import Group from '../models/group.model';
+
+// A credit expense moves the RESERVE's wallet and what is owed on the link, so
+// the Reserve's room is told as well as this group's.
+const announceCreditChange = async (expense: { creditLink?: unknown; fundedByGroup?: unknown } | null) => {
+    if (!expense?.creditLink || !expense.fundedByGroup) return;
+    const reserve = await Group.findById(expense.fundedByGroup).select('displayId');
+    if (reserve?.displayId) emitToGroup(reserve.displayId, SOCKET_EVENTS.GROUP_LINK_UPDATED);
+};
 
 export const createExpense = asyncHandler(async (req, res) => {
     if (!req.group?._id) throw new AppError('Group not found', 400);
@@ -27,6 +36,7 @@ export const createExpense = asyncHandler(async (req, res) => {
     });
 
     emitToGroup(req.group.displayId.toString(), SOCKET_EVENTS.EXPENSE_CREATED);
+    await announceCreditChange(expense);
 
     sendCreated(res, { expense }, 'Expense created');
 });
@@ -45,6 +55,7 @@ export const updateExpense = asyncHandler(async (req, res) => {
     });
 
     emitToGroup(req.group.displayId.toString(), SOCKET_EVENTS.EXPENSE_UPDATED);
+    await announceCreditChange(expense);
 
     sendSuccess(res, { expense }, 'Expense updated');
 });
@@ -73,6 +84,7 @@ export const deleteExpense = asyncHandler(async (req, res) => {
     });
 
     emitToGroup(req.group.displayId.toString(), SOCKET_EVENTS.EXPENSE_DELETED);
+    await announceCreditChange(expense);
 
     sendSuccess(res, { expense }, 'Expense deleted');
 });
