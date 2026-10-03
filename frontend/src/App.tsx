@@ -51,9 +51,9 @@ function App() {
   useGlobalShortcuts(openHelp)
   const location = useLocation()
 
-  // Registered for every visitor, signed in or not — the worker itself is inert
-  // until something subscribes, and having it ready is what lets the push
-  // subscription resolve immediately once someone signs in. The empty dependency
+  // Registered for every visitor, signed in or not — the worker caches the app
+  // shell (installability + offline start) and, once someone signs in, having
+  // it ready is what lets the push subscription resolve immediately. The empty dependency
   // array matters: without it this re-registered on every single render.
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return
