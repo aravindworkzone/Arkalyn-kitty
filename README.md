@@ -115,7 +115,7 @@ type is a superset of another:
 |---|---|---|---|---|---|
 | `FAMILY` | ✓ | — | — | ✓ | The pooled-wallet baseline: shared bills and everyday spending. The whole app as it was before types existed. |
 | `CHIT` | — | ✓ | — | — | A chit fund and nothing else — see [Chit Funds](#chit-funds). |
-| `RESERVE` | — | — | ✓ | ✓ | A vault. Holds contributions and bankrolls other groups; it does not spend on its own account. |
+| `RESERVE` | — | — | ✓ | — | A vault that works like a credit card for Family groups — see [Connected Groups](#connected-groups). It does not spend on its own account. |
 
 A Chit group records **no expenses**, for the same reason a Reserve records none:
 its wallet is not a shared spending pot. Every rupee in it is owed to whoever is
@@ -129,7 +129,7 @@ beside the chit, so the two wallets stay separate.
 intrinsic and permanent. So group-type gating is a second capability map
 (`config/groupTypeFeatures.ts` → `GROUP_TYPE_FEATURES`) resolved by its own
 assertion (`helpers/groupTypes.ts` → `assertGroupTypeFeature`), rather than more
-rows in `PLANS`. Where both apply they compose: funding a group needs
+rows in `PLANS`. Where both apply they compose: giving a group credit needs
 `assertFeature(plan, 'linkGroups')` **and**
 `assertGroupTypeFeature(purpose, 'fundOthers')`.
 
@@ -259,7 +259,7 @@ is what `MAX_CHIT_PARTICIPANTS` (50) bounds.
   `canViewAll`. The role split is structural rather than cards hidden mid-page.
 - **A chit cannot be funded from outside.** `receiveFunding` is false for `CHIT`
   and gates the **host** end of link formation, mirroring `fundOthers` on the
-  source end — both on `/request` and `/approve`, never on `/transfer`. The term
+  source end — on `/request` and `/approve`. The term
   balances only because each member pays in exactly what they take out; a rupee
   arriving from a Reserve belongs to nobody in the rotation, so somebody would end
   up taking out more than they put in.
@@ -273,42 +273,60 @@ is what `MAX_CHIT_PARTICIPANTS` (50) bounds.
 
 ## Connected Groups
 
-A **Reserve** group can bankroll another — a household reserve funding a trip
-group, say. **Both ends are gated by type.** Only a Reserve may be the source
-(`fundOthers`), so a Family or Chit group cannot be named as a funder; and a Chit
-may not be the host (`receiveFunding`), because outside money has no owner in its
-rotation. The link is consented to on both sides: an admin of the **host** (the
-group that wants funding) requests it, and an admin of the **source** (the group
-whose money it is) approves. Direction is never inferred and never reversed.
+A **Reserve** group works like a **credit card** for the Family groups linked to
+it. The Reserve (the **source**) sets a credit limit; the Family group (the
+**host**) spends against it when recording an expense; what it has spent is owed
+until it pays it back. No statements, due dates or interest — the link only
+tracks what is owed.
 
-Both type gates sit on **formation** — `/request` and `/approve` — so a link
-approved before either rule existed keeps working with no grandfather flag and no
-migration. The host is re-checked on approve rather than trusted from the request,
-since approval is the last moment before money can move.
+**Both ends are gated by type.** Only a Reserve may lend (`fundOthers`), and only
+a Family group may borrow (`receiveFunding`): credit is spent through expenses, a
+Reserve records none, and a Chit's outside money would have no owner in its
+rotation. The link is consented to on both sides: an admin of the Family group
+requests it, and an admin of the Reserve approves — optionally setting the
+starting limit in the same step. Both gates sit on **formation** (`/request` and
+`/approve`), and the host is re-checked on approve.
 
-The type gate sits on link **formation** — `/request` and `/approve` — and
-deliberately *not* on `/transfer`. A transfer acts on a link that is already
-`ACTIVE`, so links approved before the rule existed keep working: grandfathering
-falls out of where the gate sits, with no flag, no migration and no dead state to
-reconcile.
+| Action | Who | Route | Money |
+|---|---|---|---|
+| Set / change the limit | Reserve admin | `POST /grouplink/credit-limit` | none |
+| Spend on credit | Any Family member recording an expense, choosing the Reserve under **Pay with** | expense create / edit | Reserve wallet **DEBIT**; `link.outstanding += amount` |
+| Repay | Family admin, any amount up to what is owed | `POST /grouplink/repay` | Family **DEBIT**, Reserve **CREDIT**; `outstanding -= amount` |
+| Delete / edit down a credit expense | as for any expense | expense delete / edit | credit is released (below) |
 
-Funding is **pre-paid, not pulled**. An admin of the source pushes a lump sum, exactly like a member topping up a wallet; the host then spends it through the ordinary expense flow. Only the source can move its own money — a host can request a link and spend what it has been given, but it can never reach into the funder's wallet.
+**Spending on credit** (`drawOnCredit`) runs inside the expense's transaction with
+two atomic guards: one conditional update checks `outstanding + amount ≤
+creditLimit` and bumps `outstanding`, and `debitGroupBalance` refuses to overdraw
+the Reserve. Either failing aborts the whole expense. The expense stores the link
+it was charged to in `creditLink` (plus `fundedByGroup` for display); the Family
+group's own balance does not move. Links created before credit lines existed have
+no limit and cannot be drawn on until the Reserve sets one.
 
-A single transfer runs in one session across two wallets:
+**Releasing credit** (`releaseCredit`) is the reverse. The amount goes back to the
+Reserve and off what is owed — except any part the Family group has *already
+repaid*, which goes back to the Family group instead (₹100 drawn, ₹100 repaid,
+expense deleted → the Reserve must not keep ₹100 for spending that never
+happened).
 
-```
-debitGroupBalance(source)    → DEBIT  on source, referenceModel 'Group'
-creditGroupBalance(host)     → CREDIT on host,   referenceModel 'Group'
-$inc link.contribution
-```
+**How an expense was paid is fixed once it exists.** Edits may change the amount
+(drawing or releasing the difference on the same line) but not move an expense
+between the group's wallet and a credit line; delete and re-record instead.
 
-The atomic overspend guard applies to the source, so a transfer larger than its balance matches nothing and aborts the whole session.
+**What is owed blocks teardown.** A link cannot be removed (`/revoke`) and
+neither group can be closed while `outstanding > 0`, so a debt can never be
+stranded without a line to repay it on.
 
-Expenses in the host can optionally record `fundedByGroup`. That is **attribution only** — the money was already transferred in, so the debit still targets the host like any other expense, and the invariant that *an expense debits exactly the group it belongs to* holds everywhere. Because funding is pre-paid, a host can tag more spend to a funder than that funder ever sent; the UI warns and still saves, matching how category spend limits behave.
+**The borrower pays for the connection, never the Reserve.** What the
+`linkGroups` feature buys is the right to *hold* a credit line. On `/request` the
+actor is the host and its own plan is read; on `/approve` and `/credit-limit` the
+actor is the Reserve, so the host is recovered from the link and gated instead
+(`requireLinkHostPlan`); spending on credit re-checks the host's plan at draw
+time. `/repay`, `/reject` and `/revoke` are ungated — paying back, refusing, and
+unwinding must work on any plan.
 
-Money sent is a **contribution, not a loan**. There is no inter-group debt and no settle-up: removing a link stops further funding and further attribution, and leaves what has already moved where it is. Closing or deleting either group revokes the link.
-
-**The host pays for the connection, never the source.** A reserve group can sit on Free and bankroll as many groups as it likes — it is giving money away, and charging for that would be charging for generosity. What the `linkGroups` feature buys is the right to *be* funded: the host's wallet grows, its ledger carries the incoming credits, and its expenses gain funder attribution. So the plan gate does not follow the acting group. On `/request` the actor is the host and its own plan is read; on `/approve` and `/transfer` the actor is the source, so the host is recovered from the link and gated instead (`requireLinkHostPlan`). `/reject` and `/revoke` are ungated on both sides — refusing, and unwinding something already agreed, must work on any plan.
+The earlier **gift** model (a Reserve pushing lump sums the host never repaid,
+`POST /grouplink/transfer`) is retired. Its totals stay on `link.contribution`
+as history and are never counted as owed.
 
 ---
 
@@ -335,7 +353,7 @@ Permissions are enforced at the middleware level, not just the UI. `loadGroup` r
 | Role | Capabilities |
 |---|---|
 | `MEMBER` | Add expenses, edit their own expenses, view balance/reports/history, request to leave |
-| `ADMIN` | All member actions + manage categories, invite and manage members, share/revoke the join link, approve join requests, manage group connections and send funds, add contributions, settle members, edit or delete any expense |
+| `ADMIN` | All member actions + manage categories, invite and manage members, share/revoke the join link, approve join requests, manage group connections (Reserve: set credit limits; Family: repay credit), add contributions, settle members, edit or delete any expense |
 | `SUPER_ADMIN` | All admin actions + manage admin roles, close/clone/delete the group |
 | `APP_OWNER` | Application-level administration across all accounts (see `admin.router`) |
 

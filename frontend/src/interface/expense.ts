@@ -18,9 +18,11 @@ export interface Expense {
   time?: string;
   category: { name: string; color: string; _id: string };
   creditCategory?: { name: string; color: string; _id: string };
-  /** Connected group this spend is attributed to. Attribution only — it never
-   *  affects which wallet was debited. */
+  /** The Reserve this expense was paid with. On a credit expense the Reserve's
+   *  wallet paid and this group owes it; on older expenses it is only a label. */
   fundedByGroup?: { _id: string; name: string; displayId: string };
+  /** Set when the expense was paid on Reserve credit: the credit line's id. */
+  creditLink?: string;
   paidBy: { _id: string; name: string; email: string };
   paymentType: string;
   splitBetween: SplitMember[];

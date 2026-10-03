@@ -13,6 +13,12 @@ export interface IExpense extends Document {
     // and purely attributional — the money was already transferred into this
     // group's wallet, so the debit still hits `groupId` like any other expense.
     fundedByGroup?: mongoose.Types.ObjectId;
+    // Set when the expense was paid on credit: the link it was charged to. The
+    // money came out of the funder's wallet, not this group's, and editing or
+    // deleting the expense moves it back on this exact link. Absent on
+    // own-wallet expenses and on gift-era expenses that only carry
+    // fundedByGroup as a label.
+    creditLink?: mongoose.Types.ObjectId;
     title: string;
     description?: string;
     amount: number;
@@ -33,6 +39,7 @@ const expenseSchema = new Schema<IExpense>({
     category: {type: mongoose.Types.ObjectId, ref: "Category", required: true},
     creditCategory: {type: mongoose.Types.ObjectId, ref: "Category"},
     fundedByGroup: {type: mongoose.Types.ObjectId, ref: "Group"},
+    creditLink: {type: mongoose.Types.ObjectId, ref: "GroupLink"},
     title: {type: String, required: true, trim: true, minlength: 3, maxlength: 100},
     description: {type: String, trim: true, maxlength: 500},
     amount: {type: Number, required: true, min: 1, set:toDBAmount, get:fromDBAmount},

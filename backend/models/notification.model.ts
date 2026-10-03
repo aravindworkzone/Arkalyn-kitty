@@ -18,6 +18,10 @@ export type NotificationType =
     | 'GROUP_LINK_REJECTED'
     | 'GROUP_LINK_REVOKED'
     | 'GROUP_LINK_FUNDED'
+    // Credit-line moments: the Reserve set or changed the limit, and the Family
+    // group paid some of what it owes back.
+    | 'GROUP_LINK_CREDIT_LIMIT_SET'
+    | 'GROUP_LINK_REPAID'
     // The two chit moments a member actually needs told about: their payment was
     // recorded, and their turn came round.
     | 'CHIT_DUE_RECORDED'
@@ -41,6 +45,8 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
     'GROUP_LINK_REJECTED',
     'GROUP_LINK_REVOKED',
     'GROUP_LINK_FUNDED',
+    'GROUP_LINK_CREDIT_LIMIT_SET',
+    'GROUP_LINK_REPAID',
     'CHIT_DUE_RECORDED',
     'CHIT_PAYOUT_RELEASED',
 ];

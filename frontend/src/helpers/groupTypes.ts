@@ -20,7 +20,9 @@ export const GROUP_TYPE_FEATURES: Record<GroupType, GroupTypeFeatures> = {
   // the rotation, so there is no spending of its own to record — and no outside
   // funding either, since a funded rupee belongs to nobody in the rotation.
   CHIT: { expenses: false, fundOthers: false, receiveFunding: false, manualWalletMoves: false, chit: true },
-  RESERVE: { expenses: false, fundOthers: true, receiveFunding: true, manualWalletMoves: true, chit: false },
+  // Lends to Family groups as a credit line; never borrows — credit is spent
+  // through expenses, and a Reserve records none.
+  RESERVE: { expenses: false, fundOthers: true, receiveFunding: false, manualWalletMoves: true, chit: false },
 };
 
 // Resolves a stored purpose to the type whose features apply. Every legacy

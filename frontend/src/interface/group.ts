@@ -22,8 +22,8 @@ export interface GroupTypeFeatures {
   expenses: boolean;
   // May be the source of a funding link — i.e. bankroll another group.
   fundOthers: boolean;
-  // May be the host of a funding link — i.e. be bankrolled by another group.
-  // False only for CHIT, which is funded solely by its own members.
+  // May be the host of a funding link — i.e. hold a credit line from a Reserve.
+  // True only for FAMILY: credit is spent through expenses.
   receiveFunding: boolean;
   // May move money in or out of the wallet by hand — an admin-recorded
   // contribution, or a settlement paying a member out. False only for CHIT,

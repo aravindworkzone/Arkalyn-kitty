@@ -284,11 +284,50 @@ export default function CreateExpensePage() {
   const todayISO = todayISODate();
   const yesterdayISO = toISODate(addDays(new Date(), -1));
 
+  // Reserve groups giving this group credit — the only valid choices for
+  // "Pay with". Picking one charges the expense to that Reserve like a card.
+  const funders = (groupLinks?.incoming ?? [])
+    .filter((l) => l.status === "ACTIVE")
+    .map((l) => {
+      const src = l.sourceGroupId;
+      const creditLimit = l.creditLimit ?? 0;
+      const outstanding = l.outstanding ?? 0;
+      return {
+        id: typeof src === "string" ? src : src._id,
+        name: typeof src === "string" ? src : src.name,
+        creditLimit,
+        available: Math.max(0, creditLimit - outstanding),
+      };
+    });
+
+  /* How an expense was paid is fixed once it exists (the API refuses a
+     change), so in edit mode the stored choice wins even if its credit line
+     has since been closed. For a new expense a remembered funder is only
+     honoured while it is still an active one. Derived rather than set in an
+     effect, so the fallback is instant. This is what gets submitted. */
+  const editFunderId = isEdit ? (editExpense?.fundedByGroup?._id ?? "") : "";
+  const editWasOnCredit = isEdit && Boolean(editExpense?.creditLink);
+  const fundedByGroupSafe = isEdit
+    ? editFunderId
+    : fundedByGroup && funders.some((f) => f.id === fundedByGroup)
+      ? fundedByGroup
+      : "";
+  const selectedFunder = funders.find((f) => f.id === fundedByGroupSafe);
+  const payingOnCredit = isEdit ? editWasOnCredit : Boolean(selectedFunder);
+
+  // The most this expense may be. On credit that is the credit still free
+  // (plus, when editing, what this expense already holds on the line);
+  // otherwise the wallet, exactly as before.
+  const creditCap = payingOnCredit
+    ? (selectedFunder?.available ?? 0) + (editWasOnCredit ? editOldAmount : 0)
+    : 0;
+  const spendCap = payingOnCredit ? creditCap : effectiveBalance;
+
   // Balance hint coloring
   const amountIsNearLimit =
     totalAmount > 0 &&
-    effectiveBalance > 0 &&
-    totalAmount / effectiveBalance > 0.8;
+    spendCap > 0 &&
+    totalAmount / spendCap > 0.8;
 
   // Categories sorted by most used
   const sortedCategories = [...categories].sort(
@@ -315,53 +354,13 @@ export default function CreateExpensePage() {
   const limitInfo = limitStatus(projectedSpentCents, categoryLimitCents);
   const overLimit = limitInfo?.state === "over";
 
-  // Groups actively funding this one — the only valid choices for "Funded by".
-  const funders = (groupLinks?.incoming ?? [])
-    .filter((l) => l.status === "ACTIVE")
-    .map((l) => {
-      const src = l.sourceGroupId;
-      return {
-        id: typeof src === "string" ? src : src._id,
-        name: typeof src === "string" ? src : src.name,
-        contribution: l.contribution,
-        attributedSpend: l.attributedSpend ?? 0,
-      };
-    });
-
-  /* A remembered funder link can have been closed since, and a remembered
-     payment type can have been dropped from the enum. Both are validated by
-     derivation rather than by another effect, so the fallback is instant and
-     there is no extra render. These are what get submitted. */
-  const fundedByGroupSafe =
-    fundedByGroup && funders.some((f) => f.id === fundedByGroup)
-      ? fundedByGroup
-      : "";
+  /* A remembered payment type can have been dropped from the enum. Validated
+     by derivation rather than by another effect, so the fallback is instant
+     and there is no extra render. */
   const paymentTypeSafe =
     paymentTypes.length === 0 || paymentTypes.includes(paymentType)
       ? paymentType
       : (paymentTypes[0] ?? paymentType);
-
-  /**
-   * Advisory only. Funding is pre-paid, so nothing stops a group tagging more
-   * spend to a funder than that funder ever sent — this just says so, the same
-   * way the category limit above warns without blocking.
-   */
-  const overFunded = (() => {
-    if (!fundedByGroupSafe) return null;
-    const f = funders.find((x) => x.id === fundedByGroupSafe);
-    if (!f) return null;
-    // Editing an expense already tagged to this funder: its old amount is
-    // inside attributedSpend, so take it back out first.
-    const editingSameFunder =
-      isEdit && editExpense?.fundedByGroup?._id === fundedByGroupSafe;
-    const already = Math.max(
-      f.attributedSpend - (editingSameFunder ? editOldAmount : 0),
-      0,
-    );
-    const projected = already + totalAmount;
-    if (projected <= f.contribution) return null;
-    return { name: f.name, contribution: f.contribution, projected };
-  })();
 
   // "All members in split" flag for Add All / Clear All
   const allMembersInSplit =
@@ -483,7 +482,7 @@ export default function CreateExpensePage() {
   const handleAmountChange = (raw: string) => {
     const clean = sanitizeAmount(
       raw,
-      effectiveBalance > 0 ? effectiveBalance : undefined,
+      spendCap > 0 ? spendCap : undefined,
     );
     setAmount(clean);
     clearFieldError("amount");
@@ -598,7 +597,7 @@ export default function CreateExpensePage() {
       setFieldError("title", titleV.message);
       ok = false;
     }
-    const amountV = validateAmount(totalAmount, effectiveBalance);
+    const amountV = validateAmount(totalAmount, spendCap);
     if (!amountV.valid) {
       setFieldError("amount", amountV.message);
       ok = false;
@@ -625,11 +624,10 @@ export default function CreateExpensePage() {
   // filling in.
   const step1Complete =
     validateTitle(title).valid &&
-    validateAmount(totalAmount, effectiveBalance).valid &&
+    validateAmount(totalAmount, spendCap).valid &&
     validateDate(date).valid &&
     Boolean(categoryId);
 
-  const selectedFunder = funders.find((f) => f.id === fundedByGroupSafe);
   const selectedCreditCategory = creditCategories.find(
     (c) => c._id === creditCategoryId,
   );
@@ -741,7 +739,7 @@ export default function CreateExpensePage() {
             title,
             description,
             totalAmount,
-            maxAmount: effectiveBalance,
+            maxAmount: spendCap,
             categoryId,
             creditCategoryId: creditCategoryId || undefined,
             fundedByGroup: fundedByGroupSafe || undefined,
@@ -844,7 +842,31 @@ export default function CreateExpensePage() {
                 </div>
               </FormField>
 
-              {effectiveBalance > 0 ? (
+              {payingOnCredit ? (
+                creditCap > 0 ? (
+                  <p
+                    className={`-mt-2 text-theme-2xs font-medium transition-colors ${
+                      amountIsNearLimit
+                        ? "text-warning-700 dark:text-warning-400"
+                        : "text-fg-muted"
+                    }`}
+                    translate="no"
+                  >
+                    {t("createExpense.creditAvailable", {
+                      amount: creditCap.toLocaleString("en-IN"),
+                      group: selectedFunder?.name ?? editExpense?.fundedByGroup?.name ?? "",
+                      defaultValue: "Reserve credit available: ₹{{amount}} from {{group}}",
+                    })}
+                  </p>
+                ) : (
+                  <Note tone="warning" className="-mt-2">
+                    {t(
+                      "createExpense.noCreditLeft",
+                      "No Reserve credit is left on this line. Repay some on the Connections page, or ask the Reserve to raise the limit.",
+                    )}
+                  </Note>
+                )
+              ) : effectiveBalance > 0 ? (
                 <p
                   className={`-mt-2 text-theme-2xs font-medium transition-colors ${
                     amountIsNearLimit
@@ -1486,52 +1508,59 @@ export default function CreateExpensePage() {
               </Disclosure>
             )}
 
-            {/* Which connected group's money this came from. Attribution only:
-            the funds were already transferred into this group's wallet, so
-            picking one here never changes what gets debited. */}
-            {funders.length > 0 && (
+            {/* Which wallet pays. A Reserve works like a credit card: picking
+            one charges the expense to its wallet and adds it to what this
+            group owes, instead of spending this group's own balance. */}
+            {(funders.length > 0 || editWasOnCredit) && (
               <Disclosure
-                title={t("createExpense.fundedBy", "Funded by")}
+                title={t("createExpense.payWith", "Pay with")}
                 summary={
                   <span translate="no">
-                    {selectedFunder?.name ??
-                      t("createExpense.ownWallet", "This group's wallet")}
+                    {payingOnCredit
+                      ? t("createExpense.reserveCredit", {
+                          group: selectedFunder?.name ?? editExpense?.fundedByGroup?.name ?? "",
+                          defaultValue: "{{group}} credit",
+                        })
+                      : t("createExpense.ownWallet", "This group's wallet")}
                   </span>
                 }
                 open={isOpen("funded", false)}
                 onOpenChange={setOpen("funded")}
                 contentClass="px-5 sm:px-6 pb-5 pt-1 space-y-2"
               >
-                <ChoiceGroup label={t("createExpense.fundedBy", "Funded by")}>
-                  <Chip
-                    variant="choice"
-                    selected={fundedByGroupSafe === ""}
-                    onClick={() => setFundedByGroup("")}
-                  >
-                    {t("createExpense.ownWallet", "This group's wallet")}
-                  </Chip>
-                  {funders.map((f) => (
-                    <Chip
-                      key={f.id}
-                      variant="choice"
-                      selected={fundedByGroupSafe === f.id}
-                      onClick={() => setFundedByGroup(f.id)}
-                    >
-                      <span translate="no">{f.name}</span>
-                    </Chip>
-                  ))}
-                </ChoiceGroup>
-
-                {overFunded && (
-                  <Note tone="warning" translate="no">
-                    {t("createExpense.overFundedWarning", {
-                      group: overFunded.name,
-                      contributed: overFunded.contribution,
-                      tagged: overFunded.projected,
-                      defaultValue:
-                        "This would tag ₹{{tagged}} to {{group}}, which has contributed ₹{{contributed}}. You can still save it — this is only a heads-up.",
-                    })}
+                {isEdit ? (
+                  <Note tone="info">
+                    {t(
+                      "createExpense.payWithLocked",
+                      "How an expense was paid can't be changed. To pay another way, delete it and record it again.",
+                    )}
                   </Note>
+                ) : (
+                  <ChoiceGroup label={t("createExpense.payWith", "Pay with")}>
+                    <Chip
+                      variant="choice"
+                      selected={fundedByGroupSafe === ""}
+                      onClick={() => setFundedByGroup("")}
+                    >
+                      {t("createExpense.ownWallet", "This group's wallet")}
+                    </Chip>
+                    {funders.map((f) => (
+                      <Chip
+                        key={f.id}
+                        variant="choice"
+                        selected={fundedByGroupSafe === f.id}
+                        onClick={() => setFundedByGroup(f.id)}
+                      >
+                        <span translate="no">
+                          {t("createExpense.reserveCreditChip", {
+                            group: f.name,
+                            amount: f.available.toLocaleString("en-IN"),
+                            defaultValue: "{{group}} credit · ₹{{amount}} left",
+                          })}
+                        </span>
+                      </Chip>
+                    ))}
+                  </ChoiceGroup>
                 )}
               </Disclosure>
             )}

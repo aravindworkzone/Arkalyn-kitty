@@ -48,11 +48,11 @@ export interface GroupTypeFeatures {
     // May be the HOST of a funding link: the group whose wallet is bankrolled by
     // another group's.
     //
-    // The mirror of fundOthers, and false only for CHIT. A chit balances because
-    // each member pays in exactly what they take out; a rupee arriving from
-    // outside belongs to nobody in the rotation, so somebody would end the term
-    // having taken out more than they put in. Family and Reserve both accept
-    // funding — a Reserve can legitimately be topped up by another Reserve.
+    // The mirror of fundOthers, and true only for FAMILY. A link is a credit line
+    // the host spends against at expense time, so a host has to record
+    // expenses: a Reserve records none, and a chit balances only because each
+    // member pays in exactly what they take out — a rupee arriving from outside
+    // belongs to nobody in the rotation.
     //
     // Gates link FORMATION only, exactly like fundOthers, so links approved
     // before this rule keep working with no flag and no migration.
@@ -118,5 +118,5 @@ export const GROUP_TYPE_FEATURES: Record<GroupType, GroupTypeFeatures> = {
 
     // A vault: contributions in, funding out to other groups. It holds money on
     // behalf of the groups it bankrolls, so it does not spend on its own account.
-    RESERVE: { expenses: false, fundOthers: true, receiveFunding: true, manualWalletMoves: true, chit: false },
+    RESERVE: { expenses: false, fundOthers: true, receiveFunding: false, manualWalletMoves: true, chit: false },
 };
