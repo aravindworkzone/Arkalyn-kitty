@@ -20,6 +20,9 @@ export interface GroupCredit {
   // belongs on the chit board, which unwinds the due, the cycle total, the
   // member's contribution and the wallet together.
   isChitCredit?: boolean;
+  // Set by the server on money another group sent over a connection (a Family
+  // group repaying or depositing into a Reserve). Also not removable here.
+  isLinkCredit?: boolean;
 }
 
 export interface GroupEvent {

@@ -63,6 +63,18 @@ export interface IGroup extends Document {
     // Frozen at close: the group's plan tier at the moment it was closed.
     // Immutable thereafter — protects refund calc / audit from later plan changes.
     planSnapshot?: IGroupPlanSnapshot | null;
+    // ── Reserve credit (RESERVE groups only) ─────────────────────────────────
+    // The fixed limit an admin sets: the most all its Family groups may owe it
+    // at once. Only an admin changes it — contributions never do.
+    creditLimit: number;
+    // What is lent out right now: the running sum of every link's
+    // `outstanding`. Kept on the Reserve so a draw can check and bump it in ONE
+    // atomic update with the wallet debit.
+    //
+    // Available credit = min(creditLimit − creditUsed, balance): the limit caps
+    // it, and the wallet must actually hold the money. When the wallet runs
+    // short, a contribution refills it — up to the limit, never past it.
+    creditUsed: number;
     createdBy: mongoose.Types.ObjectId;
     createdAt?: Date;
     updatedAt?: Date;
@@ -86,6 +98,8 @@ const groupSchema = new Schema<IGroup>({
     planCycle: {type: String, enum: BILLING_CYCLES, default: null},
     planSource: {type: String, enum: PLAN_SOURCES, default: null},
     planSnapshot: { type: planSnapshotSchema, default: null },
+    creditLimit: {type: Number, default: 0, min: 0, set:toDBAmount, get:fromDBAmount},
+    creditUsed: {type: Number, default: 0, min: 0, set:toDBAmount, get:fromDBAmount},
     createdBy: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true}
 }, {timestamps: true, toJSON: { getters: true }, toObject: { getters: true }});
 

@@ -47,9 +47,11 @@ interface ExportPanelProps {
     subscription: PlanView | null | undefined;
     /** Only admins may export; hide the panel entirely for everyone else. */
     isAdmin: boolean;
+    /** False for a group that records no expenses (a Reserve): its Expenses sheet would always be empty. */
+    recordsExpenses?: boolean;
 }
 
-export default function ExportPanel({ groupId, subscription, isAdmin }: ExportPanelProps) {
+export default function ExportPanel({ groupId, subscription, isAdmin, recordsExpenses = true }: ExportPanelProps) {
     const [busy, setBusy] = useState<ExportSheet | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -79,8 +81,9 @@ export default function ExportPanel({ groupId, subscription, isAdmin }: ExportPa
         <Card title="Export records">
             {!allowed ? (
                 <UpgradeNote groupId={groupId} variant="blocked">
-                    Export this group's ledger, expenses and member register as CSV — the
-                    file an auditor or treasurer needs. Available on Organization.
+                    Export this group's ledger{recordsExpenses ? ', expenses' : ''} and member
+                    register as CSV — the file an auditor or treasurer needs. Available on
+                    Organization.
                 </UpgradeNote>
             ) : (
                 <div className="flex flex-col gap-3">
@@ -92,7 +95,7 @@ export default function ExportPanel({ groupId, subscription, isAdmin }: ExportPa
                     )}
 
                     <div className="grid gap-2 sm:grid-cols-2">
-                        {SHEETS.map((sheet) => (
+                        {SHEETS.filter((s) => recordsExpenses || s.id !== 'expenses').map((sheet) => (
                             <div
                                 key={sheet.id}
                                 className="flex flex-col gap-2 rounded-xl border border-line p-3"

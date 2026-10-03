@@ -34,9 +34,8 @@ const TEMPLATES: Record<NotificationType, (actor: string, group: string) => stri
     GROUP_LINK_APPROVED: (a, g) => `${a} approved the group link with ${g}`,
     GROUP_LINK_REJECTED: (a, g) => `${a} declined the group link with ${g}`,
     GROUP_LINK_REVOKED: (a, g) => `${a} revoked the group link with ${g}`,
-    GROUP_LINK_FUNDED: (a, g) => `${a} sent funds to ${g}`,
     GROUP_LINK_CREDIT_LIMIT_SET: (a, g) => `${a} updated the Reserve credit limit for ${g}`,
-    GROUP_LINK_REPAID: (a, g) => `${a} repaid Reserve credit to ${g}`,
+    GROUP_LINK_REPAID: (a, g) => `${a} sent money to ${g}`,
     CHIT_DUE_RECORDED: (_a, g) => `Your chit payment was recorded in ${g}`,
     CHIT_PAYOUT_RELEASED: (_a, g) => `Your chit payout was released in ${g}`,
 };

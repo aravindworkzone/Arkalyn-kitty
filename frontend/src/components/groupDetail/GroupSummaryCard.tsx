@@ -4,6 +4,7 @@ import MemberAvatars from "../ListMember";
 import RoleBadge from "../ui/RoleBadge";
 import { groupTypeI18nKey, groupTypeLabel } from "../../helpers/groupTypes";
 import type { Group } from "../../interface/group";
+import type { ReserveCredit } from "../../interface/groupLink";
 import { hasUpgradeAvailable } from "../../helpers/plans";
 
 interface Props {
@@ -11,10 +12,12 @@ interface Props {
   role: Group["role"];
   memberNames: string[];
   totalContribution: number;
+  /** Set only on a Reserve: its fixed limit, what is lent out, and what is available. */
+  reserveCredit?: ReserveCredit | null;
 }
 
 /** Group identity, balance, pool health, plan and the member stack. */
-export default function GroupSummaryCard({ group, role, memberNames, totalContribution }: Props) {
+export default function GroupSummaryCard({ group, role, memberNames, totalContribution, reserveCredit }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const bar = group?.barLength ?? 0;
@@ -31,7 +34,11 @@ export default function GroupSummaryCard({ group, role, memberNames, totalContri
   const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
   const isClosed = group?.status === "CLOSED";
   const tier = group?.subscription?.tier ?? "FREE";
-  const canUpgrade = isAdmin && !isClosed && hasUpgradeAvailable(tier);
+  // A Reserve lends; what a paid plan adds (reports, report ranges, holding
+  // credit) is for the groups that spend — and the borrower pays for the
+  // connection. So a Reserve shows its tier but is not offered an upgrade.
+  const isReserve = group?.features?.fundOthers === true;
+  const canUpgrade = isAdmin && !isClosed && !isReserve && hasUpgradeAvailable(tier);
 
   const tierChip =
     tier === "FREE"
@@ -92,12 +99,38 @@ export default function GroupSummaryCard({ group, role, memberNames, totalContri
           <p className="font-mono text-title-sm font-semibold text-fg leading-tight" translate="no">
             ₹{group?.balance?.toLocaleString("en-IN")}
           </p>
-          <p className="text-theme-2xs font-mono text-fg-muted mt-0.5" translate="no">
-            {t("groupDetail.contributed", { amount: totalContribution.toLocaleString("en-IN") })}
-          </p>
+          {/* A Reserve is read like a card issuer: its fixed limit and what is
+              out on loan matter more than what was paid in, so they take the
+              contribution's line. Available = min(limit − lent out, wallet). */}
+          {reserveCredit ? (
+            <>
+              <p className="text-theme-2xs font-mono text-fg mt-0.5" translate="no">
+                {t("groupDetail.creditLimit", {
+                  amount: reserveCredit.creditLimit.toLocaleString("en-IN"),
+                  defaultValue: "Credit limit ₹{{amount}}",
+                })}
+              </p>
+              <p className="text-theme-2xs font-mono text-fg-muted" translate="no">
+                {t("groupDetail.lentOutAvailable", {
+                  lent: reserveCredit.creditUsed.toLocaleString("en-IN"),
+                  available: reserveCredit.available.toLocaleString("en-IN"),
+                  defaultValue: "Lent out ₹{{lent}} · Available ₹{{available}}",
+                })}
+              </p>
+            </>
+          ) : (
+            <p className="text-theme-2xs font-mono text-fg-muted mt-0.5" translate="no">
+              {t("groupDetail.contributed", { amount: totalContribution.toLocaleString("en-IN") })}
+            </p>
+          )}
         </div>
       </div>
 
+      {/* Wallet remaining = balance ÷ contributed. On a Reserve, money lent to
+          Family groups lowers the balance though it is owed back, so the bar
+          would read "nearly spent" for money that is only out on loan — the
+          limit / lent out / available lines above say the true thing. */}
+      {!isReserve && (
       <div className="mb-4">
         <div className="flex items-center justify-between mb-1.5">
           <p className="text-theme-2xs uppercase tracking-widest text-fg-muted">{t("groupDetail.poolRemaining")}</p>
@@ -110,6 +143,7 @@ export default function GroupSummaryCard({ group, role, memberNames, totalContri
           />
         </div>
       </div>
+      )}
 
       <MemberAvatars members={memberNames} />
     </div>

@@ -290,13 +290,12 @@ export default function CreateExpensePage() {
     .filter((l) => l.status === "ACTIVE")
     .map((l) => {
       const src = l.sourceGroupId;
-      const creditLimit = l.creditLimit ?? 0;
-      const outstanding = l.outstanding ?? 0;
+      // min(Reserve's limit − lent out, Reserve's wallet), resolved by the API
+      // with the same rule the spend will be held to.
       return {
         id: typeof src === "string" ? src : src._id,
         name: typeof src === "string" ? src : src.name,
-        creditLimit,
-        available: Math.max(0, creditLimit - outstanding),
+        available: Math.max(0, l.availableCredit ?? 0),
       };
     });
 
@@ -323,11 +322,22 @@ export default function CreateExpensePage() {
     : 0;
   const spendCap = payingOnCredit ? creditCap : effectiveBalance;
 
+  // "Pay with" sits on step 2, but the amount is typed on step 1. Capping step
+  // 1 at the wallet would make Reserve credit unreachable for exactly the
+  // groups that need it — an empty or low wallet. So until a way to pay is
+  // chosen, step 1 accepts up to the best of the wallet and any Reserve's free
+  // credit; the save itself is still checked against the chosen way (spendCap).
+  const bestCredit = funders.reduce((m, f) => Math.max(m, f.available), 0);
+  const choosingPayment = !isEdit && !payingOnCredit && funders.length > 0;
+  const entryCap = choosingPayment ? Math.max(effectiveBalance, bestCredit) : spendCap;
+  // More than the wallet holds while paying from it: step 2 must say so.
+  const needsCredit = choosingPayment && totalAmount > effectiveBalance;
+
   // Balance hint coloring
   const amountIsNearLimit =
     totalAmount > 0 &&
-    spendCap > 0 &&
-    totalAmount / spendCap > 0.8;
+    entryCap > 0 &&
+    totalAmount / entryCap > 0.8;
 
   // Categories sorted by most used
   const sortedCategories = [...categories].sort(
@@ -482,7 +492,7 @@ export default function CreateExpensePage() {
   const handleAmountChange = (raw: string) => {
     const clean = sanitizeAmount(
       raw,
-      spendCap > 0 ? spendCap : undefined,
+      entryCap > 0 ? entryCap : undefined,
     );
     setAmount(clean);
     clearFieldError("amount");
@@ -597,7 +607,7 @@ export default function CreateExpensePage() {
       setFieldError("title", titleV.message);
       ok = false;
     }
-    const amountV = validateAmount(totalAmount, spendCap);
+    const amountV = validateAmount(totalAmount, entryCap);
     if (!amountV.valid) {
       setFieldError("amount", amountV.message);
       ok = false;
@@ -624,7 +634,7 @@ export default function CreateExpensePage() {
   // filling in.
   const step1Complete =
     validateTitle(title).valid &&
-    validateAmount(totalAmount, spendCap).valid &&
+    validateAmount(totalAmount, entryCap).valid &&
     validateDate(date).valid &&
     Boolean(categoryId);
 
@@ -862,10 +872,26 @@ export default function CreateExpensePage() {
                   <Note tone="warning" className="-mt-2">
                     {t(
                       "createExpense.noCreditLeft",
-                      "No Reserve credit is left on this line. Repay some on the Connections page, or ask the Reserve to raise the limit.",
+                      "No Reserve credit is available right now. Send money to the Reserve on the Connections page to pay down what's owed, or ask its members to add a contribution.",
                     )}
                   </Note>
                 )
+              ) : choosingPayment && bestCredit > 0 ? (
+                <p
+                  className={`-mt-2 text-theme-2xs font-medium transition-colors ${
+                    amountIsNearLimit
+                      ? "text-warning-700 dark:text-warning-400"
+                      : "text-fg-muted"
+                  }`}
+                  translate="no"
+                >
+                  {t("createExpense.balanceOrCredit", {
+                    amount: effectiveBalance.toLocaleString("en-IN"),
+                    credit: bestCredit.toLocaleString("en-IN"),
+                    defaultValue:
+                      "Balance: ₹{{amount}} · or up to ₹{{credit}} on Reserve credit (choose under Pay with on the next step)",
+                  })}
+                </p>
               ) : effectiveBalance > 0 ? (
                 <p
                   className={`-mt-2 text-theme-2xs font-medium transition-colors ${
@@ -1524,10 +1550,19 @@ export default function CreateExpensePage() {
                       : t("createExpense.ownWallet", "This group's wallet")}
                   </span>
                 }
-                open={isOpen("funded", false)}
+                open={isOpen("funded", needsCredit)}
                 onOpenChange={setOpen("funded")}
                 contentClass="px-5 sm:px-6 pb-5 pt-1 space-y-2"
               >
+                {needsCredit && (
+                  <Note tone="warning" translate="no">
+                    {t("createExpense.needsCredit", {
+                      amount: effectiveBalance.toLocaleString("en-IN"),
+                      defaultValue:
+                        "This is more than the ₹{{amount}} in this group's wallet. Choose a Reserve's credit to pay for it.",
+                    })}
+                  </Note>
+                )}
                 {isEdit ? (
                   <Note tone="info">
                     {t(

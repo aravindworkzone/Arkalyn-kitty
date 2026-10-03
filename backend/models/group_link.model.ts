@@ -8,9 +8,10 @@ import { toDBAmount, fromDBAmount } from '../helpers/Money';
 // is a link that was live and got torn down afterwards, kept distinct from
 // REJECTED so the audit trail records whether money ever actually moved.
 //
-// The link is a CREDIT LINE, like a card: the source (a Reserve) sets a limit,
-// the host (a Family group) spends against it at expense time, and what it has
-// spent is `outstanding` until the host repays it. See
+// The link is a CREDIT LINE, like a card: the host (a Family group) spends
+// against the source Reserve's credit at expense time, and what it has spent is
+// `outstanding` until the host repays it. What it can spend is the Reserve's
+// wallet balance, shared by all the Reserve's lines. See
 // services/groupLink.service.ts.
 export type GroupLinkStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'REVOKED';
 
@@ -19,8 +20,8 @@ export interface IGroupLink extends Document {
     sourceGroupId: mongoose.Types.ObjectId;
     status: GroupLinkStatus;
     contribution: number;
-    creditLimit: number;
     outstanding: number;
+    deposited: number;
     requestedBy: mongoose.Types.ObjectId;
     reviewedBy?: mongoose.Types.ObjectId | null;
     reviewedAt?: Date | null;
@@ -45,11 +46,11 @@ const groupLinkSchema = new Schema<IGroupLink>(
         // Same cents-in-DB / rupees-in-code convention as member contributions,
         // so every write goes through raw rupees and the setter converts.
         contribution: { type: Number, default: 0, set: toDBAmount, get: fromDBAmount },
-        // The most the host may owe at once. Set by a source admin; 0 means the
-        // host cannot draw yet.
-        creditLimit: { type: Number, default: 0, min: 0, set: toDBAmount, get: fromDBAmount },
         // What the host currently owes: credit drawn by expenses, minus repayments.
+        // Counts toward the source Reserve's shared limit via Group.creditUsed.
         outstanding: { type: Number, default: 0, min: 0, set: toDBAmount, get: fromDBAmount },
+        // Money the host sent beyond what it owed — deposits into the Reserve.
+        deposited: { type: Number, default: 0, min: 0, set: toDBAmount, get: fromDBAmount },
         // An admin of the host, who asked for the link.
         requestedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         // The admin of the source who approved or rejected it, and when.
