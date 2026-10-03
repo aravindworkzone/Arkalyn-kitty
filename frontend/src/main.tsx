@@ -10,6 +10,9 @@ import './index.css'
 import { store } from './redux/store'
 import { Provider } from 'react-redux'
 import './i18n'
+// Imported for its side effect: it must be listening before Chromium fires
+// beforeinstallprompt, which can happen before anything renders.
+import './hooks/useInstallPrompt'
 
 const Root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 

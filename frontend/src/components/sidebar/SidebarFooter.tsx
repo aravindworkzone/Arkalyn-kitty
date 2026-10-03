@@ -8,6 +8,7 @@ import NotificationBell from "../NotificationBell";
 import { cn } from "../../helpers/cn";
 import { useSignOutMutation } from "../../redux/api/auth";
 import { endSession } from "../../helpers/endSession";
+import useInstallPrompt from "../../hooks/useInstallPrompt";
 import type { CurrentUser } from "../../interface/user";
 
 /**
@@ -34,6 +35,7 @@ export default function SidebarFooter({ user, collapsed = false, onNavigate }: S
     const dispatch = useDispatch();
     const [signOut, { isLoading: signingOut }] = useSignOutMutation();
     const [open, setOpen] = useState(false);
+    const { canInstall, promptInstall } = useInstallPrompt();
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -178,6 +180,23 @@ export default function SidebarFooter({ user, collapsed = false, onNavigate }: S
                                     </svg>
                                 }
                             />
+
+                            {/* Only when the browser has offered installation —
+                                Chromium, not yet installed. */}
+                            {canInstall && (
+                                <MenuItem
+                                    onClick={() => {
+                                        setOpen(false);
+                                        void promptInstall();
+                                    }}
+                                    label={t("nav.installApp", "Install app")}
+                                    icon={
+                                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                                            <path d="M6.5 1.5v7M3.5 5.5l3 3 3-3M1.5 9.5v1a1 1 0 001 1h8a1 1 0 001-1v-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                    }
+                                />
+                            )}
                         </div>
 
                         <div className="p-1.5 border-t border-line">
