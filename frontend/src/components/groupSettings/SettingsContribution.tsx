@@ -6,6 +6,7 @@ import type { ContributionField, ContributionDescField } from "../../handlers/us
 import { ActionButton, AmountInput, FieldInput, MemberSelect, INPUT_CLASS } from "../ui";
 import { useGetUserQuery } from "../../redux/api/auth";
 import { useGetCreditCategoriesQuery } from "../../redux/api/category";
+import type { ReserveCredit } from "../../interface/groupLink";
 
 interface Props {
   groupId?: string;
@@ -22,9 +23,13 @@ interface Props {
     setContribErrorDesc: ReturnType<typeof useFieldError<ContributionDescField>>["setFieldError"],
     creditCategoryId?: string,
   ) => Promise<void>;
+  /** Set on a Reserve: contributions refill its wallet but never change its limit. */
+  reserveCredit?: ReserveCredit | null;
 }
 
-export default function SettingsContribution({ groupId, members, isAddingContrib, handleAddContribution }: Props) {
+const money = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+
+export default function SettingsContribution({ groupId, members, isAddingContrib, handleAddContribution, reserveCredit }: Props) {
   const { t } = useTranslation();
   const { data: meData } = useGetUserQuery();
   const currentUserName = meData?.data?.user?.name ?? "";
@@ -53,6 +58,21 @@ export default function SettingsContribution({ groupId, members, isAddingContrib
   return (
     <div className="space-y-3">
       <p className="text-xs text-fg-muted">{t("groupDetail.addFundsDesc")}</p>
+
+      {/* On a Reserve a contribution is how credit gets refilled: it adds to the
+          wallet, and the fixed limit stays as the admin set it. */}
+      {reserveCredit && (
+        <p className="text-theme-xs text-fg-muted" translate="no">
+          {t("groupDetail.reserveRefillNote", {
+            defaultValue:
+              "Contributions refill the Reserve's wallet; the credit limit stays {{limit}}. Available credit now: {{available}} (wallet {{wallet}}, {{room}} left in the limit).",
+            limit: money(reserveCredit.creditLimit),
+            available: money(reserveCredit.available),
+            wallet: money(reserveCredit.balance),
+            room: money(Math.max(0, reserveCredit.creditLimit - reserveCredit.creditUsed)),
+          })}
+        </p>
+      )}
 
       <MemberSelect
         members={members}

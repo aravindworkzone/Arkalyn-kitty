@@ -3,6 +3,7 @@ export { default as SettingsJoinLink }     from "./SettingsJoinLink";
 export { default as SettingsChangeRole }   from "./SettingsChangeRole";
 export { default as SettingsContribution } from "./SettingsContribution";
 export { default as SettingsSettlement }   from "./SettingsSettlement";
+export { default as SettingsCreditLimit }  from "./SettingsCreditLimit";
 export { default as SettingsJoinRequests }  from "./SettingsJoinRequests";
 export { default as SettingsLeaveRequests } from "./SettingsLeaveRequests";
 export { default as SettingsDangerZone }   from "./SettingsDangerZone";

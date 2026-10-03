@@ -136,6 +136,7 @@ export default function GroupDetailPage() {
           role={role}
           memberNames={memberNames}
           totalContribution={totalContrib}
+          reserveCredit={GroupLinks?.reserveCredit}
         />
 
         <GroupBanners

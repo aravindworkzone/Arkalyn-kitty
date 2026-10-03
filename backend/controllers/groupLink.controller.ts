@@ -4,8 +4,8 @@ import {
     requestLinkService,
     approveLinkService,
     rejectLinkService,
-    setCreditLimitService,
-    repayCreditService,
+    sendToReserveService,
+    setReserveLimitService,
     revokeLinkService,
     getGroupLinksService,
 } from '../services/groupLink.service';
@@ -48,7 +48,6 @@ export const approveLink = asyncHandler(async (req, res) => {
         sourceGroup: req.group._id,
         linkId: req.body.linkId,
         reviewer: req.user._id,
-        creditLimit: req.body.creditLimit,
     });
 
     await announce(link.hostGroupId, link.sourceGroupId);
@@ -69,26 +68,27 @@ export const rejectLink = asyncHandler(async (req, res) => {
     sendSuccess(res, link, 'Connection rejected');
 });
 
-export const setCreditLimit = asyncHandler(async (req, res) => {
+export const setReserveLimit = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
     if (!req.group?._id) throw new AppError('Group not found', 400);
 
-    const link = await setCreditLimitService({
-        sourceGroup: req.group._id,
-        linkId: req.body.linkId,
+    const result = await setReserveLimitService({
+        reserveGroup: req.group._id,
         creditLimit: req.body.creditLimit,
         performedBy: req.user._id,
     });
 
-    await announce(link.hostGroupId, link.sourceGroupId);
-    sendSuccess(res, link, 'Credit limit updated');
+    // The Reserve and every group borrowing from it see new available credit.
+    const groups = await Group.find({ _id: { $in: [req.group._id, ...result.hostGroupIds] } }).select('displayId');
+    groups.forEach((g) => emitToGroup(g.displayId, SOCKET_EVENTS.GROUP_LINK_UPDATED));
+    sendSuccess(res, { creditLimit: result.creditLimit }, 'Credit limit updated');
 });
 
-export const repayCredit = asyncHandler(async (req, res) => {
+export const sendToReserve = asyncHandler(async (req, res) => {
     if (!req.user?._id) throw new AppError('Unauthorized', 401);
     if (!req.group?._id) throw new AppError('Group not found', 400);
 
-    const link = await repayCreditService({
+    const link = await sendToReserveService({
         hostGroup: req.group._id,
         linkId: req.body.linkId,
         amount: req.body.amount,
@@ -96,7 +96,7 @@ export const repayCredit = asyncHandler(async (req, res) => {
     });
 
     if (link) await announce(link.hostGroupId, link.sourceGroupId);
-    sendSuccess(res, link, 'Credit repaid');
+    sendSuccess(res, link, 'Money sent to the Reserve');
 });
 
 export const revokeLink = asyncHandler(async (req, res) => {

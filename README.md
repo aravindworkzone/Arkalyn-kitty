@@ -274,33 +274,55 @@ is what `MAX_CHIT_PARTICIPANTS` (50) bounds.
 ## Connected Groups
 
 A **Reserve** group works like a **credit card** for the Family groups linked to
-it. The Reserve (the **source**) sets a credit limit; the Family group (the
-**host**) spends against it when recording an expense; what it has spent is owed
-until it pays it back. No statements, due dates or interest — the link only
-tracks what is owed.
+it. The Reserve has a **fixed credit limit** (`Group.creditLimit`), set only by
+its admins in **Group Management → Credit limit**. **Contributions never change
+the limit** — they refill the wallet. What the Family groups can spend is
+
+```
+available credit = min(creditLimit − creditUsed, balance)
+```
+
+the limit caps it, and the wallet must actually hold the money. When the wallet
+runs short of what the limit allows, a contribution refills it (up to the limit,
+never past it). A Family group (the **host**) spends against it when recording
+an expense; what it has spent is owed until it pays it back. No statements, due
+dates or interest — each link only tracks what that Family group owes
+(`link.outstanding`), and the Reserve keeps the combined total lent out
+(`Group.creditUsed`).
 
 **Both ends are gated by type.** Only a Reserve may lend (`fundOthers`), and only
 a Family group may borrow (`receiveFunding`): credit is spent through expenses, a
 Reserve records none, and a Chit's outside money would have no owner in its
 rotation. The link is consented to on both sides: an admin of the Family group
-requests it, and an admin of the Reserve approves — optionally setting the
-starting limit in the same step. Both gates sit on **formation** (`/request` and
-`/approve`), and the host is re-checked on approve.
+requests it, and an admin of the Reserve approves. Both gates sit on
+**formation** (`/request` and `/approve`), and the host is re-checked on approve.
 
 | Action | Who | Route | Money |
 |---|---|---|---|
-| Set / change the limit | Reserve admin | `POST /grouplink/credit-limit` | none |
-| Spend on credit | Any Family member recording an expense, choosing the Reserve under **Pay with** | expense create / edit | Reserve wallet **DEBIT**; `link.outstanding += amount` |
-| Repay | Family admin, any amount up to what is owed | `POST /grouplink/repay` | Family **DEBIT**, Reserve **CREDIT**; `outstanding -= amount` |
+| Set / change the limit | Reserve admin — **Group Management → Credit limit** | `POST /grouplink/reserve-limit` | none |
+| Refill the wallet | Reserve admin — **Group Management → Contribution** (or a Family deposit) | contribution | Reserve wallet **CREDIT**; limit unchanged |
+| Spend on credit | Any Family member recording an expense, choosing the Reserve under **Pay with** | expense create / edit | Reserve wallet **DEBIT**; `link.outstanding` and Reserve `creditUsed` `+= amount` |
+| Send money to the Reserve | Family admin, any amount up to its own wallet | `POST /grouplink/send-to-reserve` | Family **DEBIT**, Reserve **CREDIT**. What is owed is paid off first (`outstanding` and `creditUsed` `-=`); the rest is a deposit (`link.deposited` and Reserve `totalContribution` `+=`). Deposits need an active connection. |
 | Delete / edit down a credit expense | as for any expense | expense delete / edit | credit is released (below) |
 
-**Spending on credit** (`drawOnCredit`) runs inside the expense's transaction with
-two atomic guards: one conditional update checks `outstanding + amount ≤
-creditLimit` and bumps `outstanding`, and `debitGroupBalance` refuses to overdraw
-the Reserve. Either failing aborts the whole expense. The expense stores the link
-it was charged to in `creditLink` (plus `fundedByGroup` for display); the Family
-group's own balance does not move. Links created before credit lines existed have
-no limit and cannot be drawn on until the Reserve sets one.
+**Spending on credit** (`drawOnCredit`) runs inside the expense's transaction.
+Both guards sit on the **Reserve's** document in one conditional update:
+`balance ≥ amount` **and** `creditUsed + amount ≤ creditLimit`; the wallet debit
+and the `creditUsed` bump are applied together. Two Family groups drawing at the
+same moment both write the Reserve document, so the transaction makes one
+conflict instead of letting both slip past. Failing aborts the whole expense,
+with a message saying whether the limit or the wallet was short. The expense
+stores the link it was charged to in `creditLink` (plus `fundedByGroup` for
+display); the Family group's own balance does not move. A Reserve that has not
+set a limit cannot be drawn on.
+
+A Reserve's **overview** shows its **Balance**, then **Credit limit** and
+**Lent out · Available** in place of the contribution total; its Contribution
+tab notes that contributions refill the wallet and leave the limit alone. On
+the expense form, "Pay with" sits on step 2, so step 1 accepts amounts up to the
+larger of the wallet and the best free Reserve credit; if the amount is more than
+the wallet, step 2 opens "Pay with" and asks for a Reserve. The save is still
+checked against the way of paying actually chosen.
 
 **Releasing credit** (`releaseCredit`) is the reverse. The amount goes back to the
 Reserve and off what is owed — except any part the Family group has *already
@@ -318,11 +340,24 @@ stranded without a line to repay it on.
 
 **The borrower pays for the connection, never the Reserve.** What the
 `linkGroups` feature buys is the right to *hold* a credit line. On `/request` the
-actor is the host and its own plan is read; on `/approve` and `/credit-limit` the
-actor is the Reserve, so the host is recovered from the link and gated instead
+actor is the host and its own plan is read; on `/approve` the actor is the
+Reserve, so the host is recovered from the link and gated instead
 (`requireLinkHostPlan`); spending on credit re-checks the host's plan at draw
-time. `/repay`, `/reject` and `/revoke` are ungated — paying back, refusing, and
-unwinding must work on any plan.
+time. `/reserve-limit`, `/send-to-reserve`, `/reject` and `/revoke` are ungated —
+setting the Reserve's own limit, paying back or putting money aside, refusing,
+and unwinding must work on any plan.
+
+**Money that came over a connection can't be removed as a credit.** Repayments
+and deposits land in the Reserve's Credits list (marked `linkMoney`, and
+referencing a Group rather than a member); `removeCreditService` refuses them,
+because undoing one there would take money out of the Reserve without putting
+the Family group's debt back.
+
+**What a Reserve doesn't show.** No "Wallet remaining" bar (lent money lowers the
+balance though it is owed back — the limit / lent out / available lines say the
+true thing), no Expenses export sheet (it records none), and no upgrade
+prompt on its plan chip (what a paid plan adds is for the groups that spend). Its
+Settlement tab warns how much is lent out before paying members.
 
 The earlier **gift** model (a Reserve pushing lump sums the host never repaid,
 `POST /grouplink/transfer`) is retired. Its totals stay on `link.contribution`
@@ -353,7 +388,7 @@ Permissions are enforced at the middleware level, not just the UI. `loadGroup` r
 | Role | Capabilities |
 |---|---|
 | `MEMBER` | Add expenses, edit their own expenses, view balance/reports/history, request to leave |
-| `ADMIN` | All member actions + manage categories, invite and manage members, share/revoke the join link, approve join requests, manage group connections (Reserve: set credit limits; Family: repay credit), add contributions, settle members, edit or delete any expense |
+| `ADMIN` | All member actions + manage categories, invite and manage members, share/revoke the join link, approve join requests, manage group connections (Reserve: accept credit requests, set its credit limit; Family: send money to the Reserve), add contributions, settle members, edit or delete any expense |
 | `SUPER_ADMIN` | All admin actions + manage admin roles, close/clone/delete the group |
 | `APP_OWNER` | Application-level administration across all accounts (see `admin.router`) |
 
@@ -663,8 +698,8 @@ Stated plainly, so the scope is honest:
 - **Chit data is not in the CSV export.** The audit pack covers the ledger,
   expenses and members; chit cycles and contributions appear only through the
   ledger rows they produce.
-- **No repayment between connected groups.** Funding is a one-way contribution by design; there is no inter-group debt or settle-up, and over-attributing spend to a funder warns rather than blocks.
-- **The MCP `add_expense` tool can't set a funding group** — the field is optional, so the tool keeps working, but attribution has to be set from the web app.
+- **Reserve credit has no statements, due dates or interest.** A Family group's debt is tracked and can be paid any time, but nothing reminds it to.
+- **The MCP `add_expense` tool can't pay with Reserve credit** — the field is optional, so the tool keeps working, but credit spending has to be done from the web app.
 
 ---
 

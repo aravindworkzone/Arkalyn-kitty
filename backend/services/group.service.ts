@@ -14,6 +14,7 @@ import ChitDue from "../models/chit_due.model";
 import { isSelectableGroupPurpose, type GroupPurpose } from "../models/group.model";
 import { toGroupTypeView, assertGroupTypeFeature, contributionDeniedMessage, settlementDeniedMessage } from "../helpers/groupTypes";
 import { CHIT_CREDIT_FLAG } from "./chitMoney.service";
+import { LINK_MONEY_FLAG } from "./groupLink.service";
 import { assertMemberFreeOfChit } from "../helpers/chitGuards";
 import { PURPOSE_DEFAULT_CATEGORIES } from "../config/purposeCategories";
 import { createNotification } from "./notification.service";
@@ -1294,12 +1295,20 @@ export const getAllCreditsService = async (
             isChitCredit: Boolean(
                 (item.metadata as Record<string, unknown> | undefined)?.[CHIT_CREDIT_FLAG]
             ),
+            isLinkCredit: isLinkMoney(item),
         }));
         return { items: withChitFlag, total };
     } catch (error: any) {
         throw new AppError(error.message || "Internal server error", error.statusCode || 500);
     }
 };
+
+// A CREDIT row that another group put here over a connection. Every member
+// credit references the contributing USER; these reference a Group, and the
+// newer ones also carry LINK_MONEY_FLAG.
+const isLinkMoney = (credit: { referenceModel?: string; metadata?: unknown }): boolean =>
+    credit.referenceModel === "Group" ||
+    Boolean((credit.metadata as Record<string, unknown> | undefined)?.[LINK_MONEY_FLAG]);
 
 export const removeCreditService = async (data: {
     creditId: string;
@@ -1336,6 +1345,18 @@ export const removeCreditService = async (data: {
         if ((credit.metadata as Record<string, unknown> | undefined)?.[CHIT_CREDIT_FLAG]) {
             throw new AppError(
                 "This is a chit contribution. Undo it from the group's chit page so the cycle stays in step.",
+                400
+            );
+        }
+
+        // Money that arrived from another group over a connection — a Family
+        // group's repayment or deposit into a Reserve, or an old gift — is not a
+        // member's contribution. Removing it as one would take the money out of
+        // this wallet while the other group's side (what it owes, what it sent)
+        // stayed put, so the two ledgers would silently disagree.
+        if (isLinkMoney(credit)) {
+            throw new AppError(
+                "This money came from a connected group, so it can't be removed here.",
                 400
             );
         }

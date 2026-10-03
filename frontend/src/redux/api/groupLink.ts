@@ -28,10 +28,7 @@ export const groupLink = api.injectEndpoints({
             invalidatesTags: (_r, _e, { groupId }) => [{ type: "Group", id: groupId }, "Group"],
         }),
 
-        approveLink: builder.mutation<
-            ApiSuccess<GroupLink>,
-            { groupId: string; linkId: string; creditLimit?: number }
-        >({
+        approveLink: builder.mutation<ApiSuccess<GroupLink>, { groupId: string; linkId: string }>({
             query: (body) => ({ url: "/grouplink/approve", method: "POST", body }),
             invalidatesTags: (_r, _e, { groupId }) => [{ type: "Group", id: groupId }, "Group"],
         }),
@@ -41,21 +38,23 @@ export const groupLink = api.injectEndpoints({
             invalidatesTags: (_r, _e, { groupId }) => [{ type: "Group", id: groupId }, "Group"],
         }),
 
-        // The Reserve (source) sets how much the Family group may owe.
-        setCreditLimit: builder.mutation<
-            ApiSuccess<GroupLink>,
-            { groupId: string; linkId: string; creditLimit: number }
+        // A Reserve admin sets the Reserve's fixed credit limit. `groupId` is
+        // the Reserve. Contributions never change it.
+        setReserveLimit: builder.mutation<
+            ApiSuccess<{ creditLimit: number }>,
+            { groupId: string; creditLimit: number }
         >({
-            query: (body) => ({ url: "/grouplink/credit-limit", method: "POST", body }),
+            query: (body) => ({ url: "/grouplink/reserve-limit", method: "POST", body }),
             invalidatesTags: (_r, _e, { groupId }) => [{ type: "Group", id: groupId }, "Group"],
         }),
 
-        // The Family group (host) pays back what it owes.
-        repayCredit: builder.mutation<
+        // The Family group (host) sends money to its Reserve: it pays off what
+        // is owed first, and any rest is deposited into the Reserve.
+        sendToReserve: builder.mutation<
             ApiSuccess<GroupLink>,
             { groupId: string; linkId: string; amount: number }
         >({
-            query: (body) => ({ url: "/grouplink/repay", method: "POST", body }),
+            query: (body) => ({ url: "/grouplink/send-to-reserve", method: "POST", body }),
             // Moves the acting group's balance too, so the group detail/summary
             // caches have to go as well.
             invalidatesTags: (_r, _e, { groupId }) => [{ type: "Group", id: groupId }, "Group"],
@@ -73,7 +72,7 @@ export const {
     useRequestLinkMutation,
     useApproveLinkMutation,
     useRejectLinkMutation,
-    useSetCreditLimitMutation,
-    useRepayCreditMutation,
+    useSetReserveLimitMutation,
+    useSendToReserveMutation,
     useRevokeLinkMutation,
 } = groupLink;

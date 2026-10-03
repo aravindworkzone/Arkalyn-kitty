@@ -3,8 +3,8 @@ import {
     requestLink,
     approveLink,
     rejectLink,
-    setCreditLimit,
-    repayCredit,
+    setReserveLimit,
+    sendToReserve,
     revokeLink,
     getGroupLinks,
 } from '../controllers/groupLink.controller';
@@ -19,9 +19,8 @@ import { validate } from '../middlewares/validate.middleware';
 import {
     requestLinkBodySchema,
     reviewLinkBodySchema,
-    approveLinkBodySchema,
-    creditLimitBodySchema,
-    repayBodySchema,
+    reserveLimitBodySchema,
+    sendToReserveBodySchema,
     groupLinksParamsSchema,
 } from '../validators/groupLink.validator';
 
@@ -29,16 +28,16 @@ const router = express.Router();
 
 // Every route below resolves exactly ONE group via loadGroup — always the group
 // whose admin is acting. /request is authorized against the HOST (the group
-// asking for a credit line) and /repay against the HOST too (the group that
-// owes); /approve, /reject and /credit-limit against the SOURCE (the Reserve
-// whose money it is). That split is what lets the standard middleware
+// asking for a credit line) and /send-to-reserve against the HOST too (the
+// group whose money it is); /approve, /reject and /reserve-limit against the
+// SOURCE (the Reserve whose money it is). That split is what lets the standard middleware
 // chain express this feature without touching loadGroup or authorizeRole.
 //
 // The PLAN, by contrast, is always the HOST's — the group receiving the money
 // pays for the connection, and a Free reserve group can fund others without
 // buying anything. So the gate does not follow the acting group: on /request it
-// reads the acting group because that group is the host, and on /approve and
-// /credit-limit it reads the host named on the link instead.
+// reads the acting group because that group is the host, and on /approve it
+// reads the host named on the link instead.
 //
 // Plan gates run AFTER authorizeRole throughout, so a caller with no rights in
 // the group learns nothing about its plan or which link ids exist.
@@ -56,7 +55,7 @@ router.post(
 
 router.post(
     '/approve',
-    validate({ body: approveLinkBodySchema }),
+    validate({ body: reviewLinkBodySchema }),
     verifyToken,
     loadGroup,
     ensureGroupActive,
@@ -78,29 +77,29 @@ router.post(
     rejectLink
 );
 
-// Authorized against the SOURCE (the Reserve): only the lender sets the limit.
-// Gated on the host's plan like /approve — the host pays for the connection.
+// The Reserve's fixed credit limit, authorized against the Reserve itself.
+// Ungated by plan: the borrower pays for the connection, and spending on
+// credit re-checks the borrower's plan at draw time.
 router.post(
-    '/credit-limit',
-    validate({ body: creditLimitBodySchema }),
+    '/reserve-limit',
+    validate({ body: reserveLimitBodySchema }),
     verifyToken,
     loadGroup,
     ensureGroupActive,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
-    requireLinkHostPlan,
-    setCreditLimit
+    setReserveLimit
 );
 
-// Authorized against the HOST (the Family group that owes). Ungated by plan:
-// paying back a debt must work on any tier, exactly like /revoke.
+// Authorized against the HOST (the Family group sending its money). Ungated by
+// plan: paying back a debt, or putting money aside, must work on any tier.
 router.post(
-    '/repay',
-    validate({ body: repayBodySchema }),
+    '/send-to-reserve',
+    validate({ body: sendToReserveBodySchema }),
     verifyToken,
     loadGroup,
     ensureGroupActive,
     authorizeRole('SUPER_ADMIN', 'ADMIN'),
-    repayCredit
+    sendToReserve
 );
 
 // Ungated by plan: a lapsed plan must still be able to unwind links it already

@@ -54,7 +54,11 @@ export default function CreditDetailModal({
   // together. The server resolves the flag so this button and that rule cannot
   // disagree.
   const isChitCredit = Boolean(credit?.isChitCredit);
-  const canRemove = role === "SUPER_ADMIN" && !isChitCredit;
+  // Money another group sent over a connection (a Family group paying or
+  // depositing into a Reserve). Also refused by removeCreditService: undoing it
+  // here would leave the other group's side of the books unchanged.
+  const isLinkCredit = Boolean(credit?.isLinkCredit);
+  const canRemove = role === "SUPER_ADMIN" && !isChitCredit && !isLinkCredit;
 
   if (!credit) return null;
 
@@ -91,7 +95,7 @@ export default function CreditDetailModal({
           </span>
         </Row>
 
-        <Row label="Contributed by">
+        <Row label={isLinkCredit ? "Sent by" : "Contributed by"}>
           <div>
             <p className="text-theme-sm text-fg leading-tight">{credit.performedBy?.name}</p>
             {credit.performedBy?.email && (
@@ -153,6 +157,14 @@ export default function CreditDetailModal({
           <p className="text-theme-xs text-fg-muted leading-snug">
             This is a chit contribution. Undo it from the group's chit page, so the
             cycle stays in step with the wallet.
+          </p>
+        </div>
+      )}
+      {isLinkCredit && role === "SUPER_ADMIN" && (
+        <div className="mt-5 pt-4 border-t border-line">
+          <p className="text-theme-xs text-fg-muted leading-snug">
+            This money was sent by a connected group, so it can't be removed here.
+            It stays in step with that group's records.
           </p>
         </div>
       )}

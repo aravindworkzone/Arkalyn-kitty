@@ -32,6 +32,7 @@ import { useSeenMarks } from "../hooks/useSectionUpdates";
 import { useGetSectionUpdatesQuery } from "../redux/api/group";
 import { groupTypeI18nKey, groupTypeLabel } from "../helpers/groupTypes";
 import ExportPanel from "../components/group/ExportPanel";
+import { useGetGroupLinksQuery } from "../redux/api/groupLink";
 import {
   ManagementTabs,
   tabId,
@@ -40,6 +41,7 @@ import {
   SettingsJoinLink,
   SettingsChangeRole,
   SettingsContribution,
+  SettingsCreditLimit,
   SettingsSettlement,
   SettingsJoinRequests,
   SettingsLeaveRequests,
@@ -170,6 +172,15 @@ export default function GroupManagementPage() {
   // unentitled group still sees the tab and the upsell inside it, which is the
   // point — a treasurer discovering the feature is how the tier gets sold.
   const walletTabs: SettingsTab[] = canMoveWalletByHand ? ["contribution", "settlement"] : [];
+  // A Reserve lends to Family groups up to a fixed limit, set on its own tab.
+  const isReserve = GroupDetails?.features?.fundOthers === true;
+  if (isReserve) walletTabs.push("creditLimit");
+  // A Reserve's credit position, for the Contribution tab's refill note and
+  // the Settlement tab's warning. Only fetched for a Reserve; the Credit limit
+  // tab reads the same cached query.
+  const { data: reserveLinks } = useGetGroupLinksQuery(groupId!, { skip: !groupId || !isReserve });
+  const reserveCredit = reserveLinks?.reserveCredit ?? null;
+  const lentOut = reserveCredit?.creditUsed ?? 0;
   const allowedTabs: SettingsTab[] = isSuperAdmin
     ? ["addMember", "changeRole", ...walletTabs, "requests", "export", "danger"]
     : isAdmin
@@ -216,6 +227,7 @@ export default function GroupManagementPage() {
     { id: "changeRole",   label: t("groupDetail.tabChangeRole"),   show: isSuperAdmin,  dot: tabDot("changeRole") },
     { id: "contribution", label: t("groupDetail.tabContribution"), show: isAdmin && canMoveWalletByHand, dot: tabDot("contribution") },
     { id: "settlement",   label: t("groupDetail.tabSettlement"),   show: isAdmin && canMoveWalletByHand, dot: tabDot("settlement") },
+    { id: "creditLimit",  label: t("groupDetail.tabCreditLimit", "Credit limit"), show: isAdmin && isReserve },
     {
       id: "requests",
       label: pendingRequestCount > 0
@@ -408,6 +420,7 @@ export default function GroupManagementPage() {
               members={GroupMembers}
               isAddingContrib={isAddingContrib}
               handleAddContribution={handleAddContribution}
+              reserveCredit={reserveCredit}
             />
           )}
 
@@ -416,8 +429,11 @@ export default function GroupManagementPage() {
               members={GroupMembers}
               isSettling={isSettling}
               handleSettlement={handleSettlement}
+              lentOut={lentOut}
             />
           )}
+
+          {activeTab === "creditLimit" && <SettingsCreditLimit groupId={groupId} />}
 
           {activeTab === "requests" && (
             <div className="space-y-6">
@@ -460,6 +476,7 @@ export default function GroupManagementPage() {
               groupId={groupId}
               subscription={plan}
               isAdmin={isAdmin}
+              recordsExpenses={GroupDetails?.features?.expenses !== false}
             />
           )}
 

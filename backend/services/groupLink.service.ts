@@ -6,10 +6,10 @@ import GroupTransaction from '../models/group_transaction.model';
 import GroupEvent from '../models/group_event.model';
 import Expense from '../models/expense.model';
 import { AppError } from '../helpers/AppError';
-import { creditGroupBalance, debitGroupBalance, refundGroupBalance } from '../helpers/balanceOps';
+import { debitGroupBalance, refundGroupBalance } from '../helpers/balanceOps';
 import { fromDBAmount, toDBAmount } from '../helpers/Money';
 import { getGroupPlan } from '../helpers/planLimits';
-import { assertGroupTypeFeature, receiveFundingDeniedMessage } from '../helpers/groupTypes';
+import { assertGroupTypeFeature, groupFeaturesOf, receiveFundingDeniedMessage } from '../helpers/groupTypes';
 import { getOrCreateOtherCreditCategory } from './category.service';
 import { createNotification } from './notification.service';
 import type { NotificationType } from '../models/notification.model';
@@ -18,13 +18,18 @@ import type { NotificationType } from '../models/notification.model';
  * Group-to-group credit lines — a Reserve group works like a credit card for
  * the Family groups it is linked to.
  *
- *  • A source admin (the Reserve) sets a credit limit on the link.
+ *  • A Reserve admin sets ONE fixed credit limit on the Reserve
+ *    (setReserveLimitService). Contributions never change it.
+ *  • Available credit = min(limit − lent out, wallet balance): the limit caps
+ *    it, and the wallet must actually hold the money. A contribution refills a
+ *    short wallet, up to the limit.
  *  • The host (a Family group) spends against it at expense time: the expense
- *    is debited from the RESERVE's wallet and the amount is added to the link's
- *    `outstanding`, which may never exceed the limit (drawOnCredit).
- *  • A host admin pays it back whenever they like, any amount up to what is
- *    owed (repayCreditService) — the host's wallet is debited and the Reserve's
- *    credited.
+ *    is debited from the RESERVE's wallet and added to the link's
+ *    `outstanding` and the Reserve's `creditUsed` (total lent out), refused
+ *    past available credit (drawOnCredit).
+ *  • A host admin sends money to the Reserve whenever they like, up to its own
+ *    wallet (sendToReserveService). It pays off what is owed first; the rest is
+ *    a deposit into the Reserve.
  *  • Editing a credit expense down, or deleting it, gives the credit back
  *    (releaseCredit).
  *
@@ -180,9 +185,8 @@ const reviewLink = async (data: {
     linkId: Id;
     reviewer: Id;
     approve: boolean;
-    creditLimit?: number;
 }) => {
-    const { sourceGroup, linkId, reviewer, approve, creditLimit } = data;
+    const { sourceGroup, linkId, reviewer, approve } = data;
 
     const link = await GroupLink.findOne({ _id: linkId, isDeleted: false });
     if (!link) throw new AppError('Connection request not found', 404);
@@ -229,9 +233,6 @@ const reviewLink = async (data: {
     }
 
     link.status = approve ? 'ACTIVE' : 'REJECTED';
-    // The limit can be given in the same step as accepting, so a Family group
-    // is not left holding a card it cannot use yet.
-    if (approve && creditLimit !== undefined) link.creditLimit = creditLimit;
     link.reviewedBy = reviewer;
     link.reviewedAt = new Date();
     await link.save();
@@ -255,7 +256,7 @@ const reviewLink = async (data: {
     return link;
 };
 
-export const approveLinkService = (data: { sourceGroup: Id; linkId: Id; reviewer: Id; creditLimit?: number }) =>
+export const approveLinkService = (data: { sourceGroup: Id; linkId: Id; reviewer: Id }) =>
     reviewLink({ ...data, approve: true });
 
 export const rejectLinkService = (data: { sourceGroup: Id; linkId: Id; reviewer: Id }) =>
@@ -265,59 +266,75 @@ const money = (rupees: number) =>
     `₹${rupees.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
 /**
- * A source admin sets (or changes) how much the host may owe at once. Lowering
- * it below what is already owed is allowed — it only stops further spending
- * until enough is repaid, the way a card issuer can cut a limit.
+ * What a Reserve can still lend: the fixed limit minus what is lent out, but
+ * never more than its wallet actually holds.
  */
-export const setCreditLimitService = async (data: {
-    sourceGroup: Id;
-    linkId: Id;
+export const availableCreditOf = (g: { creditLimit?: number; creditUsed?: number; balance?: number }) =>
+    Math.max(0, Math.min((g.creditLimit ?? 0) - (g.creditUsed ?? 0), g.balance ?? 0));
+
+/**
+ * A Reserve admin sets (or changes) the Reserve's fixed credit limit — the most
+ * all its Family groups may owe it at once. Only this changes the limit;
+ * contributions refill the wallet but leave the limit alone. Lowering it below
+ * what is already lent out is allowed: it only stops new spending until enough
+ * is repaid, the way a card issuer can cut a limit.
+ */
+export const setReserveLimitService = async (data: {
+    reserveGroup: Id;
     creditLimit: number;
     performedBy: Id;
 }) => {
-    const { sourceGroup, linkId, creditLimit, performedBy } = data;
+    const { reserveGroup, creditLimit, performedBy } = data;
 
     if (!Number.isFinite(creditLimit) || creditLimit < 0) {
         throw new AppError('Credit limit must be zero or more', 400);
     }
 
-    const link = await GroupLink.findOne({ _id: linkId, isDeleted: false });
-    if (!link) throw new AppError('Connection not found', 404);
-    if (String(link.sourceGroupId) !== String(sourceGroup)) {
-        throw new AppError('Only the Reserve group can set this credit limit', 403);
-    }
-    if (link.status !== 'ACTIVE') {
-        throw new AppError('This connection is not active', 409);
-    }
+    const reserve = await Group.findById(reserveGroup).select('purpose');
+    if (!reserve) throw new AppError('Group not found', 404);
+    assertGroupTypeFeature(reserve.purpose, 'fundOthers', 'Only a Reserve group has a credit limit.');
 
-    link.creditLimit = creditLimit;
-    await link.save();
+    // Raw rupees — $set re-runs the schema setter.
+    await Group.updateOne({ _id: reserveGroup }, { $set: { creditLimit } });
 
     await GroupEvent.create({
-        groupId: sourceGroup,
+        groupId: reserveGroup,
         performedBy,
         eventType: 'GROUP_LINK_UPDATED',
-        referenceId: link.hostGroupId,
+        referenceId: reserveGroup,
         referenceModel: 'Group',
         amount: creditLimit,
-        metadata: { linkId: String(link._id), creditLimit },
+        metadata: { creditLimit },
     });
 
-    await notifyAdmins(link.hostGroupId as Id, performedBy, 'GROUP_LINK_CREDIT_LIMIT_SET', {
-        linkId: String(link._id),
-        sourceGroupId: String(sourceGroup),
-        creditLimit,
-    });
+    // Every borrower's available credit just changed, so all of them are told.
+    const borrowers = await GroupLink.find({
+        sourceGroupId: reserveGroup,
+        status: 'ACTIVE',
+        isDeleted: false,
+    }).select('hostGroupId');
+    await Promise.all(
+        borrowers.map((l) =>
+            notifyAdmins(l.hostGroupId as Id, performedBy, 'GROUP_LINK_CREDIT_LIMIT_SET', {
+                linkId: String(l._id),
+                sourceGroupId: String(reserveGroup),
+                creditLimit,
+            })
+        )
+    );
 
-    return link;
+    return { creditLimit, hostGroupIds: borrowers.map((l) => l.hostGroupId as Id) };
 };
 
 /**
  * Charges an expense to a credit line, inside the expense's transaction. The
  * Reserve's wallet pays; the host's is untouched and owes the amount instead.
  *
- * Both guards are atomic: the limit check and the `outstanding` bump are one
- * conditional update, and debitGroupBalance refuses to overdraw the Reserve.
+ * Both guards run on the RESERVE document in one conditional update: the
+ * wallet must cover the amount AND `creditUsed + amount ≤ creditLimit`; the
+ * debit and the usage are applied together. Two Family groups drawing at once
+ * both write that document, so the transaction makes one of them conflict
+ * rather than both slipping past the limit or overdrawing the wallet.
  * Every amount handed to an update is RAW RUPEES — the schema setter converts;
  * only query filters need toDBAmount, since filters do not run setters.
  */
@@ -331,42 +348,44 @@ export const drawOnCredit = async (data: {
 }) => {
     const { linkId, amount, expenseId, title, performedBy, session } = data;
 
-    // $ifNull: links created before credit lines existed have neither field,
-    // and a missing field would compare as null — which sorts below every
-    // number and would wave the draw straight through.
-    const link = await GroupLink.findOneAndUpdate(
+    const link = await GroupLink.findOne({ _id: linkId, status: 'ACTIVE', isDeleted: false }).session(session);
+    if (!link) throw new AppError('That Reserve group no longer gives this group credit', 400);
+
+    // $ifNull: Reserves from before the limit existed lack the fields, and a
+    // missing field compares as null — which sorts below every number and
+    // would wave the draw straight through.
+    const cents = toDBAmount(amount);
+    const reserve = await Group.findOneAndUpdate(
         {
-            _id: linkId,
-            status: 'ACTIVE',
-            isDeleted: false,
+            _id: link.sourceGroupId,
+            balance: { $gte: cents },
             $expr: {
                 $lte: [
-                    { $add: [{ $ifNull: ['$outstanding', 0] }, toDBAmount(amount)] },
+                    { $add: [{ $ifNull: ['$creditUsed', 0] }, cents] },
                     { $ifNull: ['$creditLimit', 0] },
                 ],
             },
         },
-        { $inc: { outstanding: amount } },
+        { $inc: { balance: -amount, creditUsed: amount } },
         { new: true, session }
     );
-    if (!link) {
-        const current = await GroupLink.findById(linkId).session(session);
-        if (!current || current.status !== 'ACTIVE' || current.isDeleted) {
-            throw new AppError('That Reserve group no longer gives this group credit', 400);
-        }
-        const available = Math.max(0, (current.creditLimit ?? 0) - (current.outstanding ?? 0));
+    if (!reserve) {
+        const current = await Group.findById(link.sourceGroupId)
+            .select('balance creditLimit creditUsed')
+            .session(session);
+        const limit = current?.creditLimit ?? 0;
+        if (!limit) throw new AppError('The Reserve group has not set a credit limit yet.', 400);
+        const withinLimit = Math.max(0, limit - (current?.creditUsed ?? 0));
+        const wallet = current?.balance ?? 0;
         throw new AppError(
-            current.creditLimit
-                ? `Not enough Reserve credit: ${money(available)} available of a ${money(current.creditLimit)} limit.`
-                : 'The Reserve group has not set a credit limit for this group yet.',
+            withinLimit <= wallet
+                ? `Not enough Reserve credit: ${money(withinLimit)} left of the Reserve's ${money(limit)} limit.`
+                : `Not enough Reserve credit: the Reserve's wallet has only ${money(wallet)}. A contribution to the Reserve refills it.`,
             400
         );
     }
 
-    const debited = await debitGroupBalance(link.sourceGroupId, amount, { session });
-    if (!debited) {
-        throw new AppError("The Reserve group doesn't have enough money in its wallet to cover this.", 400);
-    }
+    await GroupLink.updateOne({ _id: link._id }, { $inc: { outstanding: amount } }, { session });
 
     await GroupTransaction.create(
         [
@@ -413,7 +432,12 @@ export const releaseCredit = async (data: {
 
     if (toReserve > 0) {
         await GroupLink.updateOne({ _id: link._id }, { $inc: { outstanding: -toReserve } }, { session });
-        await refundGroupBalance(link.sourceGroupId, toReserve, { session });
+        // Money back into the Reserve's wallet, and the shared limit freed.
+        await Group.updateOne(
+            { _id: link.sourceGroupId },
+            { $inc: { balance: toReserve, creditUsed: -toReserve } },
+            { session }
+        );
         await GroupTransaction.create(
             [
                 {
@@ -452,10 +476,20 @@ export const releaseCredit = async (data: {
 };
 
 /**
- * A host admin pays back some or all of what the group owes. Any amount, any
- * time, up to the outstanding balance — there are no statements or due dates.
+ * Metadata marker on every transaction a credit line writes into a group's
+ * ledger. removeCreditService refuses rows carrying it: a repayment or a
+ * deposit is not a member contribution, and undoing it as one would pull money
+ * out of the Reserve without putting the debt back.
  */
-export const repayCreditService = async (data: {
+export const LINK_MONEY_FLAG = 'linkMoney';
+
+/**
+ * A Family admin sends money to its Reserve — any amount, any time, up to the
+ * Family wallet. It pays off what the group owes first; whatever is left is a
+ * deposit into the Reserve's wallet (counted as a contribution there).
+ * No statements or due dates: the link only tracks what is owed.
+ */
+export const sendToReserveService = async (data: {
     hostGroup: Id;
     linkId: Id;
     amount: number;
@@ -470,32 +504,56 @@ export const repayCreditService = async (data: {
     const link = await GroupLink.findOne({ _id: linkId, isDeleted: false });
     if (!link) throw new AppError('Connection not found', 404);
     if (String(link.hostGroupId) !== String(hostGroup)) {
-        throw new AppError('This group does not owe on that credit line', 403);
+        throw new AppError('This group is not connected to that Reserve', 403);
     }
-    if (amount > (link.outstanding ?? 0)) {
-        throw new AppError(`You only owe ${money(link.outstanding ?? 0)} on this credit line`, 400);
+
+    const owed = link.outstanding ?? 0;
+    const repaid = Math.min(amount, owed);
+    const deposited = parseFloat((amount - repaid).toFixed(2));
+    // Paying off a debt works on any line that still has one; adding new money
+    // needs a live connection.
+    if (deposited > 0 && link.status !== 'ACTIVE') {
+        throw new AppError(
+            owed > 0
+                ? `This connection is closed, so only the ${money(owed)} still owed can be sent.`
+                : 'This connection is closed, so money can no longer be sent to that Reserve.',
+            409
+        );
     }
 
     const source = await Group.findById(link.sourceGroupId).select('name');
+    const host = await Group.findById(hostGroup).select('name');
 
     const session = await mongoose.startSession();
     try {
         session.startTransaction();
 
-        const reduced = await GroupLink.findOneAndUpdate(
-            { _id: link._id, outstanding: { $gte: toDBAmount(amount) } },
-            { $inc: { outstanding: -amount } },
+        // Guarded on what was read: if a draw or another send changed the debt
+        // in between, this matches nothing and the whole send is retried by the
+        // user rather than splitting the money on stale numbers.
+        const moved = await GroupLink.findOneAndUpdate(
+            { _id: link._id, outstanding: { $gte: toDBAmount(repaid) } },
+            { $inc: { outstanding: -repaid, deposited } },
             { new: true, session }
         );
-        if (!reduced) throw new AppError('That is more than this group owes', 409);
+        if (!moved) throw new AppError('What this group owes just changed. Please try again.', 409);
 
         const debited = await debitGroupBalance(hostGroup, amount, { session });
         if (!debited) throw new AppError('Amount cannot be greater than group balance', 400);
 
-        // Not a contribution — the Reserve is being paid back, not topped up.
-        await creditGroupBalance(link.sourceGroupId, amount, { session, trackContribution: false });
+        // The repaid part frees the Reserve's shared limit; the deposit part is
+        // new money in, so it counts as a contribution.
+        await Group.updateOne(
+            { _id: link.sourceGroupId },
+            { $inc: { balance: amount, creditUsed: -repaid, totalContribution: deposited } },
+            { session }
+        );
 
         const creditCategory = await getOrCreateOtherCreditCategory(link.sourceGroupId as Id, session);
+        const meta = { linkId: String(link._id), kind: 'RESERVE_TRANSFER', repaid, deposited, [LINK_MONEY_FLAG]: true };
+        const split = repaid > 0 && deposited > 0
+            ? ` (${money(repaid)} repaid, ${money(deposited)} deposited)`
+            : repaid > 0 ? ' (repayment)' : ' (deposit)';
 
         await GroupTransaction.create(
             [
@@ -503,21 +561,21 @@ export const repayCreditService = async (data: {
                     groupId: hostGroup,
                     amount,
                     action: 'DEBIT',
-                    description: `Repaid Reserve credit to ${source?.name ?? 'the Reserve group'}`,
+                    description: `Sent to Reserve ${source?.name ?? ''}${split}`.trim(),
                     referenceId: link.sourceGroupId,
                     referenceModel: 'Group',
-                    metadata: { linkId: String(link._id), kind: 'CREDIT_REPAYMENT' },
+                    metadata: meta,
                     performedBy,
                 },
                 {
                     groupId: link.sourceGroupId,
                     amount,
                     action: 'CREDIT',
-                    description: 'Credit repayment received from a connected group',
+                    description: `Received from ${host?.name ?? 'a Family group'}${split}`,
                     referenceId: hostGroup,
                     referenceModel: 'Group',
                     category: creditCategory._id,
-                    metadata: { linkId: String(link._id), kind: 'CREDIT_REPAYMENT' },
+                    metadata: meta,
                     performedBy,
                 },
             ],
@@ -533,7 +591,7 @@ export const repayCreditService = async (data: {
                     referenceId: link.sourceGroupId,
                     referenceModel: 'Group',
                     amount,
-                    metadata: { linkId: String(link._id), direction: 'OUTGOING', kind: 'CREDIT_REPAYMENT' },
+                    metadata: { ...meta, direction: 'OUTGOING' },
                 },
                 {
                     groupId: link.sourceGroupId,
@@ -542,7 +600,7 @@ export const repayCreditService = async (data: {
                     referenceId: hostGroup,
                     referenceModel: 'Group',
                     amount,
-                    metadata: { linkId: String(link._id), direction: 'INCOMING', kind: 'CREDIT_REPAYMENT' },
+                    metadata: { ...meta, direction: 'INCOMING' },
                 },
             ],
             { session, ordered: true }
@@ -562,6 +620,8 @@ export const repayCreditService = async (data: {
         linkId: String(link._id),
         hostGroupId: String(hostGroup),
         amount,
+        repaid,
+        deposited,
     });
 
     return GroupLink.findById(link._id);
@@ -621,15 +681,18 @@ export const revokeLinkService = async (data: { group: Id; linkId: Id; performed
  * round trip.
  */
 export const getGroupLinksService = async (groupId: Id) => {
-    const [incoming, outgoing] = await Promise.all([
+    const [incoming, outgoing, self] = await Promise.all([
+        // The Reserve's shared limit and usage ride along on each incoming
+        // line, so a Family group sees how much credit is actually left.
         GroupLink.find({ hostGroupId: groupId, isDeleted: false })
-            .populate('sourceGroupId', 'name displayId status')
+            .populate('sourceGroupId', 'name displayId status balance creditLimit creditUsed')
             .populate('requestedBy', 'name')
             .sort({ createdAt: -1 }),
         GroupLink.find({ sourceGroupId: groupId, isDeleted: false })
             .populate('hostGroupId', 'name displayId status balance')
             .populate('requestedBy', 'name')
             .sort({ createdAt: -1 }),
+        Group.findById(groupId).select('purpose balance creditLimit creditUsed'),
     ]);
 
     // How much of each funder's money this group has tagged onto expenses.
@@ -656,14 +719,31 @@ export const getGroupLinksService = async (groupId: Id) => {
     );
 
     return {
-        incoming: incoming.map((l) => ({
-            ...l.toJSON(),
-            attributedSpend: spentBySource.get(String((l.sourceGroupId as any)?._id)) ?? 0,
-        })),
+        incoming: incoming.map((l) => {
+            const src = l.sourceGroupId as any;
+            return {
+                ...l.toJSON(),
+                attributedSpend: spentBySource.get(String(src?._id)) ?? 0,
+                // Resolved here with the same rule drawOnCredit enforces, so
+                // the number shown is the number a spend will be held to.
+                availableCredit: src?._id ? availableCreditOf(src) : 0,
+            };
+        }),
         outgoing: outgoing.map((l, i) => ({
             ...l.toJSON(),
             hostCanReceive: hostPlans[i].features.linkGroups,
         })),
+        // When this group is a Reserve: its fixed limit, what is lent out, its
+        // wallet, and what it can still lend (the smaller of the two caps).
+        reserveCredit:
+            self && groupFeaturesOf(self.purpose).fundOthers
+                ? {
+                      creditLimit: self.creditLimit ?? 0,
+                      creditUsed: self.creditUsed ?? 0,
+                      balance: self.balance ?? 0,
+                      available: availableCreditOf(self),
+                  }
+                : null,
     };
 };
 

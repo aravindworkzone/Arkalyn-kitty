@@ -8,8 +8,7 @@ import {
   useRequestLinkMutation,
   useApproveLinkMutation,
   useRejectLinkMutation,
-  useSetCreditLimitMutation,
-  useRepayCreditMutation,
+  useSendToReserveMutation,
   useRevokeLinkMutation,
 } from "../redux/api/groupLink";
 import { useGroupPlan } from "../hooks/usePlan";
@@ -36,10 +35,11 @@ import type { BadgeTone } from "../components/ui";
  *
  * A Reserve works like a credit card for the Family groups it is linked to.
  * "Credit from Reserve groups" is this group borrowing: it spends on credit
- * when recording an expense and repays here. "Credit given by this group" is
- * this group lending: it accepts requests and sets each line's limit. The
- * server enforces the same split — only the Reserve sets a limit, only the
- * Family group repays.
+ * when recording an expense, and sends money to the Reserve here — paying off
+ * what it owes first, depositing the rest. "Credit given by this group" is this
+ * group lending: it accepts requests, up to its fixed limit and its wallet.
+ * The server enforces the same split — only the Reserve accepts, only the
+ * Family group sends money in.
  */
 
 const money = (n: number) =>
@@ -57,9 +57,9 @@ const ref = (v: LinkedGroupRef | string): LinkedGroupRef =>
   typeof v === "string" ? { _id: v, name: v, displayId: "" } : v;
 
 const owedOn = (link: GroupLink) => link.outstanding ?? 0;
-const availableOn = (link: GroupLink) => Math.max(0, (link.creditLimit ?? 0) - owedOn(link));
-
-type OpenForm = { linkId: string; kind: "repay" | "limit" } | null;
+/** A Reserve's available credit is its wallet balance — no separate limit. */
+/** What a Family group can spend on this line now — resolved by the API. */
+const availableOn = (link: GroupLink) => Math.max(0, link.availableCredit ?? 0);
 
 export default function GroupConnectionsPage() {
   const { groupId } = useParams();
@@ -73,11 +73,9 @@ export default function GroupConnectionsPage() {
 
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [sourceRef, setSourceRef] = useState("");
-  // Which row's repay / set-limit form is open, and what's typed in it.
-  const [openForm, setOpenForm] = useState<OpenForm>(null);
+  // Which row's send-to-Reserve form is open, and what's typed in it.
+  const [sendLinkId, setSendLinkId] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
-  // Starting limit typed next to each pending request, keyed by link id.
-  const [approveLimits, setApproveLimits] = useState<Record<string, string>>({});
 
   const { data: group, isLoading: groupLoading, isError: groupError } = useGetGroupByIdQuery(
     groupId!,
@@ -90,8 +88,7 @@ export default function GroupConnectionsPage() {
   const [requestLink, { isLoading: isRequesting }] = useRequestLinkMutation();
   const [approveLink, { isLoading: isApproving }] = useApproveLinkMutation();
   const [rejectLink, { isLoading: isRejecting }] = useRejectLinkMutation();
-  const [setCreditLimit, { isLoading: isSettingLimit }] = useSetCreditLimitMutation();
-  const [repayCredit, { isLoading: isRepaying }] = useRepayCreditMutation();
+  const [sendToReserve, { isLoading: isSending }] = useSendToReserveMutation();
   const [revokeLink, { isLoading: isRevoking }] = useRevokeLinkMutation();
 
   const role = group?.role as Group["role"];
@@ -104,8 +101,8 @@ export default function GroupConnectionsPage() {
   //    on its own plan and on its type (only a Family group can borrow: credit
   //    is spent through expenses). Repaying is never gated — paying back a debt
   //    must work on any plan.
-  //  • Outgoing — this group lends. What gates accepting and setting a limit is
-  //    the COUNTERPART's plan, which only the API can tell us (`hostCanReceive`).
+  //  • Outgoing — this group lends. What gates accepting is the COUNTERPART's
+  //    plan, which only the API can tell us (`hostCanReceive`).
   //
   // Declining and removing are never plan-gated: saying no, and unwinding
   // something already agreed, must work on any plan.
@@ -130,9 +127,9 @@ export default function GroupConnectionsPage() {
     }
   };
 
-  const openFormFor = (linkId: string, kind: "repay" | "limit", prefill = "") => {
-    setOpenForm({ linkId, kind });
-    setAmount(prefill);
+  const openSend = (linkId: string) => {
+    setSendLinkId(linkId);
+    setAmount("");
   };
 
   const onRequest = async () => {
@@ -144,39 +141,21 @@ export default function GroupConnectionsPage() {
     if (ok) setSourceRef("");
   };
 
-  const onRepay = async (linkId: string) => {
+  const onSend = async (linkId: string) => {
     const value = Number(amount);
     if (!Number.isFinite(value) || value <= 0) return;
     const ok = await run(
-      () => repayCredit({ groupId: groupId!, linkId, amount: value }).unwrap(),
-      t("connections.repaid", "Repayment sent to the Reserve group.")
+      () => sendToReserve({ groupId: groupId!, linkId, amount: value }).unwrap(),
+      t("connections.sent", "Money sent to the Reserve group.")
     );
-    if (ok) setOpenForm(null);
+    if (ok) setSendLinkId(null);
   };
 
-  const onSetLimit = async (linkId: string) => {
-    const value = Number(amount);
-    if (!Number.isFinite(value) || value < 0) return;
-    const ok = await run(
-      () => setCreditLimit({ groupId: groupId!, linkId, creditLimit: value }).unwrap(),
-      t("connections.limitSaved", "Credit limit saved.")
-    );
-    if (ok) setOpenForm(null);
-  };
-
-  const onApprove = (linkId: string) => {
-    const raw = approveLimits[linkId]?.trim();
-    const creditLimit = raw ? Number(raw) : undefined;
-    return run(
-      () =>
-        approveLink({
-          groupId: groupId!,
-          linkId,
-          ...(creditLimit !== undefined && Number.isFinite(creditLimit) ? { creditLimit } : {}),
-        }).unwrap(),
+  const onApprove = (linkId: string) =>
+    run(
+      () => approveLink({ groupId: groupId!, linkId }).unwrap(),
       t("connections.approved", "Credit line opened.")
     );
-  };
 
   const onRevoke = (linkId: string) =>
     run(
@@ -205,16 +184,23 @@ export default function GroupConnectionsPage() {
 
   const incoming = links?.incoming ?? [];
   const outgoing = links?.outgoing ?? [];
+  const reserveCredit = links?.reserveCredit ?? null;
   const walletBalance = group?.balance ?? 0;
 
-  /** One row, shared by both directions — only the actions differ. */
+  /**
+   * One row, shared by both directions — only the figures and actions differ.
+   * Borrowing, the counterpart is the Reserve, so the credit it can give (its
+   * balance) is shown; lending, only what this borrower owes is per-row.
+   */
   const Row = ({
     link,
     counterpart,
+    borrowing,
     children,
   }: {
     link: GroupLink;
     counterpart: LinkedGroupRef;
+    borrowing: boolean;
     children?: React.ReactNode;
   }) => (
     <div className="border border-line rounded-xl px-4 py-3.5 space-y-3">
@@ -235,14 +221,24 @@ export default function GroupConnectionsPage() {
       </div>
 
       {(link.status === "ACTIVE" || owedOn(link) > 0) && (
-        <div className="grid grid-cols-3 gap-2 text-theme-xs">
-          <Stat label={t("connections.limit", "Credit limit")} value={money(link.creditLimit ?? 0)} />
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-theme-xs">
+          {borrowing && (
+            <Stat
+              label={t("connections.reserveLimit", "Reserve's limit")}
+              value={money(counterpart.creditLimit ?? 0)}
+            />
+          )}
+          {borrowing && (
+            <Stat
+              label={t("connections.availableCredit", "Available credit")}
+              value={money(availableOn(link))}
+            />
+          )}
           <Stat
             label={t("connections.owed", "Owed")}
             value={money(owedOn(link))}
             tone={owedOn(link) > 0 ? "warning" : undefined}
           />
-          <Stat label={t("connections.available", "Available")} value={money(availableOn(link))} />
         </div>
       )}
 
@@ -271,6 +267,14 @@ export default function GroupConnectionsPage() {
               >
                 {money(link.attributedSpend)}
               </button>
+            </span>
+          )}
+          {(link.deposited ?? 0) > 0 && (
+            <span className="text-fg-muted">
+              {t("connections.depositedLabel", "Deposited into the Reserve")}{" "}
+              <span className="text-fg font-medium" translate="no">
+                {money(link.deposited ?? 0)}
+              </span>
             </span>
           )}
           {link.contribution > 0 && (
@@ -328,7 +332,7 @@ export default function GroupConnectionsPage() {
           title={t("connections.title", "Connected Groups")}
           description={t(
             "connections.description",
-            "A Reserve group works like a credit card for your Family groups. The Reserve sets a limit, the Family group pays for expenses with Reserve credit, and repays whenever it likes."
+            "A Reserve group works like a credit card for your Family groups. It sets a fixed limit; the Family group pays for expenses with Reserve credit, and sends money to the Reserve whenever it likes — paying off what it owes first, depositing the rest."
           )}
         />
 
@@ -352,6 +356,33 @@ export default function GroupConnectionsPage() {
             </div>
           )}
 
+          {/* ── This Reserve's credit: fixed limit, lent out, wallet, available ── */}
+          {reserveCredit && (
+            <Card title={t("connections.reserveCreditTitle", "This Reserve's credit")}>
+              <div className="space-y-3">
+                <p className="text-theme-xs text-fg-muted">
+                  {t(
+                    "connections.reserveCreditHint",
+                    "Family groups can spend up to the fixed limit, as long as the wallet holds the money. Contributions refill the wallet; the limit only changes in Group Management → Credit limit."
+                  )}
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-theme-xs">
+                  <Stat label={t("connections.limit", "Credit limit")} value={money(reserveCredit.creditLimit)} />
+                  <Stat
+                    label={t("connections.lentOut", "Lent out")}
+                    value={money(reserveCredit.creditUsed)}
+                    tone={reserveCredit.creditUsed > 0 ? "warning" : undefined}
+                  />
+                  <Stat label={t("connections.wallet", "Wallet")} value={money(reserveCredit.balance)} />
+                  <Stat
+                    label={t("connections.availableCredit", "Available credit")}
+                    value={money(reserveCredit.available)}
+                  />
+                </div>
+              </div>
+            </Card>
+          )}
+
           {/* ── Incoming: credit this group borrows ─────────────────────────── */}
           {(groupTypeFeatures.receiveFunding || incoming.length > 0) && (
             <Card title={t("connections.incomingTitle", "Credit from Reserve groups")}>
@@ -364,69 +395,100 @@ export default function GroupConnectionsPage() {
               ) : (
                 <div className="space-y-3">
                   {incoming.map((link) => {
-                    const isOpen = openForm?.linkId === link._id && openForm.kind === "repay";
+                    const isOpen = sendLinkId === link._id;
                     const owed = owedOn(link);
-                    const maxRepay = Math.min(owed, walletBalance);
+                    // Owed is paid off first; anything above it is a deposit,
+                    // which needs a live connection.
+                    const maxSend = link.status === "ACTIVE" ? walletBalance : Math.min(owed, walletBalance);
+                    const typed = Number(amount) || 0;
+                    const willRepay = Math.min(typed, owed);
+                    const willDeposit = Math.max(0, typed - willRepay);
+                    const canSend = isAdmin && !isClosed && (link.status === "ACTIVE" || owed > 0);
+                    const reserve = ref(link.sourceGroupId);
                     return (
-                      <Row key={link._id} link={link} counterpart={ref(link.sourceGroupId)}>
+                      <Row key={link._id} link={link} counterpart={reserve} borrowing>
                         {link.status === "PENDING" && (
                           <p className="text-theme-xs text-fg-muted">
                             {t("connections.awaitingThem", "Waiting for the Reserve group's admins to accept.")}
                           </p>
                         )}
 
-                        {link.status === "ACTIVE" && (link.creditLimit ?? 0) === 0 && (
+                        {link.status === "ACTIVE" && availableOn(link) === 0 && (
                           <p className="text-theme-xs text-fg-muted">
-                            {t(
-                              "connections.noLimitYet",
-                              "The Reserve group hasn't set a credit limit yet, so this group can't spend on its credit."
-                            )}
+                            {(reserve.creditLimit ?? 0) === 0
+                              ? t(
+                                  "connections.noLimitYet",
+                                  "The Reserve group hasn't set a credit limit yet, so this group can't spend on its credit."
+                                )
+                              : t(
+                                  "connections.noCreditNow",
+                                  "No Reserve credit is available right now — the limit is used up or the Reserve's wallet is empty."
+                                )}
                           </p>
                         )}
 
-                        {isAdmin && owed > 0 && !isClosed && (
+                        {canSend && (
                           isOpen ? (
                             <div className="space-y-2 pt-1">
                               <AmountInput
                                 value={amount}
                                 onChange={setAmount}
-                                max={maxRepay}
-                                size="sm"
+                                max={maxSend}
+                                size="md"
                                 placeholder="0"
+                                inputClassName={INPUT_CLASS}
                               />
                               <p className="text-theme-xs text-fg-muted" translate="no">
-                                {t("connections.repayHint", {
-                                  defaultValue: "You owe {{owed}}. This group's wallet has {{wallet}}.",
-                                  owed: money(owed),
-                                  wallet: money(walletBalance),
-                                })}
+                                {owed > 0
+                                  ? t("connections.sendHintOwed", {
+                                      defaultValue:
+                                        "This group owes {{owed}}, which is paid off first; anything more goes into the Reserve's wallet. This group's wallet has {{wallet}}.",
+                                      owed: money(owed),
+                                      wallet: money(walletBalance),
+                                    })
+                                  : t("connections.sendHintDeposit", {
+                                      defaultValue:
+                                        "Nothing is owed, so this goes into the Reserve's wallet as a deposit. This group's wallet has {{wallet}}.",
+                                      wallet: money(walletBalance),
+                                    })}
                               </p>
+                              {typed > 0 && (
+                                <p className="text-theme-xs font-medium text-fg" translate="no">
+                                  {t("connections.sendSplit", {
+                                    defaultValue: "{{repay}} repays · {{deposit}} deposited",
+                                    repay: money(willRepay),
+                                    deposit: money(willDeposit),
+                                  })}
+                                </p>
+                              )}
                               <div className="flex flex-wrap gap-2">
                                 <Button
                                   size="sm"
-                                  loading={isRepaying}
-                                  disabled={!Number(amount)}
-                                  onClick={() => onRepay(link._id)}
+                                  loading={isSending}
+                                  disabled={!typed || typed > maxSend}
+                                  onClick={() => onSend(link._id)}
                                 >
-                                  {t("connections.confirmRepay", "Repay")}
+                                  {t("connections.confirmSend", "Send")}
                                 </Button>
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  disabled={maxRepay <= 0}
-                                  onClick={() => setAmount(String(maxRepay))}
-                                >
-                                  {t("connections.repayAll", "Pay maximum")}
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => setOpenForm(null)}>
+                                {owed > 0 && (
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    disabled={Math.min(owed, walletBalance) <= 0}
+                                    onClick={() => setAmount(String(Math.min(owed, walletBalance)))}
+                                  >
+                                    {t("connections.payOwed", "Pay what's owed")}
+                                  </Button>
+                                )}
+                                <Button variant="ghost" size="sm" onClick={() => setSendLinkId(null)}>
                                   {t("connections.cancel", "Cancel")}
                                 </Button>
                               </div>
                             </div>
                           ) : (
                             <div className="flex flex-wrap gap-2">
-                              <Button size="sm" onClick={() => openFormFor(link._id, "repay")}>
-                                {t("connections.repay", "Repay Reserve")}
+                              <Button size="sm" onClick={() => openSend(link._id)}>
+                                {t("connections.sendToReserve", "Send money to Reserve")}
                               </Button>
                             </div>
                           )
@@ -446,7 +508,7 @@ export default function GroupConnectionsPage() {
                   <p className="text-theme-xs text-fg-muted">
                     {t(
                       "connections.requestHint",
-                      "Enter the ID of a Reserve group (like Grp-25-001) to ask it for a credit line. Its admins accept and set your credit limit."
+                      "Enter the ID of a Reserve group (like Grp-25-001) to ask it for a credit line. Once its admins accept, this group can spend on the Reserve's credit, up to its limit."
                     )}
                   </p>
                   <div className="flex items-start gap-2">
@@ -490,15 +552,14 @@ export default function GroupConnectionsPage() {
                 <div className="space-y-3">
                   {outgoing.map((link) => {
                     const counterpart = ref(link.hostGroupId);
-                    const isOpen = openForm?.linkId === link._id && openForm.kind === "limit";
                     // The borrower pays for the connection, so a Free counterpart
-                    // blocks accepting and changing the limit — nothing this group
-                    // can fix by upgrading itself, which is why the notice names them.
+                    // blocks accepting and spending — nothing this group can fix
+                    // by upgrading itself, which is why the notice names them.
                     const hostBlocked =
                       link.hostCanReceive === false &&
                       (link.status === "PENDING" || link.status === "ACTIVE");
                     return (
-                      <Row key={link._id} link={link} counterpart={counterpart}>
+                      <Row key={link._id} link={link} counterpart={counterpart} borrowing={false}>
                         {hostBlocked && isAdmin && (
                           <p className="text-theme-xs px-3 py-2 rounded-lg border border-warning-200 bg-warning-50 text-warning-800 dark:border-warning-500/25 dark:bg-warning-500/10 dark:text-warning-300">
                             {t("connections.hostNeedsPlan", {
@@ -509,16 +570,10 @@ export default function GroupConnectionsPage() {
                           </p>
                         )}
 
-                        {/* A request they made of us: ours to answer, with a
-                            starting limit so they can use the line at once. */}
+                        {/* A request they made of us: ours to answer. Accepting
+                            lets them spend within this Reserve's limit. */}
                         {link.status === "PENDING" && isAdmin && (
                           <div className="space-y-2">
-                            <AmountInput
-                              value={approveLimits[link._id] ?? ""}
-                              onChange={(v) => setApproveLimits((m) => ({ ...m, [link._id]: v }))}
-                              size="sm"
-                              placeholder={t("connections.limitPlaceholder", "Credit limit")}
-                            />
                             <div className="flex flex-wrap gap-2">
                               <Button
                                 size="sm"
@@ -546,45 +601,7 @@ export default function GroupConnectionsPage() {
                           </div>
                         )}
 
-                        {link.status === "ACTIVE" && isAdmin && (
-                          isOpen ? (
-                            <div className="space-y-2 pt-1">
-                              <AmountInput value={amount} onChange={setAmount} size="sm" placeholder="0" />
-                              <p className="text-theme-xs text-fg-muted" translate="no">
-                                {t("connections.limitHint", {
-                                  defaultValue:
-                                    "{{name}} owes {{owed}}. A limit below that only stops new spending until they repay.",
-                                  name: counterpart.name,
-                                  owed: money(owedOn(link)),
-                                })}
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                <Button
-                                  size="sm"
-                                  loading={isSettingLimit}
-                                  disabled={amount.trim() === ""}
-                                  onClick={() => onSetLimit(link._id)}
-                                >
-                                  {t("connections.saveLimit", "Save limit")}
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => setOpenForm(null)}>
-                                  {t("connections.cancel", "Cancel")}
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Button
-                                size="sm"
-                                disabled={!canActOnOutgoing || !link.hostCanReceive}
-                                onClick={() => openFormFor(link._id, "limit", String(link.creditLimit ?? 0))}
-                              >
-                                {t("connections.setLimit", "Set credit limit")}
-                              </Button>
-                              <RemoveControl link={link} />
-                            </div>
-                          )
-                        )}
+                        {link.status === "ACTIVE" && isAdmin && <RemoveControl link={link} />}
                       </Row>
                     );
                   })}

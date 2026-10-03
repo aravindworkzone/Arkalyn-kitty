@@ -93,7 +93,7 @@ export interface GroupCardProps {
 }
 
 // "requests" holds both join approvals and leave requests.
-export type SettingsTab = "addMember" | "changeRole" | "contribution" | "settlement" | "requests" | "export" | "danger";
+export type SettingsTab = "addMember" | "changeRole" | "contribution" | "settlement" | "creditLimit" | "requests" | "export" | "danger";
 
 /**
  * The nav destinations the sidebar tracks for "has anything changed here?".
